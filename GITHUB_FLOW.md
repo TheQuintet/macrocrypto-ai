@@ -154,7 +154,7 @@ These are enforced by GitHub:
 
 ## 📊 Visual Workflow
 
-![GitHub Flow Diagram](./assets/images/github-flow.png)
+![GitHub Flow Diagram](./docs/images/github-flow.png)
 
 
 ---
