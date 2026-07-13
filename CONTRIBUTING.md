@@ -1,4 +1,4 @@
-```markdown
+
 # Contributing to MacroCrypto AI
 
 Thank you for your interest in contributing to MacroCrypto AI! This document outlines the process for contributing to this project.
