@@ -12,27 +12,61 @@
 
 ## Availability
 
-Poll reference: [Weekly meeting slots](https://web.polly.ai/9wg4fo) (GMT+1, Jul 2024).  
-Slots offered: Mon–Sun, 18:00–19:00 and 19:00–20:00.
+Each member has a **color code**. All grid times are in **GMT+1** (team reference — no one is GMT+0). Use the conversion table to see each member's local evening time.
 
-| Name                  | Available slots (GMT+1)                                                           |
-| --------------------- | --------------------------------------------------------------------------------- |
-| Sid Ahmed Mahieddine  | Every day, both slots (18:00–20:00)                                               |
-| Kingson Emma-Ochu     | Every day, 19:00–20:00 only                                                       |
-| Richard Owusu (Ph.D.) | Every day, 18:00–19:00 only                                                       |
-| Loredana Lungu        | Mon–Tue 19:00–20:00, Wed–Thu 18:00–20:00, Sat–Sun 18:00–20:00 — not available Fri |
-| Mael Taye Deneke      | Mon, Wed, Thu, Fri — both slots (18:00–20:00)                                     |
+A cell with your **color** = you're free for that 1-hour block. Empty = unknown / not free.
 
-### Best overlap (4/5 available)
+Evening slots (GMT+1): **18:00–19:00** and **20:00–21:00**.
 
-| Slot (GMT+1)    | Available                    |
-| --------------- | ---------------------------- |
-| Wed 18:00–19:00 | Sid, Richard, Mael, Loredana |
-| Wed 19:00–20:00 | Sid, Kingson, Mael, Loredana |
-| Thu 18:00–19:00 | Sid, Richard, Mael, Loredana |
-| Thu 19:00–20:00 | Sid, Kingson, Mael, Loredana |
+### Member codes
 
-**Note:** Richard and Kingson never share the same hour — Richard is only 18:00–19:00, Kingson only 19:00–20:00. No single slot fits all 5. **Wednesday and Thursday** both have 4/5 on either hour.
+| Code | Member | Base location | Offset |
+| ---- | ------ | ------------- | ------ |
+| 🟦 | Sid Ahmed Mahieddine | Algeria | +1 |
+| 🟧 | Kingson Emma-Ochu | Nigeria | +1 |
+| 🟩 | Richard Owusu (Ph.D.) | Ghana | +2 |
+| 🟥 | Loredana Lungu | Romania | +3 |
+| 🟪 | Mael Taye Deneke | Ethiopia | +3 |
+
+### Grid time → local evening
+
+| | 🟦 (+1) | 🟧 (+1) | 🟩 (+2) | 🟥 (+3) | 🟪 (+3) |
+|---|---------|---------|---------|---------|---------|
+| 18:00–19:00 | 18:00–19:00 | 18:00–19:00 | 19:00–20:00 | 20:00–21:00 | 20:00–21:00 |
+| 20:00–21:00 | 20:00–21:00 | 20:00–21:00 | 21:00–22:00 | 22:00–23:00 | 22:00–23:00 |
+
+---
+
+### Week 1 — Mon 13 – Sun 19 Jul 2026
+
+_Populated from [Polly poll](https://web.polly.ai/presentation/ply:9977d4a2-4b84-4a20-b8d9-332a95c2e24f) (GMT+1)._
+
+| | Mon 13 | Tue 14 | Wed 15 | Thu 16 | Fri 17 | Sat 18 | Sun 19 |
+|---|--------|--------|--------|--------|--------|--------|--------|
+| 18:00–19:00 | 🟦, 🟩, 🟪 | 🟦, 🟩 | 🟦, 🟩, 🟥, 🟪 | 🟦, 🟩, 🟥, 🟪 | 🟦, 🟩, 🟪 | 🟦, 🟩, 🟥 | 🟦, 🟩, 🟥 |
+| 20:00–21:00 | 🟦, 🟧, 🟥, 🟪 | 🟦, 🟧, 🟥 | 🟦, 🟧, 🟥, 🟪 | 🟦, 🟧, 🟥, 🟪 | 🟦, 🟧, 🟪 | 🟦, 🟧, 🟥 | 🟦, 🟧, 🟥 |
+
+---
+
+### Week 2 — Mon 20 – Sun 26 Jul 2026
+
+| | Mon 20 | Tue 21 | Wed 22 | Thu 23 | Fri 24 | Sat 25 | Sun 26 |
+|---|--------|--------|--------|--------|--------|--------|--------|
+| 18:00–19:00 | | | | | | | |
+| 20:00–21:00 | | | | | | | |
+
+---
+
+### Week 3 — Mon 27 Jul – Sun 2 Aug 2026
+
+| | Mon 27 | Tue 28 | Wed 29 | Thu 30 | Fri 31 | Sat 1 | Sun 2 |
+|---|--------|--------|--------|--------|--------|-------|-------|
+| 18:00–19:00 | | | | | | | |
+| 20:00–21:00 | | | | | | | |
+
+---
+
+_Add more weeks by copying a template above. Historical poll: [Weekly meeting slots](https://web.polly.ai/presentation/ply:9977d4a2-4b84-4a20-b8d9-332a95c2e24f) (GMT+1)._
 
 ## Communication
 
