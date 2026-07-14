@@ -10,9 +10,33 @@
 | Loredana Lungu        | Bucharest, Romania                   | GMT +3   | Frontend architecture, React, TypeScript, AI-assisted development | [GitHub](https://github.com/lgloredana)    | [lgloredanaelena@gmail.com](mailto:lgloredanaelena@gmail.com)         | [LinkedIn](https://www.linkedin.com/in/loredana-lungu/)              |
 | Mael Taye Deneke      | Addis Ababa, Ethiopia                | GMT +3   | AWS, technical project management, software engineering           | _TBD_                                      | [maelo.smarter@gmail.com](mailto:maelo.smarter@gmail.com)             | [LinkedIn](https://www.linkedin.com/in/mael-taye-deneke-32b20923a/)  |
 
+## Roles
+
+Initial proposed assignments (can rotate per sprint — log changes in [agile.md](./agile.md)).
+
+| Member | Primary | Secondary |
+|--------|---------|-----------|
+| Sid Ahmed Mahieddine | Product Owner | Coding |
+| Loredana Lungu | Scrum Master | Frontend |
+| Mael Taye Deneke | Code Owner | Backend |
+| Kingson Emma-Ochu | Frontend | Comms & meetings |
+| Richard Owusu (Ph.D.) | Follow-up & QA | Coding |
+
+### Mandatory Agile roles
+
+Every group must designate these roles to meet the Capstone grading criteria.
+
+| Role | Member | Responsibilities |
+|------|--------|------------------|
+| Product Owner | Sid Ahmed Mahieddine | Owns project goals, prioritizes the backlog, clarifies the “what” and “why” of user stories |
+| Scrum Master | Loredana Lungu | Facilitates sprints and ceremonies; helps remove blockers |
+| Code Owner | Mael Taye Deneke | Reviews and approves pull requests to maintain code quality |
+
+A member can hold both a mandatory Agile role and a technical role. Roles can rotate per sprint — log changes in [agile.md](./agile.md).
+
 ## Availability
 
-Each member has a **color code**. All grid times are in **GMT+1** (team reference — no one is GMT+0). Use the conversion table to see each member's local evening time.
+When people are free for **meetings** (standups, planning, refinement) — separate from job roles above.
 
 A cell with your **color** = you're free for that 1-hour block. Empty = unknown / not free.
 
@@ -20,13 +44,13 @@ Evening slots (GMT+1): **18:00–19:00** and **20:00–21:00**.
 
 ### Member codes
 
-| Code | Member | Base location | Offset |
-| ---- | ------ | ------------- | ------ |
-| 🟦 | Sid Ahmed Mahieddine | Algeria | +1 |
-| 🟧 | Kingson Emma-Ochu | Nigeria | +1 |
-| 🟩 | Richard Owusu (Ph.D.) | Ghana | +2 |
-| 🟥 | Loredana Lungu | Romania | +3 |
-| 🟪 | Mael Taye Deneke | Ethiopia | +3 |
+| Code | Member | Primary role | Offset |
+| ---- | ------ | ------------ | ------ |
+| 🟦 | Sid Ahmed Mahieddine | Product Owner | +1 |
+| 🟧 | Kingson Emma-Ochu | Frontend | +1 |
+| 🟩 | Richard Owusu (Ph.D.) | Follow-up & QA | +2 |
+| 🟥 | Loredana Lungu | Scrum Master | +3 |
+| 🟪 | Mael Taye Deneke | Code Owner | +3 |
 
 ### Grid time → local evening
 
