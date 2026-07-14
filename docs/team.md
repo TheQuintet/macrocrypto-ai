@@ -36,7 +36,7 @@ A member can hold both a mandatory Agile role and a technical role. Roles can ro
 
 ## Availability
 
-When people are free for **meetings** (standups, planning, refinement) — separate from job roles above.
+When people are free for **sync meetings** (planning, refinement) — separate from job roles above. Daily standups are async in Slack; see [agile.md](./agile.md#daily-standup-template).
 
 A cell with your **color** = you're free for that 1-hour block. Empty = unknown / not free.
 
@@ -96,6 +96,6 @@ _Add more weeks by copying a template above. Historical poll: [Weekly meeting sl
 
 | Channel                                   | Purpose                                                       |
 | ----------------------------------------- | ------------------------------------------------------------- |
-| Slack `#capstone-project-group` (private) | Main team channel — async updates, questions, and decisions   |
+| Slack `#capstone-project-group` (private) | Daily standups, async updates, questions, and decisions       |
 | Email                                     | Direct contact — see team member addresses in the table above |
 | WhatsApp                                  | Quick informal coordination and urgent pings                  |

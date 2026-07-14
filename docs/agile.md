@@ -44,6 +44,8 @@ PLAN → ASSIGN → WORK → REVIEW → TRACK → CLOSE → RETROSPECT
 | **Review** | Tasks in pull request / code review |
 | **Done** | Completed and merged |
 
+**Board flow:** New items land in **Backlog** until refined. **To Do** holds sprint-ready work — no extra column needed. During refinement or planning, move issues from Backlog → To Do when they are ready to be picked up.
+
 ### How tasks move
 
 | Action | From → To | Who |
@@ -70,6 +72,9 @@ PLAN → ASSIGN → WORK → REVIEW → TRACK → CLOSE → RETROSPECT
 | `bug` | Bugs |
 | `enhancement` | New features |
 | `documentation` | Docs-related tasks |
+| `blocked` | Task cannot proceed — waiting on a dependency, decision, or person. Remove when unblocked. |
+
+When blocked, add the `blocked` label to the issue, note the blocker in a comment, and flag it in your daily standup. The [Scrum Master](./team.md) helps clear blockers.
 
 ---
 
@@ -91,20 +96,22 @@ PLAN → ASSIGN → WORK → REVIEW → TRACK → CLOSE → RETROSPECT
 |----------|---------|-------|
 | **Sprint planning** | Select stories, estimate, assign owners | See [Planning sessions](./meetings/planning.md) |
 | **Backlog refinement** | Clarify stories, acceptance criteria, estimates | See [Refinement sessions](./meetings/refinement.md) |
-| **Daily standup** (15 min) | Yesterday / today / blockers | See template below |
+| **Daily standup** (async) | Yesterday / today / blockers | Written update in Slack — see template below |
 | **Sprint review** | Demo completed work, review what's left | End of each sprint |
 | **Retrospective** | What went well, what to improve | After each sprint |
 
 ### Daily standup template
 
-```markdown
-## Team Standup — [Date]
+Standups are **async** — we cannot sync daily across time zones. Each person posts their own update in `#capstone-project-group` on working days.
 
-### [Name]
-- Yesterday:
-- Today:
-- Blockers:
+```markdown
+### You
+- Yesterday: Set up RabbitMQ
+- Today: Start Docker Compose
+- Blockers: None
 ```
+
+Replace the heading with your name. If you have a blocker, add the `blocked` label to the relevant issue and mention it here.
 
 ### Sprint review checklist
 
@@ -130,7 +137,7 @@ PLAN → ASSIGN → WORK → REVIEW → TRACK → CLOSE → RETROSPECT
 
 1. **Start day** — check assigned issues on the board; `git pull origin main`
 2. **Work on issue** — move to In Progress; branch `feature/issue-name`; commit and push regularly
-3. **Daily standup** — share yesterday / today / blockers
+3. **Daily standup** — post yesterday / today / blockers in Slack; label blocked issues
 4. **Open PR** — move issue to Review; request review from a teammate
 5. **Review PRs** — review at least one PR per day; approve or request changes; merge when approved
 6. **End day** — update board status; close issues when done
@@ -150,7 +157,7 @@ Code changes follow [GitHub Flow](../GITHUB_FLOW.md). See also [Contributing](..
 
 | Tool | Purpose |
 |------|---------|
-| Slack `#capstone-project-group` | Quick questions, async updates |
+| Slack `#capstone-project-group` | Daily standups, quick questions, async updates |
 | Email / WhatsApp | See [team.md](./team.md#communication) |
 | GitHub Issues | Task discussions |
 | PR comments | Code discussions |
@@ -173,14 +180,14 @@ Code changes follow [GitHub Flow](../GITHUB_FLOW.md). See also [Contributing](..
 - [ ] Assign tasks to team members
 - [ ] Move issues to To Do
 - [ ] Share board link with team
-- [ ] Schedule daily standups
+- [ ] Agree on async standup format (Slack, working days)
 
 ### During sprint
 
 - [ ] Update board daily
 - [ ] Review PRs promptly
-- [ ] Communicate blockers immediately
-- [ ] Attend daily standups
+- [ ] Label blocked issues and communicate blockers immediately
+- [ ] Post daily standup update in Slack
 
 ### After sprint ends
 
@@ -293,7 +300,7 @@ Acceptance criteria:
 | Start small | Don't overcomplicate the process |
 | Update the board daily | Everyone knows what's happening |
 | Review code quickly | Don't let PRs sit for days |
-| Communicate blockers early | Get help before you're stuck |
+| Communicate blockers early | Label `blocked` and post in standup before you're stuck |
 | Celebrate wins | Keep the team motivated |
 
 ---
@@ -304,6 +311,7 @@ Acceptance criteria:
 |---------|------|---------|
 | 1.0 | 2026-07-08 | Initial project management guide |
 | 1.1 | 2026-07-14 | Merged into docs/agile.md |
+| 1.2 | 2026-07-14 | Async standups, `blocked` label, board flow note |
 
 ---
 
