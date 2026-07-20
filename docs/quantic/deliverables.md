@@ -5,6 +5,7 @@ To receive credit for the Capstone, we must submit **all** of the following. Use
 **Grading:** Projects are scored **0–5**. A score of **3 or higher** is required to pass. See [Grading & Pass Criteria](./grading.md) for details.
 
 ---
+##  Deadline :  October 5
 
 ## Mandatory submissions
 
