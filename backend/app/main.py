@@ -7,6 +7,10 @@ from app.websocket.btc_client import (
     connect_btc_price_stream
 )
 
+from app.services.history_service import HistoryService
+from app.services.container import price_service
+
+
 btc_task = None
 
 
@@ -14,9 +18,73 @@ btc_task = None
 async def lifespan(app: FastAPI):
     global btc_task
 
-    btc_task = asyncio.create_task(
-        connect_btc_price_stream()
-    )
+
+    # =====================================
+    # Initialize historical market data
+    # =====================================
+    #
+    # Loads historical BTC daily candles
+    # required for calculating 7-day price
+    # movement.
+    #
+    # This must happen before starting the
+    # WebSocket stream so live updates can
+    # immediately calculate 7-day changes.
+
+    try:
+
+        history_service = HistoryService()
+
+        candles = await history_service.get_daily_candles(
+            limit=8
+        )
+
+
+        price_service.initialize_from_history(
+            candles
+        )
+
+
+        print(
+            f"7-day reference price initialized: "
+            f"{price_service.price_7d_reference}"
+        )
+
+
+    except Exception as error:
+
+        # Historical data is required for 7-day
+        # calculations but should not prevent the
+        # application from starting.
+        #
+        # Live BTC price updates can still continue.
+        print(
+            f"Historical initialization failed: {error}"
+        )
+
+
+
+    # =====================================
+    # Start real-time BTC price stream
+    # =====================================
+    #
+    # WebSocket task continuously receives
+    # Binance ticker updates and updates
+    # PriceService state.
+
+    try:
+
+        btc_task = asyncio.create_task(
+            connect_btc_price_stream()
+        )
+
+
+    except Exception as error:
+
+        print(
+            f"Failed to start BTC WebSocket task: {error}"
+        )
+
 
     yield
 
