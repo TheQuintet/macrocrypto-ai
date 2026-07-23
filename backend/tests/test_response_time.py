@@ -9,6 +9,7 @@ Validates:
 
 import time
 import requests
+import pytest
 
 API_URL = "http://127.0.0.1:8000/api/v1/btc/price"
 
@@ -20,6 +21,10 @@ def test_response_time_with_redis_cache():
     Note: This test assumes the app is running with Redis enabled.
     It's an integration test and should be run against a running instance.
     """
+    
+    # Give the rate limit a moment to reset
+    # This helps prevent interference from other tests
+    time.sleep(2)
     
     # -----------------------------
     # First request (cache miss)
