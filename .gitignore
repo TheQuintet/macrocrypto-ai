@@ -5,7 +5,7 @@
 .venv/
 .env.local
 .env.*.local
-.env.example  # (if you don't want to commit it, but we already did)
+# .env.example  # (if you don't want to commit it, but we already did)
 
 # ====================
 # Python
