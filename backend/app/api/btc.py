@@ -1,13 +1,13 @@
 from fastapi import APIRouter, Request
 from fastapi import Depends
+import json  # ← IMPORTANT: Add this import!
 
 from app.api.dependencies import jwt_auth
 from app.core.cache import get_redis
 from app.core.rate_limit import limiter
 from redis.exceptions import RedisError
 from app.schemas.price_response import PriceResponse
-from app.services.container import price_service
-
+from app.services.container import price_service  # ← IMPORTANT: Add this import!
 
 router = APIRouter(
     prefix="/api/v1/btc",
@@ -40,33 +40,25 @@ async def get_btc_price(
     - JWT authentication support is prepared for future secured endpoints.
     """
     cache_key = "btc_price_snapshot"
-
     redis = get_redis()
 
-    try:
-        # Try Redis cache first
-        cached_snapshot = redis.get(cache_key)
+    # Try Redis cache first (only if Redis is available)
+    if redis is not None:
+        try:
+            cached_snapshot = redis.get(cache_key)
+            if cached_snapshot:
+                print("✅ Returning BTC price from Redis cache")
+                return PriceResponse(**json.loads(cached_snapshot))
+        except RedisError as error:
+            print(f"⚠️ Redis read failed: {error}")
+        except Exception as error:
+            print(f"⚠️ Unexpected Redis error: {error}")
+    else:
+        print("ℹ️ Redis not available - skipping cache")
 
-        if cached_snapshot:
-            print("Returning BTC price from Redis cache")
-
-            return PriceResponse(
-                **json.loads(cached_snapshot)
-            )
-
-    except RedisError as error:
-        print(f"Redis read failed: {error}")
-
-    except Exception as error:
-        print(f"Unexpected Redis error: {error}")
-
-
-    # Redis miss or Redis unavailable
-    print("Reading BTC price from PriceService")
-
-
+    # Redis miss or Redis unavailable - fetch from service
+    print("📡 Reading BTC price from PriceService")
     snapshot = price_service.get_snapshot()
-
 
     response = PriceResponse(
         current_price=snapshot.current_price,
@@ -80,19 +72,14 @@ async def get_btc_price(
         updated_at=snapshot.updated_at,
     )
 
-
-    try:
-        redis.setex(
-            cache_key,
-            5,
-            response.model_dump_json()
-        )
-
-    except RedisError as error:
-        print(f"Redis write failed: {error}")
-
-    except Exception as error:
-        print(f"Unexpected Redis write error: {error}")
-
+    # Cache the response (only if Redis is available)
+    if redis is not None:
+        try:
+            redis.setex(cache_key, 5, response.model_dump_json())
+            print("💾 BTC price cached in Redis")
+        except RedisError as error:
+            print(f"⚠️ Redis write failed: {error}")
+        except Exception as error:
+            print(f"⚠️ Unexpected Redis write error: {error}")
 
     return response
