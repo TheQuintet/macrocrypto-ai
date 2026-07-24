@@ -6,9 +6,14 @@ from fastapi import FastAPI
 from app.websocket.btc_client import (
     connect_btc_price_stream
 )
+from slowapi.errors import RateLimitExceeded
+from slowapi import _rate_limit_exceeded_handler
+
+from app.core.rate_limit import limiter
 
 from app.services.history_service import HistoryService
 from app.services.container import price_service
+from app.api.btc import router as btc_router
 
 
 btc_task = None
@@ -108,6 +113,13 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+app.state.limiter = limiter
+
+app.add_exception_handler(
+    RateLimitExceeded,
+    _rate_limit_exceeded_handler
+)
+app.include_router(btc_router)
 
 @app.get("/")
 async def root():
