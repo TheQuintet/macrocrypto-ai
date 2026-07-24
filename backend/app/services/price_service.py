@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 @dataclass
@@ -54,7 +54,9 @@ class PriceService:
             low_24h=0,
             volume_24h=0,
 
-            updated_at=datetime.utcnow()
+            # updated_at=datetime.utcnow()
+            # FIXED: This creates a timezone-aware UTC timestamp
+            updated_at=datetime.now(timezone.utc)
         )
 
 
@@ -108,7 +110,7 @@ class PriceService:
         current_price: float,
 
         change_24h: float,
-        change_24h_percent: float,
+        change_24h_percent: float, # is this a ready value from the BTC data or needs to be calculated?
 
         high_24h: float,
         low_24h: float,
@@ -142,7 +144,7 @@ class PriceService:
             self._calculate_7d_change()
 
 
-            self.snapshot.updated_at = datetime.utcnow()
+            self.snapshot.updated_at = datetime.now(timezone.utc)
 
 
 
