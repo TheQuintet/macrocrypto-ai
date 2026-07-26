@@ -1,0 +1,134 @@
+"""Environment configuration for data-service"""
+
+from pydantic_settings import BaseSettings
+from typing import Optional
+from functools import lru_cache
+import os
+
+
+class Settings(BaseSettings):
+    """Application settings"""
+    
+    # ============================================
+    # SERVICE CONFIGURATION
+    # ============================================
+    SERVICE_NAME: str = "data-service"
+    SERVICE_PORT: int = 8001
+    LOG_LEVEL: str = "INFO"
+    
+    # ============================================
+    # DATABASE
+    # ============================================
+    # In Docker: postgres (service name)
+    # Locally: localhost
+    DATABASE_URL: str = "postgresql://macro:crypto@postgres:5432/macrocrypto"
+    DATABASE_POOL_SIZE: int = 5
+    DATABASE_MAX_OVERFLOW: int = 10
+    
+    # ============================================
+    # REDIS
+    # ============================================
+    # Support BOTH individual settings AND full URL
+    REDIS_ENABLED: bool = True
+    REDIS_HOST: str = "redis"  # Docker service name
+    REDIS_PORT: int = 6379
+    REDIS_DB: int = 0
+    REDIS_URL: Optional[str] = None  # Override if provided
+    REDIS_CACHE_TTL: int = 300
+    
+    @property
+    def REDIS_CONNECTION_URL(self) -> str:
+        """Build Redis connection URL (supports both formats)"""
+        if self.REDIS_URL:
+            return self.REDIS_URL
+        return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
+    
+    # ============================================
+    # RABBITMQ
+    # ============================================
+    RABBITMQ_HOST: str = "rabbitmq"  # Docker service name
+    RABBITMQ_PORT: int = 5672
+    RABBITMQ_USER: str = "guest"
+    RABBITMQ_PASSWORD: str = "guest"
+    RABBITMQ_VHOST: str = "/"
+    RABBITMQ_URL: Optional[str] = None
+    
+    @property
+    def RABBITMQ_CONNECTION_URL(self) -> str:
+        """Build RabbitMQ connection URL"""
+        if self.RABBITMQ_URL:
+            return self.RABBITMQ_URL
+        return f"amqp://{self.RABBITMQ_USER}:{self.RABBITMQ_PASSWORD}@{self.RABBITMQ_HOST}:{self.RABBITMQ_PORT}{self.RABBITMQ_VHOST}"
+    
+    # ============================================
+    # BINANCE API (Primary Crypto Data Source)
+    # ============================================
+    # REST API
+    BINANCE_REST_URL: str = "https://api.binance.com/api/v3"
+    BINANCE_TESTNET_URL: str = "https://testnet.binance.vision/api/v3"
+    BINANCE_USE_TESTNET: bool = False
+    
+    # WebSocket
+    BINANCE_WS_URL: str = "wss://stream.binance.com:9443/ws"
+    BINANCE_WS_TESTNET_URL: str = "wss://testnet.binance.vision/ws"
+    
+    # Rate limiting
+    BINANCE_RATE_LIMIT_PER_MINUTE: int = 1200
+    
+    # Default symbol
+    BINANCE_DEFAULT_SYMBOL: str = "BTCUSDT"
+    
+    @property
+    def BINANCE_REST_ENDPOINT(self) -> str:
+        """Get the appropriate Binance REST endpoint"""
+        return self.BINANCE_TESTNET_URL if self.BINANCE_USE_TESTNET else self.BINANCE_REST_URL
+    
+    @property
+    def BINANCE_WS_ENDPOINT(self) -> str:
+        """Get the appropriate Binance WebSocket endpoint"""
+        return self.BINANCE_WS_TESTNET_URL if self.BINANCE_USE_TESTNET else self.BINANCE_WS_URL
+    
+    # ============================================
+    # FRED API (Economic Indicators)
+    # ============================================
+    FRED_API_URL: str = "https://api.stlouisfed.org/fred"
+    FRED_API_KEY: Optional[str] = None
+    
+    # ============================================
+    # COLLECTION INTERVALS (seconds)
+    # ============================================
+    PRICE_COLLECTION_INTERVAL: int = 60
+    ECONOMIC_COLLECTION_INTERVAL: int = 3600
+    WEBSOCKET_RECONNECT_DELAY: int = 5
+    
+    # ============================================
+    # RATE LIMITING
+    # ============================================
+    RATE_LIMIT_ENABLED: bool = True
+    RATE_LIMIT_REQUESTS: int = 100
+    
+    # ============================================
+    # DEVELOPMENT
+    # ============================================
+    RELOAD: bool = False
+    DEBUG: bool = False
+    
+    @property
+    def IS_IN_DOCKER(self) -> bool:
+        """Detect if running inside a Docker container"""
+        return os.path.exists('/.dockerenv') or os.path.exists('/proc/1/cgroup')
+    
+    class Config:
+        # Try .env first, fallback to .env.example
+        env_file = ".env" if os.path.exists(".env") else ".env.example"
+        env_file_encoding = "utf-8"
+        case_sensitive = True
+
+
+@lru_cache()
+def get_settings() -> Settings:
+    """Cache settings for better performance"""
+    return Settings()
+
+
+settings = get_settings()
