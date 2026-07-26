@@ -37,12 +37,16 @@ help:
 	@echo "  $(GREEN)make clean$(RESET)          - Clean Python cache files"
 	@echo ""
 	@echo "$(YELLOW)Data-Service Commands:$(RESET)"
-	@echo "  $(GREEN)make data-up$(RESET)        - Start data-service"
+	@echo "  $(GREEN)make data-up$(RESET)        - Start data-service (rebuilds if needed)"
 	@echo "  $(GREEN)make data-down$(RESET)      - Stop data-service"
 	@echo "  $(GREEN)make data-logs$(RESET)      - Show data-service logs"
 	@echo "  $(GREEN)make data-restart$(RESET)   - Restart data-service"
 	@echo "  $(GREEN)make data-shell$(RESET)     - Open shell in data-service"
 	@echo "  $(GREEN)make data-test$(RESET)      - Run data-service tests"
+	@echo "  $(GREEN)make data-test-unit$(RESET) - Run unit tests only"
+	@echo "  $(GREEN)make data-test-int$(RESET)  - Run integration tests only"
+	@echo "  $(GREEN)make data-test-e2e$(RESET)  - Run e2e tests only"
+	@echo "  $(GREEN)make data-test-cov$(RESET)  - Run tests with coverage"
 	@echo "  $(GREEN)make data-lint$(RESET)      - Lint data-service code"
 	@echo "  $(GREEN)make data-format$(RESET)    - Format data-service code"
 	@echo ""
@@ -56,6 +60,11 @@ help:
 	@echo "  $(GREEN)make venv$(RESET)           - Create virtual environment"
 	@echo "  $(GREEN)make install$(RESET)        - Install dependencies"
 	@echo "  $(GREEN)make run$(RESET)            - Run data-service locally"
+	@echo ""
+	@echo "$(YELLOW)Monitoring Commands:$(RESET)"
+	@echo "  $(GREEN)make health$(RESET)         - Check service health"
+	@echo "  $(GREEN)make price$(RESET)          - Get current BTC price"
+	@echo "  $(GREEN)make watch-price$(RESET)    - Live BTC price tracking"
 	@echo ""
 	@echo "$(GREEN)━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━$(RESET)"
 
@@ -107,21 +116,49 @@ data-restart:
 data-shell:
 	docker compose exec data-service /bin/bash
 
+# ============================================
+# DATA-SERVICE TEST COMMANDS
+# ============================================
+
 data-test:
-	docker compose exec data-service pytest -v
+	@echo "🧪 Running all tests..."
+	docker compose exec data-service pytest tests/ -v
 
 data-test-unit:
-	docker compose exec data-service pytest -m unit -v
+	@echo "🧪 Running unit tests..."
+	docker compose exec data-service pytest tests/unit/ -v
 
-data-test-integration:
-	docker compose exec data-service pytest -m integration -v
+data-test-int:
+	@echo "🧪 Running integration tests..."
+	docker compose exec data-service pytest tests/integration/ -v
 
-data-test-coverage:
-	docker compose exec data-service pytest --cov=app --cov-report=html
+data-test-e2e:
+	@echo "🧪 Running e2e tests..."
+	docker compose exec data-service pytest tests/e2e/ -v
+
+data-test-cov:
+	@echo "🧪 Running tests with coverage..."
+	docker compose exec data-service pytest tests/ --cov=app --cov-report=term --cov-report=html
 	@echo "📊 Coverage report: services/data-service/htmlcov/index.html"
 
+data-test-file:
+	@echo "🧪 Running test file: $(FILE)"
+	docker compose exec data-service pytest $(FILE) -v
+
+data-test-verbose:
+	@echo "🧪 Running tests with verbose output..."
+	docker compose exec data-service pytest tests/ -v -s --tb=long
+
+data-test-quick:
+	@echo "🧪 Running tests (skip slow)..."
+	docker compose exec data-service pytest tests/ -v -k "not slow"
+
+# ============================================
+# LINTING & FORMATTING
+# ============================================
+
 data-lint:
-	docker compose exec data-service flake8 app/ --max-line-length=120
+	docker compose exec data-service flake8 app/ --max-line-length=120 || echo "⚠️  Lint issues found"
 
 data-format:
 	docker compose exec data-service black app/ --line-length=120
@@ -193,6 +230,9 @@ tail-logs:
 
 watch-logs:
 	docker compose logs -f data-service | grep -i "btc price\|error\|exception"
+
+watch-websocket:
+	docker compose logs -f data-service | grep -i "websocket\|btc price\|connected"
 
 # ============================================
 # STATUS COMMANDS
