@@ -1,1 +1,0 @@
-Backend requires Python 3.13+
