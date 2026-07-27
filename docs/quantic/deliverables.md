@@ -120,8 +120,7 @@ Before final submission, confirm:
 ## Related pages
 
 - [Grading & Pass Criteria](./grading.md)
-- [Scope](../scope.md)
-- [Agile & Sprints](../agile.md)
-- [Agile & Sprints](../agile.md)
+- [Scope](../project-scope.md)
+- [Agile & Sprints](../project-workflow.md)
 - [Policies & Standards](./policies.md)
 - [Graduation home](./README.md)

@@ -12,7 +12,7 @@
 
 ## Roles
 
-Initial proposed assignments (can rotate per sprint — log changes in [agile.md](./agile.md)).
+Initial proposed assignments (can rotate per sprint — log changes in [project-workflow.md](./project-workflow.md)).
 
 | Member | Primary | Secondary |
 |--------|---------|-----------|
@@ -32,11 +32,11 @@ Every group must designate these roles to meet the Capstone grading criteria.
 | Scrum Master | Loredana Lungu | Facilitates sprints and ceremonies; helps remove blockers |
 | Code Owner | Mael Taye Deneke | Reviews and approves pull requests to maintain code quality |
 
-A member can hold both a mandatory Agile role and a technical role. Roles can rotate per sprint — log changes in [agile.md](./agile.md).
+A member can hold both a mandatory Agile role and a technical role. Roles can rotate per sprint — log changes in [project-workflow.md](./project-workflow.md).
 
 ## Availability
 
-When people are free for **sync meetings** (planning, refinement) — separate from job roles above. Daily standups are async in Slack; see [agile.md](./agile.md#daily-standup-template).
+When people are free for **sync meetings** (planning, refinement) — separate from job roles above. Daily standups are async in Slack; see [project-workflow.md](./project-workflow.md#daily-standup-template).
 
 A cell with your **color** = you're free for that 1-hour block. Empty = unknown / not free.
 

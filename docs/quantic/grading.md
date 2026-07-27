@@ -38,9 +38,9 @@ See [Deliverables](./deliverables.md) for the full checklist.
 
 ### Process requirements
 
-- [ ] **Product Owner** and **Scrum Master** assigned — [Team](../team.md)
-- [ ] **Agile** followed: 3+ sprints, task board, ceremonies — [Agile & Sprints](../agile.md)
-- [ ] **Planning** and **refinement** sessions documented — [Planning](../meetings/planning.md) · [Refinement](../meetings/refinement.md)
+- [ ] **Product Owner** and **Scrum Master** assigned — [Team](../team-roles.md)
+- [ ] **Agile** followed: 3+ sprints, task board, ceremonies — [Agile & Sprints](../project-workflow.md)
+- [ ] **Planning** and **refinement** sessions documented — [Planning](../meetings/templates/planning.md) · [Refinement](../meetings/templates/refinement.md)
 
 ### Policy requirements
 
@@ -166,6 +166,6 @@ Minimum = everyone speaks + ID on camera. **Top scores** usually also include:
 
 - [Deliverables](./deliverables.md)
 - [Policies & Standards](./policies.md)
-- [Scope](../scope.md)
-- [Agile & Sprints](../agile.md)
+- [Scope](../project-scope.md)
+- [Agile & Sprints](../project-workflow.md)
 - [Graduation home](./README.md)

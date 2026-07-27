@@ -85,6 +85,6 @@ Plan speaking time so all six members contribute meaningfully.
 
 - [Grading & Pass Criteria](./grading.md)
 - [Deliverables](./deliverables.md)
-- [Scope](../scope.md)
-- [Team](../team.md)
+- [Scope](../project-scope.md)
+- [Team](../team-roles.md)
 - [Graduation home](./README.md)

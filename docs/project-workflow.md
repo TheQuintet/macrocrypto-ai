@@ -74,7 +74,7 @@ PLAN → ASSIGN → WORK → REVIEW → TRACK → CLOSE → RETROSPECT
 | `documentation` | Docs-related tasks |
 | `blocked` | Task cannot proceed — waiting on a dependency, decision, or person. Remove when unblocked. |
 
-When blocked, add the `blocked` label to the issue, note the blocker in a comment, and flag it in your daily standup. The [Scrum Master](./team.md) helps clear blockers.
+When blocked, add the `blocked` label to the issue, note the blocker in a comment, and flag it in your daily standup. The [Scrum Master](./team-roles.md) helps clear blockers.
 
 ---
 
@@ -94,8 +94,8 @@ When blocked, add the `blocked` label to the issue, note the blocker in a commen
 
 | Ceremony | Purpose | Notes |
 |----------|---------|-------|
-| **Sprint planning** | Select stories, estimate, assign owners | See [Planning sessions](./meetings/planning.md) |
-| **Backlog refinement** | Clarify stories, acceptance criteria, estimates | See [Refinement sessions](./meetings/refinement.md) |
+| **Sprint planning** | Select stories, estimate, assign owners | See [Planning template](./meetings/templates/planning.md) |
+| **Backlog refinement** | Clarify stories, acceptance criteria, estimates | See [Refinement template](./meetings/templates/refinement.md) |
 | **Daily standup** (async) | Yesterday / today / blockers | Written update in Slack — see template below |
 | **Sprint review** | Demo completed work, review what's left | End of each sprint |
 | **Retrospective** | What went well, what to improve | After each sprint |
@@ -158,7 +158,7 @@ Code changes follow [GitHub Flow](../GITHUB_FLOW.md). See also [Contributing](..
 | Tool | Purpose |
 |------|---------|
 | Slack `#capstone-project-group` | Daily standups, quick questions, async updates |
-| Email / WhatsApp | See [team.md](./team.md#communication) |
+| Email / WhatsApp | See [team-roles.md](./team-roles.md#communication) |
 | GitHub Issues | Task discussions |
 | PR comments | Code discussions |
 
@@ -168,7 +168,7 @@ Code changes follow [GitHub Flow](../GITHUB_FLOW.md). See also [Contributing](..
 
 - Complete **at least 3 sprints** during the capstone.
 - Each sprint needs a clear **goal**, **planned stories/tasks**, and a **review** of what was completed.
-- [Product Owner](./team.md) prioritizes; [Scrum Master](./team.md) facilitates.
+- [Product Owner](./team-roles.md) prioritizes; [Scrum Master](./team-roles.md) facilitates.
 
 ---
 
@@ -317,9 +317,9 @@ Acceptance criteria:
 
 ## Related pages
 
-- [Planning sessions](./meetings/planning.md)
-- [Refinement sessions](./meetings/refinement.md)
-- [Team](./team.md)
+- [Planning template](./meetings/templates/planning.md)
+- [Refinement template](./meetings/templates/refinement.md)
+- [Team](./team-roles.md)
 - [Deliverables](./quantic/deliverables.md)
 - [GitHub Flow](../GITHUB_FLOW.md)
 - [Docs home](./README.md)
