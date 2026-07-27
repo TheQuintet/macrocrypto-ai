@@ -40,7 +40,7 @@ When people are free for **sync meetings** (planning, refinement) — separate f
 
 A cell with your **color** = you're free for that 1-hour block. Empty = unknown / not free.
 
-Evening slots (GMT+1): **18:00–19:00** and **20:00–21:00**.
+Source of truth: [Notion Capstone Team Availability](https://app.notion.com/p/39fd8570062e80cf94cbcb859ebd4e57?v=39fd8570062e80939b5d000c5cd3f3ae) calendar (synced below).
 
 ### Member codes
 
@@ -52,23 +52,28 @@ Evening slots (GMT+1): **18:00–19:00** and **20:00–21:00**.
 | 🟥 | Loredana Lungu | Scrum Master | +3 |
 | 🟪 | Mael Taye Deneke | Code Owner | +3 |
 
-### Grid time → local evening
+### Slots (local times)
 
-| | 🟦 (+1) | 🟧 (+1) | 🟩 (+2) | 🟥 (+3) | 🟪 (+3) |
-|---|---------|---------|---------|---------|---------|
-| 18:00–19:00 | 18:00–19:00 | 18:00–19:00 | 19:00–20:00 | 20:00–21:00 | 20:00–21:00 |
-| 20:00–21:00 | 20:00–21:00 | 20:00–21:00 | 21:00–22:00 | 22:00–23:00 | 22:00–23:00 |
+| Slot A | Slot B |
+| ------ | ------ |
+| **18:00–19:00 GMT+1** Sid, Kingston | **19:00–20:00 GMT+1** Sid, Kingston |
+| **19:00–20:00 GMT+2** Richard | **20:00–21:00 GMT+2** Richard |
+| **20:00–21:00 GMT+3** Lore, Mael | **21:00–22:00 GMT+3** Lore, Mael |
+
+Weekly grids below use Slot A = 18:00–19:00 GMT+1 and Slot B = 19:00–20:00 GMT+1.
 
 ---
 
 ### Week 1 — Mon 13 – Sun 19 Jul 2026
 
-_Populated from [Polly poll](https://web.polly.ai/presentation/ply:9977d4a2-4b84-4a20-b8d9-332a95c2e24f) (GMT+1)._
+_Mon–Thu from [Polly poll](https://web.polly.ai/presentation/ply:9977d4a2-4b84-4a20-b8d9-332a95c2e24f) (second slot was **20:00–21:00** GMT+1, not Slot B). Fri–Sun from [Notion Capstone Team Availability](https://app.notion.com/p/39fd8570062e80cf94cbcb859ebd4e57?v=39fd8570062e80939b5d000c5cd3f3ae)._
 
 | | Mon 13 | Tue 14 | Wed 15 | Thu 16 | Fri 17 | Sat 18 | Sun 19 |
 |---|--------|--------|--------|--------|--------|--------|--------|
-| 18:00–19:00 | 🟦, 🟩, 🟪 | 🟦, 🟩 | 🟦, 🟩, 🟥, 🟪 | 🟦, 🟩, 🟥, 🟪 | 🟦, 🟩, 🟪 | 🟦, 🟩, 🟥 | 🟦, 🟩, 🟥 |
-| 20:00–21:00 | 🟦, 🟧, 🟥, 🟪 | 🟦, 🟧, 🟥 | 🟦, 🟧, 🟥, 🟪 | 🟦, 🟧, 🟥, 🟪 | 🟦, 🟧, 🟪 | 🟦, 🟧, 🟥 | 🟦, 🟧, 🟥 |
+| Slot A (18:00–19:00) | 🟦, 🟩, 🟪 | 🟦, 🟩 | 🟦, 🟩, 🟥, 🟪 | 🟦, 🟩, 🟥, 🟪 | 🟥, 🟦, 🟩 | 🟥, 🟦, 🟩 | 🟥, 🟦, 🟩 |
+| Slot B / Polly 20:00–21:00\* | 🟦, 🟧, 🟥, 🟪 | 🟦, 🟧, 🟥 | 🟦, 🟧, 🟥, 🟪 | 🟦, 🟧, 🟥, 🟪 | 🟥, 🟦 | 🟥, 🟦 | 🟥, 🟦, 🟩 |
+
+\*Mon–Thu second row = Polly **20:00–21:00** GMT+1. Fri–Sun second row = Notion **Slot B (19:00–20:00)** GMT+1.
 
 ---
 
@@ -76,8 +81,8 @@ _Populated from [Polly poll](https://web.polly.ai/presentation/ply:9977d4a2-4b84
 
 | | Mon 20 | Tue 21 | Wed 22 | Thu 23 | Fri 24 | Sat 25 | Sun 26 |
 |---|--------|--------|--------|--------|--------|--------|--------|
-| 18:00–19:00 | | | | | | | |
-| 20:00–21:00 | | | | | | | |
+| Slot A | 🟥, 🟦, 🟪, 🟩 | 🟥, 🟦, 🟩, 🟧 | 🟥, 🟦, 🟪, 🟩 | 🟥, 🟦, 🟪, 🟩 | 🟦, 🟪, 🟩 | 🟥, 🟦, 🟩 | 🟥, 🟦, 🟩 |
+| Slot B | 🟥, 🟦, 🟪, 🟩, 🟧 | 🟥, 🟦, 🟩, 🟧 | 🟥, 🟦, 🟪, 🟧 | 🟥, 🟦, 🟪, 🟧 | 🟦, 🟪, 🟩, 🟧 | 🟥, 🟦, 🟩, 🟧 | 🟥, 🟦, 🟩, 🟧 |
 
 ---
 
@@ -85,12 +90,21 @@ _Populated from [Polly poll](https://web.polly.ai/presentation/ply:9977d4a2-4b84
 
 | | Mon 27 | Tue 28 | Wed 29 | Thu 30 | Fri 31 | Sat 1 | Sun 2 |
 |---|--------|--------|--------|--------|--------|-------|-------|
-| 18:00–19:00 | | | | | | | |
-| 20:00–21:00 | | | | | | | |
+| Slot A | 🟦 | 🟥, 🟦 | 🟥, 🟦 | 🟥, 🟦 | 🟦 | 🟥, 🟦 | 🟥, 🟦 |
+| Slot B | 🟥, 🟦 | 🟥, 🟦 | 🟥, 🟦 | 🟥, 🟦 | 🟦 | 🟥, 🟦 | 🟥, 🟦 |
 
 ---
 
-_Add more weeks by copying a template above. Historical poll: [Weekly meeting slots](https://web.polly.ai/presentation/ply:9977d4a2-4b84-4a20-b8d9-332a95c2e24f) (GMT+1)._
+### Week 4 — Mon 3 – Sun 9 Aug 2026
+
+| | Mon 3 | Tue 4 | Wed 5 | Thu 6 | Fri 7 | Sat 8 | Sun 9 |
+|---|-------|-------|-------|-------|-------|-------|-------|
+| Slot A | 🟦 | 🟥, 🟦 | | | | | |
+| Slot B | 🟥, 🟦 | 🟥, 🟦 | | | | | |
+
+---
+
+_Add more weeks by copying a template above. Keep this grid in sync with the [Notion Capstone Team Availability](https://app.notion.com/p/39fd8570062e80cf94cbcb859ebd4e57?v=39fd8570062e80939b5d000c5cd3f3ae) calendar. Historical poll: [Weekly meeting slots](https://web.polly.ai/presentation/ply:9977d4a2-4b84-4a20-b8d9-332a95c2e24f) (GMT+1)._
 
 ## Communication
 
