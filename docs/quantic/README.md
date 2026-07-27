@@ -24,7 +24,7 @@ Capstone requirements, grading, policies, and deliverables for MacroCrypto AI.
 
 ## Related
 
-- [Team](../team.md) — members, roles, availability
-- [Agile & Sprints](../agile.md) — ceremonies, sprint log
-- [Scope](../scope.md) — project overview
+- [Team](../team-roles.md) — members, roles, availability
+- [Agile & Sprints](../project-workflow.md) — ceremonies, sprint log
+- [Scope](../project-scope.md) — project overview
 - [Docs home](../README.md)
