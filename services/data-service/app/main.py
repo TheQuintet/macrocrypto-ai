@@ -228,7 +228,6 @@ async def run_websocket_stream(
         await client.stop()
         raise
 
-
 async def periodic_price_collection(symbol: str = "BTCUSDT", interval: int = 60):
     """
     Periodic task to collect price data from Binance REST API
@@ -243,17 +242,28 @@ async def periodic_price_collection(symbol: str = "BTCUSDT", interval: int = 60)
                 ticker_data = await collector.get_24hr_ticker(symbol)
                 
                 if ticker_data:
+                    # ✅ CHECK IF DATA IS VALID (not dummy)
+                    price = ticker_data.get("last_price", 0.0)
+                    source = ticker_data.get("source", "unknown")
+                    
+                    # ✅ SKIP DUMMY DATA
+                    if source == "binance_rest_dummy" or price <= 0:
+                        print(f"⚠️  Skipping dummy data for {symbol} (price: {price})")
+                        await asyncio.sleep(interval)
+                        continue
+                    
+                    # Process real data
                     if data_processor:
                         price_data = {
                             "symbol": symbol,
-                            "price": ticker_data["last_price"],
-                            "open": ticker_data["open_price"],
-                            "high": ticker_data["high_price"],
-                            "low": ticker_data["low_price"],
-                            "volume": ticker_data["volume"],
-                            "quote_volume": ticker_data.get("quote_volume", 0),
-                            "change_24h": ticker_data["price_change_percent"],
-                            "change_abs": ticker_data["price_change"],
+                            "price": price,
+                            "open": ticker_data.get("open_price", 0.0),
+                            "high": ticker_data.get("high_price", 0.0),
+                            "low": ticker_data.get("low_price", 0.0),
+                            "volume": ticker_data.get("volume", 0.0),
+                            "quote_volume": ticker_data.get("quote_volume", 0.0),
+                            "change_24h": ticker_data.get("price_change_percent", 0.0),
+                            "change_abs": ticker_data.get("price_change", 0.0),
                             "source": "binance_rest",
                             "timestamp": datetime.now().isoformat()
                         }
@@ -266,23 +276,24 @@ async def periodic_price_collection(symbol: str = "BTCUSDT", interval: int = 60)
                             ttl=interval
                         )
                     
+                    # ✅ ONLY PUBLISH REAL DATA TO RABBITMQ
                     if rabbitmq_producer:
                         event_data = {
                             "symbol": symbol,
-                            "price": ticker_data["last_price"],
-                            "open": ticker_data["open_price"],
-                            "high": ticker_data["high_price"],
-                            "low": ticker_data["low_price"],
-                            "volume": ticker_data["volume"],
-                            "quote_volume": ticker_data.get("quote_volume", 0),
-                            "change_24h": ticker_data["price_change_percent"],
-                            "change_abs": ticker_data["price_change"],
+                            "price": price,
+                            "open": ticker_data.get("open_price", 0.0),
+                            "high": ticker_data.get("high_price", 0.0),
+                            "low": ticker_data.get("low_price", 0.0),
+                            "volume": ticker_data.get("volume", 0.0),
+                            "quote_volume": ticker_data.get("quote_volume", 0.0),
+                            "change_24h": ticker_data.get("price_change_percent", 0.0),
+                            "change_abs": ticker_data.get("price_change", 0.0),
                             "source": "binance_rest",
                             "timestamp": datetime.now().isoformat()
                         }
                         rabbitmq_producer.publish_price_update(event_data)
                     
-                    print(f"✅ Collected {symbol} price: ${ticker_data['last_price']}")
+                    print(f"✅ Collected {symbol} price: ${price}")
                 
             except Exception as error:
                 print(f"⚠️  Price collection error: {error}")
@@ -294,7 +305,6 @@ async def periodic_price_collection(symbol: str = "BTCUSDT", interval: int = 60)
         raise
     finally:
         await collector.close()
-
 
 async def periodic_economic_collection(interval: int = 3600):
     """

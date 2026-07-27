@@ -109,8 +109,24 @@ class DataProcessor:
                     logger.error(f"Missing required field: {field}")
                     return False
 
-            # Ensure price is float
-            price_data['price'] = float(price_data['price'])
+            # ✅ Extract and validate price
+            price = float(price_data['price'])
+
+            # ✅ SKIP DUMMY/ZERO DATA
+            if price <= 0:
+                logger.warning(
+                    f"Skipping invalid price data: {price} for {price_data.get('symbol', 'unknown')}"
+                )
+                return False
+
+            # ✅ SKIP DUMMY SOURCE
+            source = price_data.get('source', 'unknown')
+            if source == 'binance_rest_dummy':
+                logger.warning("Skipping dummy data from REST API fallback")
+                return False
+
+            # Store validated price
+            price_data['price'] = price
 
             # Add timestamp if not present
             if 'timestamp' not in price_data:
