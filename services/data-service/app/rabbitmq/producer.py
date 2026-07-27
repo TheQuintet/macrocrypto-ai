@@ -4,11 +4,10 @@ import json
 import logging
 from typing import Dict, Any
 import pika
-from pika.adapters.asyncio_connection import AsyncioConnection
-
 from app.config import settings
 
 logger = logging.getLogger(__name__)
+
 
 class RabbitMQProducer:
     """RabbitMQ producer for publishing events"""
@@ -20,11 +19,14 @@ class RabbitMQProducer:
         
         # Exchange names
         self.EXCHANGE_DATA = "data_exchange"
+        
+        # ✅ Queue names (permanent)
+        self.QUEUE_PRICE_UPDATES = "price_updates"
+        self.QUEUE_ECONOMIC_UPDATES = "economic_updates"
     
     async def connect(self):
         """Establish connection to RabbitMQ"""
         try:
-            # Create connection parameters
             params = pika.ConnectionParameters(
                 host=settings.RABBITMQ_HOST,
                 port=settings.RABBITMQ_PORT,
@@ -35,32 +37,53 @@ class RabbitMQProducer:
                 virtual_host=settings.RABBITMQ_VHOST
             )
             
-            # We need to use the synchronous connection for now
-            # Async connection would be better but requires more setup
             self.connection = pika.BlockingConnection(params)
             self.channel = self.connection.channel()
             
-            # Declare exchange
+            # ✅ Declare exchange (durable)
             self.channel.exchange_declare(
                 exchange=self.EXCHANGE_DATA,
                 exchange_type="topic",
                 durable=True
             )
             
+            # ✅ Create permanent queues
+            self.channel.queue_declare(
+                queue=self.QUEUE_PRICE_UPDATES,
+                durable=True,
+                auto_delete=False
+            )
+            self.channel.queue_declare(
+                queue=self.QUEUE_ECONOMIC_UPDATES,
+                durable=True,
+                auto_delete=False
+            )
+            
+            # ✅ Bind queues to exchange
+            self.channel.queue_bind(
+                exchange=self.EXCHANGE_DATA,
+                queue=self.QUEUE_PRICE_UPDATES,
+                routing_key="data.price.update"
+            )
+            self.channel.queue_bind(
+                exchange=self.EXCHANGE_DATA,
+                queue=self.QUEUE_ECONOMIC_UPDATES,
+                routing_key="data.economic.update"
+            )
+            
             self.is_connected = True
-            logger.info("Connected to RabbitMQ")
+            logger.info("✅ RabbitMQ connected with permanent queues")
+            logger.info(f"   📋 price_updates queue created")
+            logger.info(f"   📋 economic_updates queue created")
             return True
             
         except Exception as e:
-            logger.error(f"Failed to connect to RabbitMQ: {e}")
+            logger.error(f"❌ Failed to connect to RabbitMQ: {e}")
             return False
     
     def publish_price_update(self, price_data: Dict[str, Any]):
         """
-        Publish price update event
-        
-        Args:
-            price_data: Price data dictionary
+        Publish price update event to permanent queue
         """
         if not self.is_connected or not self.channel:
             logger.error("Not connected to RabbitMQ")
@@ -78,22 +101,19 @@ class RabbitMQProducer:
                 routing_key="data.price.update",
                 body=message,
                 properties=pika.BasicProperties(
-                    delivery_mode=2,  # Persistent
+                    delivery_mode=2,  # ✅ Persistent message
                     content_type="application/json"
                 )
             )
             
-            logger.info(f"Published price update: {price_data.get('symbol', 'unknown')}")
+            logger.debug(f"📤 Published price update: {price_data.get('symbol', 'unknown')}")
             
         except Exception as e:
             logger.error(f"Error publishing price update: {e}")
     
     def publish_economic_update(self, economic_data: Dict[str, Any]):
         """
-        Publish economic indicator update
-        
-        Args:
-            economic_data: Economic data dictionary
+        Publish economic indicator update to permanent queue
         """
         if not self.is_connected or not self.channel:
             logger.error("Not connected to RabbitMQ")
@@ -111,12 +131,12 @@ class RabbitMQProducer:
                 routing_key="data.economic.update",
                 body=message,
                 properties=pika.BasicProperties(
-                    delivery_mode=2,
+                    delivery_mode=2,  # ✅ Persistent message
                     content_type="application/json"
                 )
             )
             
-            logger.info("Published economic update")
+            logger.debug("📤 Published economic update")
             
         except Exception as e:
             logger.error(f"Error publishing economic update: {e}")
