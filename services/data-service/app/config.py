@@ -30,7 +30,8 @@ class Settings(BaseSettings):
     # ============================================
     # Support BOTH individual settings AND full URL
     REDIS_ENABLED: bool = True
-    REDIS_HOST: str = "redis"  # Docker service name
+    # REDIS_HOST: str = "redis"  # Docker service name
+    REDIS_HOST: str = "localhost"
     REDIS_PORT: int = 6379
     REDIS_DB: int = 0
     REDIS_URL: Optional[str] = None  # Override if provided
@@ -77,6 +78,9 @@ class Settings(BaseSettings):
     
     # Default symbol
     BINANCE_DEFAULT_SYMBOL: str = "BTCUSDT"
+
+    #Binance REST API endpoint for historical daily candles
+    BINANCE_HISTORY_API: str = "https://api.binance.com/api/v3/klines"
     
     @property
     def BINANCE_REST_ENDPOINT(self) -> str:
@@ -92,7 +96,7 @@ class Settings(BaseSettings):
     # FRED API (Economic Indicators)
     # ============================================
     FRED_API_URL: str = "https://api.stlouisfed.org/fred"
-    FRED_API_KEY: Optional[str] = None
+    FRED_API_KEY: Optional[str] = None  # Replace with your actual FRED API key or set to None if not available
     
     # ============================================
     # COLLECTION INTERVALS (seconds)
@@ -118,12 +122,19 @@ class Settings(BaseSettings):
         """Detect if running inside a Docker container"""
         return os.path.exists('/.dockerenv') or os.path.exists('/proc/1/cgroup')
     
+    # class Config:
+    #     # Try .env first, fallback to .env.example
+    #     env_file = ".env" if os.path.exists(".env") else ".env.example"
+    #     env_file_encoding = "utf-8"
+    #     case_sensitive = True
     class Config:
-        # Try .env first, fallback to .env.example
-        env_file = ".env" if os.path.exists(".env") else ".env.example"
+        env_file = (
+            ".env.local"
+            if os.path.exists(".env.local")
+            else ".env"
+        )
         env_file_encoding = "utf-8"
         case_sensitive = True
-
 
 @lru_cache()
 def get_settings() -> Settings:

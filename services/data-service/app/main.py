@@ -16,7 +16,7 @@ from app.database.session import init_db, engine
 from app.cache.client import CacheClient
 from app.rabbitmq.producer import RabbitMQProducer
 from app.collectors.binance import BinanceCollector
-from app.collectors.fred import FREDCollector
+# from app.collectors.fred import FREDCollector
 from app.api.routes import router as api_router
 
 # Import services
@@ -138,12 +138,13 @@ async def lifespan(app: FastAPI):
         )
         print(f"✅ Periodic price collection started (every {settings.PRICE_COLLECTION_INTERVAL}s)")
         
-        asyncio.create_task(
-            periodic_economic_collection(
-                interval=settings.ECONOMIC_COLLECTION_INTERVAL
-            )
-        )
-        print(f"✅ Periodic economic collection started (every {settings.ECONOMIC_COLLECTION_INTERVAL}s)")
+        # asyncio.create_task(
+        #     periodic_economic_collection(
+        #         interval=settings.ECONOMIC_COLLECTION_INTERVAL
+        #     )
+        # )
+        # print(f"✅ Periodic economic collection started (every {settings.ECONOMIC_COLLECTION_INTERVAL}s)")
+        print("ℹ️  Periodic economic collection disabled (FRED integration pending)")
     except Exception as error:
         print(f"⚠️  Periodic collection startup error: {error}")
     
@@ -306,47 +307,47 @@ async def periodic_price_collection(symbol: str = "BTCUSDT", interval: int = 60)
     finally:
         await collector.close()
 
-async def periodic_economic_collection(interval: int = 3600):
-    """
-    Periodic task to collect economic indicators from FRED
-    """
-    global cache_client, rabbitmq_producer
+# async def periodic_economic_collection(interval: int = 3600):
+#     """
+#     Periodic task to collect economic indicators from FRED
+#     """
+#     global cache_client, rabbitmq_producer
     
-    collector = FREDCollector()
+#     collector = FREDCollector()
     
-    try:
-        while True:
-            try:
-                indicators = await collector.get_all_indicators()
+#     try:
+#         while True:
+#             try:
+#                 indicators = await collector.get_all_indicators()
                 
-                if indicators:
-                    if cache_client:
-                        for key, value in indicators.items():
-                            if value and isinstance(value, (int, float)):
-                                await cache_client.set_economic(key, {
-                                    "value": value,
-                                    "timestamp": datetime.now().isoformat()
-                                })
+#                 if indicators:
+#                     if cache_client:
+#                         for key, value in indicators.items():
+#                             if value and isinstance(value, (int, float)):
+#                                 await cache_client.set_economic(key, {
+#                                     "value": value,
+#                                     "timestamp": datetime.now().isoformat()
+#                                 })
                     
-                    if rabbitmq_producer:
-                        event_data = {
-                            "indicators": indicators,
-                            "timestamp": datetime.now().isoformat()
-                        }
-                        rabbitmq_producer.publish_economic_update(event_data)
+#                     if rabbitmq_producer:
+#                         event_data = {
+#                             "indicators": indicators,
+#                             "timestamp": datetime.now().isoformat()
+#                         }
+#                         rabbitmq_producer.publish_economic_update(event_data)
                     
-                    print(f"✅ Collected economic indicators: CPI={indicators.get('cpi')}, Inflation={indicators.get('inflation')}%")
+#                     print(f"✅ Collected economic indicators: CPI={indicators.get('cpi')}, Inflation={indicators.get('inflation')}%")
                 
-            except Exception as error:
-                print(f"⚠️  Economic collection error: {error}")
+#             except Exception as error:
+#                 print(f"⚠️  Economic collection error: {error}")
             
-            await asyncio.sleep(interval)
+#             await asyncio.sleep(interval)
             
-    except asyncio.CancelledError:
-        print("Periodic economic collection cancelled")
-        raise
-    finally:
-        await collector.close()
+#     except asyncio.CancelledError:
+#         print("Periodic economic collection cancelled")
+#         raise
+#     finally:
+#         await collector.close()
 
 
 # ============================================

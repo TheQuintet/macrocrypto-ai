@@ -1,10 +1,10 @@
 from dataclasses import dataclass
 from datetime import datetime
-
+from app.config import settings
 import httpx
 
 #Binance REST API endpoint for historical daily candles
-BINANCE_API = "https://api.binance.com/api/v3/klines"
+BINANCE_HISTORY_API = settings.BINANCE_HISTORY_API
 
 
 @dataclass
@@ -53,7 +53,7 @@ class HistoryService:
             async with httpx.AsyncClient() as client:
 
                 response = await client.get(
-                    BINANCE_API,
+                    BINANCE_HISTORY_API,
                     params=params,
                     timeout=10,
                 )
