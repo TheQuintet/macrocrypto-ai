@@ -14,8 +14,8 @@ from app.rabbitmq.producer import RabbitMQProducer
 # Setup logging
 logger = logging.getLogger(__name__)
 
-# Constants from monolith
-BINANCE_WS_URL = settings.BINANCE_WS_URL or "wss://stream.binance.com:9443/ws"
+
+BINANCE_WS_URL = settings.BINANCE_WS_URL
 INITIAL_RETRY_DELAY = 1
 MAX_RETRY_DELAY = 60
 MAX_RETRY_ATTEMPTS = 10

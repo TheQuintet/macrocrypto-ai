@@ -16,7 +16,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./infrastructure/scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U macro"]
+      test: ["CMD-SHELL", "pg_isready -U macro -d macrocrypto"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -68,11 +68,11 @@ services:
     container_name: macro-data-service
     ports:
       - "8001:8001"
-    # ✅ ADD DNS CONFIGURATION
-    dns:
-      - 8.8.8.8
-      - 1.1.1.1
-      - 8.8.4.4
+    # # ✅ ADD DNS CONFIGURATION
+    # dns:
+    #   - 8.8.8.8
+    #   - 1.1.1.1
+    #   - 8.8.4.4
     environment:
       # Override Redis host to use Docker service name
       - REDIS_HOST=redis
@@ -86,6 +86,11 @@ services:
       - ./services/data-service/app:/app/app
       - ./services/data-service/tests:/app/tests
       - ./shared:/app/shared
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     env_file:
       - ./services/data-service/.env
     depends_on:
@@ -99,146 +104,146 @@ services:
       - macro-network
     restart: unless-stopped
 
-  ai-service:
-    build:
-      context: ./services/ai-service
-      dockerfile: Dockerfile
-    container_name: macro-ai-service
-    ports:
-      - "8002:8002"
-    dns:
-      - 8.8.8.8
-      - 1.1.1.1
-    environment:
-      - REDIS_HOST=redis
-      - DATABASE_URL=postgresql://macro:crypto@postgres:5432/macrocrypto
-      - RABBITMQ_HOST=rabbitmq
-      - PYTHONUNBUFFERED=1
-    volumes:
-      - ./services/ai-service/app:/app/app
-      - ./shared:/app/shared
-    env_file:
-      - ./services/ai-service/.env
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-    networks:
-      - macro-network
-    restart: unless-stopped
+  # ai-service:
+  #   build:
+  #     context: ./services/ai-service
+  #     dockerfile: Dockerfile
+  #   container_name: macro-ai-service
+  #   ports:
+  #     - "8002:8002"
+  #   dns:
+  #     - 8.8.8.8
+  #     - 1.1.1.1
+  #   environment:
+  #     - REDIS_HOST=redis
+  #     - DATABASE_URL=postgresql://macro:crypto@postgres:5432/macrocrypto
+  #     - RABBITMQ_HOST=rabbitmq
+  #     - PYTHONUNBUFFERED=1
+  #   volumes:
+  #     - ./services/ai-service/app:/app/app
+  #     - ./shared:/app/shared
+  #   env_file:
+  #     - ./services/ai-service/.env
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #     redis:
+  #       condition: service_healthy
+  #     rabbitmq:
+  #       condition: service_healthy
+  #   networks:
+  #     - macro-network
+  #   restart: unless-stopped
 
-  alert-service:
-    build:
-      context: ./services/alert-service
-      dockerfile: Dockerfile
-    container_name: macro-alert-service
-    ports:
-      - "8003:8003"
-    dns:
-      - 8.8.8.8
-      - 1.1.1.1
-    environment:
-      - REDIS_HOST=redis
-      - DATABASE_URL=postgresql://macro:crypto@postgres:5432/macrocrypto
-      - RABBITMQ_HOST=rabbitmq
-      - PYTHONUNBUFFERED=1
-    volumes:
-      - ./services/alert-service/app:/app/app
-      - ./shared:/app/shared
-    env_file:
-      - ./services/alert-service/.env
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-    networks:
-      - macro-network
-    restart: unless-stopped
+  # alert-service:
+  #   build:
+  #     context: ./services/alert-service
+  #     dockerfile: Dockerfile
+  #   container_name: macro-alert-service
+  #   ports:
+  #     - "8003:8003"
+  #   dns:
+  #     - 8.8.8.8
+  #     - 1.1.1.1
+  #   environment:
+  #     - REDIS_HOST=redis
+  #     - DATABASE_URL=postgresql://macro:crypto@postgres:5432/macrocrypto
+  #     - RABBITMQ_HOST=rabbitmq
+  #     - PYTHONUNBUFFERED=1
+  #   volumes:
+  #     - ./services/alert-service/app:/app/app
+  #     - ./shared:/app/shared
+  #   env_file:
+  #     - ./services/alert-service/.env
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #     redis:
+  #       condition: service_healthy
+  #     rabbitmq:
+  #       condition: service_healthy
+  #   networks:
+  #     - macro-network
+  #   restart: unless-stopped
 
-  api-gateway:
-    build:
-      context: ./services/api-gateway
-      dockerfile: Dockerfile
-    container_name: macro-api-gateway
-    ports:
-      - "8000:8000"
-    dns:
-      - 8.8.8.8
-      - 1.1.1.1
-    environment:
-      - REDIS_HOST=redis
-      - DATABASE_URL=postgresql://macro:crypto@postgres:5432/macrocrypto
-      - RABBITMQ_HOST=rabbitmq
-      - PYTHONUNBUFFERED=1
-    volumes:
-      - ./services/api-gateway/app:/app/app
-      - ./shared:/app/shared
-    env_file:
-      - ./services/api-gateway/.env
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-      data-service:
-        condition: service_started
-      ai-service:
-        condition: service_started
-      alert-service:
-        condition: service_started
-    networks:
-      - macro-network
-    restart: unless-stopped
+  # api-gateway:
+  #   build:
+  #     context: ./services/api-gateway
+  #     dockerfile: Dockerfile
+  #   container_name: macro-api-gateway
+  #   ports:
+  #     - "8000:8000"
+  #   dns:
+  #     - 8.8.8.8
+  #     - 1.1.1.1
+  #   environment:
+  #     - REDIS_HOST=redis
+  #     - DATABASE_URL=postgresql://macro:crypto@postgres:5432/macrocrypto
+  #     - RABBITMQ_HOST=rabbitmq
+  #     - PYTHONUNBUFFERED=1
+  #   volumes:
+  #     - ./services/api-gateway/app:/app/app
+  #     - ./shared:/app/shared
+  #   env_file:
+  #     - ./services/api-gateway/.env
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #     redis:
+  #       condition: service_healthy
+  #     rabbitmq:
+  #       condition: service_healthy
+  #     data-service:
+  #       condition: service_started
+  #     ai-service:
+  #       condition: service_started
+  #     alert-service:
+  #       condition: service_started
+  #   networks:
+  #     - macro-network
+  #   restart: unless-stopped
 
   # ============================================
   # FRONTEND
   # ============================================
 
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    container_name: macro-frontend
-    ports:
-      - "3000:3000"
-    environment:
-      - REACT_APP_API_URL=http://api-gateway:8000
-    volumes:
-      - ./frontend/src:/app/src
-      - ./frontend/public:/app/public
-    depends_on:
-      - api-gateway
-    networks:
-      - macro-network
-    restart: unless-stopped
+  # frontend:
+  #   build:
+  #     context: ./frontend
+  #     dockerfile: Dockerfile
+  #   container_name: macro-frontend
+  #   ports:
+  #     - "3000:3000"
+  #   environment:
+  #     - REACT_APP_API_URL=http://api-gateway:8000
+  #   volumes:
+  #     - ./frontend/src:/app/src
+  #     - ./frontend/public:/app/public
+  #   depends_on:
+  #     - api-gateway
+  #   networks:
+  #     - macro-network
+  #   restart: unless-stopped
 
   # ============================================
   # REVERSE PROXY
   # ============================================
 
-  nginx:
-    image: nginx:alpine
-    container_name: macro-nginx
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./infrastructure/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./frontend/build:/usr/share/nginx/html:ro
-    depends_on:
-      - api-gateway
-      - frontend
-    networks:
-      - macro-network
-    restart: unless-stopped
+  # nginx:
+  #   image: nginx:alpine
+  #   container_name: macro-nginx
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #   volumes:
+  #     - ./infrastructure/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+  #     - ./frontend/build:/usr/share/nginx/html:ro
+  #   depends_on:
+  #     - api-gateway
+  #     - frontend
+  #   networks:
+  #     - macro-network
+  #   restart: unless-stopped
 
 # ============================================
 # VOLUMES
@@ -256,6 +261,6 @@ volumes:
 networks:
   macro-network:
     driver: bridge
-    # ✅ ADD DNS CONFIGURATION AT NETWORK LEVEL (optional)
-    driver_opts:
-      com.docker.network.driver.mtu: 1500
+    # # ✅ ADD DNS CONFIGURATION AT NETWORK LEVEL (optional)
+    # driver_opts:
+    #   com.docker.network.driver.mtu: 1500
