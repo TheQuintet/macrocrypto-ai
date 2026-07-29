@@ -56,7 +56,7 @@ Source of truth: [Notion Capstone Team Availability](https://app.notion.com/p/39
 
 | Slot A | Slot B |
 | ------ | ------ |
-| **18:00–19:00 GMT+1** Sid, Kingston | **19:00–20:00 GMT+1** Sid, Kingston |
+| **18:00–19:00 GMT+1** Sid, Kingson | **19:00–20:00 GMT+1** Sid, Kingson |
 | **19:00–20:00 GMT+2** Richard | **20:00–21:00 GMT+2** Richard |
 | **20:00–21:00 GMT+3** Lore, Mael | **21:00–22:00 GMT+3** Lore, Mael |
 
@@ -70,7 +70,7 @@ _Mon–Thu from [Polly poll](https://web.polly.ai/presentation/ply:9977d4a2-4b84
 
 | | Mon 13 | Tue 14 | Wed 15 | Thu 16 | Fri 17 | Sat 18 | Sun 19 |
 |---|--------|--------|--------|--------|--------|--------|--------|
-| Slot A (18:00–19:00) | 🟦, 🟩, 🟪 | 🟦, 🟩 | 🟦, 🟩, 🟥, 🟪 | 🟦, 🟩, 🟥, 🟪 | 🟥, 🟦, 🟩 | 🟥, 🟦, 🟩 | 🟥, 🟦, 🟩 |
+| Slot A (18:00–19:00) | 🟦, 🟩, 🟪 | 🟦, 🟩 | 🟦, 🟩, 🟥, 🟪 | 🟦, 🟩, 🟥, 🟪 | 🟥, 🟦 | 🟥, 🟦, 🟩 | 🟥, 🟦, 🟩 |
 | Slot B / Polly 20:00–21:00\* | 🟦, 🟧, 🟥, 🟪 | 🟦, 🟧, 🟥 | 🟦, 🟧, 🟥, 🟪 | 🟦, 🟧, 🟥, 🟪 | 🟥, 🟦 | 🟥, 🟦 | 🟥, 🟦, 🟩 |
 
 \*Mon–Thu second row = Polly **20:00–21:00** GMT+1. Fri–Sun second row = Notion **Slot B (19:00–20:00)** GMT+1.
@@ -79,28 +79,34 @@ _Mon–Thu from [Polly poll](https://web.polly.ai/presentation/ply:9977d4a2-4b84
 
 ### Week 2 — Mon 20 – Sun 26 Jul 2026
 
+_Synced from [Notion Capstone Team Availability](https://app.notion.com/p/39fd8570062e80cf94cbcb859ebd4e57?v=39fd8570062e80939b5d000c5cd3f3ae) (29 Jul 2026)._
+
 | | Mon 20 | Tue 21 | Wed 22 | Thu 23 | Fri 24 | Sat 25 | Sun 26 |
 |---|--------|--------|--------|--------|--------|--------|--------|
-| Slot A | 🟥, 🟦, 🟪, 🟩 | 🟥, 🟦, 🟩, 🟧 | 🟥, 🟦, 🟪, 🟩 | 🟥, 🟦, 🟪, 🟩 | 🟦, 🟪, 🟩 | 🟥, 🟦, 🟩 | 🟥, 🟦, 🟩 |
-| Slot B | 🟥, 🟦, 🟪, 🟩, 🟧 | 🟥, 🟦, 🟩, 🟧 | 🟥, 🟦, 🟪, 🟧 | 🟥, 🟦, 🟪, 🟧 | 🟦, 🟪, 🟩, 🟧 | 🟥, 🟦, 🟩, 🟧 | 🟥, 🟦, 🟩, 🟧 |
+| Slot A | 🟥, 🟦, 🟪, 🟩 | 🟥, 🟦, 🟩 | 🟥, 🟦, 🟪, 🟩 | 🟥, 🟦, 🟪, 🟩 | 🟦, 🟪, 🟩 | 🟥, 🟦, 🟩 | 🟥, 🟦, 🟩 |
+| Slot B | 🟥, 🟦, 🟪, 🟩, 🟧 | 🟥, 🟦, 🟩, 🟧 | 🟥, 🟦, 🟪, 🟩, 🟧 | 🟥, 🟦, 🟪, 🟩, 🟧 | 🟦, 🟪, 🟩, 🟧 | 🟥, 🟦, 🟩, 🟧 | 🟥, 🟦, 🟩, 🟧 |
 
 ---
 
 ### Week 3 — Mon 27 Jul – Sun 2 Aug 2026
 
+_Synced from [Notion Capstone Team Availability](https://app.notion.com/p/39fd8570062e80cf94cbcb859ebd4e57?v=39fd8570062e80939b5d000c5cd3f3ae) (29 Jul 2026)._
+
 | | Mon 27 | Tue 28 | Wed 29 | Thu 30 | Fri 31 | Sat 1 | Sun 2 |
 |---|--------|--------|--------|--------|--------|-------|-------|
-| Slot A | 🟦 | 🟥, 🟦 | 🟥, 🟦 | 🟥, 🟦 | 🟦 | 🟥, 🟦 | 🟥, 🟦 |
-| Slot B | 🟥, 🟦 | 🟥, 🟦 | 🟥, 🟦 | 🟥, 🟦 | 🟦 | 🟥, 🟦 | 🟥, 🟦 |
+| Slot A | 🟦, 🟪 | 🟥, 🟦, 🟪 | 🟥, 🟦, 🟪 | 🟥, 🟦, 🟪 | 🟦, 🟪 | 🟥, 🟦 | 🟥, 🟦 |
+| Slot B | 🟥, 🟦, 🟪 | 🟥, 🟦, 🟪 | 🟥, 🟦, 🟪, 🟧, 🟩 | 🟥, 🟦, 🟪, 🟧, 🟩 | 🟦, 🟪, 🟧, 🟩 | 🟥, 🟦, 🟩 | 🟥, 🟦 |
 
 ---
 
 ### Week 4 — Mon 3 – Sun 9 Aug 2026
 
+_No entries in Notion yet — fill as the calendar is updated._
+
 | | Mon 3 | Tue 4 | Wed 5 | Thu 6 | Fri 7 | Sat 8 | Sun 9 |
 |---|-------|-------|-------|-------|-------|-------|-------|
-| Slot A | 🟦 | 🟥, 🟦 | | | | | |
-| Slot B | 🟥, 🟦 | 🟥, 🟦 | | | | | |
+| Slot A | | | | | | | |
+| Slot B | | | | | | | |
 
 ---
 
