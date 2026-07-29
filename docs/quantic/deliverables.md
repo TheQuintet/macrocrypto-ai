@@ -45,8 +45,8 @@ To receive credit for the Capstone, we must submit **all** of the following. Use
 
 |                    |                                           |
 | ------------------ | ----------------------------------------- |
-| **Status**         | ⬜ Not started / 🟡 In progress / ✅ Done |
-| **URL / location** | _TBD_                                     |
+| **Status**         | 🟡 In progress   |
+| **URL / location** | use case diagram - we can start on it     |
 
 **Requirements**
 
