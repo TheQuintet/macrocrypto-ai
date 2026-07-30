@@ -56,3 +56,13 @@ def test_get_btc_price_endpoint_returns_float_values(client):
         assert isinstance(data["change_24h"], float)
     if data["change_24h_percent"] is not None:
         assert isinstance(data["change_24h_percent"], float)
+
+def test_invalid_btc_endpoint_returns_404(client):
+    """
+    Test unknown BTC endpoint returns 404.
+    """
+
+    response = client.get("/api/v1/btc/invalid")
+
+    assert response.status_code == 404
+

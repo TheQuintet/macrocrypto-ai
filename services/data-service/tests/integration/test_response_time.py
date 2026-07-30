@@ -1,112 +1,161 @@
 """
-Integration test for Redis caching behavior.
+Integration tests for BTC price API Redis cache performance.
+
+Validates:
+- Redis cached response time
+- Multiple cache hits performance
+- Cached response consistency
+- Cache expiration recovery
 """
 
 import time
 import requests
 import pytest
 
+
 API_URL = "http://127.0.0.1:8001/api/v1/btc/price"
 
+CACHE_RESPONSE_LIMIT_MS = 200
 
-@pytest.mark.integration
-def test_response_time_with_redis_cache():
+
+def measure_request_time():
     """
-    Test that Redis caching improves response time.
+    Execute API request and return:
+    - response
+    - elapsed time in milliseconds
     """
+    start = time.perf_counter()
 
-    # Give the rate limit a moment to reset
-    time.sleep(2)
-
-    # Wait for rate limit to be available
-    for attempt in range(3):
-        response = requests.get(API_URL)
-        if response.status_code == 200:
-            break
-        print(f"⏳ Rate limited, attempt {attempt+1}/3, waiting 5 seconds...")
-        time.sleep(5)
-    else:
-        pytest.skip("Rate limit exhausted, skipping test")
-
-    # First request (cache miss)
-    start_time = time.time()
     response = requests.get(API_URL)
-    first_response_time = (time.time() - start_time) * 1000
 
-    print("\n📡 First request (cache miss):")
-    print(f"   Status: {response.status_code}")
-    print(f"   Time: {first_response_time:.2f} ms")
+    elapsed = (time.perf_counter() - start) * 1000
 
-    assert response.status_code == 200
-
-    # Second request (cache hit)
-    start_time = time.time()
-    response = requests.get(API_URL)
-    second_response_time = (time.time() - start_time) * 1000
-
-    print("\n🚀 Second request (cache hit):")
-    print(f"   Status: {response.status_code}")
-    print(f"   Time: {second_response_time:.2f} ms")
-
-    assert response.status_code == 200
-
-    # Acceptance criteria: cache hit should be < 500ms
-    assert second_response_time < 500
-
-    print(f"\n📊 Speed improvement: {first_response_time - second_response_time:.2f}ms faster")
-
-    # Test cache expiration
-    print("\n⏳ Waiting 6 seconds for cache to expire...")
-    time.sleep(6)
-
-    start_time = time.time()
-    response = requests.get(API_URL)
-    third_response_time = (time.time() - start_time) * 1000
-
-    print("\n🔄 Third request (cache expired):")
-    print(f"   Status: {response.status_code}")
-    print(f"   Time: {third_response_time:.2f} ms")
-
-    assert response.status_code == 200
+    return response, elapsed
 
 
 @pytest.mark.integration
-def test_cache_hit_after_multiple_requests():
+def test_btc_price_response_time_with_redis_cache():
     """
-    Test that multiple consecutive requests are cached.
+    Validate BTC price endpoint response time using Redis cache.
+
+    Acceptance Criteria:
+    - Cached response should be < 200ms
     """
-    # Wait for rate limit
-    time.sleep(2)
 
-    # First request
-    start_time = time.time()
-    response1 = requests.get(API_URL)
-    time1 = (time.time() - start_time) * 1000
+    # Warm up request (populate Redis cache)
+    warmup_response, warmup_time = measure_request_time()
 
-    if response1.status_code == 429:
-        print("⏳ Rate limited, waiting 5 seconds...")
-        time.sleep(5)
-        response1 = requests.get(API_URL)
-        time1 = (time.time() - start_time) * 1000
+    assert warmup_response.status_code == 200
+
+    print(
+        f"\n🔥 Cache warmup request: {warmup_time:.2f} ms"
+    )
+
+    # First cached request
+    response1, time1 = measure_request_time()
 
     assert response1.status_code == 200
 
-    # Second request
-    start_time = time.time()
-    response2 = requests.get(API_URL)
-    time2 = (time.time() - start_time) * 1000
+    data1 = response1.json()
+
+    print(
+        f"🚀 First cached request: {time1:.2f} ms"
+    )
+
+    assert time1 < CACHE_RESPONSE_LIMIT_MS, (
+        f"Cached response too slow: {time1:.2f}ms"
+    )
+
+
+@pytest.mark.integration
+def test_multiple_cached_requests_under_200ms():
+    """
+    Validate repeated Redis cache hits remain fast.
+    """
+
+    # Warm cache
+    response, _ = measure_request_time()
+    assert response.status_code == 200
+
+    response_times = []
+
+    for _ in range(5):
+
+        response, elapsed = measure_request_time()
+
+        assert response.status_code == 200
+
+        response_times.append(elapsed)
+
+    print("\n📊 Multiple cache hit performance:")
+
+    for index, elapsed in enumerate(response_times, start=1):
+        print(
+            f"Request {index}: {elapsed:.2f} ms"
+        )
+
+    # Every cached response should meet acceptance criteria
+    for elapsed in response_times:
+        assert elapsed < CACHE_RESPONSE_LIMIT_MS, (
+            f"Cache hit exceeded 200ms: {elapsed:.2f}ms"
+        )
+
+
+@pytest.mark.integration
+def test_cached_response_consistency():
+    """
+    Validate Redis cache returns the same data
+    for consecutive requests.
+    """
+
+    # First request
+    response1, time1 = measure_request_time()
+
+    assert response1.status_code == 200
+
+    data1 = response1.json()
+
+
+    # Second request should come from cache
+    response2, time2 = measure_request_time()
+
     assert response2.status_code == 200
 
-    # Third request
-    start_time = time.time()
-    response3 = requests.get(API_URL)
-    time3 = (time.time() - start_time) * 1000
-    assert response3.status_code == 200
+    data2 = response2.json()
 
-    print(f"\n📊 Cache performance:")
-    print(f"   Request 1: {time1:.2f}ms (cache miss)")
-    print(f"   Request 2: {time2:.2f}ms (cache hit)")
-    print(f"   Request 3: {time3:.2f}ms (cache hit)")
 
-    assert time2 < time1 * 1.5
-    assert time3 < time1 * 1.5
+    print("\n📦 Cached response consistency:")
+    print(f"First response: {time1:.2f} ms")
+    print(f"Second response: {time2:.2f} ms")
+
+
+    assert data1 == data2
+
+    assert time2 < CACHE_RESPONSE_LIMIT_MS
+
+
+@pytest.mark.integration
+def test_cache_expiration_returns_valid_response():
+    """
+    Validate endpoint remains functional after cache expiration.
+    """
+
+    # Current cache TTL is 5 seconds
+    print("\n⏳ Waiting for Redis cache expiration...")
+    time.sleep(6)
+
+
+    response, elapsed = measure_request_time()
+
+
+    print(
+        f"After expiration response time: {elapsed:.2f} ms"
+    )
+
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert "current_price" in data
+    assert "updated_at" in data

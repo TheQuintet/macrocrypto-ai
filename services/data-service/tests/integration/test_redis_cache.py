@@ -308,3 +308,60 @@ class TestRedisCache:
         
         ping = await cache.ping()
         assert ping is False
+
+    @pytest.mark.asyncio
+    async def test_cached_btc_price_snapshot_consistency(self):
+        """
+        Test that BTC price snapshot data remains unchanged
+        after being stored and retrieved from Redis.
+
+        Validates:
+        - Redis stores BTC price snapshot correctly
+        - Redis returns the same cached data
+        - Cached market data fields remain consistent
+        """
+        cache = CacheClient()
+        await cache.connect()
+
+        if not cache.is_connected:
+            pytest.skip("Redis not connected, skipping test")
+
+        key = "test:btc_price_snapshot"
+
+        price_snapshot = {
+            "current_price": 64000.0,
+            "change_24h": -429.19,
+            "change_24h_percent": -0.666,
+            "high_24h": 64744.81,
+            "low_24h": 63267.34,
+            "volume_24h": 16893.17508,
+            "change_7d": -1066.40,
+            "change_7d_percent": -1.6381,
+            "updated_at": "2026-07-30T07:08:40Z"
+        }
+
+        # Store BTC snapshot in Redis
+        result = await cache.set(
+            key,
+            price_snapshot,
+            ttl=10
+        )
+
+        assert result is True
+
+        # Retrieve cached snapshot
+        cached_snapshot = await cache.get(key)
+
+        assert cached_snapshot is not None
+
+        # Validate complete object consistency
+        assert cached_snapshot == price_snapshot
+
+        # Validate important BTC fields
+        assert cached_snapshot["current_price"] == 64000.0
+        assert cached_snapshot["change_24h"] == -429.19
+        assert cached_snapshot["change_7d"] == -1066.40
+        assert cached_snapshot["change_7d_percent"] == -1.6381
+
+        # Cleanup
+        await cache.delete(key)
