@@ -42,6 +42,26 @@ A cell with your **color** = you're free for that 1-hour block. Empty = unknown 
 
 Source of truth: [Notion Capstone Team Availability](https://app.notion.com/p/39fd8570062e80cf94cbcb859ebd4e57?v=39fd8570062e80939b5d000c5cd3f3ae) calendar (synced below).
 
+**Recurring weekly sync (set 30 Jul 2026):** After a couple of weeks comparing availability, the team found a late-evening **Wednesday Slot B** that works for everyone (19:00–20:00 GMT+1 / 20:00–21:00 GMT+2 / 21:00–22:00 GMT+3). Use that cadence for planning, refinement, and other sync ceremonies.
+
+#### Recurring meetings through 14 Oct 2026
+
+| # | Date | Slot |
+|---|------|------|
+| 1 | Wed 5 Aug 2026 | Slot B |
+| 2 | Wed 12 Aug 2026 | Slot B |
+| 3 | Wed 19 Aug 2026 | Slot B |
+| 4 | Wed 26 Aug 2026 | Slot B |
+| 5 | Wed 2 Sep 2026 | Slot B |
+| 6 | Wed 9 Sep 2026 | Slot B |
+| 7 | Wed 16 Sep 2026 | Slot B |
+| 8 | Wed 23 Sep 2026 | Slot B |
+| 9 | Wed 30 Sep 2026 | Slot B |
+| 10 | Wed 7 Oct 2026 | Slot B |
+| 11 | Wed 14 Oct 2026 | Slot B |
+
+Marked as **📅 sync** on Wednesday Slot B in the weekly grids below (from Week 4 onward).
+
 ### Member codes
 
 | Code | Member | Primary role | Offset |

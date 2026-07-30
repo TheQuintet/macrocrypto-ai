@@ -2,7 +2,7 @@
 
 How we manage MacroCrypto AI using GitHub Issues, Projects, and milestones.
 
-We follow **Agile** with at least **three sprints** during the capstone. All tasks and user stories must be tracked on the **GitHub Project board**.
+We follow **Agile** with at least **three sprints** during the capstone. All tasks and user stories must be tracked on the **GitHub Project boards**.
 
 **Workflow cycle:**
 
@@ -12,29 +12,77 @@ PLAN → ASSIGN → WORK → REVIEW → TRACK → CLOSE → RETROSPECT
 
 ---
 
-## Tools
+## Ceremonies
 
-| Tool | Purpose | How often |
-|------|---------|-----------|
-| [GitHub Issues](https://github.com/TheQuintet/macrocrypto-ai/issues) | Track tasks and bugs | Daily |
-| GitHub Projects | Visualize workflow (Kanban) | Daily |
-| GitHub Milestones | Track sprint progress | Weekly |
-| GitHub Labels | Prioritize and categorize | As needed |
-| Pull Requests | Code review | Daily |
-| Branch protection | Enforce quality | Always |
+Sprint **review** and **retrospective** are different ceremonies. We do not run a formal live review — there is not enough overlapping time — so review is **offline**. Retrospective stays on the weekly sync when scheduled.
+
+| Ceremony | Purpose | Meeting notes |
+|----------|---------|---------------|
+| **Sprint planning** | Select stories, estimate, assign owners | [Planning template](./meetings/templates/planning.md) · [29 Jul 2026 notes](./meetings/2026-07-29-refinement-and-planning.md) |
+| **Backlog refinement** | Clarify stories, acceptance criteria, estimates | [Refinement template](./meetings/templates/refinement.md) · [29 Jul 2026 notes](./meetings/2026-07-29-refinement-and-planning.md) |
+| **Daily standup** (async) | Yesterday / today / blockers | [Standup template](./meetings/templates/standup.md) · written updates in Slack (role-specific channels) |
+| **Sprint review** (offline) | Each teammate has repo access and explores/plays with the app to see what shipped | [Review template](./meetings/templates/review.md) · no live demo meeting |
+| **Retrospective** | What went well, what to improve | [Retrospective template](./meetings/templates/retrospective.md) · [5 Aug 2026 notes](./meetings/2026-08-05-retrospective.md) · [Team Retrospective board](https://github.com/orgs/TheQuintet/projects/4) |
+
+### Daily standup template
+
+Standups are **async** — we cannot sync daily across time zones. Each person posts their own update in `#capstone-project-group` on working days.
+
+```markdown
+### You
+- Yesterday: Set up RabbitMQ
+- Today: Start Docker Compose
+- Blockers: None
+```
+
+Replace the heading with your name. If you have a blocker, add the `blocked` label to the relevant issue and mention it here.
+
+### Sprint review (offline)
+
+There is no scheduled live demo. After each sprint (or when useful), every team member:
+
+- [ ] Pull latest `main` and run the app locally (or use the shared environment if one is available)
+- [ ] Explore the new/changed behaviour yourself
+- [ ] Check completed work on the [Daily board](https://github.com/orgs/TheQuintet/projects/3)
+- [ ] Flag issues or feedback in Slack or on the relevant GitHub issue
+
+### Retrospective checklist
+
+- [ ] Capture what went well / what to improve on the [Team Retrospective board](https://github.com/orgs/TheQuintet/projects/4)
+- [ ] Agree action items and owners
+- [ ] Update [meeting notes](./meetings/2026-08-05-retrospective.md)
+
+### Retrospective questions
+
+| Question | Purpose |
+|----------|---------|
+| What went well? | Celebrate successes |
+| What went wrong? | Identify problems |
+| What can we improve? | Changes for next sprint |
+| What should we stop doing? | Remove bad habits |
+| What should we start doing? | Add good practices |
 
 ---
 
-## Task board
+## Project resources
 
-| | |
-|---|---|
-| **Board URL** | _TBD — add GitHub Projects link_ |
-| **Repo** | [TheQuintet/macrocrypto-ai](https://github.com/TheQuintet/macrocrypto-ai) |
+| Resource | Purpose | How often |
+|----------|---------|-----------|
+| [GitHub Issues](https://github.com/TheQuintet/macrocrypto-ai/issues) | Track tasks and bugs | Daily |
+| [Daily board](https://github.com/orgs/TheQuintet/projects/3) | Day-to-day sprint work — primary board for standup and status | Daily |
+| [MacroCrypto AI Team Planning](https://github.com/orgs/TheQuintet/projects/1/views/1) | Sprint/backlog planning and ceremony prep | Weekly |
+| [MacroCrypto AI Team Retrospective](https://github.com/orgs/TheQuintet/projects/4) | Retro items (what went well / improvements / action items) | After each sprint |
+| [MacroCrypto AI Roadmap](https://github.com/orgs/TheQuintet/projects/5) | Epics, features, and longer-term roadmap visibility | Weekly |
+| [GitHub Milestones](https://github.com/TheQuintet/macrocrypto-ai/milestones) | Track sprint progress | Weekly |
+| [GitHub Labels](https://github.com/TheQuintet/macrocrypto-ai/labels) | Prioritize and categorize | As needed |
+| [Pull Requests](https://github.com/TheQuintet/macrocrypto-ai/pulls?q=sort%3Aupdated-desc+is%3Apr+state%3Aopen+) | Code review | Daily |
+| Branch protection | Enforce quality | Always |
 
-**Rule:** If it is not on the board, it is not officially tracked. Update the board during and after each ceremony.
+**Rule:** If it is not on a board, it is not officially tracked. Use **Daily** for day-to-day status; **MacroCrypto AI Team Planning** for refinement/planning; **MacroCrypto AI Team Retrospective** for retro follow-ups; **MacroCrypto AI Roadmap** for epics/features and longer-term visibility.
 
-### Columns
+---
+
+## Board columns
 
 | Column | Purpose |
 |--------|---------|
@@ -58,89 +106,18 @@ PLAN → ASSIGN → WORK → REVIEW → TRACK → CLOSE → RETROSPECT
 
 ---
 
-## Labels
-
-| Label | Purpose |
-|-------|---------|
-| `high-priority` | Must be done first |
-| `medium-priority` | Important but not urgent |
-| `low-priority` | Can wait |
-| `backend` | Backend-related tasks |
-| `frontend` | Frontend-related tasks |
-| `devops` | Infrastructure tasks |
-| `database` | Database-related tasks |
-| `bug` | Bugs |
-| `enhancement` | New features |
-| `documentation` | Docs-related tasks |
-| `blocked` | Task cannot proceed — waiting on a dependency, decision, or person. Remove when unblocked. |
-
-When blocked, add the `blocked` label to the issue, note the blocker in a comment, and flag it in your daily standup. The [Scrum Master](./team-roles.md) helps clear blockers.
-
----
-
-## Milestones
-
-| Milestone | Description | Target |
-|-----------|-------------|--------|
-| **Sprint 1: Foundation** | Infrastructure, Docker, data ingestion | Weeks 1–2 |
-| **Sprint 2: AI Models** | Forecasting and correlation models | Weeks 3–4 |
-| **Sprint 3: API & Alerts** | API Gateway and Alert Service | Weeks 5–6 |
-| **Sprint 4: Dashboard** | React dashboard | Weeks 7–8 |
-| **Sprint 5: Deployment** | Cloud deployment and final testing | Weeks 9–10 |
-
----
-
-## Ceremonies
-
-| Ceremony | Purpose | Notes |
-|----------|---------|-------|
-| **Sprint planning** | Select stories, estimate, assign owners | See [Planning template](./meetings/templates/planning.md) |
-| **Backlog refinement** | Clarify stories, acceptance criteria, estimates | See [Refinement template](./meetings/templates/refinement.md) |
-| **Daily standup** (async) | Yesterday / today / blockers | Written update in Slack — see template below |
-| **Sprint review** | Demo completed work, review what's left | End of each sprint |
-| **Retrospective** | What went well, what to improve | After each sprint |
-
-### Daily standup template
-
-Standups are **async** — we cannot sync daily across time zones. Each person posts their own update in `#capstone-project-group` on working days.
-
-```markdown
-### You
-- Yesterday: Set up RabbitMQ
-- Today: Start Docker Compose
-- Blockers: None
-```
-
-Replace the heading with your name. If you have a blocker, add the `blocked` label to the relevant issue and mention it here.
-
-### Sprint review checklist
-
-- [ ] Review completed work (Done column)
-- [ ] Review what's left (In Progress, To Do)
-- [ ] Demo new features to the team
-- [ ] Identify blockers
-- [ ] Plan next sprint (Backlog → To Do)
-
-### Retrospective questions
-
-| Question | Purpose |
-|----------|---------|
-| What went well? | Celebrate successes |
-| What went wrong? | Identify problems |
-| What can we improve? | Changes for next sprint |
-| What should we stop doing? | Remove bad habits |
-| What should we start doing? | Add good practices |
+When blocked, add the `blocked` label to the issue ([labels](https://github.com/TheQuintet/macrocrypto-ai/labels)), note the blocker in a comment, and flag it in your daily standup. The [Scrum Master](./team-roles.md) helps clear blockers.
 
 ---
 
 ## Daily developer workflow
 
-1. **Start day** — check assigned issues on the board; `git pull origin main`
+1. **Start day** — check assigned issues on the [Daily board](https://github.com/orgs/TheQuintet/projects/3); `git pull origin main`
 2. **Work on issue** — move to In Progress; branch `feature/issue-name`; commit and push regularly
 3. **Daily standup** — post yesterday / today / blockers in Slack; label blocked issues
 4. **Open PR** — move issue to Review; request review from a teammate
 5. **Review PRs** — review at least one PR per day; approve or request changes; merge when approved
-6. **End day** — update board status; close issues when done
+6. **End day** — update Daily board status; close issues when done
 
 Code changes follow [GitHub Flow](../GITHUB_FLOW.md). See also [Contributing](../CONTRIBUTING.md).
 
@@ -312,6 +289,7 @@ Acceptance criteria:
 | 1.0 | 2026-07-08 | Initial project management guide |
 | 1.1 | 2026-07-14 | Merged into docs/agile.md |
 | 1.2 | 2026-07-14 | Async standups, `blocked` label, board flow note |
+| 1.3 | 2026-07-30 | Document four GitHub Project boards (Daily, MacroCrypto AI Team Planning, Team Retrospective, Roadmap) |
 
 ---
 
@@ -319,6 +297,11 @@ Acceptance criteria:
 
 - [Planning template](./meetings/templates/planning.md)
 - [Refinement template](./meetings/templates/refinement.md)
+- [Standup template](./meetings/templates/standup.md)
+- [Review template](./meetings/templates/review.md)
+- [Retrospective template](./meetings/templates/retrospective.md)
+- [29 Jul 2026 Refinement & Planning](./meetings/2026-07-29-refinement-and-planning.md)
+- [5 Aug 2026 Retrospective](./meetings/2026-08-05-retrospective.md)
 - [Team](./team-roles.md)
 - [Deliverables](./quantic/deliverables.md)
 - [GitHub Flow](../GITHUB_FLOW.md)

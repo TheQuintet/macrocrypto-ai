@@ -27,4 +27,25 @@ Backlog refinement notes: clarify stories, acceptance criteria, and estimates.
 
 ## Sessions
 
-_Add dated refinement notes below as sprints progress._
+### Refinement (combined with planning) — 29 Jul 2026
+
+| | |
+|---|---|
+| **Date** | Wed 29 Jul 2026 |
+| **Attendees** | Team |
+| **Full notes** | [2026-07-29 Refinement & Planning](../2026-07-29-refinement-and-planning.md) |
+
+**Stories refined**
+
+| Story | Changes | Ready for sprint? |
+|-------|---------|-------------------|
+| Frontend architecture setup | Missing — must be ticketed before components | Yes (create first) |
+| Frontend component backlog | Over-scoped for this week; pull only what Loredana can finish | Partial |
+| Frontend WebSocket tasks | Out of scope for now; keep, medium priority, do not work | Parked |
+| Backend microservices refactor | Confirmed as Sprint 2 focus for Mael | Yes |
+| Use case diagram | Agreed as first diagram; new issue needed | Yes (create) |
+
+**Notes**
+
+- Aligned on 1-week sprints, Kanban-style carryover, async role-channel standups
+- Frontend stack and PR rules agreed — see full notes for decisions and action items

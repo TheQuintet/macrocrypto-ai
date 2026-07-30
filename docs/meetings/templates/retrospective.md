@@ -45,4 +45,11 @@ Sprint retrospective notes: what went well, what went wrong, and action items.
 
 ## Sessions
 
-_Add dated retrospective notes below as sprints progress._
+### Sprint retrospective — 5 Aug 2026 (planned)
+
+| | |
+|---|---|
+| **Date** | Wed 5 Aug 2026 (Slot B) |
+| **Facilitator** | Loredana Lungu |
+| **Full notes** | [2026-08-05 Retrospective](../2026-08-05-retrospective.md) |
+| **Board** | [MacroCrypto AI Team Retrospective](https://github.com/orgs/TheQuintet/projects/4) |
