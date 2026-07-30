@@ -69,10 +69,10 @@ services:
     ports:
       - "8001:8001"
     # # ✅ ADD DNS CONFIGURATION
-    # dns:
-    #   - 8.8.8.8
-    #   - 1.1.1.1
-    #   - 8.8.4.4
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+      - 8.8.4.4
     environment:
       # Override Redis host to use Docker service name
       - REDIS_HOST=redis
