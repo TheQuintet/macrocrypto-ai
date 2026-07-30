@@ -10,13 +10,27 @@ Validates:
 import asyncio
 import json
 import pytest
+import socket
 import websockets
+
+
+def is_internet_available():
+    """Check if Binance WebSocket is reachable."""
+    try:
+        socket.gethostbyname("stream.binance.com")
+        return True
+    except socket.gaierror:
+        return False
 
 
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_websocket_connection():
     """Test WebSocket connection to Binance stream."""
+
+    # ✅ Skip test if DNS resolution fails
+    if not is_internet_available():
+        pytest.skip("Binance WebSocket not reachable (DNS resolution failed)")
 
     ws_url = "wss://stream.binance.com:9443/ws"
 
