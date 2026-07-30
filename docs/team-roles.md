@@ -42,6 +42,26 @@ A cell with your **color** = you're free for that 1-hour block. Empty = unknown 
 
 Source of truth: [Notion Capstone Team Availability](https://app.notion.com/p/39fd8570062e80cf94cbcb859ebd4e57?v=39fd8570062e80939b5d000c5cd3f3ae) calendar (synced below).
 
+**Recurring weekly sync (set 30 Jul 2026):** After a couple of weeks comparing availability, the team found a late-evening **Wednesday Slot B** that works for everyone (19:00–20:00 GMT+1 / 20:00–21:00 GMT+2 / 21:00–22:00 GMT+3). Use that cadence for planning, refinement, and other sync ceremonies.
+
+#### Recurring meetings through 14 Oct 2026
+
+| # | Date | Slot |
+|---|------|------|
+| 1 | Wed 5 Aug 2026 | Slot B |
+| 2 | Wed 12 Aug 2026 | Slot B |
+| 3 | Wed 19 Aug 2026 | Slot B |
+| 4 | Wed 26 Aug 2026 | Slot B |
+| 5 | Wed 2 Sep 2026 | Slot B |
+| 6 | Wed 9 Sep 2026 | Slot B |
+| 7 | Wed 16 Sep 2026 | Slot B |
+| 8 | Wed 23 Sep 2026 | Slot B |
+| 9 | Wed 30 Sep 2026 | Slot B |
+| 10 | Wed 7 Oct 2026 | Slot B |
+| 11 | Wed 14 Oct 2026 | Slot B |
+
+Marked as **📅 sync** on Wednesday Slot B in the weekly grids below (from Week 4 onward).
+
 ### Member codes
 
 | Code | Member | Primary role | Offset |
@@ -100,7 +120,97 @@ _Mon–Thu from [Polly poll](https://web.polly.ai/presentation/ply:9977d4a2-4b84
 | | Mon 3 | Tue 4 | Wed 5 | Thu 6 | Fri 7 | Sat 8 | Sun 9 |
 |---|-------|-------|-------|-------|-------|-------|-------|
 | Slot A | 🟦 | 🟥, 🟦 | | | | | |
-| Slot B | 🟥, 🟦 | 🟥, 🟦 | | | | | |
+| Slot B | 🟥, 🟦 | 🟥, 🟦 | 📅 sync | | | | |
+
+---
+
+### Week 5 — Mon 10 – Sun 16 Aug 2026
+
+| | Mon 10 | Tue 11 | Wed 12 | Thu 13 | Fri 14 | Sat 15 | Sun 16 |
+|---|--------|--------|--------|--------|--------|--------|--------|
+| Slot A | | | | | | | |
+| Slot B | | | 📅 sync | | | | |
+
+---
+
+### Week 6 — Mon 17 – Sun 23 Aug 2026
+
+| | Mon 17 | Tue 18 | Wed 19 | Thu 20 | Fri 21 | Sat 22 | Sun 23 |
+|---|--------|--------|--------|--------|--------|--------|--------|
+| Slot A | | | | | | | |
+| Slot B | | | 📅 sync | | | | |
+
+---
+
+### Week 7 — Mon 24 – Sun 30 Aug 2026
+
+| | Mon 24 | Tue 25 | Wed 26 | Thu 27 | Fri 28 | Sat 29 | Sun 30 |
+|---|--------|--------|--------|--------|--------|--------|--------|
+| Slot A | | | | | | | |
+| Slot B | | | 📅 sync | | | | |
+
+---
+
+### Week 8 — Mon 31 Aug – Sun 6 Sep 2026
+
+| | Mon 31 | Tue 1 | Wed 2 | Thu 3 | Fri 4 | Sat 5 | Sun 6 |
+|---|--------|-------|-------|-------|-------|-------|-------|
+| Slot A | | | | | | | |
+| Slot B | | | 📅 sync | | | | |
+
+---
+
+### Week 9 — Mon 7 – Sun 13 Sep 2026
+
+| | Mon 7 | Tue 8 | Wed 9 | Thu 10 | Fri 11 | Sat 12 | Sun 13 |
+|---|-------|-------|-------|--------|--------|--------|--------|
+| Slot A | | | | | | | |
+| Slot B | | | 📅 sync | | | | |
+
+---
+
+### Week 10 — Mon 14 – Sun 20 Sep 2026
+
+| | Mon 14 | Tue 15 | Wed 16 | Thu 17 | Fri 18 | Sat 19 | Sun 20 |
+|---|--------|--------|--------|--------|--------|--------|--------|
+| Slot A | | | | | | | |
+| Slot B | | | 📅 sync | | | | |
+
+---
+
+### Week 11 — Mon 21 – Sun 27 Sep 2026
+
+| | Mon 21 | Tue 22 | Wed 23 | Thu 24 | Fri 25 | Sat 26 | Sun 27 |
+|---|--------|--------|--------|--------|--------|--------|--------|
+| Slot A | | | | | | | |
+| Slot B | | | 📅 sync | | | | |
+
+---
+
+### Week 12 — Mon 28 Sep – Sun 4 Oct 2026
+
+| | Mon 28 | Tue 29 | Wed 30 | Thu 1 | Fri 2 | Sat 3 | Sun 4 |
+|---|--------|--------|--------|-------|-------|-------|-------|
+| Slot A | | | | | | | |
+| Slot B | | | 📅 sync | | | | |
+
+---
+
+### Week 13 — Mon 5 – Sun 11 Oct 2026
+
+| | Mon 5 | Tue 6 | Wed 7 | Thu 8 | Fri 9 | Sat 10 | Sun 11 |
+|---|-------|-------|-------|-------|-------|--------|--------|
+| Slot A | | | | | | | |
+| Slot B | | | 📅 sync | | | | |
+
+---
+
+### Week 14 — Mon 12 – Sun 18 Oct 2026
+
+| | Mon 12 | Tue 13 | Wed 14 | Thu 15 | Fri 16 | Sat 17 | Sun 18 |
+|---|--------|--------|--------|--------|--------|--------|--------|
+| Slot A | | | | | | | |
+| Slot B | | | 📅 sync (last through 14 Oct) | | | | |
 
 ---
 

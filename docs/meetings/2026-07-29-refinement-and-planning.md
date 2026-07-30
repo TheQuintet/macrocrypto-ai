@@ -86,7 +86,7 @@ Combined backlog refinement and Sprint 2 planning session.
 | Loredana | Draft frontend architecture document; schedule short sync with Kingson | ✅ Done (doc shared via Slack; Kingson sync TBD) |
 | Loredana | Begin use case diagram (Mael supervises) | ⏸️ Blocked — needs Sid to create the issue |
 | Loredana | Prepare retro board (what went well / improvements / action items) for next meeting | ⏳ Open |
-| Loredana | Set recurring weekly meeting (Wednesday or Thursday, late evening) | ⏳ Open |
+| Loredana | Set recurring weekly meeting (Wednesday or Thursday, late evening) | ✅ Done (set 30 Jul 2026) |
 | Sid | Add start/target dates to epics and features for roadmap visibility | ⏳ Open |
 | Sid | Create issue for use case diagram in current sprint | ⏳ Open — **needed so Loredana can start** |
 | Mael | Refactor previously implemented services into the new microservices architecture | ⏳ Open |
@@ -96,4 +96,4 @@ Combined backlog refinement and Sprint 2 planning session.
 
 ## Next meeting
 
-**Recurring weekly** — Wednesday or Thursday, late evening (exact day TBD when Loredana sets the cadence).
+**Recurring weekly** — set by Loredana on 30 Jul 2026. After a couple of weeks comparing availability, the team locked **Wednesday Slot B** (late evening) through **14 Oct 2026**. Full date list: [Team availability](../team-roles.md#recurring-meetings-through-14-oct-2026).
