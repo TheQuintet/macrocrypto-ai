@@ -14,8 +14,11 @@ RATE_LIMIT = 100
 def test_price_api_rate_limit():
     """Test that rate limiting works correctly."""
 
-    # Wait for any previous rate limit to clear
-    time.sleep(2)
+    # ✅ Check if already rate limited and wait
+    response = requests.get(API_URL)
+    if response.status_code == 429:
+        print("⚠️ Rate limit already exhausted - waiting 65 seconds...")
+        time.sleep(65)
 
     # Make requests just under the limit (limit - 5 to be safe)
     limit = RATE_LIMIT - 5
@@ -36,7 +39,6 @@ def test_price_api_rate_limit():
     assert rate_limited_requests == 0
 
     # Now make additional requests to trigger rate limit
-    # Since the rate limit is 100 per minute, we need to exceed it
     print("⏳ Making additional requests to trigger rate limit...")
     
     # Make 10 more requests (total should exceed the limit)
