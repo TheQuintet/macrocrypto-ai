@@ -52,7 +52,7 @@ Combined backlog refinement and Sprint 2 planning session.
 
 | Item | Outcome | Ready for sprint? |
 |------|---------|-------------------|
-| Frontend architecture / app setup | Setup issue creation **in progress** (Loredana); architecture doc drafted and shared via Slack | Yes (blocker for FE) |
+| Frontend architecture / app setup | Description ready (Loredana); waiting on Sid to create the ticket. Architecture doc drafted and shared via Slack | Yes (blocker for FE) |
 | Frontend component tasks | Over-scoped for this week (Kingson limited) — pull what Loredana can finish | Partial |
 | Frontend WebSocket issues (e.g. T4.8, T4.12) | Keep in sprint; **do not work** yet (medium priority) | Parked |
 | Backend microservices refactor | Confirmed on track for Mael | Yes |
@@ -65,14 +65,14 @@ Combined backlog refinement and Sprint 2 planning session.
 | Blocker | Impact | Notes |
 |---------|--------|-------|
 | Kingson availability | Frontend capacity this month | Overloaded with work/school; expects capacity mid-next-month |
-| Frontend architecture setup issue | Blocks component issues | Setup issue creation **in progress** (Loredana) |
+| Frontend architecture setup ticket missing | Blocks component issues | Loredana finished the issue description — waiting on Sid to create the ticket |
 | Use case diagram ticket missing | Blocks Loredana from starting diagram work | Waiting on Sid to create the issue |
 
 ---
 
 ## Pending confirmation
 
-- [x] Frontend architecture document drafted by Loredana → shared via Slack; short sync with Kingson still TBD
+- [x] Frontend architecture document drafted by Loredana → shared via Slack; aligned with Kingson offline in the frontend Slack channel
 - [ ] Diagramming tool selection (collaborative web app vs Mermaid/PlantUML)
 - [x] Lightweight state-manager alternative to Redux — Loredana researched and proposed **Zod** instead of Redux
 
@@ -82,11 +82,12 @@ Combined backlog refinement and Sprint 2 planning session.
 
 | Owner | Action | Status |
 |-------|--------|--------|
-| Loredana | Create frontend architecture setup issue (send description to Sid for ticket creation) | 🔄 In progress |
-| Loredana | Draft frontend architecture document; schedule short sync with Kingson | ✅ Done (doc shared via Slack; Kingson sync TBD) |
+| Loredana | Create frontend architecture setup issue (send description to Sid for ticket creation) | ✅ Done (description ready — Sid to create the ticket) |
+| Loredana | Draft frontend architecture document; schedule short sync with Kingson | ✅ Done (doc shared via Slack; aligned with Kingson offline in `#frontend`) |
 | Loredana | Begin use case diagram (Mael supervises) | ⏸️ Blocked — needs Sid to create the issue |
 | Loredana | Prepare retro board (what went well / improvements / action items) for next meeting | ⏳ Open |
 | Loredana | Set recurring weekly meeting (Wednesday or Thursday, late evening) | ✅ Done (set 30 Jul 2026) |
+| Sid | Create frontend architecture setup issue from Loredana's description | ⏳ Open — **needed so FE setup can start** |
 | Sid | Add start/target dates to epics and features for roadmap visibility | ⏳ Open |
 | Sid | Create issue for use case diagram in current sprint | ⏳ Open — **needed so Loredana can start** |
 | Mael | Refactor previously implemented services into the new microservices architecture | ⏳ Open |
@@ -97,3 +98,5 @@ Combined backlog refinement and Sprint 2 planning session.
 ## Next meeting
 
 **Recurring weekly** — set by Loredana on 30 Jul 2026. After a couple of weeks comparing availability, the team locked **Wednesday Slot B** (late evening) through **14 Oct 2026**. Full date list: [Team availability](../team-roles.md#recurring-meetings-through-14-oct-2026).
+
+**Next sync (Wed 5 Aug 2026):** [Retrospective + discussion agenda](./2026-08-05-retrospective.md) — includes auth system decision and Turborepo discussion.

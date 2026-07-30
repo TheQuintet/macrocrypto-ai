@@ -12,6 +12,15 @@ Sprint retrospective for the next recurring weekly sync.
 
 ---
 
+## Agenda / discussion ideas
+
+In addition to the retrospective, discuss:
+
+- [ ] **Auth system** — decide which authentication approach to use for the app (options, trade-offs, recommendation)
+- [ ] **Turborepo** — discuss whether/how to adopt Turborepo for the monorepo (fit with current `frontend/` + `services/` layout, pros/cons)
+
+---
+
 ## What went well 🟢
 
 - _TBD — capture during the session_
