@@ -1,0 +1,6 @@
+# Vite
+.vite/
+dist-ssr/
+
+# Local env
+*.local
