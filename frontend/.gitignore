@@ -1,6 +1,14 @@
-# Vite
-.vite/
+# Dependencies
+node_modules/
+
+# Build
+dist/
 dist-ssr/
 
-# Local env
+# Vite
+.vite/
+
+# Environment
+.env
+.env.*
 *.local
