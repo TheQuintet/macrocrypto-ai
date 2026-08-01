@@ -1,0 +1,45 @@
+:root {
+  color: #0f172a;
+  background-color: #f8fafc;
+  font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+main {
+  display: grid;
+  place-content: center;
+  gap: 0.5rem;
+  min-height: 100vh;
+  padding: 1.5rem;
+  text-align: center;
+}
+
+h1 {
+  margin: 0;
+  font-size: 2rem;
+  line-height: 1.2;
+}
+
+p {
+  margin: 0;
+  color: #475569;
+}
