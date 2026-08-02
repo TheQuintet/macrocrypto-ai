@@ -1,44 +1,65 @@
-import { useEffect, useState } from 'react'
-import { Moon, Sun } from 'lucide-react'
-import { toast } from 'sonner'
+import { useState } from 'react'
+import { Bell, Moon, Sun } from 'lucide-react'
+import { AppSidebar } from '@/components/app-sidebar'
+import { PageContent } from '@/components/page-content'
 import { Button } from '@/components/ui/button'
+import {
+  SidebarInset,
+  SidebarProvider,
+  SidebarTrigger,
+} from '@/components/ui/sidebar'
 import { Toaster } from '@/components/ui/sonner'
+import { TooltipProvider } from '@/components/ui/tooltip'
+import type { NavItemId } from '@/constants/navigation'
+import { useTheme } from '@/hooks/use-theme'
 
 function App() {
-  const [isDark, setIsDark] = useState(false)
-
-  useEffect(() => {
-    document.documentElement.classList.toggle('dark', isDark)
-  }, [isDark])
+  const { isDark, toggleTheme } = useTheme()
+  const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [activeNav, setActiveNav] = useState<NavItemId>('dashboard')
 
   return (
-    <main className="relative grid min-h-svh place-content-center gap-4 bg-background px-6 text-center text-foreground">
-      <Button
-        type="button"
-        variant="outline"
-        size="icon"
-        className="absolute top-4 right-4"
-        aria-label={isDark ? 'Switch to light theme' : 'Switch to dark theme'}
-        onClick={() => setIsDark((dark) => !dark)}
-      >
-        {isDark ? <Sun /> : <Moon />}
-      </Button>
-      <h1 className="text-3xl font-bold tracking-tight">MacroCrypto AI</h1>
-      <p className="text-muted-foreground">Frontend scaffold is ready.</p>
-      <div>
-        <Button
-          type="button"
-          onClick={() =>
-            toast.success('Welcome to MacroCrypto AI', {
-              description: 'Your frontend scaffold is ready to build on.',
-            })
-          }
-        >
-          Get started
-        </Button>
-      </div>
-      <Toaster position="bottom-center" richColors />
-    </main>
+    <TooltipProvider>
+      <SidebarProvider open={sidebarOpen} onOpenChange={setSidebarOpen}>
+        <AppSidebar activeNav={activeNav} onNavigate={setActiveNav} />
+        <SidebarInset>
+          <header className="flex h-14 items-center gap-2 border-b px-4">
+            <SidebarTrigger />
+            <div className="ml-auto flex items-center gap-2">
+              <Button
+                type="button"
+                variant={activeNav === 'alerts' ? 'secondary' : 'outline'}
+                size="icon"
+                aria-label="Open alerts"
+                onClick={() => setActiveNav('alerts')}
+              >
+                <Bell />
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                aria-label={isDark ? 'Switch to light theme' : 'Switch to dark theme'}
+                onClick={toggleTheme}
+              >
+                {isDark ? <Sun /> : <Moon />}
+              </Button>
+            </div>
+          </header>
+          <PageContent activeNav={activeNav} />
+        </SidebarInset>
+        <Toaster
+          position="bottom-left"
+          offset={{
+            bottom: '1rem',
+            left: sidebarOpen
+              ? 'calc(var(--sidebar-width) + 1rem)'
+              : 'calc(var(--sidebar-width-icon) + 1rem)',
+          }}
+          richColors
+        />
+      </SidebarProvider>
+    </TooltipProvider>
   )
 }
 
