@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Moon, Sun } from 'lucide-react'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
+import { Toaster } from '@/components/ui/sonner'
 
 function App() {
   const [isDark, setIsDark] = useState(false)
@@ -24,8 +26,18 @@ function App() {
       <h1 className="text-3xl font-bold tracking-tight">MacroCrypto AI</h1>
       <p className="text-muted-foreground">Frontend scaffold is ready.</p>
       <div>
-        <Button type="button">Get started</Button>
+        <Button
+          type="button"
+          onClick={() =>
+            toast.success('Welcome to MacroCrypto AI', {
+              description: 'Your frontend scaffold is ready to build on.',
+            })
+          }
+        >
+          Get started
+        </Button>
       </div>
+      <Toaster position="bottom-center" richColors />
     </main>
   )
 }
