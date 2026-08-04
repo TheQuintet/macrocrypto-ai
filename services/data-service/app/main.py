@@ -119,7 +119,7 @@ async def lifespan(app: FastAPI):
     try:
         # ✅ Use app.state.data_processor
         btc_task = asyncio.create_task(
-            run_websocket_stream(app.state.data_processor, rabbitmq_producer)
+            run_websocket_stream(app.state.data_processor, app.state.cache_client, app.state.rabbitmq_producer)
         )
         print("✅ BTC WebSocket stream started")
     except Exception as error:
@@ -191,6 +191,7 @@ async def lifespan(app: FastAPI):
 
 async def run_websocket_stream(
     data_processor: DataProcessor,
+    cache_client: Optional[CacheClient],
     rabbitmq_producer: Optional[RabbitMQProducer]
 ):
     """
@@ -207,6 +208,7 @@ async def run_websocket_stream(
     # ✅ Pass rabbitmq_producer to the WebSocket client
     client = BTCWebSocketClient(
         data_processor=data_processor,
+        cache_client=cache_client,
         rabbitmq_producer=rabbitmq_producer,
         on_update_callback=None
     )
@@ -233,7 +235,7 @@ async def periodic_price_collection(symbol: str = "BTCUSDT", interval: int = 60)
     """
     Periodic task to collect price data from Binance REST API
     """
-    global cache_client, rabbitmq_producer, data_processor
+    # global cache_client, rabbitmq_producer, data_processor
     
     collector = BinanceCollector()
     
@@ -400,7 +402,7 @@ async def root():
 @app.get("/health")
 async def health_check():
     """Health check endpoint for service monitoring"""
-    global btc_task, price_service, data_processor, cache_client, rabbitmq_producer
+    # global btc_task, price_service, data_processor, cache_client, rabbitmq_producer
     
     ws_status = "unknown"
     if btc_task is None:

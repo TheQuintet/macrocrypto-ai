@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 from app.config import settings
 from app.services.data_processor import DataProcessor
 from app.rabbitmq.producer import RabbitMQProducer
+from app.cache.client import CacheClient
 
 # Setup logging
 logger = logging.getLogger(__name__)
@@ -32,12 +33,14 @@ class BTCWebSocketClient:
     - Connection timeout handling
     - Automatic reconnect
     - Callback support for price updates
+    - Cache updates for latest BTC snapshot
     - RabbitMQ publishing for real-time events
     """
     
     def __init__(
         self,
         data_processor: Optional[DataProcessor] = None,
+        cache_client: Optional[CacheClient] = None,
         rabbitmq_producer: Optional[RabbitMQProducer] = None,
         on_update_callback: Optional[Callable] = None
     ):
@@ -46,10 +49,12 @@ class BTCWebSocketClient:
         
         Args:
             data_processor: DataProcessor for processing updates
+            cache_client: Redis cache client for storing latest BTC snapshot
             rabbitmq_producer: RabbitMQ producer for publishing events
             on_update_callback: Optional callback for price updates
         """
-        self.data_processor = data_processor
+        self.data_processor = data_processor        
+        self.cache_client = cache_client
         self.rabbitmq_producer = rabbitmq_producer
         self.on_update_callback = on_update_callback
         self.websocket = None
@@ -199,9 +204,27 @@ class BTCWebSocketClient:
             
             logger.info(f"💰 BTC Price: {price}")
             
+            # if self.data_processor:
+            #     self.data_processor.process_ticker_update(data)
+
             if self.data_processor:
-                self.data_processor.process_ticker_update(data)
-            
+                processed = self.data_processor.process_ticker_update(data)
+                logger.info(f"Cache check: processed={processed}, cache={self.cache_client}, connected={self.cache_client.is_connected if self.cache_client else None}")
+                if processed and self.cache_client and self.cache_client.is_connected:
+                    try:
+                        snapshot = self.data_processor.get_snapshot()
+
+                        await self.cache_client.set(
+                            "btc_price_snapshot",
+                            snapshot.to_dict(),
+                            ttl=5,
+                        )
+
+                        logger.debug("BTC snapshot updated in Redis")
+
+                    except Exception as error:
+                        logger.warning(f"Failed to update Redis cache: {error}")
+
             # ✅ PUBLISH TO RABBITMQ
             if self.rabbitmq_producer:
                 try:
@@ -261,9 +284,13 @@ async def connect_btc_price_stream():
     try:
         from app.services.data_processor import DataProcessor
         from app.main import data_processor as global_data_processor
+        from app.cache.client import CacheClient
+        from app.rabbitmq.producer import RabbitMQProducer  
         
         _global_client = BTCWebSocketClient(
             data_processor=global_data_processor,
+            cache_client=CacheClient(),
+            rabbitmq_producer=RabbitMQProducer(),
             on_update_callback=None
         )
         
@@ -285,7 +312,7 @@ async def connect_btc_price_stream():
 
 
 async def process_btc_ticker_update(data: dict):
-    global _global_client
+    # global _global_client
     
     if _global_client:
         await _global_client._process_message(data)
