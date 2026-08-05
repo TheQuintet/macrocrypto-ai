@@ -16,6 +16,7 @@ from app.database.session import init_db, engine
 from app.cache.client import CacheClient
 from app.rabbitmq.producer import RabbitMQProducer
 from app.collectors.binance import BinanceCollector
+from app.services.market_cap_service import MarketCapService
 # from app.collectors.fred import FREDCollector
 from app.api.routes import router as api_router
 
@@ -28,18 +29,25 @@ from app.services.data_processor import DataProcessor
 from app.core.rate_limit import limiter
 
 # Global references for background tasks
+# btc_task: Optional[asyncio.Task] = None
+# price_service: Optional[PriceService] = None
+# data_processor: Optional[DataProcessor] = None
+# cache_client: Optional[CacheClient] = None
+# rabbitmq_producer: Optional[RabbitMQProducer] = None
+
 btc_task: Optional[asyncio.Task] = None
+market_cap_task: Optional[asyncio.Task] = None
 price_service: Optional[PriceService] = None
 data_processor: Optional[DataProcessor] = None
 cache_client: Optional[CacheClient] = None
 rabbitmq_producer: Optional[RabbitMQProducer] = None
-
+market_cap_service: Optional[MarketCapService] = None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifespan context manager for startup and shutdown events"""
-    global btc_task, price_service, data_processor, cache_client, rabbitmq_producer
-    
+    # global btc_task, price_service, data_processor, cache_client, rabbitmq_producer
+    global btc_task, market_cap_task, price_service, data_processor, cache_client, rabbitmq_producer, market_cap_service 
     # ============================================
     # STARTUP PHASE
     # ============================================
@@ -126,6 +134,31 @@ async def lifespan(app: FastAPI):
         print(f"❌ Failed to start BTC WebSocket stream: {error}")
         btc_task = None
     
+
+    # --------------------------------------------
+    # 6. Start BTC Market Cap Collector
+    # --------------------------------------------
+    try:
+        if app.state.cache_client:
+            market_cap_service = MarketCapService(
+                app.state.cache_client
+            )
+
+            app.state.market_cap_service = market_cap_service
+
+            market_cap_task = asyncio.create_task(
+                run_market_cap_collection(
+                    market_cap_service
+                )
+            )
+
+            print("✅ BTC market cap collector started")
+
+        else:
+            print("⚠️ Market cap collector disabled (Redis unavailable)")
+
+    except Exception as error:
+        print(f"⚠️ Market cap collector startup error: {error}")
     # --------------------------------------------
     # 6. Start Periodic Data Collection Tasks
     # --------------------------------------------
@@ -309,6 +342,33 @@ async def periodic_price_collection(symbol: str = "BTCUSDT", interval: int = 60)
     finally:
         await collector.close()
 
+
+async def run_market_cap_collection(
+    market_cap_service: MarketCapService
+):
+    """
+    Periodically update BTC market cap from CoinGecko.
+
+    Runs independently from WebSocket stream.
+    """
+
+    while True:
+        try:
+            updated = await market_cap_service.update_market_cap()
+
+            if updated:
+                print("✅ BTC market cap updated")
+
+            else:
+                print("⚠️ BTC market cap update failed")
+
+        except Exception as error:
+            print(
+                f"⚠️ Market cap collection error: {error}"
+            )
+
+        # CoinGecko does not need second-by-second updates
+        await asyncio.sleep(900)
 # async def periodic_economic_collection(interval: int = 3600):
 #     """
 #     Periodic task to collect economic indicators from FRED

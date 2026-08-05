@@ -4,7 +4,8 @@ services:
   # ============================================
   
   postgres:
-    image: postgres:15-alpine
+    # image: postgres:15-alpine
+    image: timescale/timescaledb:2.17.2-pg15
     container_name: macro-postgres
     environment:
       POSTGRES_USER: macro
@@ -69,10 +70,10 @@ services:
     ports:
       - "8001:8001"
     # # ✅ ADD DNS CONFIGURATION
-    dns:
-      - 8.8.8.8
-      - 1.1.1.1
-      - 8.8.4.4
+    # dns:
+    #   - 8.8.8.8
+    #   - 1.1.1.1
+    #   - 8.8.4.4
     environment:
       # Override Redis host to use Docker service name
       - REDIS_HOST=redis

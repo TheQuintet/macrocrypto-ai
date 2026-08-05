@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 
 from app.config import settings
 from app.services.data_processor import DataProcessor
+from app.database.btc_price_repository import BTCPriceRepository
 from app.rabbitmq.producer import RabbitMQProducer
 from app.cache.client import CacheClient
 
@@ -41,6 +42,7 @@ class BTCWebSocketClient:
         self,
         data_processor: Optional[DataProcessor] = None,
         cache_client: Optional[CacheClient] = None,
+        btc_price_repository: Optional[BTCPriceRepository] = None,
         rabbitmq_producer: Optional[RabbitMQProducer] = None,
         on_update_callback: Optional[Callable] = None
     ):
@@ -50,12 +52,15 @@ class BTCWebSocketClient:
         Args:
             data_processor: DataProcessor for processing updates
             cache_client: Redis cache client for storing latest BTC snapshot
+            btc_price_repository: Repository for storing BTC price data
             rabbitmq_producer: RabbitMQ producer for publishing events
             on_update_callback: Optional callback for price updates
         """
         self.data_processor = data_processor        
         self.cache_client = cache_client
         self.rabbitmq_producer = rabbitmq_producer
+        self.btc_price_repository = btc_price_repository or BTCPriceRepository()
+
         self.on_update_callback = on_update_callback
         self.websocket = None
         self.is_running = False
@@ -114,7 +119,6 @@ class BTCWebSocketClient:
             
             try:
                 logger.info(f"Connecting to Binance BTC stream at {self.ws_url}")
-                
                 self.websocket = await websockets.connect(
                     self.ws_url,
                     open_timeout=self.connection_timeout
@@ -129,7 +133,6 @@ class BTCWebSocketClient:
                 }
                 await self.websocket.send(json.dumps(subscribe_msg))
                 logger.info("📤 Subscribed to btcusdt@ticker")
-                
                 retry_delay = self.initial_retry_delay
                 retry_count = 0
                 
@@ -140,10 +143,14 @@ class BTCWebSocketClient:
                             await self.websocket.close()
                             return
                         
+                        logger.info("⏳ Waiting for Binance message")
+
                         message = await asyncio.wait_for(
                             self.websocket.recv(),
                             timeout=30.0
                         )
+
+                        logger.info(f"📩 Raw Binance message: {message[:200]}")
                         
                         data = json.loads(message)
                         
@@ -193,6 +200,7 @@ class BTCWebSocketClient:
         """
         Process incoming WebSocket message
         """
+        logger.info("🔥 ENTERED _process_message")
         try:
             if 'c' not in data:
                 logger.debug("Skipping non-ticker message")
@@ -201,14 +209,48 @@ class BTCWebSocketClient:
             symbol = data.get("s", "BTCUSDT")
             price_str = data.get("c", "0")
             price = float(price_str)
-            
+
             logger.info(f"💰 BTC Price: {price}")
             
-            # if self.data_processor:
-            #     self.data_processor.process_ticker_update(data)
+           
 
             if self.data_processor:
                 processed = self.data_processor.process_ticker_update(data)
+                if processed:
+                    
+                    try:
+                        # --- Market Cap Section ---
+                        # We attempt to enrich the stored BTC price with a market cap
+                        # value fetched from the cache (Redis). This market cap is
+                        # maintained elsewhere (e.g., a Coingecko poller) and stored
+                        # under the key "btc_market_cap". If present, we extract
+                        # the 'market_cap' field and pass it to the repository so
+                        # that historical price records include market capitalization
+                        # along with price and volume. If the cache is unavailable
+                        # or the entry is missing, market_cap remains None.
+                        market_cap = None
+
+                        if self.cache_client and self.cache_client.is_connected:
+                            try:
+                                market_cap_data = await self.cache_client.get("btc_market_cap")
+                                if market_cap_data:
+                                    market_cap = market_cap_data.get("market_cap")
+                            except Exception as error:
+                                logger.warning(f"Failed to get BTC market cap: {error}")
+
+                        self.btc_price_repository.save_price(
+                            price=price,
+                            volume=float(data.get("v", 0)),
+                            market_cap=market_cap,
+                            source="binance_ws+coingecko",
+                        )
+
+                        logger.info(f"💾 BTC price stored in TimescaleDB: {price}")
+
+                    except Exception as error:
+                        logger.error(
+                            f"Failed to store BTC historical price: {error}"
+                        )
                 logger.info(f"Cache check: processed={processed}, cache={self.cache_client}, connected={self.cache_client.is_connected if self.cache_client else None}")
                 if processed and self.cache_client and self.cache_client.is_connected:
                     try:
@@ -318,3 +360,4 @@ async def process_btc_ticker_update(data: dict):
         await _global_client._process_message(data)
     else:
         logger.warning("No WebSocket client available to process update")
+# ---------------------------

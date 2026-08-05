@@ -42,3 +42,10 @@ MOCK_PRICE_SNAPSHOT = {
     "change_7d_percent": 4.65,
     "updated_at": datetime.now().isoformat()
 }
+
+# BTC market cap mock data from CoinGecko
+
+MOCK_BTC_MARKET_CAP = {
+    "market_cap": 1296938612946.9753,
+    "source": "coingecko",
+}

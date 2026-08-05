@@ -1,5 +1,7 @@
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
+from app.models.btc_price import Base
+from app.models import BTCPrice
 
 from app.config import settings
 
@@ -26,9 +28,12 @@ SessionLocal = sessionmaker(
 
 def init_db():
     """
-    Initialize database connection.
+    Initialize database connection and create tables.
     """
     try:
+        # Create tables if they do not already exist
+        Base.metadata.create_all(bind=engine)
+
         with engine.connect() as connection:
             connection.execute(text("SELECT 1"))
 
