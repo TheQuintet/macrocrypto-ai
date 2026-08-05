@@ -1,11 +1,12 @@
 # Retrospective, Review, Refinement & Planning — 5 Aug 2026
 
-Combined session: retrospective, sprint review, backlog refinement, and sprint planning in one sync.
+Combined session: **Sprint 2** retrospective and review, plus refinement and **Sprint 3** planning in one sync.
 
 | | |
 |---|---|
 | **Date** | Wed 5 Aug 2026 (Slot B) |
 | **Type** | Retrospective + Review + Refinement + Planning |
+| **Sprint** | Sprint 2 closed → Sprint 3 started |
 | **Attendees** | Team (everyone participated in the retro) |
 | **Facilitator** | Loredana Lungu (Scrum Master) |
 | **Product Owner** | Sid Ahmed Mahieddine |
@@ -16,14 +17,15 @@ Combined session: retrospective, sprint review, backlog refinement, and sprint p
 ## Key outcomes
 
 - Main theme: **improve collaboration, raise development velocity, and remove the PR review bottleneck**.
+- Sprint 2 closed and Sprint 3 started; unfinished Sprint 2 work rolls into Sprint 3 (Kanban-style carryover).
 - PR reviews were identified as the single biggest drag on sprint velocity — reviews depend on too few people and time zones delay merges.
 - Backend progress is solid; frontend needs more visible UI work.
-- No new scope this sprint — finish the existing backlog first.
+- No new scope in Sprint 3 — finish the carried-over backlog first.
 - The team found this more structured format (four ceremonies, clear ownership) more productive than previous meetings.
 
 ---
 
-## Retrospective
+## Retrospective — Sprint 2
 
 ### What went well 🟢
 
@@ -59,16 +61,16 @@ Combined session: retrospective, sprint review, backlog refinement, and sprint p
 |-------------|-------|----------|
 | Post daily status updates (Yesterday / Today / Blockers) | Everyone | Daily, from 6 Aug 2026 |
 | Add retrospective items throughout the sprint, not only before the meeting | Everyone | Ongoing |
-| Share UI designs and prototypes earlier | Frontend team (Loredana, Kingson) | Next sprint |
-| Improve PR review workflow and reduce review bottlenecks | Team leads (Sid, Mael) | Next sprint |
-| Investigate GitHub settings for requesting multiple reviewers on PRs | Team | Next sprint |
-| Centralize documentation and discussions (e.g. GitHub Discussions) | Team | Next sprint |
-| Focus on completing current sprint work before creating additional issues | Everyone | Ongoing |
+| Share UI designs and prototypes earlier | Frontend team (Loredana, Kingson) | Sprint 3 |
+| Improve PR review workflow and reduce review bottlenecks | Team leads (Sid, Mael) | Sprint 3 |
+| Investigate GitHub settings for requesting multiple reviewers on PRs | Team | Sprint 3 |
+| Centralize documentation and discussions (e.g. GitHub Discussions) | Team | Sprint 3 |
+| Focus on completing carried-over Sprint 2 work before creating additional issues | Everyone | Ongoing |
 | Prepare and group retro items before each retro to make discussion efficient | Loredana | Before next retro |
 
 ---
 
-## Sprint review
+## Sprint review — Sprint 2
 
 | Area | Status |
 |------|--------|
@@ -83,21 +85,21 @@ The team agreed refinement should clarify existing work rather than introduce ne
 
 | Item | Outcome |
 |------|---------|
-| New issues | Avoid creating many new issues while previous sprint work is unfinished |
-| Current backlog | Continue completing it before expanding scope |
-| Refinement focus | Clarify existing work; no new features pulled in |
+| New issues | Avoid creating many new issues while Sprint 2 carryover is unfinished |
+| Carried-over backlog | Continue completing it before expanding Sprint 3 scope |
+| Refinement focus | Clarify existing work; no new features pulled into Sprint 3 |
 
 ---
 
-## Sprint planning
+## Sprint planning — Sprint 3
 
-The team discussed whether the current sprint goals are achievable and agreed they are — **if**:
+The team discussed whether the Sprint 3 goals are achievable and agreed they are — **if**:
 
 - PR reviews become faster.
 - AI tools are used where appropriate.
 - Members work more in parallel instead of completing issues strictly one at a time.
 
-No new scope was added; the sprint continues with the existing backlog.
+No new scope was added; Sprint 3 starts with the Sprint 2 carryover.
 
 ---
 
@@ -105,7 +107,7 @@ No new scope was added; the sprint continues with the existing backlog.
 
 | Topic | Decision |
 |-------|----------|
-| **Sprint scope** | Continue the existing sprint backlog before adding new work |
+| **Sprint scope** | Sprint 3 continues the Sprint 2 carryover before adding new work |
 | **PR reviews** | Make reviews faster and distribute review responsibility by area (frontend / backend) |
 | **Communication** | Improve daily communication using Agile practices (daily updates, visible blockers) |
 | **Collaboration** | Keep strengthening frontend ↔ backend collaboration |
@@ -113,7 +115,7 @@ No new scope was added; the sprint continues with the existing backlog.
 
 ---
 
-## Sprint metrics
+## Sprint metrics — Sprint 2
 
 | Metric | Value |
 |--------|-------|
@@ -144,7 +146,7 @@ Agenda items planned for this session that were not covered — carry to the nex
 ## Notes
 
 - Retro items were captured on the [Team Retrospective](https://github.com/orgs/TheQuintet/projects/4) board during the session; outcomes copied here.
-- Previous session: [29 Jul 2026 Refinement & Planning](./2026-07-29-refinement-and-planning.md).
+- Previous session: [29 Jul 2026 Refinement & Planning](./2026-07-29-refinement-and-planning.md) — where Sprint 2 was planned, including the 1-week cadence and Kanban-style carryover rule applied here.
 
 ---
 

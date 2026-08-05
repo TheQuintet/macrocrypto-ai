@@ -45,12 +45,13 @@ Sprint retrospective notes: what went well, what went wrong, and action items.
 
 ## Sessions
 
-### Sprint retrospective (combined with review, refinement, planning) — 5 Aug 2026
+### Sprint 2 — Retrospective (combined with review, refinement, planning) — 5 Aug 2026
 
 | | |
 |---|---|
 | **Date** | Wed 5 Aug 2026 (Slot B) |
 | **Attendees** | Team |
+| **Sprint** | 2 (closed; Sprint 3 started in the same session) |
 | **Facilitator** | Loredana Lungu |
 | **Full notes** | [2026-08-05 Retrospective, Review, Refinement & Planning](../2026-08-05-retrospective.md) |
 | **Board** | [MacroCrypto AI Team Retrospective](https://github.com/orgs/TheQuintet/projects/4) |
@@ -74,11 +75,11 @@ Sprint retrospective notes: what went well, what went wrong, and action items.
 |-------------|-------|----------|
 | Post daily status updates (Yesterday / Today / Blockers) | Everyone | Daily, from 6 Aug 2026 |
 | Add retro items throughout the sprint | Everyone | Ongoing |
-| Share UI designs and prototypes earlier | Frontend team | Next sprint |
-| Improve PR review workflow; distribute reviews by area | Team leads | Next sprint |
-| Investigate GitHub settings for multiple reviewers | Team | Next sprint |
-| Centralize documentation and discussions | Team | Next sprint |
-| Finish current sprint work before creating new issues | Everyone | Ongoing |
+| Share UI designs and prototypes earlier | Frontend team | Sprint 3 |
+| Improve PR review workflow; distribute reviews by area | Team leads | Sprint 3 |
+| Investigate GitHub settings for multiple reviewers | Team | Sprint 3 |
+| Centralize documentation and discussions | Team | Sprint 3 |
+| Finish Sprint 2 carryover before creating new issues | Everyone | Ongoing |
 
 **Notes**
 

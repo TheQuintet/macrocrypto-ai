@@ -39,8 +39,8 @@ Backlog refinement notes: clarify stories, acceptance criteria, and estimates.
 
 | Story | Changes | Ready for sprint? |
 |-------|---------|-------------------|
-| Existing sprint backlog | Clarified only — complete before expanding scope | Yes (already in sprint) |
-| New issues | Not created while previous sprint work is unfinished | Deferred |
+| Sprint 2 carryover | Clarified only — complete before expanding Sprint 3 scope | Yes (carried into Sprint 3) |
+| New issues | Not created while Sprint 2 carryover is unfinished | Deferred |
 
 **Notes**
 

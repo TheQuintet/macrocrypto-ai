@@ -210,22 +210,26 @@ Code changes follow [GitHub Flow](../GITHUB_FLOW.md). See also [Contributing](..
 
 | | |
 |---|---|
-| **Dates** | _TBD_ |
+| **Dates** | Wed 29 Jul – Wed 5 Aug 2026 (1-week cadence) |
+| **Status** | **Closed** 5 Aug 2026 — unfinished work carried into Sprint 3 |
 | **Sprint goal** | Forecasting and correlation models |
-| **Product Owner** | _TBD_ |
-| **Scrum Master** | _TBD_ |
+| **Product Owner** | Sid Ahmed Mahieddine |
+| **Scrum Master** | Loredana Lungu |
 
 **Planned work**
 
-- [ ] _TBD_
+- See [29 Jul planning notes](./meetings/2026-07-29-refinement-and-planning.md) — frontend setup, capacity-based frontend tasks, backend microservices refactor, use case diagram
 
 **Completed**
 
-- [ ] _TBD_
+- Backend: good progress, several features implemented
+- Frontend: configuration/setup work progressing; little visible UI yet
 
 **Retrospective notes**
 
-- _TBD_
+- Full notes: [5 Aug 2026 retrospective](./meetings/2026-08-05-retrospective.md)
+- Went well: backend collaboration, repo organization, peer reviews starting
+- To improve: PR review turnaround (biggest velocity blocker), consistent daily updates, centralized docs, earlier UI sharing
 
 ---
 
@@ -233,14 +237,17 @@ Code changes follow [GitHub Flow](../GITHUB_FLOW.md). See also [Contributing](..
 
 | | |
 |---|---|
-| **Dates** | _TBD_ |
+| **Dates** | Started Wed 5 Aug 2026 (1-week cadence) |
+| **Status** | **In progress** |
 | **Sprint goal** | API Gateway and Alert Service |
-| **Product Owner** | _TBD_ |
-| **Scrum Master** | _TBD_ |
+| **Actual focus** | Finish the Sprint 2 carryover before adding new scope — [5 Aug planning notes](./meetings/2026-08-05-retrospective.md#sprint-planning--sprint-3) |
+| **Product Owner** | Sid Ahmed Mahieddine |
+| **Scrum Master** | Loredana Lungu |
 
 **Planned work**
 
-- [ ] _TBD_
+- [ ] Sprint 2 carryover (no new issues until it is done)
+- [ ] Faster, distributed PR reviews — frontend leads review frontend PRs, backend leads review backend PRs
 
 **Completed**
 
@@ -290,6 +297,7 @@ Acceptance criteria:
 | 1.1 | 2026-07-14 | Merged into docs/agile.md |
 | 1.2 | 2026-07-14 | Async standups, `blocked` label, board flow note |
 | 1.3 | 2026-07-30 | Document four GitHub Project boards (Daily, MacroCrypto AI Team Planning, Team Retrospective, Roadmap) |
+| 1.4 | 2026-08-05 | Sprint 2 closed / Sprint 3 started in the sprint log; link 5 Aug combined session notes from planning, refinement, and review ceremonies |
 
 ---
 
