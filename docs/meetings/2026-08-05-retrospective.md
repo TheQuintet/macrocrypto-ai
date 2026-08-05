@@ -21,6 +21,7 @@ Combined session: **Sprint 2** retrospective and review, plus refinement and **S
 - PR reviews were identified as the single biggest drag on sprint velocity — reviews depend on too few people and time zones delay merges.
 - Backend progress is solid; frontend needs more visible UI work.
 - No new scope in Sprint 3 — finish the carried-over backlog first.
+- Turborepo will not be adopted — Docker stays the build and run tooling for the monorepo.
 - The team found this more structured format (four ceremonies, clear ownership) more productive than previous meetings.
 
 ---
@@ -112,6 +113,7 @@ No new scope was added; Sprint 3 starts with the Sprint 2 carryover.
 | **Communication** | Improve daily communication using Agile practices (daily updates, visible blockers) |
 | **Collaboration** | Keep strengthening frontend ↔ backend collaboration |
 | **Retro prep** | Prepare retrospective items before each retro and group similar topics in advance |
+| **Monorepo tooling** | **Turborepo will not be adopted** — we use **Docker** for building and running the `frontend/` + `services/` monorepo |
 
 ---
 
@@ -127,10 +129,10 @@ No new scope was added; Sprint 3 starts with the Sprint 2 carryover.
 
 ## Carried over
 
-Agenda items planned for this session that were not covered — carry to the next sync:
+Agenda items planned for this session — unchecked items carry to the next sync:
 
 - [ ] **Auth system** — decide which authentication approach to use for the app (options, trade-offs, recommendation)
-- [ ] **Turborepo** — discuss whether/how to adopt Turborepo for the monorepo (fit with current `frontend/` + `services/` layout, pros/cons)
+- [x] **Turborepo** — decided: not adopting it, we stay with Docker (see [Decisions](#decisions))
 
 ---
 
