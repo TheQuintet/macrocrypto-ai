@@ -27,6 +27,27 @@ Backlog refinement notes: clarify stories, acceptance criteria, and estimates.
 
 ## Sessions
 
+### Refinement (combined with retro, review, planning) — 5 Aug 2026
+
+| | |
+|---|---|
+| **Date** | Wed 5 Aug 2026 |
+| **Attendees** | Team |
+| **Full notes** | [2026-08-05 Retrospective, Review, Refinement & Planning](../2026-08-05-retrospective.md) |
+
+**Stories refined**
+
+| Story | Changes | Ready for sprint? |
+|-------|---------|-------------------|
+| Existing sprint backlog | Clarified only — complete before expanding scope | Yes (already in sprint) |
+| New issues | Not created while previous sprint work is unfinished | Deferred |
+
+**Notes**
+
+- Refinement should clarify existing work rather than introduce new features
+
+---
+
 ### Refinement (combined with planning) — 29 Jul 2026
 
 | | |

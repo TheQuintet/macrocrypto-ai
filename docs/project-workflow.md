@@ -18,10 +18,10 @@ Sprint **review** and **retrospective** are different ceremonies. We do not run 
 
 | Ceremony | Purpose | Meeting notes |
 |----------|---------|---------------|
-| **Sprint planning** | Select stories, estimate, assign owners | [Planning template](./meetings/templates/planning.md) · [29 Jul 2026 notes](./meetings/2026-07-29-refinement-and-planning.md) |
-| **Backlog refinement** | Clarify stories, acceptance criteria, estimates | [Refinement template](./meetings/templates/refinement.md) · [29 Jul 2026 notes](./meetings/2026-07-29-refinement-and-planning.md) |
+| **Sprint planning** | Select stories, estimate, assign owners | [Planning template](./meetings/templates/planning.md) · [29 Jul 2026](./meetings/2026-07-29-refinement-and-planning.md) · [5 Aug 2026](./meetings/2026-08-05-retrospective.md) notes |
+| **Backlog refinement** | Clarify stories, acceptance criteria, estimates | [Refinement template](./meetings/templates/refinement.md) · [29 Jul 2026](./meetings/2026-07-29-refinement-and-planning.md) · [5 Aug 2026](./meetings/2026-08-05-retrospective.md) notes |
 | **Daily standup** (async) | Yesterday / today / blockers | [Standup template](./meetings/templates/standup.md) · written updates in Slack (role-specific channels) |
-| **Sprint review** (offline) | Each teammate has repo access and explores/plays with the app to see what shipped | [Review template](./meetings/templates/review.md) · no live demo meeting |
+| **Sprint review** (offline) | Each teammate has repo access and explores/plays with the app to see what shipped | [Review template](./meetings/templates/review.md) · [5 Aug 2026 notes](./meetings/2026-08-05-retrospective.md) · no live demo meeting |
 | **Retrospective** | What went well, what to improve | [Retrospective template](./meetings/templates/retrospective.md) · [5 Aug 2026 notes](./meetings/2026-08-05-retrospective.md) · [Team Retrospective board](https://github.com/orgs/TheQuintet/projects/4) |
 
 ### Daily standup template
@@ -301,7 +301,7 @@ Acceptance criteria:
 - [Review template](./meetings/templates/review.md)
 - [Retrospective template](./meetings/templates/retrospective.md)
 - [29 Jul 2026 Refinement & Planning](./meetings/2026-07-29-refinement-and-planning.md)
-- [5 Aug 2026 Retrospective](./meetings/2026-08-05-retrospective.md)
+- [5 Aug 2026 Retrospective, Review, Refinement & Planning](./meetings/2026-08-05-retrospective.md)
 - [Team](./team-roles.md)
 - [Deliverables](./quantic/deliverables.md)
 - [GitHub Flow](../GITHUB_FLOW.md)
