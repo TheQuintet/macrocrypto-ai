@@ -1,0 +1,26 @@
+#!/usr/bin/env sh
+# Husky pre-commit: run frontend lint and typecheck when frontend files are staged.
+set -e
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "$REPO_ROOT"
+
+staged_frontend="$(git diff --cached --name-only --diff-filter=ACMR -- frontend/ || true)"
+
+if [ -z "$staged_frontend" ]; then
+  exit 0
+fi
+
+if [ ! -d frontend/node_modules ]; then
+  echo "error: frontend dependencies are missing." >&2
+  echo "Run: cd frontend && npm install" >&2
+  exit 1
+fi
+
+echo "→ frontend lint"
+(cd frontend && npm run lint)
+
+echo "→ frontend typecheck"
+(cd frontend && npm run typecheck)
+
+echo "✓ frontend pre-commit checks passed"
