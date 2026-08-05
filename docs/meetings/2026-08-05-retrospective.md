@@ -22,6 +22,7 @@ Combined session: **Sprint 2** retrospective and review, plus refinement and **S
 - Backend progress is solid; frontend needs more visible UI work.
 - No new scope in Sprint 3 — finish the carried-over backlog first.
 - Turborepo will not be adopted — Docker stays the build and run tooling for the monorepo.
+- Authentication will be handled by **Auth0**.
 - The team found this more structured format (four ceremonies, clear ownership) more productive than previous meetings.
 
 ---
@@ -114,6 +115,7 @@ No new scope was added; Sprint 3 starts with the Sprint 2 carryover.
 | **Collaboration** | Keep strengthening frontend ↔ backend collaboration |
 | **Retro prep** | Prepare retrospective items before each retro and group similar topics in advance |
 | **Monorepo tooling** | **Turborepo will not be adopted** — we use **Docker** for building and running the `frontend/` + `services/` monorepo |
+| **Authentication** | Use **Auth0** as the authentication provider for the app |
 
 ---
 
@@ -127,11 +129,11 @@ No new scope was added; Sprint 3 starts with the Sprint 2 carryover.
 
 ---
 
-## Carried over
+## Agenda items
 
-Agenda items planned for this session — unchecked items carry to the next sync:
+Both extra agenda items planned for this session were decided — nothing carries over:
 
-- [ ] **Auth system** — decide which authentication approach to use for the app (options, trade-offs, recommendation)
+- [x] **Auth system** — decided: use **Auth0** (see [Decisions](#decisions))
 - [x] **Turborepo** — decided: not adopting it, we stay with Docker (see [Decisions](#decisions))
 
 ---

@@ -84,4 +84,4 @@ Sprint retrospective notes: what went well, what went wrong, and action items.
 **Notes**
 
 - Turborepo agenda item decided: not adopting it, Docker stays the build and run tooling
-- Auth system agenda item was not covered — carried to the next sync
+- Auth system agenda item decided: use Auth0
