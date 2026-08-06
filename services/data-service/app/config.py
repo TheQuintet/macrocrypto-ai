@@ -92,6 +92,12 @@ class Settings(BaseSettings):
         """Get the appropriate Binance WebSocket endpoint"""
         return self.BINANCE_WS_TESTNET_URL if self.BINANCE_USE_TESTNET else self.BINANCE_WS_URL
     
+    
+    
+    # COINGECKO API (Market Cap Data Source)
+    COINGECKO_API_URL: str = "https://api.coingecko.com/api/v3"
+
+
     # ============================================
     # FRED API (Economic Indicators)
     # ============================================
