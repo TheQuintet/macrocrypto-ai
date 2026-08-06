@@ -28,6 +28,29 @@ Sprint planning notes: select stories, estimate, assign owners.
 
 ## Sessions
 
+### Sprint 3 — Planning (combined with retro, review, refinement) — 5 Aug 2026
+
+| | |
+|---|---|
+| **Date** | Wed 5 Aug 2026 |
+| **Attendees** | Team |
+| **Sprint goal** | Finish the Sprint 2 carryover — no new scope added |
+| **Full notes** | [2026-08-05 Retrospective, Review, Refinement & Planning](../2026-08-05-retrospective.md) |
+
+**Stories selected**
+
+| Story / focus | Owner | Notes |
+|---------------|-------|-------|
+| Sprint 2 carryover | Current assignees | No new issues pulled in until carried-over work is done |
+
+**Notes**
+
+- Sprint 2 closed in this session; unfinished work rolled into Sprint 3 (Kanban-style carryover)
+- Sprint 3 is achievable if PR reviews get faster, AI tools are used where appropriate, and members work in parallel instead of one issue at a time
+- PR review turnaround is the limiting factor on velocity
+
+---
+
 ### Sprint 2 — Planning (combined with refinement) — 29 Jul 2026
 
 | | |
