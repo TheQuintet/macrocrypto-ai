@@ -1,14 +1,14 @@
 import pytest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, AsyncMock
+from datetime import timezone
 
 from app.services.indicator_service import IndicatorService
 
 
-
 def create_service():
     """
-    Create an IndicatorService instance using
-    a mocked database session for unit testing.
+    Create IndicatorService instance using
+    mocked database dependency.
     """
 
     return IndicatorService(
@@ -16,12 +16,12 @@ def create_service():
     )
 
 
+# =====================================================
+# calculate_change_percent tests
+# =====================================================
+
 
 def test_percentage_change_calculation():
-    """
-    Verify that percentage change is calculated
-    correctly when current and previous values exist.
-    """
 
     service = create_service()
 
@@ -33,12 +33,7 @@ def test_percentage_change_calculation():
     assert result == 10
 
 
-
 def test_percentage_change_missing_previous():
-    """
-    Verify that percentage change returns None
-    when no previous value exists.
-    """
 
     service = create_service()
 
@@ -50,12 +45,7 @@ def test_percentage_change_missing_previous():
     assert result is None
 
 
-
 def test_percentage_change_previous_zero():
-    """
-    Verify that division by zero is handled safely
-    when the previous value is zero.
-    """
 
     service = create_service()
 
@@ -67,13 +57,12 @@ def test_percentage_change_previous_zero():
     assert result is None
 
 
+# =====================================================
+# parse_observations tests
+# =====================================================
+
 
 def test_parse_fred_observations():
-    """
-    Verify that FRED observations are correctly
-    converted into database-ready records including
-    previous values and percentage changes.
-    """
 
     service = create_service()
 
@@ -103,13 +92,16 @@ def test_parse_fred_observations():
 
     assert result[0]["previous_value"] == 90
 
+    assert result[0]["change_percent"] == pytest.approx(
+        11.11111111111111
+    )
+
+    assert result[0]["source"] == "fred"
+
+    assert result[0]["time"].tzinfo == timezone.utc
 
 
 def test_parse_invalid_fred_value():
-    """
-    Verify that invalid FRED values represented
-    by '.' are ignored during parsing.
-    """
 
     service = create_service()
 
@@ -128,3 +120,227 @@ def test_parse_invalid_fred_value():
     )
 
     assert result == []
+
+
+def test_parse_empty_observations():
+
+    service = create_service()
+
+    result = service.parse_observations(
+        "cpi",
+        {}
+    )
+
+    assert result == []
+
+
+def test_parse_invalid_observation():
+
+    service = create_service()
+
+    response = {
+        "observations": [
+            {
+                "value": "100"
+            }
+        ]
+    }
+
+    result = service.parse_observations(
+        "cpi",
+        response
+    )
+
+    assert result == []
+
+
+# =====================================================
+# update_indicator tests
+# =====================================================
+
+
+@pytest.mark.asyncio
+async def test_update_indicator_success():
+
+    service = create_service()
+
+    fetch_function = AsyncMock(
+        return_value={
+            "observations": [
+                {
+                    "date": "2026-01-01",
+                    "value": "300"
+                }
+            ]
+        }
+    )
+
+    service.repository.create_many = MagicMock(
+        return_value=[
+            {
+                "indicator_name": "cpi",
+                "value": 300
+            }
+        ]
+    )
+
+    result = await service.update_indicator(
+        "cpi",
+        fetch_function
+    )
+
+    assert len(result) == 1
+
+    fetch_function.assert_called_once()
+
+    service.repository.create_many.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_update_indicator_no_records():
+
+    service = create_service()
+
+    fetch_function = AsyncMock(
+        return_value={
+            "observations": []
+        }
+    )
+
+    service.repository.create_many = MagicMock()
+
+    result = await service.update_indicator(
+        "cpi",
+        fetch_function
+    )
+
+    assert result == []
+
+    service.repository.create_many.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_update_indicator_database_error():
+
+    service = create_service()
+
+    fetch_function = AsyncMock(
+        return_value={
+            "observations": [
+                {
+                    "date": "2026-01-01",
+                    "value": "300"
+                }
+            ]
+        }
+    )
+
+    service.repository.create_many = MagicMock(
+        side_effect=Exception(
+            "database error"
+        )
+    )
+
+    result = await service.update_indicator(
+        "cpi",
+        fetch_function
+    )
+
+    assert result == []
+
+
+@pytest.mark.asyncio
+async def test_update_indicator_fetch_error():
+
+    service = create_service()
+
+    fetch_function = AsyncMock(
+        side_effect=Exception(
+            "fred error"
+        )
+    )
+
+    result = await service.update_indicator(
+        "cpi",
+        fetch_function
+    )
+
+    assert result == []
+
+
+# =====================================================
+# update_all_indicators tests
+# =====================================================
+
+
+@pytest.mark.asyncio
+async def test_update_all_indicators():
+
+    service = create_service()
+
+    empty_response = {
+        "observations": []
+    }
+
+    service.collector.get_cpi = AsyncMock(
+        return_value=empty_response
+    )
+
+    service.collector.get_federal_funds_rate = AsyncMock(
+        return_value=empty_response
+    )
+
+    service.collector.get_m2_money_supply = AsyncMock(
+        return_value=empty_response
+    )
+
+    service.collector.get_dxy = AsyncMock(
+        return_value=empty_response
+    )
+
+    service.collector.get_ten_year_treasury = AsyncMock(
+        return_value=empty_response
+    )
+
+    service.collector.get_gdp = AsyncMock(
+        return_value=empty_response
+    )
+
+    service.collector.get_unemployment = AsyncMock(
+        return_value=empty_response
+    )
+
+    result = await service.update_all_indicators()
+
+    assert len(result) == 7
+
+    assert "cpi" in result
+
+    assert "federal_funds_rate" in result
+
+    assert "m2_money_supply" in result
+
+    assert "dxy" in result
+
+    assert "ten_year_treasury" in result
+
+    assert "gdp" in result
+
+    assert "unemployment" in result
+
+
+# =====================================================
+# close test
+# =====================================================
+
+
+@pytest.mark.asyncio
+async def test_close():
+
+    service = create_service()
+
+    service.collector.close = AsyncMock()
+
+    await service.close()
+
+    service.collector.close.assert_called_once()

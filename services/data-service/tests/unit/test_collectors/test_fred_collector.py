@@ -1,149 +1,261 @@
-# tests/unit/test_collectors/test_fred_collector.py
-
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-
-import httpx
+from unittest.mock import AsyncMock
 
 from app.collectors.fred import FREDCollector
 
 
-@pytest.mark.asyncio
-async def test_fred_successful_api_call():
-    """
-    Verify that the FRED collector successfully fetches
-    data from the FRED API and returns the parsed response.
-    """
+@pytest.fixture
+def fred_collector():
 
     collector = FREDCollector()
 
-    mock_response_data = {
-        "observations": [
-            {
-                "date": "2026-01-01",
-                "value": "3.5"
-            }
-        ]
+    collector.api_key = "test_api_key"
+
+    return collector
+
+
+# =====================================================
+# _get_series tests
+# =====================================================
+
+
+@pytest.mark.asyncio
+async def test_get_series_success(
+    fred_collector
+):
+
+    fred_collector.client.get = AsyncMock()
+
+    response = AsyncMock()
+
+    response.raise_for_status = lambda: None
+
+    response.json = lambda: {
+        "observations": []
     }
 
-    # Mock HTTP response object
-    mock_response = MagicMock()
-
-    mock_response.raise_for_status.return_value = None
-
-    mock_response.json.return_value = (
-        mock_response_data
-    )
-
-    with patch.object(
-        collector.client,
-        "get",
-        new=AsyncMock(
-            return_value=mock_response
-        )
-    ) as mock_get:
-
-        result = await collector._get_series(
-            "CPIAUCSL"
-        )
-
-        assert result == mock_response_data
-
-        mock_get.assert_called_once()
+    fred_collector.client.get.return_value = response
 
 
-    await collector.close()
-
-
-
-@pytest.mark.asyncio
-async def test_fred_timeout_handling():
-    """
-    Verify that timeout errors from the FRED API
-    are handled gracefully.
-    """
-
-    collector = FREDCollector()
-
-    with patch.object(
-        collector.client,
-        "get",
-        new=AsyncMock(
-            side_effect=httpx.TimeoutException(
-                "timeout"
-            )
-        )
-    ):
-
-        result = await collector._get_series(
-            "CPIAUCSL"
-        )
-
-        assert result == {}
-
-
-    await collector.close()
-
-
-
-@pytest.mark.asyncio
-async def test_fred_http_error_handling():
-    """
-    Verify that HTTP errors from the FRED API
-    are handled gracefully.
-    """
-
-    collector = FREDCollector()
-
-
-    mock_response = MagicMock()
-
-    mock_response.raise_for_status.side_effect = (
-        httpx.HTTPStatusError(
-            "server error",
-            request=MagicMock(),
-            response=httpx.Response(500)
-        )
+    result = await fred_collector._get_series(
+        "GDP"
     )
 
 
-    with patch.object(
-        collector.client,
-        "get",
-        new=AsyncMock(
-            return_value=mock_response
-        )
-    ):
-
-        result = await collector._get_series(
-            "CPIAUCSL"
-        )
-
-        assert result == {}
-
-
-    await collector.close()
-
+    assert result == {
+        "observations": []
+    }
 
 
 @pytest.mark.asyncio
-async def test_fred_missing_api_key():
-    """
-    Verify that the collector does not call
-    the FRED API when the API key is missing.
-    """
+async def test_get_series_missing_api_key(
+    fred_collector
+):
 
-    collector = FREDCollector()
-
-    collector.api_key = None
+    fred_collector.api_key = None
 
 
-    result = await collector._get_series(
-        "CPIAUCSL"
+    result = await fred_collector._get_series(
+        "GDP"
     )
 
 
     assert result == {}
 
 
-    await collector.close()
+@pytest.mark.asyncio
+async def test_get_series_timeout(
+    fred_collector
+):
+
+    import httpx
+
+    fred_collector.client.get = AsyncMock(
+        side_effect=httpx.TimeoutException(
+            "timeout"
+        )
+    )
+
+
+    result = await fred_collector._get_series(
+        "GDP"
+    )
+
+
+    assert result == {}
+
+
+@pytest.mark.asyncio
+async def test_get_series_http_error(
+    fred_collector
+):
+
+    import httpx
+
+    request = httpx.Request(
+        "GET",
+        "https://test.com"
+    )
+
+    response = httpx.Response(
+        500,
+        request=request
+    )
+
+    fred_collector.client.get = AsyncMock(
+        side_effect=httpx.HTTPStatusError(
+            "error",
+            request=request,
+            response=response
+        )
+    )
+
+
+    result = await fred_collector._get_series(
+        "GDP"
+    )
+
+
+    assert result == {}
+
+
+@pytest.mark.asyncio
+async def test_get_series_unexpected_exception(
+    fred_collector
+):
+
+    fred_collector.client.get = AsyncMock(
+        side_effect=Exception(
+            "unexpected error"
+        )
+    )
+
+
+    result = await fred_collector._get_series(
+        "GDP"
+    )
+
+
+    assert result == {}
+
+
+
+# =====================================================
+# Individual indicator methods
+# =====================================================
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "method_name",
+    [
+        "get_cpi",
+        "get_federal_funds_rate",
+        "get_m2_money_supply",
+        "get_dxy",
+        "get_ten_year_treasury",
+        "get_gdp",
+        "get_unemployment",
+    ],
+)
+async def test_indicator_methods(
+    fred_collector,
+    method_name
+):
+
+    fred_collector._get_series = AsyncMock(
+        return_value={
+            "observations": []
+        }
+    )
+
+
+    method = getattr(
+        fred_collector,
+        method_name
+    )
+
+
+    result = await method()
+
+
+    assert result == {
+        "observations": []
+    }
+
+
+    fred_collector._get_series.assert_called_once()
+
+
+
+# =====================================================
+# get_all_indicators
+# =====================================================
+
+
+@pytest.mark.asyncio
+async def test_get_all_indicators(
+    fred_collector
+):
+
+    fred_collector.get_cpi = AsyncMock(
+        return_value={}
+    )
+
+    fred_collector.get_federal_funds_rate = AsyncMock(
+        return_value={}
+    )
+
+    fred_collector.get_m2_money_supply = AsyncMock(
+        return_value={}
+    )
+
+    fred_collector.get_dxy = AsyncMock(
+        return_value={}
+    )
+
+    fred_collector.get_ten_year_treasury = AsyncMock(
+        return_value={}
+    )
+
+    fred_collector.get_gdp = AsyncMock(
+        return_value={}
+    )
+
+    fred_collector.get_unemployment = AsyncMock(
+        return_value={}
+    )
+
+
+    result = await fred_collector.get_all_indicators()
+
+
+    assert len(result) == 7
+
+    assert "cpi" in result
+    assert "federal_funds_rate" in result
+    assert "m2_money_supply" in result
+    assert "dxy" in result
+    assert "ten_year_treasury" in result
+    assert "gdp" in result
+    assert "unemployment" in result
+
+
+
+# =====================================================
+# close
+# =====================================================
+
+
+@pytest.mark.asyncio
+async def test_close(
+    fred_collector
+):
+
+    fred_collector.client.aclose = AsyncMock()
+
+
+    await fred_collector.close()
+
+
+    fred_collector.client.aclose.assert_called_once()
