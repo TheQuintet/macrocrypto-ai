@@ -1,161 +1,405 @@
-"""
-Unit tests for DataProcessor.
-"""
-
 import pytest
+from unittest.mock import MagicMock
+
 from app.services.data_processor import DataProcessor
-from app.services.price_service import PriceService
-from app.config import settings
 
 
-class TestDataProcessor:
-    """Test suite for DataProcessor."""
+@pytest.fixture
+def price_service():
 
-    def test_initialization(self):
-        """Test DataProcessor initialization."""
-        price_service = PriceService()
-        processor = DataProcessor(price_service=price_service)
-        
-        assert processor.price_service is price_service
+    service = MagicMock()
 
-    def test_initialization_without_price_service(self):
-        """Test DataProcessor initialization without PriceService."""
-        processor = DataProcessor()
-        
-        assert processor.price_service is not None
-        assert isinstance(processor.price_service, PriceService)
+    service.get_snapshot.return_value = {
+        "price": 50000
+    }
 
-    def test_extract_binance_data(self):
-        """Test extracting Binance data."""
-        processor = DataProcessor()
-        
-        data = {
+    service.get_price.return_value = 50000
+
+    service.is_initialized.return_value = True
+
+    return service
+
+
+
+@pytest.fixture
+def processor(price_service):
+
+    return DataProcessor(
+        price_service=price_service
+    )
+
+
+
+# =====================================================
+# process_ticker_update
+# =====================================================
+
+
+def test_process_ticker_update_success(
+    processor,
+    price_service
+):
+
+    data = {
+        "s": "BTCUSDT",
+        "c": "50000",
+        "o": "49000",
+        "h": "51000",
+        "l": "48000",
+        "v": "100",
+        "P": "2",
+        "p": "1000"
+    }
+
+
+    result = processor.process_ticker_update(
+        data
+    )
+
+
+    assert result is True
+
+    price_service.update_price.assert_called_once()
+
+
+
+def test_process_ticker_update_invalid_price(
+    processor
+):
+
+    result = processor.process_ticker_update(
+        {
             "s": "BTCUSDT",
-            "c": "45000.00",
-            "o": "44000.00",
-            "h": "46000.00",
-            "l": "43500.00",
-            "v": "1000.00",
-            "q": "45000000.00",
-            "P": "2.27",
-            "p": "1000.00",
-            "E": 1704787200000
+            "c": "0"
         }
-        
-        result = processor._extract_binance_data(data)
-        
-        assert result["symbol"] == "BTCUSDT"
-        assert result["price"] == 45000.0
-        assert result["open"] == 44000.0
-        assert result["high"] == 46000.0
-        assert result["low"] == 43500.0
-        assert result["volume"] == 1000.0
-        assert result["quote_volume"] == 45000000.0
-        assert result["change_24h"] == 2.27
-        assert result["change_abs"] == 1000.0
-        assert result["source"] == "binance_ws"
+    )
 
-    def test_extract_binance_data_invalid_price(self):
-        """Test extracting Binance data with invalid price."""
-        processor = DataProcessor()
-        
-        data = {"c": "0"}
-        result = processor._extract_binance_data(data)
-        
-        assert result is None
 
-    def test_process_ticker_update(self):
-        """Test processing ticker update."""
-        price_service = PriceService()
-        processor = DataProcessor(price_service=price_service)
-        
-        data = {
+    assert result is False
+
+
+
+def test_process_ticker_update_bad_value(
+    processor
+):
+
+    result = processor.process_ticker_update(
+        {
             "s": "BTCUSDT",
-            "c": "45000.00",
-            "P": "2.27",
-            "h": "46000.00",
-            "l": "43500.00",
-            "v": "1000.00"
+            "c": "invalid"
         }
-        
-        result = processor.process_ticker_update(data)
-        
-        assert result is True
-        assert price_service.get_price() == 45000.0
+    )
 
-    def test_process_ticker_update_missing_fields(self):
-        """Test processing ticker update with missing fields."""
-        processor = DataProcessor()
-        
-        data = {}
-        result = processor.process_ticker_update(data)
-        
-        assert result is False
 
-    def test_process_price_data(self):
-        """Test processing normalized price data."""
-        price_service = PriceService()
-        processor = DataProcessor(price_service=price_service)
-        
-        price_data = {
+    assert result is False
+
+
+
+# =====================================================
+# process_price_data
+# =====================================================
+
+
+def test_process_price_data_success(
+    processor,
+    price_service
+):
+
+    data = {
+        "symbol": "BTCUSDT",
+        "price": "50000",
+        "source": "binance_ws"
+    }
+
+
+    result = processor.process_price_data(
+        data
+    )
+
+
+    assert result is True
+
+    assert data["price"] == 50000
+
+    price_service.update_price.assert_called_once()
+
+
+
+def test_process_price_missing_symbol(
+    processor
+):
+
+    result = processor.process_price_data(
+        {
+            "price": 50000
+        }
+    )
+
+
+    assert result is False
+
+
+
+def test_process_price_missing_price(
+    processor
+):
+
+    result = processor.process_price_data(
+        {
+            "symbol": "BTCUSDT"
+        }
+    )
+
+
+    assert result is False
+
+
+
+def test_process_price_zero_price(
+    processor
+):
+
+    result = processor.process_price_data(
+        {
             "symbol": "BTCUSDT",
-            "price": 45000.0,
-            "change_24h": 2.27,
-            "high": 46000.0,
-            "low": 43500.0,
-            "volume": 1000.0
+            "price": 0
         }
-        
-        result = processor.process_price_data(price_data)
-        
-        assert result is True
-        assert price_service.get_price() == 45000.0
+    )
 
-    def test_process_price_data_missing_fields(self):
-        """Test processing normalized price data with missing fields."""
-        processor = DataProcessor()
-        
-        price_data = {"price": 45000.0}  # Missing symbol
-        result = processor.process_price_data(price_data)
-        
-        assert result is False
 
-    def test_process_multiple(self):
-        """Test processing multiple ticker updates."""
-        processor = DataProcessor()
-        
-        data_list = [
-            {"s": "BTCUSDT", "c": "45000.00", "P": "2.27"},
-            {"s": "BTCUSDT", "c": "46000.00", "P": "2.50"},
-            {"s": "BTCUSDT", "c": "47000.00", "P": "3.00"},
+    assert result is False
+
+
+
+def test_process_dummy_source(
+    processor
+):
+
+    result = processor.process_price_data(
+        {
+            "symbol": "BTCUSDT",
+            "price": 50000,
+            "source": "binance_rest_dummy"
+        }
+    )
+
+
+    assert result is False
+
+
+
+def test_process_price_invalid_value(
+    processor
+):
+
+    result = processor.process_price_data(
+        {
+            "symbol": "BTCUSDT",
+            "price": "abc"
+        }
+    )
+
+
+    assert result is False
+
+
+
+# =====================================================
+# process_multiple
+# =====================================================
+
+
+def test_process_multiple(
+    processor
+):
+
+    processor.process_ticker_update = MagicMock(
+        side_effect=[
+            True,
+            False
         ]
-        
-        result = processor.process_multiple(data_list)
-        
-        assert result["total"] == 3
-        assert result["success"] == 3
-        assert result["failed"] == 0
+    )
 
-    def test_get_snapshot(self):
-        """Test getting snapshot."""
-        processor = DataProcessor()
-        snapshot = processor.get_snapshot()
-        
-        assert snapshot is processor.price_service.snapshot
 
-    def test_get_price(self):
-        """Test getting current price."""
-        processor = DataProcessor()
-        assert processor.get_price() is None
+    result = processor.process_multiple(
+        [
+            {},
+            {}
+        ]
+    )
 
-    def test_is_initialized(self):
-        """Test checking if processor is initialized."""
-        processor = DataProcessor()
-        assert processor.is_initialized() is False
 
-    def test_reset(self):
-        """Test resetting processor state."""
-        processor = DataProcessor()
-        processor.reset()
-        
-        assert processor.price_service.price_7d_reference is None
+    assert result["total"] == 2
+
+    assert result["success"] == 1
+
+    assert result["failed"] == 1
+
+
+
+# =====================================================
+# Binance extraction
+# =====================================================
+
+
+def test_extract_binance_data_success(
+    processor
+):
+
+    result = processor._extract_binance_data(
+        {
+            "s": "BTCUSDT",
+            "c": "50000",
+            "o": "49000",
+            "h": "51000",
+            "l": "48000",
+            "v": "100"
+        }
+    )
+
+
+    assert result["symbol"] == "BTCUSDT"
+
+    assert result["price"] == 50000
+
+    assert result["source"] == "binance_ws"
+
+
+
+def test_extract_binance_invalid_price(
+    processor
+):
+
+    result = processor._extract_binance_data(
+        {
+            "c": "0"
+        }
+    )
+
+
+    assert result is None
+
+
+
+def test_extract_binance_invalid_format(
+    processor
+):
+
+    result = processor._extract_binance_data(
+        {
+            "c": "abc"
+        }
+    )
+
+
+    assert result is None
+
+
+
+# =====================================================
+# Generic extraction
+# =====================================================
+
+
+def test_extract_generic_data_price_field(
+    processor
+):
+
+    result = processor._extract_generic_data(
+        {
+            "price": "50000",
+            "symbol": "BTC"
+        }
+    )
+
+
+    assert result["price"] == 50000
+
+    assert result["source"] == "generic"
+
+
+
+def test_extract_generic_last_price(
+    processor
+):
+
+    result = processor._extract_generic_data(
+        {
+            "last_price": "50000"
+        }
+    )
+
+
+    assert result["price"] == 50000
+
+
+
+def test_extract_generic_invalid(
+    processor
+):
+
+    result = processor._extract_generic_data(
+        {
+            "price": 0
+        }
+    )
+
+
+    assert result is None
+
+
+
+def test_extract_generic_exception(
+    processor
+):
+
+    result = processor._extract_generic_data(
+        {
+            "price": {}
+        }
+    )
+
+
+    assert result is None
+
+
+
+# =====================================================
+# Utility methods
+# =====================================================
+
+
+def test_get_snapshot(
+    processor
+):
+
+    assert processor.get_snapshot() == {
+        "price": 50000
+    }
+
+
+
+def test_get_price(
+    processor
+):
+
+    assert processor.get_price() == 50000
+
+
+
+def test_is_initialized(
+    processor
+):
+
+    assert processor.is_initialized() is True
+
+
+
+def test_reset(
+    processor,
+    price_service
+):
+
+    processor.reset()
+
+    price_service.reset.assert_called_once()

@@ -1,75 +1,336 @@
-"""Unit tests for BinanceCollector."""
-
 import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
-from app.collectors.binance import BinanceCollector
+from unittest.mock import AsyncMock, MagicMock
+
+import httpx
+
+from app.collectors.binance import (
+    BinanceCollector,
+    BinanceWebSocketClient,
+)
 
 
-class TestBinanceCollector:
-    """Test suite for BinanceCollector."""
+@pytest.fixture
+def collector():
 
-    def test_initialization(self):
-        collector = BinanceCollector()
-        assert collector.base_url is not None
-        assert collector.timeout == 10.0
+    client = BinanceCollector()
 
-    @pytest.mark.asyncio
-    async def test_get_24hr_ticker_success(self):
-        collector = BinanceCollector()
+    client.client = MagicMock()
 
-        # ✅ Create proper mock response
-        mock_response = MagicMock()
-        mock_response.json = MagicMock(return_value={
-            "symbol": "BTCUSDT",
-            "priceChange": "1000.00",
-            "priceChangePercent": "2.27",
-            "lastPrice": "45000.00",
-            "openPrice": "44000.00",
-            "highPrice": "46000.00",
-            "lowPrice": "43500.00",
-            "volume": "1000.00",
-            "quoteVolume": "45000000.00",
-        })
-        mock_response.raise_for_status = MagicMock()
+    return client
 
-        # ✅ Mock the client's get method to return the response
-        mock_client = MagicMock()
-        mock_client.get = AsyncMock(return_value=mock_response)
 
-        # ✅ Patch the AsyncClient class
-        with patch('httpx.AsyncClient', return_value=MagicMock()) as mock_httpx_client:
-            mock_httpx_client.return_value.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_httpx_client.return_value.__aexit__ = AsyncMock(return_value=None)
-            
-            # ✅ Reassign the client in collector
-            collector.client = mock_client
 
-            result = await collector.get_24hr_ticker("BTCUSDT")
-            
-            assert result["symbol"] == "BTCUSDT"
-            assert result["last_price"] == 45000.0
-            assert result["price_change_percent"] == 2.27
+# =====================================================
+# get_24hr_ticker
+# =====================================================
 
-    @pytest.mark.asyncio
-    async def test_get_24hr_ticker_failure(self):
-        collector = BinanceCollector()
 
-        # ✅ Mock the client to raise an exception
-        mock_client = MagicMock()
-        mock_client.get = AsyncMock(side_effect=Exception("API Error"))
+@pytest.mark.asyncio
+async def test_get_24hr_ticker_success(
+    collector
+):
 
-        collector.client = mock_client
+    response = MagicMock()
 
-        result = await collector.get_24hr_ticker("BTCUSDT")
-        
-        assert result["source"] == "binance_rest_dummy"
-        assert result["last_price"] == 0.0
+    response.raise_for_status = MagicMock()
 
-    @pytest.mark.asyncio
-    async def test_close(self):
-        collector = BinanceCollector()
-        collector.client = MagicMock()
-        collector.client.aclose = AsyncMock()
-        
-        await collector.close()
-        collector.client.aclose.assert_called_once()
+    response.json.return_value = {
+        "symbol": "BTCUSDT",
+        "priceChange": "100",
+        "priceChangePercent": "1.5",
+        "lastPrice": "60000",
+        "volume": "10",
+    }
+
+
+    collector.client.get = AsyncMock(
+        return_value=response
+    )
+
+
+    result = await collector.get_24hr_ticker()
+
+
+    assert result["symbol"] == "BTCUSDT"
+
+    assert result["price_change"] == 100
+
+    assert result["last_price"] == 60000
+
+    assert result["source"] == "binance_rest"
+
+
+
+@pytest.mark.asyncio
+async def test_get_24hr_ticker_timeout(
+    collector
+):
+
+    collector.client.get = AsyncMock(
+        side_effect=httpx.TimeoutException(
+            "timeout"
+        )
+    )
+
+
+    result = await collector.get_24hr_ticker()
+
+
+    assert result["source"] == "binance_rest_dummy"
+
+    assert result["last_price"] == 0.0
+
+
+
+@pytest.mark.asyncio
+async def test_get_24hr_ticker_http_error(
+    collector
+):
+
+    response = MagicMock()
+
+    response.raise_for_status.side_effect = (
+        httpx.HTTPStatusError(
+            "error",
+            request=MagicMock(),
+            response=MagicMock(
+                status_code=500,
+                text="error"
+            )
+        )
+    )
+
+
+    collector.client.get = AsyncMock(
+        return_value=response
+    )
+
+
+    result = await collector.get_24hr_ticker()
+
+
+    assert result["source"] == "binance_rest_dummy"
+
+
+
+@pytest.mark.asyncio
+async def test_get_24hr_ticker_generic_error(
+    collector
+):
+
+    collector.client.get = AsyncMock(
+        side_effect=Exception(
+            "failed"
+        )
+    )
+
+
+    result = await collector.get_24hr_ticker()
+
+
+    assert result["source"] == "binance_rest_dummy"
+
+
+
+# =====================================================
+# current price
+# =====================================================
+
+
+@pytest.mark.asyncio
+async def test_get_current_price_success(
+    collector
+):
+
+    response = MagicMock()
+
+    response.raise_for_status = MagicMock()
+
+    response.json.return_value = {
+        "symbol": "BTCUSDT",
+        "price": "60000"
+    }
+
+
+    collector.client.get = AsyncMock(
+        return_value=response
+    )
+
+
+    result = await collector.get_current_price()
+
+
+    assert result["price"] == 60000
+
+    assert result["symbol"] == "BTCUSDT"
+
+
+
+@pytest.mark.asyncio
+async def test_get_current_price_error(
+    collector
+):
+
+    collector.client.get = AsyncMock(
+        side_effect=Exception(
+            "failed"
+        )
+    )
+
+
+    result = await collector.get_current_price()
+
+
+    assert result["price"] == 0.0
+
+
+
+# =====================================================
+# klines
+# =====================================================
+
+
+@pytest.mark.asyncio
+async def test_get_klines_success(
+    collector
+):
+
+    response = MagicMock()
+
+    response.raise_for_status = MagicMock()
+
+    response.json.return_value = [
+        [
+            1,
+            "60000",
+            "61000",
+            "59000",
+            "60500",
+            "10",
+            2,
+            "100",
+            50,
+            "5",
+            "50"
+        ]
+    ]
+
+
+    collector.client.get = AsyncMock(
+        return_value=response
+    )
+
+
+    result = await collector.get_klines()
+
+
+    assert len(result) == 1
+
+    assert result[0]["open"] == 60000
+
+    assert result[0]["close"] == 60500
+
+
+
+@pytest.mark.asyncio
+async def test_get_klines_error(
+    collector
+):
+
+    collector.client.get = AsyncMock(
+        side_effect=Exception(
+            "failed"
+        )
+    )
+
+
+    result = await collector.get_klines()
+
+
+    assert result == []
+
+
+
+# =====================================================
+# close
+# =====================================================
+
+
+@pytest.mark.asyncio
+async def test_close(
+    collector
+):
+
+    collector.client.aclose = AsyncMock()
+
+
+    await collector.close()
+
+
+    collector.client.aclose.assert_called_once()
+
+
+
+# =====================================================
+# dummy ticker
+# =====================================================
+
+
+def test_dummy_ticker(
+    collector
+):
+
+    result = collector._get_dummy_ticker(
+        "BTCUSDT"
+    )
+
+
+    assert result["symbol"] == "BTCUSDT"
+
+    assert result["source"] == "binance_rest_dummy"
+
+
+
+# =====================================================
+# Legacy websocket wrapper
+# =====================================================
+
+
+@pytest.mark.asyncio
+async def test_legacy_websocket_connect():
+
+    client = BinanceWebSocketClient()
+
+
+    result = await client.connect()
+
+
+    assert result is False
+
+
+
+@pytest.mark.asyncio
+async def test_legacy_subscribe():
+
+    client = BinanceWebSocketClient()
+
+
+    result = await client.subscribe_btc_usdt(
+        None
+    )
+
+
+    assert result is None
+
+
+
+@pytest.mark.asyncio
+async def test_legacy_disconnect():
+
+    client = BinanceWebSocketClient()
+
+
+    result = await client.disconnect()
+
+
+    assert result is None

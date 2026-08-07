@@ -2,11 +2,15 @@
 
 import asyncio
 import sys
+import logging
 from contextlib import asynccontextmanager
 from typing import Optional
 from datetime import datetime
 
 from fastapi import FastAPI
+
+
+
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi.errors import RateLimitExceeded
 from slowapi import _rate_limit_exceeded_handler
@@ -28,40 +32,48 @@ from app.services.data_processor import DataProcessor
 # Import rate limiting
 from app.core.rate_limit import limiter
 
-# Global references for background tasks
+
 # btc_task: Optional[asyncio.Task] = None
+# market_cap_task: Optional[asyncio.Task] = None
 # price_service: Optional[PriceService] = None
 # data_processor: Optional[DataProcessor] = None
 # cache_client: Optional[CacheClient] = None
 # rabbitmq_producer: Optional[RabbitMQProducer] = None
+# market_cap_service: Optional[MarketCapService] = None
 
 btc_task: Optional[asyncio.Task] = None
 market_cap_task: Optional[asyncio.Task] = None
+economic_task: Optional[asyncio.Task] = None
+
 price_service: Optional[PriceService] = None
 data_processor: Optional[DataProcessor] = None
 cache_client: Optional[CacheClient] = None
 rabbitmq_producer: Optional[RabbitMQProducer] = None
 market_cap_service: Optional[MarketCapService] = None
 
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifespan context manager for startup and shutdown events"""
     # global btc_task, price_service, data_processor, cache_client, rabbitmq_producer
-    global btc_task, market_cap_task, price_service, data_processor, cache_client, rabbitmq_producer, market_cap_service 
+    global btc_task, market_cap_task, economic_task, price_service, data_processor, cache_client, rabbitmq_producer, market_cap_service 
+
     # ============================================
     # STARTUP PHASE
     # ============================================
-    print(f"🚀 Starting {settings.SERVICE_NAME} v{app.version}...")
-    print(f"📊 Log Level: {settings.LOG_LEVEL}")
+    logger.info(f"🚀 Starting {settings.SERVICE_NAME} v{app.version}...")
+    logger.info(f"📊 Log Level: {settings.LOG_LEVEL}")
     
     # --------------------------------------------
     # 1. Initialize Database
     # --------------------------------------------
     try:
         init_db()
-        print("✅ Database initialized successfully")
+        logger.info("✅ Database initialized successfully")
     except Exception as error:
-        print(f"❌ Database initialization failed: {error}")
+        logger.error(f"❌ Database initialization failed: {error}")
     
     # --------------------------------------------
     # 2. Connect to Redis Cache
@@ -70,11 +82,11 @@ async def lifespan(app: FastAPI):
         cache_client = CacheClient()
         connected = await cache_client.connect()
         if connected:
-            print(f"✅ Redis cache connected at {settings.REDIS_CONNECTION_URL}")
+            logger.info(f"✅ Redis cache connected at {settings.REDIS_CONNECTION_URL}")
         else:
-            print("⚠️  Redis cache disabled or connection failed")
+            logger.warning("⚠️  Redis cache disabled or connection failed")
     except Exception as error:
-        print(f"⚠️  Redis cache connection error: {error}")
+        logger.error(f"⚠️  Redis cache connection error: {error}")
         cache_client = None
     
     # --------------------------------------------
@@ -84,11 +96,11 @@ async def lifespan(app: FastAPI):
         rabbitmq_producer = RabbitMQProducer()
         connected = await rabbitmq_producer.connect()
         if connected:
-            print(f"✅ RabbitMQ connected at {settings.RABBITMQ_HOST}:{settings.RABBITMQ_PORT}")
+            logger.info(f"✅ RabbitMQ connected at {settings.RABBITMQ_HOST}:{settings.RABBITMQ_PORT}")
         else:
-            print("⚠️  RabbitMQ connection failed")
+            logger.warning("⚠️  RabbitMQ connection failed")
     except Exception as error:
-        print(f"⚠️  RabbitMQ connection error: {error}")
+        logger.error(f"⚠️  RabbitMQ connection error: {error}")
         rabbitmq_producer = None
     
     # --------------------------------------------
@@ -104,10 +116,10 @@ async def lifespan(app: FastAPI):
         # ✅ Create DataProcessor with price_service
         data_processor = DataProcessor(price_service=price_service)
         
-        print(f"✅ Price service initialized with 7-day reference: {price_service.price_7d_reference}")
+        logger.info(f"✅ Price service initialized with 7-day reference: {price_service.price_7d_reference}")
     except Exception as error:
-        print(f"⚠️  Historical data initialization failed: {error}")
-        print("   (Live price updates can still continue)")
+        logger.warning(f"⚠️  Historical data initialization failed: {error}")
+        logger.info("   (Live price updates can still continue)")
         price_service = PriceService()
         # ✅ Create DataProcessor even on error
         data_processor = DataProcessor(price_service=price_service)
@@ -118,8 +130,8 @@ async def lifespan(app: FastAPI):
     app.state.cache_client = cache_client
     app.state.rabbitmq_producer = rabbitmq_producer
     
-    print(f"🔍 data_processor is None: {data_processor is None}")
-    print(f"🔍 app.state.data_processor is None: {app.state.data_processor is None}")
+    logger.info(f"🔍 data_processor is None: {data_processor is None}")
+    logger.info(f"🔍 app.state.data_processor is None: {app.state.data_processor is None}")
     
     # --------------------------------------------
     # 5. Start Real-time BTC WebSocket Stream
@@ -129,9 +141,9 @@ async def lifespan(app: FastAPI):
         btc_task = asyncio.create_task(
             run_websocket_stream(app.state.data_processor, app.state.cache_client, app.state.rabbitmq_producer)
         )
-        print("✅ BTC WebSocket stream started")
+        logger.info("✅ BTC WebSocket stream started")
     except Exception as error:
-        print(f"❌ Failed to start BTC WebSocket stream: {error}")
+        logger.error(f"❌ Failed to start BTC WebSocket stream: {error}")
         btc_task = None
     
 
@@ -152,36 +164,50 @@ async def lifespan(app: FastAPI):
                 )
             )
 
-            print("✅ BTC market cap collector started")
+            logger.info("✅ BTC market cap collector started")
 
         else:
-            print("⚠️ Market cap collector disabled (Redis unavailable)")
+            logger.warning("⚠️ Market cap collector disabled (Redis unavailable)")
 
     except Exception as error:
-        print(f"⚠️ Market cap collector startup error: {error}")
+        logger.error(f"⚠️ Market cap collector startup error: {error}")
     # --------------------------------------------
-    # 6. Start Periodic Data Collection Tasks
+   
     # --------------------------------------------
+# 7. Start Periodic Data Collection Tasks
+# --------------------------------------------
     try:
+
         asyncio.create_task(
             periodic_price_collection(
                 symbol=settings.BINANCE_DEFAULT_SYMBOL,
                 interval=settings.PRICE_COLLECTION_INTERVAL
             )
         )
-        print(f"✅ Periodic price collection started (every {settings.PRICE_COLLECTION_INTERVAL}s)")
-        
-        # asyncio.create_task(
-        #     periodic_economic_collection(
-        #         interval=settings.ECONOMIC_COLLECTION_INTERVAL
-        #     )
-        # )
-        # print(f"✅ Periodic economic collection started (every {settings.ECONOMIC_COLLECTION_INTERVAL}s)")
-        print("ℹ️  Periodic economic collection disabled (FRED integration pending)")
+
+        logger.info(
+            f"✅ Periodic price collection started "
+            f"(every {settings.PRICE_COLLECTION_INTERVAL}s)"
+        )
+
+
+        economic_task = asyncio.create_task(
+            periodic_economic_collection()
+        )
+
+        logger.info(
+            "✅ Periodic economic collection started "
+            f"(daily at "
+            f"{settings.MACRO_UPDATE_HOUR_UTC}:"
+            f"{settings.MACRO_UPDATE_MINUTE_UTC:02d} UTC)"
+        )
+
+
     except Exception as error:
-        print(f"⚠️  Periodic collection startup error: {error}")
-    
-    print(f"✅ {settings.SERVICE_NAME} started successfully!")
+        logger.error(
+            f"⚠️ Periodic collection startup error: {error}"
+        )
+    logger.info(f"✅ {settings.SERVICE_NAME} started successfully!")
     
     # ============================================
     # APPLICATION RUNS HERE
@@ -191,35 +217,54 @@ async def lifespan(app: FastAPI):
     # ============================================
     # SHUTDOWN PHASE
     # ============================================
-    print(f"🛑 Shutting down {settings.SERVICE_NAME}...")
+    logger.info(f"🛑 Shutting down {settings.SERVICE_NAME}...")
     
     if btc_task:
         btc_task.cancel()
         try:
             await btc_task
-            print("✅ WebSocket task completed successfully")
+            logger.info("✅ WebSocket task completed successfully")
         except asyncio.CancelledError:
-            print("✅ WebSocket task cancelled successfully")
+            logger.info("✅ WebSocket task cancelled successfully")
         except Exception as error:
-            print(f"⚠️  WebSocket shutdown error: {error}")
+            logger.error(f"⚠️  WebSocket shutdown error: {error}")
         finally:
             btc_task = None
+
+    if economic_task:
+        economic_task.cancel()
+
+        try:
+            await economic_task
+
+        except asyncio.CancelledError:
+            logger.info(
+                "✅ Economic collection task cancelled successfully"
+            )
+
+        except Exception as error:
+            logger.error(
+                f"⚠️ Economic shutdown error: {error}"
+            )
+
+        finally:
+            economic_task = None
     
     if rabbitmq_producer:
         try:
             rabbitmq_producer.close()
-            print("✅ RabbitMQ connection closed")
+            logger.info("✅ RabbitMQ connection closed")
         except Exception as error:
-            print(f"⚠️  RabbitMQ close error: {error}")
+            logger.error(f"⚠️  RabbitMQ close error: {error}")
     
     if cache_client:
         try:
             await cache_client.close()
-            print("✅ Redis cache connection closed")
+            logger.info("✅ Redis cache connection closed")
         except Exception as error:
-            print(f"⚠️  Redis close error: {error}")
+            logger.error(f"⚠️  Redis close error: {error}")
     
-    print("✅ Shutdown complete")
+    logger.info("✅ Shutdown complete")
 
 
 async def run_websocket_stream(
@@ -232,10 +277,10 @@ async def run_websocket_stream(
     """
     from app.websocket.btc_client import BTCWebSocketClient
     
-    print(f"🔵 run_websocket_stream called with data_processor: {data_processor is not None}")
+    logger.info(f"🔵 run_websocket_stream called with data_processor: {data_processor is not None}")
     
     if data_processor is None:
-        print("❌ data_processor is None! Cannot start WebSocket.")
+        logger.error("❌ data_processor is None! Cannot start WebSocket.")
         return
     
     # ✅ Pass rabbitmq_producer to the WebSocket client
@@ -247,20 +292,20 @@ async def run_websocket_stream(
     )
     
     try:
-        print("🔵 Starting WebSocket client...")
+        logger.info("🔵 Starting WebSocket client...")
         await client.start()
-        print("🔵 WebSocket client started, keeping alive...")
+        logger.info("🔵 WebSocket client started, keeping alive...")
         
         # Keep the task alive
         while client.is_running:
             await asyncio.sleep(1)
         
     except asyncio.CancelledError:
-        print("WebSocket task cancelled")
+        logger.info("WebSocket task cancelled")
         await client.stop()
         raise
     except Exception as error:
-        print(f"WebSocket task error: {error}")
+        logger.error(f"WebSocket task error: {error}")
         await client.stop()
         raise
 
@@ -284,7 +329,7 @@ async def periodic_price_collection(symbol: str = "BTCUSDT", interval: int = 60)
                     
                     # ✅ SKIP DUMMY DATA
                     if source == "binance_rest_dummy" or price <= 0:
-                        print(f"⚠️  Skipping dummy data for {symbol} (price: {price})")
+                        logger.warning(f"⚠️  Skipping dummy data for {symbol} (price: {price})")
                         await asyncio.sleep(interval)
                         continue
                     
@@ -329,15 +374,15 @@ async def periodic_price_collection(symbol: str = "BTCUSDT", interval: int = 60)
                         }
                         rabbitmq_producer.publish_price_update(event_data)
                     
-                    print(f"✅ Collected {symbol} price: ${price}")
+                    logger.info(f"✅ Collected {symbol} price: ${price}")
                 
             except Exception as error:
-                print(f"⚠️  Price collection error: {error}")
+                logger.error(f"⚠️  Price collection error: {error}")
             
             await asyncio.sleep(interval)
             
     except asyncio.CancelledError:
-        print("Periodic price collection cancelled")
+        logger.info("Periodic price collection cancelled")
         raise
     finally:
         await collector.close()
@@ -357,60 +402,193 @@ async def run_market_cap_collection(
             updated = await market_cap_service.update_market_cap()
 
             if updated:
-                print("✅ BTC market cap updated")
+                logger.info("✅ BTC market cap updated")
 
             else:
-                print("⚠️ BTC market cap update failed")
+                logger.warning("⚠️ BTC market cap update failed")
 
         except Exception as error:
-            print(
-                f"⚠️ Market cap collection error: {error}"
-            )
+            logger.error(f"⚠️ Market cap collection error: {error}")
 
         # CoinGecko does not need second-by-second updates
         await asyncio.sleep(900)
-# async def periodic_economic_collection(interval: int = 3600):
-#     """
-#     Periodic task to collect economic indicators from FRED
-#     """
-#     global cache_client, rabbitmq_producer
-    
-#     collector = FREDCollector()
-    
-#     try:
-#         while True:
-#             try:
-#                 indicators = await collector.get_all_indicators()
-                
-#                 if indicators:
-#                     if cache_client:
-#                         for key, value in indicators.items():
-#                             if value and isinstance(value, (int, float)):
-#                                 await cache_client.set_economic(key, {
-#                                     "value": value,
-#                                     "timestamp": datetime.now().isoformat()
-#                                 })
-                    
-#                     if rabbitmq_producer:
-#                         event_data = {
-#                             "indicators": indicators,
-#                             "timestamp": datetime.now().isoformat()
-#                         }
-#                         rabbitmq_producer.publish_economic_update(event_data)
-                    
-#                     print(f"✅ Collected economic indicators: CPI={indicators.get('cpi')}, Inflation={indicators.get('inflation')}%")
-                
-#             except Exception as error:
-#                 print(f"⚠️  Economic collection error: {error}")
-            
-#             await asyncio.sleep(interval)
-            
-#     except asyncio.CancelledError:
-#         print("Periodic economic collection cancelled")
-#         raise
-#     finally:
-#         await collector.close()
 
+
+# async def periodic_economic_collection():
+
+#     logger.info("🔥 FRED scheduler started")
+
+#     from app.services.indicator_service import (
+#         IndicatorService,
+#     )
+
+#     from app.database.session import (
+#         SessionLocal,
+#     )
+
+#     from app.services.scheduler import (
+#         wait_until_next_run,
+#     )
+
+#     from app.config import settings
+
+
+#     while True:
+
+#         try:
+
+#             if settings.MACRO_UPDATE_INTERVAL_MINUTES > 0:
+#                 logger.info(
+#                     f"🔥 Waiting {settings.MACRO_UPDATE_INTERVAL_MINUTES} minutes"
+#                 )
+
+#                 await asyncio.sleep(
+#                     settings.MACRO_UPDATE_INTERVAL_MINUTES * 60
+#                 )
+
+#             else:
+#                 await wait_until_next_run(
+#                     settings.MACRO_UPDATE_HOUR_UTC,
+#                     settings.MACRO_UPDATE_MINUTE_UTC,
+#                 )
+
+
+#             logger.info("🔥 FRED scheduler woke up")
+
+
+#             db = SessionLocal()
+
+#             logger.info("🔥 Database session created")
+
+
+#             try:
+
+#                 service = IndicatorService(db)
+
+#                 logger.info("Starting scheduled macro update")
+
+
+#                 result = await service.update_all_indicators()
+
+#                 logger.info(f"Macro update completed: {list(result.keys())}")
+
+
+#                 await service.close()
+
+#                 logger.info("IndicatorService closed successfully")
+
+
+#             finally:
+
+#                 db.close()
+
+#                 logger.info("Database session closed")
+
+
+#         except Exception as error:
+
+#             logger.error(
+#                 "🔥 FRED scheduler failed:",
+#                 error
+#             )
+
+async def periodic_economic_collection():
+
+    logger.info("🔥 FRED scheduler started")
+
+    from app.services.indicator_service import (
+        IndicatorService,
+    )
+
+    from app.database.session import (
+        SessionLocal,
+    )
+
+    from app.services.scheduler import (
+        wait_until_next_run,
+    )
+
+    from app.config import settings
+
+    while True:
+
+        try:
+
+            if settings.MACRO_UPDATE_INTERVAL_MINUTES > 0:
+                logger.info(
+                    f"🔥 Waiting {settings.MACRO_UPDATE_INTERVAL_MINUTES} minutes"
+                )
+
+                await asyncio.sleep(
+                    settings.MACRO_UPDATE_INTERVAL_MINUTES * 60
+                )
+
+            else:
+                await wait_until_next_run(
+                    settings.MACRO_UPDATE_HOUR_UTC,
+                    settings.MACRO_UPDATE_MINUTE_UTC,
+                )
+
+            logger.info("🔥 FRED scheduler woke up")
+
+            db = SessionLocal()
+
+            logger.info("🔥 Database session created")
+
+            try:
+
+                service = IndicatorService(db)
+
+                logger.info("Starting scheduled macro update")
+
+                result = None
+
+                for attempt in range(3):
+
+                    try:
+
+                        result = await service.update_all_indicators()
+
+                        logger.info(
+                            f"Macro update completed: {list(result.keys())}"
+                        )
+
+                        break
+
+                    except Exception:
+
+                        logger.exception(
+                            f"Macro update attempt {attempt + 1} failed"
+                        )
+
+                        if attempt == 2:
+                            raise
+
+                        logger.info(
+                            "Retrying macro update in 30 seconds..."
+                        )
+
+                        await asyncio.sleep(30)
+
+                await service.close()
+
+                logger.info(
+                    "IndicatorService closed successfully"
+                )
+
+            finally:
+
+                db.close()
+
+                logger.info(
+                    "Database session closed"
+                )
+
+        except Exception:
+
+            logger.exception(
+                "🔥 FRED scheduler failed"
+            )
 
 # ============================================
 # CREATE FASTAPI APP
@@ -540,5 +718,6 @@ if __name__ == "__main__":
         "app.main:app",
         host="0.0.0.0",
         port=settings.SERVICE_PORT,
-        reload=settings.RELOAD
+        reload=settings.RELOAD,
+        # log_level="info",
     )

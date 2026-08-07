@@ -45,10 +45,16 @@ class TestConfig:
         assert settings.BINANCE_DEFAULT_SYMBOL == "BTCUSDT"
 
     def test_fred_settings(self):
-        """Test FRED configuration settings."""
+        """
+        Verify that the FRED configuration
+        is loaded correctly.
+        """
+
         assert settings.FRED_API_URL == "https://api.stlouisfed.org/fred"
-        # ✅ Allow placeholder value or None
-        assert settings.FRED_API_KEY in ('None', "your_api_key_here")
+
+        assert settings.FRED_API_KEY is not None
+
+        assert len(settings.FRED_API_KEY) > 0
 
     def test_collection_intervals(self):
         assert settings.PRICE_COLLECTION_INTERVAL == 60
