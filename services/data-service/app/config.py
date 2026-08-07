@@ -103,14 +103,67 @@ class Settings(BaseSettings):
     # ============================================
     FRED_API_URL: str = "https://api.stlouisfed.org/fred"
     FRED_API_KEY: Optional[str] = None  # Replace with your actual FRED API key or set to None if not available
-    
+
+    # ============================================
+    # FRED SERIES CONFIGURATION
+    # ============================================
+
+    # Consumer Price Index (CPI) - Inflation
+    # Series: CPIAUCSL
+    FRED_CPI_SERIES: str = "CPIAUCSL"
+
+
+    # Federal Funds Effective Rate
+    # Series: FEDFUNDS
+    FRED_FED_FUNDS_SERIES: str = "FEDFUNDS"
+
+
+    # M2 Money Supply
+    # Series: M2SL
+    FRED_M2_SERIES: str = "M2SL"
+
+
+    # US Dollar Index
+    # Series: DTWEXBGS
+    FRED_DXY_SERIES: str = "DTWEXBGS"
+
+
+    # 10-Year Treasury Yield
+    # Series: DGS10
+    FRED_TREASURY_10Y_SERIES: str = "DGS10"
+
+
+    # Gross Domestic Product
+    # Series: GDP
+    FRED_GDP_SERIES: str = "GDP"
+
+
+    # Unemployment Rate
+    # Series: UNRATE
+    FRED_UNEMPLOYMENT_SERIES: str = "UNRATE"
+
+
+    # FRED API rate limiting delay
+    # Prevent excessive requests
+    FRED_REQUEST_DELAY: float = 0.5
     # ============================================
     # COLLECTION INTERVALS (seconds)
     # ============================================
     PRICE_COLLECTION_INTERVAL: int = 60
     ECONOMIC_COLLECTION_INTERVAL: int = 3600
     WEBSOCKET_RECONNECT_DELAY: int = 5
-    
+
+    # ============================================
+    # SCHEDULED JOBS
+    # ============================================
+
+    # Macroeconomic update schedule (production)
+    MACRO_UPDATE_HOUR_UTC: int = 1
+    MACRO_UPDATE_MINUTE_UTC: int = 0
+
+    # Development/testing only.
+    # Set to a value > 0 to run every N minutes instead of once per day.
+    MACRO_UPDATE_INTERVAL_MINUTES: int = 2
     # ============================================
     # RATE LIMITING
     # ============================================

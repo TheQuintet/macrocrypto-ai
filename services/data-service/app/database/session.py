@@ -1,17 +1,29 @@
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
+
 from app.models.btc_price import Base
-from app.models import BTCPrice
+# Import models so SQLAlchemy registers them with Base.metadata
+from app.models.btc_price import BTCPrice
+from app.models.macro_indicator import MacroIndicator
 
 from app.config import settings
+import logging
+
 
 """
 Module that configures the SQLAlchemy engine and session factory.
 
 It reads DATABASE_URL and pooling parameters from the application settings
-to establish database connectivity. Call init_db() at startup to verify
-the connection and ensure the database is reachable.
+to establish database connectivity.
+
+At startup:
+- Creates database tables
+- Enables TimescaleDB hypertables where required
 """
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 engine = create_engine(
     settings.DATABASE_URL,
     pool_size=settings.DATABASE_POOL_SIZE,
@@ -28,17 +40,51 @@ SessionLocal = sessionmaker(
 
 def init_db():
     """
-    Initialize database connection and create tables.
+    Initialize database connection and create TimescaleDB hypertables.
     """
     try:
         # Create tables if they do not already exist
         Base.metadata.create_all(bind=engine)
 
         with engine.connect() as connection:
+
+            # Verify database connection
             connection.execute(text("SELECT 1"))
 
-        print("Database connection initialized")
+            # Create btc_prices hypertable
+            connection.execute(
+                text(
+                    """
+                    SELECT create_hypertable(
+                        'btc_prices',
+                        'time',
+                        if_not_exists => TRUE,
+                        migrate_data => TRUE
+                    )
+                    """
+                )
+            )
+
+            # Create macro indicators hypertable
+            connection.execute(
+                text(
+                    """
+                    SELECT create_hypertable(
+                        'macro_indicators',
+                        'time',
+                        chunk_time_interval => INTERVAL '1 year',
+                        if_not_exists => TRUE,
+                        migrate_data => TRUE
+                    )
+                    """
+                )
+            )
+
+            connection.commit()
+
+        logger.info("Database connection initialized")
+        logger.info("TimescaleDB hypertable initialized")
 
     except Exception as e:
-        print(f"Database initialization failed: {e}")
+        logger.error(f"Database initialization failed: {e}")
         raise
