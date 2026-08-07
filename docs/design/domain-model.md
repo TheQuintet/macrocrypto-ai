@@ -904,6 +904,262 @@ Domain Events represent significant changes in the state of the system that are 
 | UserLoggedIn | API Gateway | — | Track user activity |
 
 ---
+## 6. Bounded Contexts
+
+Bounded Contexts are logical boundaries that define where a particular domain model applies. Each bounded context has its own ubiquitous language, entities, value objects, and aggregates.
+
+---
+
+### 6.1 Context Map
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                                                                                 │
+│  ┌───────────────────────────────┐    ┌───────────────────────────────────┐    │
+│  │                               │    │                                   │    │
+│  │    Data Context              │    │       AI Context                  │    │
+│  │                               │    │                                   │    │
+│  │  - BTC Price Collection      │    │  - Prediction Generation          │    │
+│  │  - Macro Data Collection     │    │  - Model Training                 │    │
+│  │  - Data Validation           │    │  - Accuracy Tracking              │    │
+│  │  - Historical Data Storage   │    │  - Feature Engineering            │    │
+│  │                               │    │                                   │    │
+│  └───────────────┬───────────────┘    └───────────────┬───────────────────┘    │
+│                  │                                      │                       │
+│                  │ PriceUpdated                         │ PredictionGenerated   │
+│                  │ IndicatorUpdated                     │                       │
+│                  ▼                                      ▼                       │
+│  ┌───────────────────────────────┐    ┌───────────────────────────────────┐    │
+│  │                               │    │                                   │    │
+│  │    Alerts Context            │    │       API Context                 │    │
+│  │                               │    │                                   │    │
+│  │  - Alert Evaluation          │    │  - REST API Endpoints             │    │
+│  │  - Alert Management          │    │  - Authentication                 │    │
+│  │  - Notification Delivery     │    │  - Rate Limiting                  │    │
+│  │  - Event Monitoring          │    │  - User Management                │    │
+│  │                               │    │  - Export Requests               │    │
+│  │                               │    │                                   │    │
+│  └───────────────────────────────┘    └───────────────────────────────────┘    │
+│                                                                                 │
+└─────────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### 6.2 Data Context
+
+**Purpose:**
+Responsible for collecting, validating, and storing all data used by the platform.
+
+**Core Concepts:**
+- BTC Price
+- Macro Indicator
+- Historical Data
+- Data Validation
+
+**Entities:**
+- BTC Price
+- Macro Indicator
+
+**Value Objects:**
+- Price
+- Timestamp
+- Indicator Type
+
+**Events Produced:**
+- PriceUpdated
+- IndicatorUpdated
+
+**Events Consumed:**
+- None
+
+**Key Responsibilities:**
+- Fetch BTC price data from CoinGecko
+- Fetch macro indicator data from FRED API
+- Validate incoming data
+- Store data in TimescaleDB
+- Publish events when new data arrives
+
+---
+
+### 6.3 AI Context
+
+**Purpose:**
+Responsible for generating BTC price predictions using machine learning models.
+
+**Core Concepts:**
+- Prediction
+- Model Training
+- Feature Engineering
+- Accuracy Tracking
+
+**Entities:**
+- Prediction
+- Model Version
+
+**Value Objects:**
+- Confidence Level
+- Price Range
+- Feature Set
+
+**Events Produced:**
+- PredictionGenerated
+
+**Events Consumed:**
+- PriceUpdated
+- IndicatorUpdated
+
+**Key Responsibilities:**
+- Generate 24h and 7d BTC price predictions
+- Train and retrain Prophet model
+- Track prediction accuracy
+- Manage model versions
+- Cache predictions for performance
+
+---
+
+### 6.4 Alerts Context
+
+**Purpose:**
+Responsible for evaluating alert conditions and delivering notifications.
+
+**Core Concepts:**
+- Alert
+- Notification
+- Event Monitoring
+- User Preferences
+
+**Entities:**
+- Alert
+- Notification
+
+**Value Objects:**
+- AlertId
+- Threshold
+- Impact Level
+
+**Events Produced:**
+- AlertTriggered
+- NotificationSent
+
+**Events Consumed:**
+- PriceUpdated
+- PredictionGenerated
+- IndicatorUpdated
+- AlertAcknowledged
+
+**Key Responsibilities:**
+- Evaluate alerts against incoming events
+- Manage alert lifecycle (create, trigger, dismiss, disable)
+- Deliver notifications via email and in-app
+- Track notification delivery status
+
+---
+
+### 6.5 API Context
+
+**Purpose:**
+Responsible for exposing platform functionality to external users.
+
+**Core Concepts:**
+- User
+- API Endpoint
+- Authentication
+- Export Request
+
+**Entities:**
+- User
+- Export Request
+
+**Value Objects:**
+- UserId
+- ExportId
+- Email
+
+**Events Produced:**
+- AlertAcknowledged
+- ExportCompleted
+- UserRegistered
+- UserLoggedIn
+
+**Events Consumed:**
+- PredictionGenerated
+- AlertTriggered
+- NotificationSent
+
+**Key Responsibilities:**
+- Expose REST API endpoints
+- Authenticate users (JWT)
+- Rate limiting
+- Manage user accounts
+- Handle export requests
+
+---
+
+### 6.6 Context Summary
+
+| Bounded Context | Primary Entities | Produced Events | Consumed Events | Database |
+|-----------------|------------------|-----------------|-----------------|----------|
+| **Data Context** | BTC Price, Macro Indicator | PriceUpdated, IndicatorUpdated | None | TimescaleDB |
+| **AI Context** | Prediction, Model Version | PredictionGenerated | PriceUpdated, IndicatorUpdated | TimescaleDB, MLflow |
+| **Alerts Context** | Alert, Notification | AlertTriggered, NotificationSent | PriceUpdated, PredictionGenerated, IndicatorUpdated, AlertAcknowledged | PostgreSQL |
+| **API Context** | User, Export Request | AlertAcknowledged, ExportCompleted, UserRegistered, UserLoggedIn | PredictionGenerated, AlertTriggered, NotificationSent | PostgreSQL |
+
+---
+
+### 6.7 Context Boundaries and Relationships
+
+```
+┌─────────────────────────────┐
+│       Data Context          │
+│                             │
+│  BTC Price, Macro Indicator │
+│  TimescaleDB                │
+└──────────┬──────────────────┘
+           │
+           │ PriceUpdated, IndicatorUpdated
+           │
+           ▼
+┌─────────────────────────────┐
+│       AI Context            │
+│                             │
+│  Prediction                 │
+│  TimescaleDB, MLflow        │
+└──────────┬──────────────────┘
+           │
+           │ PredictionGenerated
+           │
+           ▼
+┌─────────────────────────────┐
+│       Alerts Context        │
+│                             │
+│  Alert, Notification        │
+│  PostgreSQL                 │
+└──────────┬──────────────────┘
+           │
+           │ AlertTriggered, NotificationSent
+           │
+           ▼
+┌─────────────────────────────┐
+│       API Context           │
+│                             │
+│  User, Export Request       │
+│  PostgreSQL                 │
+└─────────────────────────────┘
+```
+
+---
+
+### 6.8 Context Dependencies
+
+| Context | Depends On | Dependency Type |
+|---------|------------|-----------------|
+| Data Context | None | — |
+| AI Context | Data Context | Events |
+| Alerts Context | Data Context, AI Context | Events |
+| API Context | AI Context, Alerts Context | Events, API |
+
+---
 
 ## Version History
 
@@ -912,3 +1168,4 @@ Domain Events represent significant changes in the state of the system that are 
 | 1.0 | 2026-08-07 | Sid | Initial version — Entities and Value Objects |
 | 1.1 | 2026-08-07 | Sid | Added Aggregates section |
 | 1.2 | 2026-08-07 | Sid | Added Domain Events section |
+| 1.3 | 2026-08-07 | Sid | Added Bounded Contexts section |
