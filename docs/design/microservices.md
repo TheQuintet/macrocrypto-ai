@@ -92,22 +92,23 @@ This document defines the 4 microservices that comprise the MacroCrypto AI platf
 
 | Responsibility | Description |
 |----------------|-------------|
-| **Prediction Generation** | Generate 24h and 7d BTC price predictions |
-| **Model Training** | Train and retrain Prophet model |
-| **Feature Engineering** | Transform raw data into model features |
+| **Prediction Generation** | Generate 24h and 7d BTC price predictions using Prophet model |
+| **Model Training** | Train and retrain Prophet model with latest data |
+| **Feature Engineering** | Transform raw data into model features (10 features: 5 macro, 5 BTC) |
 | **Model Versioning** | Manage model versions using MLflow |
-| **Accuracy Tracking** | Track and store prediction accuracy metrics |
-| **Prediction Caching** | Cache predictions for performance |
-| **Prediction Publishing** | Publish events when new predictions are generated |
-| **Model Performance Monitoring** | Monitor model accuracy and drift |
+| **Accuracy Tracking** | Track and store prediction accuracy metrics (RMSE, MAE, MAPE) |
+| **Prediction Caching** | Cache predictions in Redis for performance |
+| **Prediction Publishing** | Publish PredictionGenerated event when new predictions are available |
+| **Model Performance Monitoring** | Monitor model accuracy and feature drift |
+| **Confidence Interval Calculation** | Calculate upper and lower bounds using Prophet's uncertainty intervals |
 
 ### 3.3 Owned Data
 
 | Data Store | Purpose |
 |------------|---------|
-| **TimescaleDB** | Predictions (24h and 7d) |
-| **MLflow** | Model versioning and metadata |
-| **Redis** | Prediction cache |
+| **TimescaleDB** | Store predictions (24h and 7d with confidence intervals) |
+| **MLflow** | Model versioning, parameters, and metadata |
+| **Redis** | Cache predictions for sub-second API responses |
 
 ### 3.4 Events Produced
 
@@ -119,8 +120,8 @@ This document defines the 4 microservices that comprise the MacroCrypto AI platf
 
 | Event | Description | Consumer Logic |
 |-------|-------------|----------------|
-| **PriceUpdated** | New BTC price available | Update data for prediction generation |
-| **IndicatorUpdated** | New macro indicator available | Update data for prediction generation |
+| **PriceUpdated** | New BTC price available | Update feature data for prediction generation |
+| **IndicatorUpdated** | New macro indicator available | Update feature data for prediction generation |
 
 ### 3.6 APIs
 
@@ -128,6 +129,7 @@ This document defines the 4 microservices that comprise the MacroCrypto AI platf
 |-----|------|---------|
 | Internal API (gRPC) | Internal | Fetch predictions for API Gateway |
 | Internal API (gRPC) | Internal | Trigger model retraining |
+| Internal API (gRPC) | Internal | Get model performance metrics |
 
 ### 3.7 Technology Stack
 
@@ -140,6 +142,63 @@ This document defines the 4 microservices that comprise the MacroCrypto AI platf
 | Database | TimescaleDB |
 | Cache | Redis |
 | Message Broker | RabbitMQ (Consumer/Producer) |
+| Scheduling | Celery / Cron |
+
+### 3.8 Prediction Generation Flow
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                      Prediction Flow                           │
+│                                                                 │
+│  ┌──────────────────┐                                         │
+│  │ PriceUpdated /   │                                         │
+│  │ IndicatorUpdated │                                         │
+│  └────────┬─────────┘                                         │
+│           │                                                    │
+│           ▼                                                    │
+│  ┌──────────────────┐                                         │
+│  │  Feature         │  10 Features:                           │
+│  │  Engineering     │  - CPI, Interest Rate, M2, DXY, Yield   │
+│  │                  │  - Price, Volume, Volatility, Dominance, │
+│  │                  │    Active Addresses                     │
+│  └────────┬─────────┘                                         │
+│           │                                                    │
+│           ▼                                                    │
+│  ┌──────────────────┐                                         │
+│  │  Prophet Model   │  Generate 24h (hourly) and 7d (daily)   │
+│  │  Prediction      │  with confidence intervals               │
+│  └────────┬─────────┘                                         │
+│           │                                                    │
+│           ▼                                                    │
+│  ┌──────────────────┐                                         │
+│  │  Store in        │  Save predictions in TimescaleDB        │
+│  │  TimescaleDB     │  Cache in Redis                         │
+│  └────────┬─────────┘                                         │
+│           │                                                    │
+│           ▼                                                    │
+│  ┌──────────────────┐                                         │
+│  │  Publish Event   │  PredictionGenerated                    │
+│  └──────────────────┘                                         │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 3.9 Retraining Strategy
+
+| Schedule | Trigger | Description |
+|----------|---------|-------------|
+| **Daily** | Scheduled (6:00 AM UTC) | Regular retraining with latest data |
+| **On-Demand** | Manual | Triggered by admin via API |
+| **Conditional** | Performance degradation | Triggered when accuracy drops below threshold |
+
+### 3.10 Model Performance Metrics
+
+| Metric | Target | Description |
+|--------|--------|-------------|
+| **MAE** | < 5% | Mean Absolute Error |
+| **RMSE** | < 7% | Root Mean Square Error |
+| **MAPE** | < 5% | Mean Absolute Percentage Error |
+| **Directional Accuracy** | > 55% | Percentage of correct direction predictions |
+| **Confidence Interval Coverage** | ~95% | Percentage of actual prices within predicted bounds |
 
 ---
 
@@ -165,6 +224,7 @@ This document defines the 4 microservices that comprise the MacroCrypto AI platf
 | **Request Validation** | Validate incoming requests |
 | **Response Caching** | Cache responses for performance |
 | **Export Requests** | Handle data export requests |
+| **WebSocket Gateway** | Serve real-time price updates |
 
 ### 4.3 Owned Data
 
@@ -196,7 +256,28 @@ This document defines the 4 microservices that comprise the MacroCrypto AI platf
 | **REST API** | External | All user-facing endpoints |
 | **WebSocket** | External | Real-time price updates |
 
-### 4.7 Technology Stack
+### 4.7 API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v1/predict/btc` | Get BTC predictions |
+| GET | `/api/v1/btc/price` | Get current BTC price |
+| GET | `/api/v1/indicators` | Get macro indicators |
+| GET | `/api/v1/correlation/btc` | Get BTC-macro correlation |
+| GET | `/api/v1/regimes/btc` | Get regime data |
+| GET | `/api/v1/accuracy/btc` | Get prediction accuracy |
+| GET | `/api/v1/recommendations/btc` | Get trade recommendations |
+| GET | `/api/v1/events/calendar` | Get economic calendar |
+| GET | `/api/v1/methodology` | Get methodology |
+| POST | `/api/v1/auth/login` | User login |
+| POST | `/api/v1/auth/register` | User registration |
+| POST | `/api/v1/auth/refresh` | Refresh JWT token |
+| POST | `/api/v1/alerts/price` | Create price alert |
+| POST | `/api/v1/alerts/prediction` | Create prediction alert |
+| POST | `/api/v1/alerts/events` | Create macro event alert |
+| GET | `/api/v1/export` | Export data |
+
+### 4.8 Technology Stack
 
 | Component | Technology |
 |-----------|------------|
@@ -206,6 +287,7 @@ This document defines the 4 microservices that comprise the MacroCrypto AI platf
 | Cache | Redis |
 | Message Broker | RabbitMQ (Consumer/Producer) |
 | Auth | JWT, OAuth2 |
+| Documentation | OpenAPI / Swagger |
 
 ---
 
@@ -229,6 +311,8 @@ This document defines the 4 microservices that comprise the MacroCrypto AI platf
 | **Notification Delivery** | Send notifications via email and in-app |
 | **Alert History** | Track alert history for audit |
 | **Macro Event Alerts** | Send alerts before macro events |
+| **Prediction Change Monitoring** | Monitor prediction changes for alerts |
+| **Confidence Change Monitoring** | Monitor confidence changes for alerts |
 
 ### 5.3 Owned Data
 
@@ -252,13 +336,31 @@ This document defines the 4 microservices that comprise the MacroCrypto AI platf
 | **IndicatorUpdated** | New macro indicator available | Evaluate macro event alerts |
 | **AlertAcknowledged** | Alert acknowledged by user | Update alert status |
 
-### 5.6 APIs
+### 5.6 Alert States
+
+```
+┌─────────┐
+│ Active  │
+└────┬────┘
+     │
+     ├── User disables → Disabled
+     │
+     ├── Expiry → Expired (one-time)
+     │
+     └── Condition met → Triggered
+                          │
+                          ├── User dismisses → Dismissed
+                          │
+                          └── Auto-archive after 7 days → Archived
+```
+
+### 5.7 APIs
 
 | API | Type | Purpose |
 |-----|------|---------|
 | Internal API (gRPC) | Internal | Alert management for API Gateway |
 
-### 5.7 Technology Stack
+### 5.8 Technology Stack
 
 | Component | Technology |
 |-----------|------------|
@@ -270,9 +372,43 @@ This document defines the 4 microservices that comprise the MacroCrypto AI platf
 
 ---
 
-## 6. Service Dependencies
+## 6. Database per Service
 
-### 6.1 Dependency Diagram
+### 6.1 Database Ownership
+
+| Service | Database | Purpose | Data Stored |
+|---------|----------|---------|-------------|
+| **Data Ingestion** | TimescaleDB | Time-series data | BTC prices, macro indicators |
+| **Data Ingestion** | Redis | Cache | Current BTC price |
+| **AI Service** | TimescaleDB | Predictions | 24h and 7d predictions |
+| **AI Service** | Redis | Cache | Cached predictions |
+| **AI Service** | MLflow | Model registry | Model versions, metadata |
+| **API Gateway** | PostgreSQL | User data | Users, API keys, export history |
+| **Alert Service** | PostgreSQL | Alerts | Alerts, history, notifications |
+
+### 6.2 Database Separation Rules
+
+| Rule | Description |
+|------|-------------|
+| **No Sharing** | Each service has its own database |
+| **No Direct Access** | Services cannot directly access other services' databases |
+| **Event-Driven** | Communication happens via events |
+| **API-Driven** | When events are not appropriate, use internal APIs |
+
+### 6.3 Database Technologies
+
+| Database | Used By | Purpose |
+|----------|---------|---------|
+| **TimescaleDB** | Data Ingestion, AI Service | Time-series data (prices, predictions, indicators) |
+| **PostgreSQL** | API Gateway, Alert Service | Relational data (users, alerts, export history) |
+| **Redis** | Data Ingestion, AI Service, API Gateway | Caching (prices, predictions, API responses) |
+| **MLflow** | AI Service | Model versioning and metadata |
+
+---
+
+## 7. Service Dependencies
+
+### 7.1 Dependency Diagram
 
 ```
 ┌───────────────────────────┐
@@ -300,18 +436,18 @@ This document defines the 4 microservices that comprise the MacroCrypto AI platf
 └───────────────────────────┘
 ```
 
-### 6.2 Dependency Matrix
+### 7.2 Dependency Matrix
 
 | Service | Depends On | Dependency Type |
 |---------|------------|-----------------|
-| Data Ingestion | None | — |
-| AI Service | Data Ingestion | Events (PriceUpdated, IndicatorUpdated) |
-| Alert Service | Data Ingestion, AI Service | Events (PriceUpdated, IndicatorUpdated, PredictionGenerated) |
-| API Gateway | AI Service, Alert Service | Events (PredictionGenerated, AlertTriggered, NotificationSent) |
+| **Data Ingestion** | None | — |
+| **AI Service** | Data Ingestion | Events (PriceUpdated, IndicatorUpdated) |
+| **Alert Service** | Data Ingestion, AI Service | Events (PriceUpdated, IndicatorUpdated, PredictionGenerated) |
+| **API Gateway** | AI Service, Alert Service | Events (PredictionGenerated, AlertTriggered, NotificationSent) |
 
 ---
 
-## 7. Service Catalog Summary
+## 8. Service Catalog Summary
 
 | Service | Database | APIs | Events Produced | Events Consumed |
 |---------|----------|------|-----------------|-----------------|
@@ -322,8 +458,60 @@ This document defines the 4 microservices that comprise the MacroCrypto AI platf
 
 ---
 
+## 9. Non-Functional Requirements
+
+### 9.1 Performance
+
+| Metric | Target |
+|--------|--------|
+| API Response Time (cached) | < 200ms |
+| API Response Time (non-cached) | < 500ms |
+| Event Processing Latency | < 100ms |
+| Prediction Generation | < 5s |
+
+### 9.2 Availability
+
+| Metric | Target |
+|--------|--------|
+| System Uptime | 99.5% |
+| Data Freshness (BTC) | < 5 seconds |
+| Data Freshness (Indicators) | < 24 hours |
+
+### 9.3 Scalability
+
+| Aspect | Strategy |
+|--------|----------|
+| Horizontal Scaling | All services stateless, can scale horizontally |
+| Database Scaling | TimescaleDB hypertables, PostgreSQL read replicas |
+| Caching | Redis cluster |
+| Load Balancing | API Gateway behind load balancer |
+
+---
+
+## 10. Deployment
+
+### 10.1 Deployment Strategy
+
+| Service | Deployment Strategy |
+|---------|---------------------|
+| All Services | Docker containers |
+| Orchestration | Kubernetes |
+| CI/CD | GitHub Actions |
+| Environment | Cloud (AWS/GCP/Azure) |
+
+### 10.2 Ports
+
+| Service | Port |
+|---------|------|
+| Data Ingestion | 8081 |
+| AI Service | 8082 |
+| API Gateway | 8080 |
+| Alert Service | 8083 |
+
+---
+
 ## Version History
 
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
-| 1.0 | 2026-08-07 | Sid | Initial version |
+| 1.0 | 2026-08-07 | Sid | Initial version — all services defined |
