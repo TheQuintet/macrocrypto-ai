@@ -19,8 +19,8 @@ class Settings(BaseSettings):
     # ============================================
     # DATABASE
     # ============================================
-    # In Docker: postgres (service name)
-    # Locally: localhost
+    # Default Docker database URL.
+    # Local development overrides this through .env.local.
     DATABASE_URL: str = "postgresql://macro:crypto@postgres:5432/macrocrypto"
     DATABASE_POOL_SIZE: int = 5
     DATABASE_MAX_OVERFLOW: int = 10
@@ -163,7 +163,7 @@ class Settings(BaseSettings):
 
     # Development/testing only.
     # Set to a value > 0 to run every N minutes instead of once per day.
-    MACRO_UPDATE_INTERVAL_MINUTES: int = 2
+    MACRO_UPDATE_INTERVAL_MINUTES: int = 0
     # ============================================
     # RATE LIMITING
     # ============================================

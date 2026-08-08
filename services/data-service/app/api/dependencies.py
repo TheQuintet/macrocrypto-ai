@@ -12,3 +12,22 @@ async def jwt_auth(
 
     # JWT validation will be added in a future sprint.
     return authorization
+
+from app.database.session import SessionLocal
+
+
+def get_db():
+    """
+    Provide a database session for API requests.
+
+    The session is automatically closed after
+    the request completes.
+    """
+
+    db = SessionLocal()
+
+    try:
+        yield db
+
+    finally:
+        db.close()
