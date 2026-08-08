@@ -1,6 +1,6 @@
 import { toast } from 'sonner'
 import { ExampleQueryDemo } from '@/components/example-query-demo'
-import { TimeRangePicker } from '@/components/time-range-controls'
+import { TimeRangePicker } from '@/components/time-range-picker'
 import { Button } from '@/components/ui/button'
 import { pageCopy } from '@/constants/navigation'
 
