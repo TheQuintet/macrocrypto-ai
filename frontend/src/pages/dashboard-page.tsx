@@ -1,4 +1,5 @@
 import { toast } from 'sonner'
+import { ExampleQueryDemo } from '@/components/example-query-demo'
 import { TimeRangePicker } from '@/components/time-range-controls'
 import { Button } from '@/components/ui/button'
 import { pageCopy } from '@/constants/navigation'
@@ -11,6 +12,7 @@ export function DashboardPage() {
       <h1 className="text-3xl font-bold tracking-tight">{page.title}</h1>
       <p className="max-w-md text-muted-foreground">{page.body}</p>
       <TimeRangePicker />
+      <ExampleQueryDemo />
       <Button
         type="button"
         onClick={() =>
