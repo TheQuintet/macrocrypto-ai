@@ -13,7 +13,7 @@ Detailed Cursor-only rules live in `.cursor/rules/`. Keep this file and tool-spe
 
 ### Stack
 
-- React + TypeScript, Vite, ShadCN UI, Tailwind, Zustand, TanStack Query, Vitest.
+- React + TypeScript, Vite, ShadCN UI, Tailwind, Zustand, TanStack Query, Vitest, Playwright.
 - Import alias: `@/` → `frontend/src/`.
 
 ### State ownership
@@ -39,18 +39,33 @@ Detailed Cursor-only rules live in `.cursor/rules/`. Keep this file and tool-spe
 | Feature dirs (e.g. `dashboard/`) | Feature-specific modules |
 | `lib/` | Shared helpers |
 | `test/` | Vitest setup only |
+| `e2e/ui-integration/` | Playwright **UI integration** (FE-only browser flows) |
+| `e2e/system/` | Playwright **E2E** (journeys with APIs/services when available) |
 
 - Components/pages: PascalCase files matching the export (`TimeRangePicker.tsx`).
 - Hooks: camelCase `use*` (`useBtcPriceHistoryQuery.ts`).
 - Modules: camelCase (`btcPriceHistory.ts`, `preferencesStore.ts`).
-- Tests: co-located `*.test.ts(x)`; helpers: `*.testHelpers.ts(x)`.
+- Unit tests: co-located `*.test.ts(x)`; helpers: `*.testHelpers.ts(x)`.
+- UI integration & E2E specs: **only** under `frontend/e2e/` (Playwright) — never under `src/`, never run via Vitest.
+
+### Testing strategy
+
+| Kind | Tool | Location | Purpose |
+|------|------|----------|---------|
+| Unit / component | Vitest + Testing Library | Co-located under `src/` (`*.test.ts(x)`) | Isolated component/store/helper behavior |
+| UI integration | Playwright | `frontend/e2e/ui-integration/` | Real-browser FE flows without requiring backend |
+| E2E | Playwright | `frontend/e2e/system/` | Full user journeys that include APIs/services when those exist |
+
+Use these names going forward. Keep strategies separate: do not mix Playwright into `src/` or Vitest; do not use Vitest for browser UI integration or E2E.
 
 ### UI & quality gates
 
 - Reuse `@/components/ui/*`; style with Tailwind + theme tokens in `src/index.css`.
 - From `frontend/`: `npm run lint`, `npm run typecheck`, and `npm test` must pass.
-- Add/update co-located Vitest tests when behavior changes.
-- Pre-commit runs lint, typecheck, and tests when `frontend/` is staged — fix failures; do not bypass hooks.
+- Add/update co-located Vitest tests when unit-level behavior changes.
+- UI integration: `npm run test:ui-integration`. E2E (system): `npm run test:e2e:system`. All Playwright: `npm run test:e2e` (first-time: `npx playwright install chromium`).
+- To watch clicks/UI locally: `npm run test:ui-integration:headed`, `npm run test:e2e:headed`, or interactive `npm run test:e2e:ui`.
+- UI integration and E2E are **not** on the Husky pre-commit hook (too slow); pre-commit runs lint, typecheck, and unit tests when `frontend/` is staged — fix failures; do not bypass hooks.
 
 ### Design principles
 

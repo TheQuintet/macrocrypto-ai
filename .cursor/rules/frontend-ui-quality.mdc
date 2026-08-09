@@ -1,5 +1,5 @@
 ---
-description: ShadCN, Tailwind, ESLint, typecheck, and unit test expectations
+description: ShadCN, Tailwind, ESLint, typecheck, unit, UI integration, and E2E expectations
 globs: frontend/**/*.{ts,tsx}
 alwaysApply: false
 ---
@@ -12,11 +12,14 @@ alwaysApply: false
 - Style with Tailwind utilities and existing theme tokens in `src/index.css` (CSS variables). Avoid new CSS frameworks or inline style systems.
 - Compose with `cn()` from `@/lib/utils` when merging classes.
 
-## ESLint + typecheck + unit tests
+## ESLint + typecheck + tests
 
 - Match `frontend/eslint.config.js` (TypeScript + react-hooks). Do not disable rules to hide issues.
 - Keep code type-safe: no unjustified `any`; prefer explicit Query/Mutation generics.
-- Keep Vitest unit tests green (`npm test`); add or update co-located `*.test.ts(x)` when behavior changes.
+- **Unit (Vitest):** co-located `*.test.ts(x)` under `src/`; keep `npm test` green.
+- **UI integration (Playwright):** FE-only browser flows in `frontend/e2e/ui-integration/`.
+- **E2E (Playwright):** API/service-backed journeys in `frontend/e2e/system/`.
+- UI integration and E2E are a different strategy from unit tests — never under `src/`, never via Vitest. Prefer `npm run test:ui-integration` / `npm run test:e2e:system`, or `npm run test:e2e` for both. To watch the browser: `npm run test:ui-integration:headed` or `npm run test:e2e:ui`. Not on Husky pre-commit.
 - Pre-commit runs lint, typecheck, and unit tests when `frontend/` changes — fix failures instead of bypassing hooks.
 
 ```tsx
@@ -31,4 +34,4 @@ import { Button } from '@/components/ui/button'
 </Button>
 ```
 
-From `frontend/`: `npm run lint`, `npm run typecheck`, `npm test`.
+From `frontend/`: `npm run lint`, `npm run typecheck`, `npm test`; Playwright via `npm run test:ui-integration`, `npm run test:e2e:system`, or `npm run test:e2e`.

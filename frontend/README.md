@@ -2,7 +2,7 @@
 
 Vite + React + TypeScript app for the MacroCrypto AI dashboard UI.
 
-Stack: **React**, **TypeScript**, **Vite**, **Tailwind CSS**, **ShadCN UI**, **Zustand**, **TanStack Query**, **Recharts**, **Vitest**.
+Stack: **React**, **TypeScript**, **Vite**, **Tailwind CSS**, **ShadCN UI**, **Zustand**, **TanStack Query**, **Recharts**, **Vitest**, **Playwright**.
 
 ## Prerequisites
 
@@ -41,9 +41,52 @@ To stop the server, press `Ctrl+C` in the terminal.
 | `npm run lint` | ESLint over the frontend package |
 | `npm run lint:fix` | ESLint with `--fix` |
 | `npm test` | Vitest unit tests (`vitest run`) |
+| `npm run test:e2e` | All Playwright projects (UI integration + E2E), headless |
+| `npm run test:ui-integration` | Playwright UI integration only (`e2e/ui-integration/`), headless |
+| `npm run test:e2e:system` | Playwright E2E only (`e2e/system/`), headless |
+| `npm run test:ui-integration:headed` | UI integration with visible browser + slow-mo |
+| `npm run test:e2e:headed` | All Playwright projects, visible browser + slow-mo |
+| `npm run test:e2e:ui` | Playwright interactive UI mode |
 | `npm run prepare` | Enable Husky (`cd .. && husky frontend/.husky`) — usually via `npm install` |
 
 These match the `scripts` block in `package.json`.
+
+### UI integration & E2E (Playwright)
+
+First-time machine setup (installs browser binaries used by Playwright):
+
+```bash
+npx playwright install chromium
+```
+
+```bash
+npm run test:ui-integration   # FE-only browser flows (headless)
+npm run test:e2e:system       # API/service-backed journeys (when specs exist)
+npm run test:e2e              # both Playwright projects (headless)
+```
+
+**Watch the browser (clicks + UI):**
+
+```bash
+npm run test:ui-integration:headed   # opens Chromium; slows actions via config when --headed
+npm run test:e2e:headed              # same for all Playwright projects
+npm run test:e2e:ui                  # Playwright UI mode — pick/debug tests interactively
+```
+
+- **Headed** (`--headed`) shows the real browser window. Slow-mo is applied in `playwright.config.ts` for headed runs (there is no `--slow-mo` CLI flag).
+- **UI mode** (`--ui`) opens Playwright’s test runner UI to step through specs, time-travel, and inspect actions.
+
+Default CI/local `test:e2e` stays **headless** (faster, no window).
+
+**Testing names we use:**
+
+| Kind | Meaning | Location |
+|------|---------|----------|
+| Unit | Isolated component/store/helper tests | Co-located under `src/` (Vitest) |
+| UI integration | Real-browser FE flows (no backend required) | `e2e/ui-integration/` (Playwright) |
+| E2E | Full journeys including APIs/services when available | `e2e/system/` (Playwright) |
+
+UI integration and E2E share Playwright but live in **separate folders** — a **different strategy** from unit tests. Do not put Playwright specs in `src/` or run them with `npm test`. They are **not** part of the Husky pre-commit hook (too slow for every commit); run them locally or in CI when touching user flows.
 
 ## Pre-commit hooks
 
@@ -73,6 +116,8 @@ Source lives in `src/` (`@/` alias → `src/`).
 | `src/constants/` | Static config (e.g. navigation) |
 | `src/test/` | Vitest setup |
 | `src/alerts/`, `src/utils/` | Reserved / placeholders |
+| `e2e/ui-integration/` | Playwright **UI integration** specs (`*.spec.ts`) |
+| `e2e/system/` | Playwright **E2E** specs (API/service-backed; add when ready) |
 
 Naming: PascalCase for components and pages, camelCase for hooks and modules. Co-located tests use `*.test.ts(x)`; helpers use `*.testHelpers.ts(x)`. Leave `components/ui/*` as ShadCN generates them.
 

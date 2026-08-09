@@ -11,6 +11,7 @@ Apply when working under `frontend/`. Same standards as `AGENTS.md` and `.cursor
 - Implement Vite + React + TypeScript using existing patterns and the `@/` alias.
 - Do not add parallel CSS/state frameworks or alternate folder trees.
 - Finish only when `npm run lint`, `npm run typecheck`, and `npm test` pass from `frontend/`.
+- **Testing names:** **unit** (Vitest, `src/`); **UI integration** (Playwright, `frontend/e2e/ui-integration/`); **E2E** (Playwright, `frontend/e2e/system/`). Use `npm run test:ui-integration`, `npm run test:e2e:system`, or `npm run test:e2e`.
 
 ## State
 
@@ -22,16 +23,19 @@ Apply when working under `frontend/`. Same standards as `AGENTS.md` and `.cursor
 ## Structure & naming
 
 - Layout: `api/`, `hooks/`, `stores/`, `components/` (+ `ui/` ShadCN), `pages/`, feature dirs, `lib/`, `test/`.
+- UI integration: `frontend/e2e/ui-integration/` only (Playwright) — not under `src/`, not Vitest.
+- E2E: `frontend/e2e/system/` only (Playwright; API/service-backed).
 - Components/pages: `PascalCase.tsx` matching export.
 - Hooks: `useSomething.ts`; modules: `camelCase.ts`.
-- Tests: `*.test.ts(x)`; helpers: `*.testHelpers.ts(x)`.
+- Unit tests: `*.test.ts(x)` next to source; helpers: `*.testHelpers.ts(x)`.
 - Leave `components/ui/*` as ShadCN generates them.
 
 ## UI & gates
 
 - ShadCN primitives + Tailwind theme tokens; compose classes with `cn()`.
 - No unjustified `any`; do not disable ESLint to hide issues.
-- Update co-located Vitest tests when behavior changes.
+- Update co-located Vitest tests when unit behavior changes.
+- UI integration and E2E are not on pre-commit; still run `test:e2e` for flow changes.
 
 ## Clean design
 
