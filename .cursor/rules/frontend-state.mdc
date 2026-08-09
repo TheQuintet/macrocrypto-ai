@@ -17,6 +17,7 @@ Keep client UI state and server/API state separate.
 
 - Do not put remote lists or API payloads in Zustand.
 - Do not use Query for purely local UI toggles.
+- Do not use Zustand as the page router — use React Router.
 - API modules own query keys + fetchers; hooks wrap `useQuery` / `useMutation` with explicit generics.
 - Prefer store selectors over subscribing to the whole store.
 

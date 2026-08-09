@@ -13,7 +13,7 @@ Detailed Cursor-only rules live in `.cursor/rules/`. Keep this file and tool-spe
 
 ### Stack
 
-- React + TypeScript, Vite, ShadCN UI, Tailwind, Zustand, TanStack Query, Vitest, Playwright.
+- React + TypeScript, Vite, React Router, ShadCN UI, Tailwind, Zustand, TanStack Query, Vitest, Playwright.
 - Import alias: `@/` → `frontend/src/`.
 
 ### State ownership
@@ -25,6 +25,7 @@ Detailed Cursor-only rules live in `.cursor/rules/`. Keep this file and tool-spe
 
 - Do not put remote/API data in Zustand.
 - Do not use Query for purely local UI toggles.
+- Do not use Zustand as the page router — use React Router.
 - API modules own query keys + fetchers; hooks wrap `useQuery` / `useMutation` with explicit generics.
 
 ### Folders & naming
@@ -47,6 +48,7 @@ Detailed Cursor-only rules live in `.cursor/rules/`. Keep this file and tool-spe
 - Modules: camelCase (`btcPriceHistory.ts`, `preferencesStore.ts`).
 - Unit tests: co-located `*.test.ts(x)`; helpers: `*.testHelpers.ts(x)`.
 - UI integration & E2E specs: **only** under `frontend/e2e/` (Playwright) — never under `src/`, never run via Vitest.
+- UI integration helpers: co-located `*.specHelpers.ts` next to the `*.spec.ts` (same act-helper style as unit tests).
 
 ### Testing strategy
 
@@ -57,6 +59,22 @@ Detailed Cursor-only rules live in `.cursor/rules/`. Keep this file and tool-spe
 | E2E | Playwright | `frontend/e2e/system/` | Full user journeys that include APIs/services when those exist |
 
 Use these names going forward. Keep strategies separate: do not mix Playwright into `src/` or Vitest; do not use Vitest for browser UI integration or E2E.
+
+### Test helpers (act style)
+
+Prefer small named helpers so specs read as arrange → act → assert, not raw locator/DOM detail.
+
+| Kind | Spec | Helpers |
+|------|------|---------|
+| Unit | `*.test.ts(x)` next to source | co-located `*.testHelpers.ts(x)` |
+| UI integration | `e2e/ui-integration/*.spec.ts` | co-located `*.specHelpers.ts` |
+
+- **Act helpers** name the user action (`selectTimeRange`, `clickSidebarNav`); **expect helpers** name the outcome (`expectRangeSelected`, `expectRoute`).
+- Unit: Testing Library `userEvent` / `act()` when updating stores outside the UI; wrap store updates in `act()`.
+- UI integration: same helper style with Playwright `page` APIs — do not inline repeated `getByRole` / URL checks in every test.
+- Reuse shared app constants (`routes`, `pageCopy`) from helpers instead of hardcoding path/label strings.
+
+Examples: `TimeRangePicker.testHelpers.tsx`, `e2e/ui-integration/routing.specHelpers.ts`.
 
 ### UI & quality gates
 

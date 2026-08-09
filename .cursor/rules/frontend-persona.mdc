@@ -19,7 +19,7 @@ Shared multi-tool conventions also live in `AGENTS.md`, `.github/copilot-instruc
 
 ## Quality bar
 
-Before finishing frontend work, ensure `npm run lint`, `npm run typecheck`, and `npm test` would pass from `frontend/`. Prefer adding or updating co-located Vitest **unit** tests when behavior is non-trivial. **UI integration** specs go in `frontend/e2e/ui-integration/`; **E2E** specs go in `frontend/e2e/system/` — run Playwright via `npm run test:e2e` (or the project-specific scripts); do not mix with Vitest.
+Before finishing frontend work, ensure `npm run lint`, `npm run typecheck`, and `npm test` would pass from `frontend/`. Prefer adding or updating co-located Vitest **unit** tests when behavior is non-trivial. **UI integration** specs go in `frontend/e2e/ui-integration/`; **E2E** specs go in `frontend/e2e/system/` — run Playwright via `npm run test:e2e` (or the project-specific scripts); do not mix with Vitest. Use act helpers (`*.testHelpers` for unit, `*.specHelpers` for UI integration) so specs stay arrange → act → assert.
 
 ```tsx
 // ❌ BAD — ad-hoc patterns and bypassing the app stack

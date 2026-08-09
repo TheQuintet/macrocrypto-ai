@@ -1,65 +1,25 @@
-import { useState } from 'react'
-import { Bell, Moon, Sun } from 'lucide-react'
-import { AppSidebar } from '@/components/AppSidebar'
-import { PageContent } from '@/components/PageContent'
-import { Button } from '@/components/ui/button'
-import {
-  SidebarInset,
-  SidebarProvider,
-  SidebarTrigger,
-} from '@/components/ui/sidebar'
-import { Toaster } from '@/components/ui/sonner'
-import { TooltipProvider } from '@/components/ui/tooltip'
-import type { NavItemId } from '@/constants/navigation'
-import { useTheme } from '@/hooks/useTheme'
+import { Navigate, Route, Routes } from 'react-router-dom'
+import { AppLayout } from '@/components/AppLayout'
+import { routes } from '@/constants/navigation'
+import { AlertsPage } from '@/pages/AlertsPage'
+import { DashboardPage } from '@/pages/DashboardPage'
+import { ForecastsPage } from '@/pages/ForecastsPage'
+import { MacroPage } from '@/pages/MacroPage'
 
-function App() {
-  const { isDark, toggleTheme } = useTheme()
-  const [sidebarOpen, setSidebarOpen] = useState(true)
-  const [activeNav, setActiveNav] = useState<NavItemId>('dashboard')
-
+export function App() {
   return (
-    <TooltipProvider>
-      <SidebarProvider open={sidebarOpen} onOpenChange={setSidebarOpen}>
-        <AppSidebar activeNav={activeNav} onNavigate={setActiveNav} />
-        <SidebarInset>
-          <header className="flex h-14 items-center gap-2 border-b px-4">
-            <SidebarTrigger />
-            <div className="ml-auto flex items-center gap-2">
-              <Button
-                type="button"
-                variant={activeNav === 'alerts' ? 'secondary' : 'outline'}
-                size="icon"
-                aria-label="Open alerts"
-                onClick={() => setActiveNav('alerts')}
-              >
-                <Bell />
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                aria-label={isDark ? 'Switch to light theme' : 'Switch to dark theme'}
-                onClick={toggleTheme}
-              >
-                {isDark ? <Sun /> : <Moon />}
-              </Button>
-            </div>
-          </header>
-          <PageContent activeNav={activeNav} />
-        </SidebarInset>
-        <Toaster
-          position="bottom-left"
-          offset={{
-            bottom: '1rem',
-            left: sidebarOpen
-              ? 'calc(var(--sidebar-width) + 1rem)'
-              : 'calc(var(--sidebar-width-icon) + 1rem)',
-          }}
-          richColors
+    <Routes>
+      <Route element={<AppLayout />}>
+        <Route index element={<DashboardPage />} />
+        <Route path={routes.macro} element={<MacroPage />} />
+        <Route path={routes.forecasts} element={<ForecastsPage />} />
+        <Route path={routes.alerts} element={<AlertsPage />} />
+        <Route
+          path="*"
+          element={<Navigate to={routes.dashboard} replace />}
         />
-      </SidebarProvider>
-    </TooltipProvider>
+      </Route>
+    </Routes>
   )
 }
 
