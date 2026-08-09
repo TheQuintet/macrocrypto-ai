@@ -1,9 +1,9 @@
 import { toast } from 'sonner'
-import { ExampleQueryDemo } from '@/components/example-query-demo'
-import { TimeRangePicker } from '@/components/time-range-picker'
+import { ExampleQueryDemo } from '@/components/ExampleQueryDemo'
+import { TimeRangePicker } from '@/components/TimeRangePicker'
 import { Button } from '@/components/ui/button'
 import { pageCopy } from '@/constants/navigation'
-import { PriceChart } from '@/dashboard/chart'
+import { PriceChart } from '@/dashboard/PriceChart'
 
 export function DashboardPage() {
   const page = pageCopy.dashboard

@@ -1,0 +1,37 @@
+---
+description: Everyday clean code habits for frontend TypeScript/React
+globs: frontend/**/*.{ts,tsx}
+alwaysApply: false
+---
+
+# Clean code habits
+
+Day-to-day readability. See also `frontend-solid` and `frontend-fp` for design principles.
+
+## Habits
+
+- **DRY (carefully):** Extract repeated logic only when the same rule appears in multiple places and would change together — not for one-off similarity.
+- Prefer early returns over deep `if` nesting.
+- Name things after domain intent (`timeRange`, `fetchBtcPriceHistory`), not vague helpers (`data`, `handleStuff`).
+- Avoid drive-by refactors — change only what the task needs.
+- Comments explain non-obvious why; do not narrate what the next line does.
+- Delete dead code and unused exports instead of leaving them “for later”.
+
+```tsx
+// ❌ BAD — nested control flow, vague names, narrating comment
+function Panel(props: any) {
+  if (props.data) {
+    if (props.data.items) {
+      // map the items
+      return props.data.items.map((x: any) => <div>{x.t}</div>)
+    }
+  }
+  return null
+}
+
+// ✅ GOOD — early return, clear names
+function AlertTitleList({ titles }: { titles: string[] }) {
+  if (titles.length === 0) return null
+  return titles.map((title) => <div key={title}>{title}</div>)
+}
+```

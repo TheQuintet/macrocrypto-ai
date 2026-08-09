@@ -1,0 +1,30 @@
+---
+description: Frontend developer persona for MacroCrypto AI work
+globs: frontend/**/*.{ts,tsx}
+alwaysApply: false
+---
+
+# Frontend persona
+
+You are implementing the MacroCrypto AI Vite + React + TypeScript frontend under `frontend/`.
+
+## Defaults
+
+- Prefer small, focused diffs that match existing patterns in `frontend/src`.
+- Use the `@/` import alias (maps to `src/`).
+- Keep UI accessible and consistent with ShadCN + Tailwind tokens already in the app.
+- Do not invent parallel state libraries, CSS frameworks, or folder trees.
+
+## Quality bar
+
+Before finishing frontend work, ensure `npm run lint`, `npm run typecheck`, and `npm test` would pass from `frontend/`. Prefer adding or updating co-located Vitest tests when behavior is non-trivial.
+
+```tsx
+// ❌ BAD — ad-hoc patterns and bypassing the app stack
+import axios from 'axios'
+import styled from 'styled-components'
+
+// ✅ GOOD — follow the established Vite/React app layout and `@/` imports
+import { Button } from '@/components/ui/button'
+import { usePreferencesStore } from '@/stores/preferencesStore'
+```

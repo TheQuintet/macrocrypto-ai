@@ -1,0 +1,32 @@
+---
+description: Cohesion, coupling, SOLID, and composition for frontend modules
+globs: frontend/**/*.{ts,tsx}
+alwaysApply: false
+---
+
+# SOLID & OO design (React / TypeScript)
+
+Aim for **high cohesion** (one focused job per module) and **low coupling** (few, narrow dependencies). Prefer **composition over inheritance** for reuse.
+
+## SOLID (how we apply it here)
+
+- **SRP:** A module/component/hook should have one reason to change.
+- **OCP:** Extend via props, composition, or strategy callbacks — don’t fork shared UI for every variant.
+- **LSP:** Shared contracts (props, store shape) must stay substitutable; don’t break callers of a “compatible” API.
+- **ISP:** Keep props/hook results narrow; don’t force consumers to take unused fields.
+- **DIP:** UI depends on hooks/APIs/types — not on concrete fetch/storage details inline.
+
+Use named OOP patterns only when they clearly fit (e.g. Strategy via injected behavior, Observer via Query/subscriptions). Don’t add factories/adapters for ceremony.
+
+```tsx
+// ❌ BAD — low cohesion, wide props, concrete fetch inside UI
+function Panel(props: { user: User; flags: Flags; api: ApiClient }) {
+  const data = props.api.getPrices()
+  return <Chart data={data} user={props.user} flags={props.flags} />
+}
+
+// ✅ GOOD — SRP + ISP + DIP via a narrow hook
+function PricePanel({ price }: { price: number }) {
+  return <PriceLineChart data={[{ time: 'now', price }]} />
+}
+```

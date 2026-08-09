@@ -3,7 +3,7 @@ import {
   CHART_Y_AXIS_MARGIN,
   CHART_Y_AXIS_WIDTH,
   formatPriceTick,
-} from '@/dashboard/chart-theme'
+} from '@/dashboard/chartTheme'
 
 type ChartYAxisProps = {
   yDomain: [number, number]

@@ -5,7 +5,7 @@ import {
   MIN_CHART_POINT_WIDTH,
   clampChartPointWidth,
   zoomChartPointWidth,
-} from '@/dashboard/chart-zoom'
+} from '@/dashboard/chartZoom'
 
 describe('clampChartPointWidth', () => {
   it('leaves values inside the allowed range unchanged', () => {

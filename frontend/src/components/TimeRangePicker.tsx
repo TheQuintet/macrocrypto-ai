@@ -2,7 +2,7 @@ import { Button } from '@/components/ui/button'
 import {
   TIME_RANGE_OPTIONS,
   usePreferencesStore,
-} from '@/stores/preferences-store'
+} from '@/stores/preferencesStore'
 
 export function TimeRangePicker() {
   const timeRange = usePreferencesStore((state) => state.timeRange)

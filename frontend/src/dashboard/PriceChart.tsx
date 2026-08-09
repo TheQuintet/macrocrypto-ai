@@ -1,19 +1,19 @@
 import { useMemo, useState } from 'react'
-import { PriceBarChart } from '@/dashboard/bar-chart'
-import { ChartIntervalSwitcher } from '@/dashboard/chart-interval-switcher'
+import { PriceBarChart } from '@/dashboard/PriceBarChart'
+import { ChartIntervalSwitcher } from '@/dashboard/ChartIntervalSwitcher'
 import {
   DEFAULT_CHART_INTERVAL,
   type ChartInterval,
-} from '@/dashboard/chart-interval'
-import { ChartPanViewport } from '@/dashboard/chart-pan'
-import { mapHistoryPointsToChartPoints } from '@/dashboard/chart-point'
+} from '@/dashboard/chartInterval'
+import { ChartPanViewport } from '@/dashboard/ChartPanViewport'
+import { mapHistoryPointsToChartPoints } from '@/dashboard/chartPoint'
 import {
   ChartTypeSwitcher,
   type ChartType,
-} from '@/dashboard/chart-type-switcher'
-import { PriceLineChart } from '@/dashboard/line-chart'
-import { useBtcPriceHistoryQuery } from '@/hooks/use-btc-price-history-query'
-import { usePreferencesStore } from '@/stores/preferences-store'
+} from '@/dashboard/ChartTypeSwitcher'
+import { PriceLineChart } from '@/dashboard/PriceLineChart'
+import { useBtcPriceHistoryQuery } from '@/hooks/useBtcPriceHistoryQuery'
+import { usePreferencesStore } from '@/stores/preferencesStore'
 
 /**
  * Recharts baseline with production-like data flow:

@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import { expect } from 'vitest'
-import { TimeRangeBadge } from '@/components/time-range-badge'
+import { TimeRangeBadge } from '@/components/TimeRangeBadge'
 
 export function renderTimeRangeBadge() {
   return render(<TimeRangeBadge />)

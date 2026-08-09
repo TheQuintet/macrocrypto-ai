@@ -6,12 +6,12 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
-import type { ChartPoint } from '@/dashboard/chart-point'
+import type { ChartPoint } from '@/dashboard/chartPoint'
 import {
   CHART_PLOT_MARGIN,
   CHART_TOOLTIP_STYLE,
   formatPriceTooltip,
-} from '@/dashboard/chart-theme'
+} from '@/dashboard/chartTheme'
 
 type PriceBarChartProps = {
   data: ChartPoint[]

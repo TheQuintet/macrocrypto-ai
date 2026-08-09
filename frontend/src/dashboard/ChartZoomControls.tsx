@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button'
 import {
   MAX_CHART_POINT_WIDTH,
   MIN_CHART_POINT_WIDTH,
-} from '@/dashboard/chart-zoom'
+} from '@/dashboard/chartZoom'
 
 type ChartZoomControlsProps = {
   pointWidth: number

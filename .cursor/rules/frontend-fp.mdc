@@ -1,0 +1,34 @@
+---
+description: Functional programming principles for frontend TypeScript
+globs: frontend/**/*.{ts,tsx}
+alwaysApply: false
+---
+
+# Functional principles (TypeScript / React)
+
+Treat UI as composition of small functions over data. Prefer declarative transforms; keep side effects at the edges (hooks, Query, event handlers).
+
+## Principles
+
+- **Purity:** Prefer pure helpers (`formatUsd`, `mapHistoryPointsToChartPoints`) — same inputs → same output, no hidden state.
+- **Totality:** Handle every case (empty data, errors, exhaustive `switch` on unions). Avoid partial functions that throw on normal inputs.
+- **Composition:** Keep functions small and combinable; build features by assembling hooks + presentational components.
+- **Laziness:** Don’t fetch or compute until needed (Query keys, conditional queries, derive in render only what you show).
+- **Recursion:** Prefer iteration for lists; use recursion only when the data is naturally recursive.
+
+First-class / higher-order functions are fine (`map`, callbacks, custom hooks). Prefer **immutable updates** for state (new objects/arrays) instead of mutating shared data.
+
+```ts
+// ❌ BAD — impure formatter, partial handling
+let last = 0
+function label(n?: number) {
+  last = n! // mutates + crashes on undefined
+  return String(last)
+}
+
+// ✅ GOOD — pure + total
+function formatPriceLabel(price: number | undefined) {
+  if (price === undefined) return '—'
+  return `$${price.toFixed(2)}`
+}
+```
