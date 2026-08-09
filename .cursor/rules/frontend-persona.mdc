@@ -8,6 +8,8 @@ alwaysApply: false
 
 You are implementing the MacroCrypto AI Vite + React + TypeScript frontend under `frontend/`.
 
+Shared multi-tool conventions also live in `AGENTS.md`, `.github/copilot-instructions.md`, `.github/instructions/frontend.instructions.md`, and `CLAUDE.md` — keep them aligned when standards change.
+
 ## Defaults
 
 - Prefer small, focused diffs that match existing patterns in `frontend/src`.
