@@ -1,6 +1,6 @@
 """Environment configuration for data-service"""
 
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import Optional
 from functools import lru_cache
 import os
@@ -8,6 +8,11 @@ import os
 
 class Settings(BaseSettings):
     """Application settings"""
+    # Load .env.local when available, otherwise .env 
+    model_config = SettingsConfigDict( 
+        env_file=".env.local" if os.path.exists(".env.local") else ".env", 
+        env_file_encoding="utf-8", 
+        case_sensitive=True, )
     
     # ============================================
     # SERVICE CONFIGURATION
@@ -19,8 +24,8 @@ class Settings(BaseSettings):
     # ============================================
     # DATABASE
     # ============================================
-    # In Docker: postgres (service name)
-    # Locally: localhost
+    # Default Docker database URL.
+    # Local development overrides this through .env.local.
     DATABASE_URL: str = "postgresql://macro:crypto@postgres:5432/macrocrypto"
     DATABASE_POOL_SIZE: int = 5
     DATABASE_MAX_OVERFLOW: int = 10
@@ -96,6 +101,7 @@ class Settings(BaseSettings):
     
     # COINGECKO API (Market Cap Data Source)
     COINGECKO_API_URL: str = "https://api.coingecko.com/api/v3"
+    MARKET_CAP_CACHE_TTL: int = 900  # 15 minutes
 
 
     # ============================================
@@ -146,6 +152,9 @@ class Settings(BaseSettings):
     # FRED API rate limiting delay
     # Prevent excessive requests
     FRED_REQUEST_DELAY: float = 0.5
+
+    # Cache TTL for indicators in seconds
+    MACRO_INDICATORS_CACHE_TTL: int = 3600  
     # ============================================
     # COLLECTION INTERVALS (seconds)
     # ============================================
@@ -163,7 +172,7 @@ class Settings(BaseSettings):
 
     # Development/testing only.
     # Set to a value > 0 to run every N minutes instead of once per day.
-    MACRO_UPDATE_INTERVAL_MINUTES: int = 2
+    MACRO_UPDATE_INTERVAL_MINUTES: int = 0
     # ============================================
     # RATE LIMITING
     # ============================================
@@ -186,14 +195,14 @@ class Settings(BaseSettings):
     #     env_file = ".env" if os.path.exists(".env") else ".env.example"
     #     env_file_encoding = "utf-8"
     #     case_sensitive = True
-    class Config:
-        env_file = (
-            ".env.local"
-            if os.path.exists(".env.local")
-            else ".env"
-        )
-        env_file_encoding = "utf-8"
-        case_sensitive = True
+    # class Config:
+    #     env_file = (
+    #         ".env.local"
+    #         if os.path.exists(".env.local")
+    #         else ".env"
+    #     )
+    #     env_file_encoding = "utf-8"
+    #     case_sensitive = True
 
 @lru_cache()
 def get_settings() -> Settings:

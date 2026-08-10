@@ -8,26 +8,15 @@ from app.cache.client import CacheClient
 
 @pytest.fixture
 def cache_client():
-
     client = CacheClient()
-
     client._connected = True
-
     client.client = MagicMock()
-
     return client
-
-
-# =====================================================
-# connect()
-# =====================================================
 
 
 @pytest.mark.asyncio
 async def test_connect_disabled():
-
     cache = CacheClient()
-
     cache.is_enabled = False
 
     result = await cache.connect()
@@ -37,341 +26,188 @@ async def test_connect_disabled():
 
 @pytest.mark.asyncio
 async def test_connect_success():
-
     cache = CacheClient()
-
     cache.is_enabled = True
 
     mock_redis = MagicMock()
-
-    mock_redis.ping = AsyncMock(
-        return_value=True
-    )
-
-
+    mock_redis.ping = AsyncMock(return_value=True)
     cache.client = mock_redis
 
-
     result = await cache.connect()
-
 
     assert result is True
 
 
 @pytest.mark.asyncio
 async def test_connect_redis_error():
-
     cache = CacheClient()
-
     cache.is_enabled = True
 
-
     mock_redis = MagicMock()
-
     mock_redis.ping = AsyncMock(
-        side_effect=RedisError(
-            "connection failed"
-        )
+        side_effect=RedisError("connection failed")
     )
-
 
     with patch(
         "app.cache.client.redis.from_url",
         return_value=mock_redis,
     ):
-
         result = await cache.connect()
 
-
     assert result is False
-
     assert cache.is_connected is False
-
     assert cache.client is None
-# =====================================================
-# get()
-# =====================================================
 
 
 @pytest.mark.asyncio
-async def test_get_json_value(
-    cache_client
-):
-
+async def test_get_json_value(cache_client):
     cache_client.client.get = AsyncMock(
         return_value='{"price":100}'
     )
 
+    result = await cache_client.get("btc")
 
-    result = await cache_client.get(
-        "btc"
-    )
-
-
-    assert result == {
-        "price":100
-    }
-
+    assert result == {"price": 100}
 
 
 @pytest.mark.asyncio
-async def test_get_raw_value(
-    cache_client
-):
-
+async def test_get_raw_value(cache_client):
     cache_client.client.get = AsyncMock(
         return_value="hello"
     )
 
-
-    result = await cache_client.get(
-        "key"
-    )
-
+    result = await cache_client.get("key")
 
     assert result == "hello"
 
 
-
 @pytest.mark.asyncio
 async def test_get_missing_connection():
-
     cache = CacheClient()
 
-    result = await cache.get(
-        "key"
-    )
-
+    result = await cache.get("key")
 
     assert result is None
 
 
-
-# =====================================================
-# set()
-# =====================================================
-
-
 @pytest.mark.asyncio
-async def test_set_dict_value(
-    cache_client
-):
-
-    cache_client.client.setex = AsyncMock()
-
+async def test_set_dict_value(cache_client):
+    # CacheClient.set() uses the async Redis set() method with ex=TTL.
+    cache_client.client.set = AsyncMock(return_value=True)
 
     result = await cache_client.set(
         "btc",
-        {
-            "price": 100
-        }
+        {"price": 100},
     )
 
-
     assert result is True
+    cache_client.client.set.assert_called_once()
 
-    cache_client.client.setex.assert_called_once()
-
+    call = cache_client.client.set.call_args
+    assert call.kwargs["name"] == "btc"
+    assert call.kwargs["value"] == '{"price": 100}'
+    assert call.kwargs["ex"] == cache_client.default_ttl
 
 
 @pytest.mark.asyncio
 async def test_set_without_connection():
-
     cache = CacheClient()
 
-
-    result = await cache.set(
-        "key",
-        "value"
-    )
-
+    result = await cache.set("key", "value")
 
     assert result is False
 
 
-
-# =====================================================
-# delete / exists
-# =====================================================
-
-
 @pytest.mark.asyncio
-async def test_delete(
-    cache_client
-):
+async def test_delete(cache_client):
+    cache_client.client.delete = AsyncMock(return_value=1)
 
-    cache_client.client.delete = AsyncMock()
-
-
-    result = await cache_client.delete(
-        "btc"
-    )
-
+    result = await cache_client.delete("btc")
 
     assert result is True
-
+    cache_client.client.delete.assert_called_once_with("btc")
 
 
 @pytest.mark.asyncio
-async def test_exists(
-    cache_client
-):
+async def test_exists(cache_client):
+    cache_client.client.exists = AsyncMock(return_value=1)
 
-    cache_client.client.exists = AsyncMock(
-        return_value=1
-    )
-
-
-    result = await cache_client.exists(
-        "btc"
-    )
-
+    result = await cache_client.exists("btc")
 
     assert result is True
-
-
-
-# =====================================================
-# get_or_set()
-# =====================================================
+    cache_client.client.exists.assert_called_once_with("btc")
 
 
 @pytest.mark.asyncio
-async def test_get_or_set_cache_hit(
-    cache_client
-):
-
+async def test_get_or_set_cache_hit(cache_client):
     cache_client.get = AsyncMock(
-        return_value={
-            "price":100
-        }
+        return_value={"price": 100}
     )
-
 
     result = await cache_client.get_or_set(
         "btc",
-        AsyncMock()
+        AsyncMock(),
     )
 
-
-    assert result == {
-        "price":100
-    }
-
+    assert result == {"price": 100}
 
 
 @pytest.mark.asyncio
-async def test_get_or_set_cache_miss(
-    cache_client
-):
-
-    cache_client.get = AsyncMock(
-        return_value=None
-    )
-
-    cache_client.set = AsyncMock(
-        return_value=True
-    )
-
+async def test_get_or_set_cache_miss(cache_client):
+    cache_client.get = AsyncMock(return_value=None)
+    cache_client.set = AsyncMock(return_value=True)
 
     result = await cache_client.get_or_set(
         "btc",
-        AsyncMock(
-            return_value={
-                "price":100
-            }
-        )
+        AsyncMock(return_value={"price": 100}),
     )
 
-
-    assert result == {
-        "price":100
-    }
-
+    assert result == {"price": 100}
     cache_client.set.assert_called_once()
 
 
-
-# =====================================================
-# flush_all()
-# =====================================================
-
-
 @pytest.mark.asyncio
-async def test_flush_all(
-    cache_client
-):
-
-    cache_client.client.flushall = AsyncMock()
-
+async def test_flush_all(cache_client):
+    cache_client.client.flushall = AsyncMock(return_value=True)
 
     result = await cache_client.flush_all()
 
-
     assert result is True
-
-
-
-# =====================================================
-# health_check()
-# =====================================================
+    cache_client.client.flushall.assert_called_once()
 
 
 @pytest.mark.asyncio
 async def test_health_check_disabled():
-
     cache = CacheClient()
-
     cache.is_enabled = False
 
-
     result = await cache.health_check()
-
 
     assert result["status"] == "disabled"
 
 
-
 @pytest.mark.asyncio
 async def test_health_check_disconnected():
-
     cache = CacheClient()
-
     cache.is_enabled = True
 
-
     result = await cache.health_check()
-
 
     assert result["status"] == "disconnected"
 
 
-
-# =====================================================
-# convenience methods
-# =====================================================
-
-
 @pytest.mark.asyncio
-async def test_price_helpers(
-    cache_client
-):
+async def test_price_helpers(cache_client):
+    cache_client.get = AsyncMock(return_value={})
+    cache_client.set = AsyncMock(return_value=True)
 
-    cache_client.get = AsyncMock(
-        return_value={}
-    )
+    assert await cache_client.get_price("BTC") == {}
 
-    cache_client.set = AsyncMock(
-        return_value=True
-    )
+    assert await cache_client.set_price("BTC", {}) is True
 
-
-    assert await cache_client.get_price(
-        "BTC"
-    ) == {}
-
-
-    assert await cache_client.set_price(
-        "BTC",
-        {}
+    cache_client.get.assert_awaited_once_with("price:btc")
+    cache_client.set.assert_awaited_once_with(
+        "price:btc",
+        {},
+        ttl=60,
     )

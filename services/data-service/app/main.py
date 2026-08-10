@@ -537,7 +537,7 @@ async def periodic_economic_collection():
 
             try:
 
-                service = IndicatorService(db)
+                service = IndicatorService(db, cache_client)
 
                 logger.info("Starting scheduled macro update")
 
