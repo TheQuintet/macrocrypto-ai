@@ -3,6 +3,7 @@ import { ExampleQueryDemo } from '@/components/example-query-demo'
 import { TimeRangePicker } from '@/components/time-range-picker'
 import { Button } from '@/components/ui/button'
 import { pageCopy } from '@/constants/navigation'
+import { PriceChart } from '@/dashboard/chart'
 
 export function DashboardPage() {
   const page = pageCopy.dashboard
@@ -12,6 +13,7 @@ export function DashboardPage() {
       <h1 className="text-3xl font-bold tracking-tight">{page.title}</h1>
       <p className="max-w-md text-muted-foreground">{page.body}</p>
       <TimeRangePicker />
+      <PriceChart />
       <ExampleQueryDemo />
       <Button
         type="button"
