@@ -28,7 +28,7 @@ router = APIRouter(
 )
 
 
-INDICATORS_CACHE_TTL = 3600
+INDICATORS_CACHE_TTL = settings.MACRO_INDICATORS_CACHE_TTL
 
 VALID_PERIODS = {
     "30d",
@@ -95,11 +95,12 @@ async def get_indicators(
             ),
         )
 
-    response_period = (
-        period
-        if period
-        else "30d"
-    )
+    # response_period = (
+    #     period
+    #     if period
+    #     else "30d"
+    # )
+    response_period = period or "latest"
 
     # --------------------------------------------------
     # 2. Get cache client

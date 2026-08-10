@@ -5,6 +5,7 @@ Service for collecting and caching BTC market capitalization data.
 import logging
 
 from app.collectors.coingecko import CoinGeckoCollector
+from app.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +32,7 @@ class MarketCapService:
             return await self.cache_client.set(
                 self.CACHE_KEY,
                 market_cap_data,
-                ttl=900,  # 15 minutes
+                ttl=settings.MARKET_CAP_CACHE_TTL
             )
 
         except Exception as error:

@@ -96,6 +96,7 @@ class Settings(BaseSettings):
     
     # COINGECKO API (Market Cap Data Source)
     COINGECKO_API_URL: str = "https://api.coingecko.com/api/v3"
+    MARKET_CAP_CACHE_TTL: int = 900  # 15 minutes
 
 
     # ============================================
@@ -146,6 +147,9 @@ class Settings(BaseSettings):
     # FRED API rate limiting delay
     # Prevent excessive requests
     FRED_REQUEST_DELAY: float = 0.5
+
+    # Cache TTL for indicators in seconds
+    MACRO_INDICATORS_CACHE_TTL: int = 3600  
     # ============================================
     # COLLECTION INTERVALS (seconds)
     # ============================================
