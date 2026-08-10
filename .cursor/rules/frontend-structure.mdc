@@ -19,6 +19,12 @@ alwaysApply: false
 | `lib/` | Shared helpers (`queryClient`, `utils`) |
 | `test/` | Vitest setup only |
 
+Also under `frontend/e2e/`:
+- `ui-integration/` — Playwright **UI integration** (FE-only)
+- `system/` — Playwright **E2E** (APIs/services when available)
+
+Different strategy from Vitest **unit** tests under `src/` — never put UI integration/E2E in `src/` or run them with Vitest.
+
 ## Naming (TypeScript / React)
 
 - **Components & pages:** PascalCase files matching the export (`TimeRangePicker.tsx`, `DashboardPage.tsx`).

@@ -11,6 +11,12 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "test": "vitest run",
+    "test:e2e": "playwright test",
+    "test:ui-integration": "playwright test --project=ui-integration",
+    "test:e2e:system": "playwright test --project=e2e",
+    "test:e2e:headed": "playwright test --headed",
+    "test:ui-integration:headed": "playwright test --project=ui-integration --headed",
+    "test:e2e:ui": "playwright test --ui",
     "prepare": "cd .. && husky frontend/.husky"
   },
   "dependencies": {
@@ -33,6 +39,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.62.1",
     "@testing-library/jest-dom": "^7.0.0",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.3",
