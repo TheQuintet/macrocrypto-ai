@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-# Husky pre-commit: run frontend lint and typecheck when frontend files are staged.
+# Husky pre-commit: run frontend lint, typecheck, and tests when frontend files are staged.
 set -e
 
 REPO_ROOT="$(git rev-parse --show-toplevel)"
@@ -22,5 +22,8 @@ echo "→ frontend lint"
 
 echo "→ frontend typecheck"
 (cd frontend && npm run typecheck)
+
+echo "→ frontend test"
+(cd frontend && npm test)
 
 echo "✓ frontend pre-commit checks passed"

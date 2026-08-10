@@ -50,7 +50,7 @@ Detailed Cursor-only rules live in `.cursor/rules/`. Keep this file and tool-spe
 - Reuse `@/components/ui/*`; style with Tailwind + theme tokens in `src/index.css`.
 - From `frontend/`: `npm run lint`, `npm run typecheck`, and `npm test` must pass.
 - Add/update co-located Vitest tests when behavior changes.
-- Fix pre-commit failures; do not bypass hooks.
+- Pre-commit runs lint, typecheck, and tests when `frontend/` is staged — fix failures; do not bypass hooks.
 
 ### Design principles
 

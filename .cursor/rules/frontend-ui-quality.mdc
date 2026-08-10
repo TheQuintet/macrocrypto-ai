@@ -17,7 +17,7 @@ alwaysApply: false
 - Match `frontend/eslint.config.js` (TypeScript + react-hooks). Do not disable rules to hide issues.
 - Keep code type-safe: no unjustified `any`; prefer explicit Query/Mutation generics.
 - Keep Vitest unit tests green (`npm test`); add or update co-located `*.test.ts(x)` when behavior changes.
-- Pre-commit runs lint + typecheck when `frontend/` changes — fix failures instead of bypassing hooks.
+- Pre-commit runs lint, typecheck, and unit tests when `frontend/` changes — fix failures instead of bypassing hooks.
 
 ```tsx
 // ❌ BAD — custom button + untyped fetch bypassing UI kit and typecheck
