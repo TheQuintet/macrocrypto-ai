@@ -1,4 +1,4 @@
-import { TimeRangeBadge } from '@/components/time-range-controls'
+import { TimeRangeBadge } from '@/components/time-range-badge'
 import { pageCopy } from '@/constants/navigation'
 
 export function MacroPage() {
