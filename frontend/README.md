@@ -2,7 +2,7 @@
 
 Vite + React + TypeScript app for the MacroCrypto AI dashboard UI.
 
-Stack: **React**, **TypeScript**, **Vite**, **Tailwind CSS**, **ShadCN UI**, **Zustand**, **TanStack Query**, **Recharts**, **Vitest**, **Playwright**.
+Stack: **React**, **TypeScript**, **Vite**, **React Router**, **Tailwind CSS**, **ShadCN UI**, **Zustand**, **TanStack Query**, **Recharts**, **Vitest**, **Playwright**.
 
 ## Prerequisites
 
@@ -88,6 +88,8 @@ Default CI/local `test:e2e` stays **headless** (faster, no window).
 
 UI integration and E2E share Playwright but live in **separate folders** — a **different strategy** from unit tests. Do not put Playwright specs in `src/` or run them with `npm test`. They are **not** part of the Husky pre-commit hook (too slow for every commit); run them locally or in CI when touching user flows.
 
+Prefer **act helpers**: unit tests use co-located `*.testHelpers.ts(x)`; UI integration uses `*.specHelpers.ts`. Specs should call named act/expect helpers (arrange → act → assert) instead of repeating locators.
+
 ## Pre-commit hooks
 
 Husky is turned on automatically when you run `npm install` (via the `prepare` script). No separate hook install step is required.
@@ -116,10 +118,23 @@ Source lives in `src/` (`@/` alias → `src/`).
 | `src/constants/` | Static config (e.g. navigation) |
 | `src/test/` | Vitest setup |
 | `src/alerts/`, `src/utils/` | Reserved / placeholders |
-| `e2e/ui-integration/` | Playwright **UI integration** specs (`*.spec.ts`) |
+| `e2e/ui-integration/` | Playwright **UI integration** specs (`*.spec.ts`) + `*.specHelpers.ts` |
 | `e2e/system/` | Playwright **E2E** specs (API/service-backed; add when ready) |
 
 Naming: PascalCase for components and pages, camelCase for hooks and modules. Co-located tests use `*.test.ts(x)`; helpers use `*.testHelpers.ts(x)`. Leave `components/ui/*` as ShadCN generates them.
+
+## Routing
+
+Client-side routes (React Router):
+
+| Path | Page |
+|------|------|
+| `/` | Dashboard |
+| `/macro` | Macro indicators |
+| `/forecasts` | Forecasts |
+| `/alerts` | Alerts |
+
+Sidebar and header alerts use router `Link`s. Shared UI preferences (theme, time range, sidebar) stay in Zustand — not used as the page router.
 
 ## State ownership
 

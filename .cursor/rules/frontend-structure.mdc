@@ -32,6 +32,7 @@ Different strategy from Vitest **unit** tests under `src/` — never put UI inte
 - **Modules** (api, stores, lib, utils): camelCase (`btcPriceHistory.ts`, `preferencesStore.ts`, `queryClient.ts`).
 - One primary export per file; component export name matches the file name.
 - Tests: co-located `*.test.ts(x)`; helpers: `*.testHelpers.ts(x)`.
+- UI integration: `*.spec.ts` + co-located `*.specHelpers.ts` under `e2e/ui-integration/` (named act/expect helpers; arrange → act → assert).
 - Prefer TypeScript-style names above; do not introduce kebab-case app modules.
 - Exception: leave `components/ui/*` as ShadCN generates them.
 

@@ -1,3 +1,4 @@
+import { Link, useLocation } from 'react-router-dom'
 import {
   Sidebar,
   SidebarContent,
@@ -11,17 +12,11 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from '@/components/ui/sidebar'
-import {
-  type NavItemId,
-  sidebarNavItems,
-} from '@/constants/navigation'
+import { routes, sidebarNavItems } from '@/constants/navigation'
 
-type AppSidebarProps = {
-  activeNav: NavItemId
-  onNavigate: (id: NavItemId) => void
-}
+export function AppSidebar() {
+  const { pathname } = useLocation()
 
-export function AppSidebar({ activeNav, onNavigate }: AppSidebarProps) {
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="border-b border-sidebar-border px-3 py-3">
@@ -40,19 +35,28 @@ export function AppSidebar({ activeNav, onNavigate }: AppSidebarProps) {
           <SidebarGroupLabel>Platform</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {sidebarNavItems.map((item) => (
-                <SidebarMenuItem key={item.id}>
-                  <SidebarMenuButton
-                    type="button"
-                    isActive={activeNav === item.id}
-                    tooltip={item.label}
-                    onClick={() => onNavigate(item.id)}
-                  >
-                    <item.icon />
-                    <span>{item.label}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+              {sidebarNavItems.map((item) => {
+                const isActive =
+                  item.path === routes.dashboard
+                    ? pathname === routes.dashboard
+                    : pathname === item.path ||
+                      pathname.startsWith(`${item.path}/`)
+
+                return (
+                  <SidebarMenuItem key={item.id}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={isActive}
+                      tooltip={item.label}
+                    >
+                      <Link to={item.path}>
+                        <item.icon />
+                        <span>{item.label}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                )
+              })}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
