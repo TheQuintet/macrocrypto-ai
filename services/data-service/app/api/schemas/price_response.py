@@ -1,6 +1,6 @@
 """Price response schema for API endpoints"""
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from typing import Optional
 from datetime import datetime
 
@@ -11,7 +11,7 @@ class PriceResponse(BaseModel):
 
     Used for the /api/v1/btc/price endpoint.
     """
-
+    model_config = ConfigDict( from_attributes=True, json_encoders={ datetime: lambda v: v.isoformat() if v else None }, )
     current_price: Optional[float] = None
     change_24h: Optional[float] = None
     change_24h_percent: Optional[float] = None
@@ -22,8 +22,8 @@ class PriceResponse(BaseModel):
     change_7d_percent: Optional[float] = None
     updated_at: Optional[datetime] = None
 
-    class Config:
-        from_attributes = True
-        json_encoders = {
-            datetime: lambda v: v.isoformat() if v else None
-        }
+    # class Config:
+    #     from_attributes = True
+    #     json_encoders = {
+    #         datetime: lambda v: v.isoformat() if v else None
+    #     }

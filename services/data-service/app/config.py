@@ -1,6 +1,6 @@
 """Environment configuration for data-service"""
 
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import Optional
 from functools import lru_cache
 import os
@@ -8,6 +8,11 @@ import os
 
 class Settings(BaseSettings):
     """Application settings"""
+    # Load .env.local when available, otherwise .env 
+    model_config = SettingsConfigDict( 
+        env_file=".env.local" if os.path.exists(".env.local") else ".env", 
+        env_file_encoding="utf-8", 
+        case_sensitive=True, )
     
     # ============================================
     # SERVICE CONFIGURATION
@@ -190,14 +195,14 @@ class Settings(BaseSettings):
     #     env_file = ".env" if os.path.exists(".env") else ".env.example"
     #     env_file_encoding = "utf-8"
     #     case_sensitive = True
-    class Config:
-        env_file = (
-            ".env.local"
-            if os.path.exists(".env.local")
-            else ".env"
-        )
-        env_file_encoding = "utf-8"
-        case_sensitive = True
+    # class Config:
+    #     env_file = (
+    #         ".env.local"
+    #         if os.path.exists(".env.local")
+    #         else ".env"
+    #     )
+    #     env_file_encoding = "utf-8"
+    #     case_sensitive = True
 
 @lru_cache()
 def get_settings() -> Settings:

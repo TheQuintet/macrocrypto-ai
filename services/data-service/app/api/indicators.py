@@ -66,20 +66,36 @@ async def get_indicators(
     _: str | None = Depends(jwt_auth),
 ):
     """
-    Return latest macroeconomic indicators.
+    Indicators REST API.
 
-    Cache-aside flow:
+    Provides access to the seven FRED macroeconomic indicators used by
+    MacroCrypto AI for Bitcoin analysis and forecasting:
 
-    1. Validate the requested period.
-    2. Check Redis.
-    3. If Redis contains the response, return immediately.
-    4. Only on a cache miss, create a database session.
-    5. Read indicators from TimescaleDB.
-    6. Store the response in Redis.
-    7. Return the response.
+        - ten_year_treasury
+        - dxy
+        - unemployment
+        - federal_funds_rate
+        - m2_money_supply
+        - cpi
+        - gdp
 
-    This guarantees that a Redis cache hit does not access
-    TimescaleDB.
+    A daily scheduler retrieves updated data from FRED and stores it in
+    TimescaleDB, with Redis caching used for fast API retrieval.
+
+    Supported periods:
+        - latest (If no period is specified, the latest value for each indicator is returned)
+        - 30d
+        - 90d
+        - 1y
+        - 5y
+
+    Example queries:
+
+        GET /api/v1/indicators
+
+        GET /api/v1/indicators?period=30d
+        
+        GET /api/v1/indicators?period=1y
     """
 
     # --------------------------------------------------
