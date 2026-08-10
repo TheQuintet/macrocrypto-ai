@@ -1,9 +1,9 @@
-import type { ChartInterval } from '@/dashboard/chart-interval'
+import type { ChartInterval } from '@/dashboard/chartInterval'
 import {
   INTERVAL_DURATION_MS,
   MIN_LOOKBACK_MS_BY_INTERVAL,
-} from '@/dashboard/chart-interval'
-import type { TimeRange } from '@/stores/preferences-store'
+} from '@/dashboard/chartInterval'
+import type { TimeRange } from '@/stores/preferencesStore'
 
 /**
  * Production-shaped history request.

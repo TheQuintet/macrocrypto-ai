@@ -1,0 +1,43 @@
+---
+description: Frontend folder layout and file naming
+globs: frontend/**/*.{ts,tsx}
+alwaysApply: false
+---
+
+# Folder and naming conventions
+
+## Layout (`frontend/src`)
+
+| Folder | Use for |
+|--------|---------|
+| `api/` | Query keys, fetchers, API types |
+| `hooks/` | React hooks, including Query wrappers |
+| `stores/` | Zustand stores |
+| `components/` | Shared UI; `components/ui/` = ShadCN primitives (keep generator names) |
+| `pages/` | Route screens (`*Page.tsx`) |
+| Feature dirs (e.g. `dashboard/`) | Feature-specific modules |
+| `lib/` | Shared helpers (`queryClient`, `utils`) |
+| `test/` | Vitest setup only |
+
+## Naming (TypeScript / React)
+
+- **Components & pages:** PascalCase files matching the export (`TimeRangePicker.tsx`, `DashboardPage.tsx`).
+- **Hooks:** camelCase with `use` prefix (`useBtcPriceHistoryQuery.ts`, `useCreateExampleItemMutation.ts`).
+- **Modules** (api, stores, lib, utils): camelCase (`btcPriceHistory.ts`, `preferencesStore.ts`, `queryClient.ts`).
+- One primary export per file; component export name matches the file name.
+- Tests: co-located `*.test.ts(x)`; helpers: `*.testHelpers.ts(x)`.
+- Prefer TypeScript-style names above; do not introduce kebab-case app modules.
+- Exception: leave `components/ui/*` as ShadCN generates them.
+
+```ts
+// ❌ BAD — kebab-case or folder-per-component noise
+src/components/time-range-picker.tsx
+src/hooks/use-btc-price-history-query.ts
+src/components/TimeRangePicker/index.tsx
+
+// ✅ GOOD — TypeScript-style file names
+src/components/TimeRangePicker.tsx
+src/hooks/useBtcPriceHistoryQuery.ts
+src/api/btcPriceHistory.ts
+src/stores/preferencesStore.ts
+```

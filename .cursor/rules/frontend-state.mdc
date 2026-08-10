@@ -1,0 +1,38 @@
+---
+description: Zustand vs TanStack Query state ownership
+globs: frontend/**/*.{ts,tsx}
+alwaysApply: false
+---
+
+# State ownership
+
+Keep client UI state and server/API state separate.
+
+| Concern | Tool | Location |
+|---------|------|----------|
+| Preferences, modals, theme, ephemeral UI | Zustand | `src/stores/*Store.ts` |
+| Fetch, cache, mutations | TanStack Query | `src/api/*` + `src/hooks/use*Query.ts` / `use*Mutation.ts` |
+
+## Rules
+
+- Do not put remote lists or API payloads in Zustand.
+- Do not use Query for purely local UI toggles.
+- API modules own query keys + fetchers; hooks wrap `useQuery` / `useMutation` with explicit generics.
+- Prefer store selectors over subscribing to the whole store.
+
+```ts
+// ❌ BAD — server data in Zustand
+const usePrices = create((set) => ({
+  prices: [],
+  load: async () => set({ prices: await fetchPrices() }),
+}))
+
+// ✅ GOOD — Query for server data; Zustand for UI prefs
+export function useBtcPriceHistoryQuery(params: BtcPriceHistoryParams) {
+  return useQuery<BtcPriceHistoryResponse, Error>({
+    queryKey: btcPriceHistoryQueryKey(params),
+    queryFn: () => fetchBtcPriceHistory(params),
+  })
+}
+const timeRange = usePreferencesStore((s) => s.timeRange)
+```

@@ -1,0 +1,34 @@
+---
+description: ShadCN, Tailwind, ESLint, typecheck, and unit test expectations
+globs: frontend/**/*.{ts,tsx}
+alwaysApply: false
+---
+
+# UI stack and quality gates
+
+## ShadCN + Tailwind
+
+- Reuse primitives from `@/components/ui/*`; add new ones via the ShadCN CLI / `components.json`, not one-off copies.
+- Style with Tailwind utilities and existing theme tokens in `src/index.css` (CSS variables). Avoid new CSS frameworks or inline style systems.
+- Compose with `cn()` from `@/lib/utils` when merging classes.
+
+## ESLint + typecheck + unit tests
+
+- Match `frontend/eslint.config.js` (TypeScript + react-hooks). Do not disable rules to hide issues.
+- Keep code type-safe: no unjustified `any`; prefer explicit Query/Mutation generics.
+- Keep Vitest unit tests green (`npm test`); add or update co-located `*.test.ts(x)` when behavior changes.
+- Pre-commit runs lint + typecheck when `frontend/` changes — fix failures instead of bypassing hooks.
+
+```tsx
+// ❌ BAD — custom button + untyped fetch bypassing UI kit and typecheck
+<button style={{ color: 'blue' }} onClick={() => fetch('/x')}>Save</button>
+
+// ✅ GOOD — ShadCN + Tailwind tokens + typed handlers
+import { Button } from '@/components/ui/button'
+
+<Button type="button" variant="secondary" onClick={onSave}>
+  Save
+</Button>
+```
+
+From `frontend/`: `npm run lint`, `npm run typecheck`, `npm test`.

@@ -1,8 +1,8 @@
 import { render, screen } from '@testing-library/react'
 import type { UserEvent } from '@testing-library/user-event'
 import { expect } from 'vitest'
-import { TimeRangePicker } from '@/components/time-range-picker'
-import { usePreferencesStore } from '@/stores/preferences-store'
+import { TimeRangePicker } from '@/components/TimeRangePicker'
+import { usePreferencesStore } from '@/stores/preferencesStore'
 
 export function renderTimeRangePicker() {
   return render(<TimeRangePicker />)

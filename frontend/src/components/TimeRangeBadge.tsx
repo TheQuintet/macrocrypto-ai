@@ -1,4 +1,4 @@
-import { usePreferencesStore } from '@/stores/preferences-store'
+import { usePreferencesStore } from '@/stores/preferencesStore'
 
 export function TimeRangeBadge() {
   const timeRange = usePreferencesStore((state) => state.timeRange)

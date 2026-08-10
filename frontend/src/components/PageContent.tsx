@@ -1,8 +1,8 @@
 import { type NavItemId } from '@/constants/navigation'
-import { AlertsPage } from '@/pages/alerts-page'
-import { DashboardPage } from '@/pages/dashboard-page'
-import { ForecastsPage } from '@/pages/forecasts-page'
-import { MacroPage } from '@/pages/macro-page'
+import { AlertsPage } from '@/pages/AlertsPage'
+import { DashboardPage } from '@/pages/DashboardPage'
+import { ForecastsPage } from '@/pages/ForecastsPage'
+import { MacroPage } from '@/pages/MacroPage'
 
 export function PageContent({ activeNav }: { activeNav: NavItemId }) {
   switch (activeNav) {

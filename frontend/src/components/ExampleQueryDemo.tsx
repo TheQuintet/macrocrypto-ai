@@ -2,8 +2,8 @@ import { useState } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { useCreateExampleItemMutation } from '@/hooks/use-create-example-item-mutation'
-import { useExampleItemsQuery } from '@/hooks/use-example-items-query'
+import { useCreateExampleItemMutation } from '@/hooks/useCreateExampleItemMutation'
+import { useExampleItemsQuery } from '@/hooks/useExampleItemsQuery'
 
 /** Scaffold demo of TanStack Query query + mutation patterns. */
 export function ExampleQueryDemo() {

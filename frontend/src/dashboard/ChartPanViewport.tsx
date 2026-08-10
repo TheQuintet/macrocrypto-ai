@@ -7,14 +7,14 @@ import {
   type ReactNode,
   type WheelEvent as ReactWheelEvent,
 } from 'react'
-import type { ChartPoint } from '@/dashboard/chart-point'
-import { ChartYAxis } from '@/dashboard/chart-y-axis'
-import { CHART_Y_AXIS_WIDTH } from '@/dashboard/chart-theme'
-import { ChartZoomControls } from '@/dashboard/chart-zoom-controls'
+import type { ChartPoint } from '@/dashboard/chartPoint'
+import { ChartYAxis } from '@/dashboard/ChartYAxis'
+import { CHART_Y_AXIS_WIDTH } from '@/dashboard/chartTheme'
+import { ChartZoomControls } from '@/dashboard/ChartZoomControls'
 import {
   DEFAULT_CHART_POINT_WIDTH,
   zoomChartPointWidth,
-} from '@/dashboard/chart-zoom'
+} from '@/dashboard/chartZoom'
 import { cn } from '@/lib/utils'
 
 const CHART_HEIGHT = 288

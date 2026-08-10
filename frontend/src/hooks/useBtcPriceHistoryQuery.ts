@@ -4,7 +4,7 @@ import {
   fetchBtcPriceHistory,
   type BtcPriceHistoryParams,
   type BtcPriceHistoryResponse,
-} from '@/api/btc-price-history'
+} from '@/api/btcPriceHistory'
 
 /** Fetch chart-ready BTC history for a range + interval (cached per combo). */
 export function useBtcPriceHistoryQuery(params: BtcPriceHistoryParams) {

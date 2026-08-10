@@ -2,7 +2,7 @@ import { Button } from '@/components/ui/button'
 import {
   CHART_INTERVAL_OPTIONS,
   type ChartInterval,
-} from '@/dashboard/chart-interval'
+} from '@/dashboard/chartInterval'
 
 type ChartIntervalSwitcherProps = {
   value: ChartInterval

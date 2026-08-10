@@ -1,5 +1,5 @@
-import type { BtcPriceHistoryPoint } from '@/api/btc-price-history'
-import type { ChartInterval } from '@/dashboard/chart-interval'
+import type { BtcPriceHistoryPoint } from '@/api/btcPriceHistory'
+import type { ChartInterval } from '@/dashboard/chartInterval'
 
 /** Recharts display point (label + close price). */
 export type ChartPoint = {

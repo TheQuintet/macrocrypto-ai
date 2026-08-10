@@ -3,9 +3,9 @@ import { beforeEach, describe, it } from 'vitest'
 import {
   expectBadgeShows,
   renderTimeRangeBadge,
-} from '@/components/time-range-badge.test-helpers'
-import { usePreferencesStore } from '@/stores/preferences-store'
-import { resetPreferencesStore } from '@/stores/preferences-store.test-helpers'
+} from '@/components/TimeRangeBadge.testHelpers'
+import { usePreferencesStore } from '@/stores/preferencesStore'
+import { resetPreferencesStore } from '@/stores/preferencesStore.testHelpers'
 
 describe('TimeRangeBadge', () => {
   beforeEach(() => {

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Bell, Moon, Sun } from 'lucide-react'
-import { AppSidebar } from '@/components/app-sidebar'
-import { PageContent } from '@/components/page-content'
+import { AppSidebar } from '@/components/AppSidebar'
+import { PageContent } from '@/components/PageContent'
 import { Button } from '@/components/ui/button'
 import {
   SidebarInset,
@@ -11,7 +11,7 @@ import {
 import { Toaster } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import type { NavItemId } from '@/constants/navigation'
-import { useTheme } from '@/hooks/use-theme'
+import { useTheme } from '@/hooks/useTheme'
 
 function App() {
   const { isDark, toggleTheme } = useTheme()

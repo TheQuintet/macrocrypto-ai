@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import type { BtcPriceHistoryPoint } from '@/api/btc-price-history'
-import { mapHistoryPointsToChartPoints } from '@/dashboard/chart-point'
+import type { BtcPriceHistoryPoint } from '@/api/btcPriceHistory'
+import { mapHistoryPointsToChartPoints } from '@/dashboard/chartPoint'
 
 const SAMPLE_POINTS: BtcPriceHistoryPoint[] = [
   { timestamp: '2024-03-05T14:30:00.000Z', price: 64_100.5 },

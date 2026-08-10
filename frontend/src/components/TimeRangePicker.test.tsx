@@ -5,8 +5,8 @@ import {
   expectRangeSelected,
   renderTimeRangePicker,
   selectTimeRange,
-} from '@/components/time-range-picker.test-helpers'
-import { resetPreferencesStore } from '@/stores/preferences-store.test-helpers'
+} from '@/components/TimeRangePicker.testHelpers'
+import { resetPreferencesStore } from '@/stores/preferencesStore.testHelpers'
 
 describe('TimeRangePicker', () => {
   beforeEach(() => {
