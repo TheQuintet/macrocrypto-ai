@@ -1,33 +1,13 @@
-import type { ChartInterval } from '@/dashboard/chartInterval'
 import {
   INTERVAL_DURATION_MS,
   MIN_LOOKBACK_MS_BY_INTERVAL,
-} from '@/dashboard/chartInterval'
-import type { TimeRange } from '@/stores/preferencesStore'
-
-/**
- * Production-shaped history request.
- * Real gateway: GET /api/v1/btc/price/history?range=7d&interval=1h
- */
-export type BtcPriceHistoryParams = {
-  range: TimeRange
-  interval: ChartInterval
-}
-
-/**
- * Production-shaped history candle/close point.
- * Expand with open/high/low later when OHLC charts land.
- */
-export type BtcPriceHistoryPoint = {
-  timestamp: string
-  price: number
-}
-
-export type BtcPriceHistoryResponse = {
-  range: TimeRange
-  interval: ChartInterval
-  points: BtcPriceHistoryPoint[]
-}
+} from '@/components/dashboard/lib/chartInterval'
+import type {
+  BtcPriceHistoryParams,
+  BtcPriceHistoryPoint,
+  BtcPriceHistoryResponse,
+} from '@/types/btcPriceHistory'
+import type { TimeRange } from '@/types/preferences'
 
 export function btcPriceHistoryQueryKey(params: BtcPriceHistoryParams) {
   return ['btc-price-history', params.range, params.interval] as const

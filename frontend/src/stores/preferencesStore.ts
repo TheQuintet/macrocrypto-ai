@@ -1,7 +1,6 @@
 import { create } from 'zustand'
 import { devtools } from 'zustand/middleware'
-
-export type TimeRange = '24h' | '7d' | '30d' | '90d'
+import type { TimeRange } from '@/types/preferences'
 
 export const TIME_RANGE_OPTIONS: { value: TimeRange; label: string }[] = [
   { value: '24h', label: '24h' },

@@ -3,7 +3,11 @@ import {
   LayoutDashboard,
   Landmark,
 } from 'lucide-react'
-import type { LucideIcon } from 'lucide-react'
+import type {
+  NavItemId,
+  PageCopy,
+  SidebarNavItem,
+} from '@/types/navigation'
 
 /** Absolute app paths — use for Link, Navigate, and Route. */
 export const routes = {
@@ -11,43 +15,28 @@ export const routes = {
   macro: '/macro',
   forecasts: '/forecasts',
   alerts: '/alerts',
-} as const
+} as const satisfies Record<NavItemId, string>
 
-export type NavItemId = keyof typeof routes
-
-export const pageCopy: Record<
-  NavItemId,
-  {
-    title: string
-    body: string
-  }
-> = {
+export const pageCopy: Record<NavItemId, PageCopy> = {
   dashboard: {
     title: 'Dashboard',
-    body: 'Live BTC price monitoring with macroeconomic context.',
+    body: 'Live Bitcoin price with the macro context driving it — chart, regime, and key indicators at a glance.',
   },
   macro: {
     title: 'Macro indicators',
-    body: 'Track inflation (CPI), interest rates, and GDP in one view.',
+    body: 'The macroeconomic backdrop behind Bitcoin — inflation, policy rates, and growth in one view.',
   },
   forecasts: {
     title: 'Forecasts',
-    body: 'AI-powered 24h BTC predictions with confidence context.',
+    body: "The model's 24-hour Bitcoin outlook, with a confidence read on the current signal.",
   },
   alerts: {
     title: 'Alerts',
-    body: 'Manage price and macro trigger notifications.',
+    body: 'Create rules to get notified when price or macro conditions cross your thresholds.',
   },
 }
 
-type SidebarNavItemId = Exclude<NavItemId, 'alerts'>
-
-export const sidebarNavItems: {
-  id: SidebarNavItemId
-  label: string
-  path: string
-  icon: LucideIcon
-}[] = [
+export const sidebarNavItems: SidebarNavItem[] = [
   {
     id: 'dashboard',
     label: pageCopy.dashboard.title,
@@ -76,4 +65,16 @@ export function navItemFromPathname(pathname: string): NavItemId {
     return pathname === path || pathname.startsWith(`${path}/`)
   })
   return match ?? 'dashboard'
+}
+
+/** Whether a sidebar nav item matches the current pathname. */
+export function isSidebarNavItemActive(
+  itemPath: string,
+  pathname: string,
+): boolean {
+  if (itemPath === routes.dashboard) {
+    return pathname === routes.dashboard
+  }
+
+  return pathname === itemPath || pathname.startsWith(`${itemPath}/`)
 }

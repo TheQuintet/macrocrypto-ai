@@ -10,7 +10,7 @@ Aim for **high cohesion** (one focused job per module) and **low coupling** (few
 
 ## SOLID (how we apply it here)
 
-- **SRP:** A module/component/hook should have one reason to change.
+- **SRP:** A module/component/hook should have one reason to change. For React UI that means **one function component per file** (see `frontend-structure`); extract list items, empty states, and controls into their own files/folders.
 - **OCP:** Extend via props, composition, or strategy callbacks — don’t fork shared UI for every variant.
 - **LSP:** Shared contracts (props, store shape) must stay substitutable; don’t break callers of a “compatible” API.
 - **ISP:** Keep props/hook results narrow; don’t force consumers to take unused fields.

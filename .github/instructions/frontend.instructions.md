@@ -23,10 +23,12 @@ Apply when working under `frontend/`. Same standards as `AGENTS.md` and `.cursor
 
 ## Structure & naming
 
-- Layout: `api/`, `hooks/`, `stores/`, `components/` (+ `ui/` ShadCN), `pages/`, feature dirs, `lib/`, `test/`.
+- Layout: `api/`, `hooks/`, `stores/`, `components/` (domain subfolders + `ui/` ShadCN), `pages/`, `types/`, `lib/`, `test/`.
 - UI integration: `frontend/e2e/ui-integration/` only (Playwright) — not under `src/`, not Vitest.
 - E2E: `frontend/e2e/system/` only (Playwright; API/service-backed).
-- Components/pages: `PascalCase.tsx` matching export.
+- **One function component per file**; PascalCase file name matches the export. Do not co-locate multiple React function components in one file — extract them.
+- **Group related components** in camelCase folders under `components/` (e.g. `components/alerts/AlertListItem.tsx`). Nest subfolders when a domain grows (`dashboard/price/`, `dashboard/controls/`). No `ComponentName/index.tsx`.
+- **Shared types** in `src/types/` (`@/types/...`) — not exported from api/stores/hooks/components. Local `Props` types may stay private in the component file.
 - Hooks: `useSomething.ts`; modules: `camelCase.ts`.
 - Unit tests: `*.test.ts(x)` next to source; helpers: `*.testHelpers.ts(x)`.
 - UI integration helpers: `*.specHelpers.ts` next to `*.spec.ts`.

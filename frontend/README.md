@@ -111,9 +111,9 @@ Source lives in `src/` (`@/` alias → `src/`).
 | `src/api/` | Query keys, fetchers, API types |
 | `src/hooks/` | React hooks, including TanStack Query wrappers |
 | `src/stores/` | Zustand stores (client/UI state) |
-| `src/components/` | Shared UI; `components/ui/` = ShadCN primitives |
+| `src/components/` | Shared UI grouped by domain (`layout/`, `alerts/`, `timeRange/`, `dashboard/`, …); `components/ui/` = ShadCN primitives |
+| `src/types/` | Shared domain / API TypeScript types (`@/types/...`) |
 | `src/pages/` | Route-level screens (`*Page.tsx`) |
-| `src/dashboard/` | Dashboard / chart feature modules |
 | `src/lib/` | Shared helpers (`queryClient`, `utils`) |
 | `src/constants/` | Static config (e.g. navigation) |
 | `src/test/` | Vitest setup |
@@ -121,7 +121,7 @@ Source lives in `src/` (`@/` alias → `src/`).
 | `e2e/ui-integration/` | Playwright **UI integration** specs (`*.spec.ts`) + `*.specHelpers.ts` |
 | `e2e/system/` | Playwright **E2E** specs (API/service-backed; add when ready) |
 
-Naming: PascalCase for components and pages, camelCase for hooks and modules. Co-located tests use `*.test.ts(x)`; helpers use `*.testHelpers.ts(x)`. Leave `components/ui/*` as ShadCN generates them.
+Naming: **one function component per file** (PascalCase name = export); group related UI in camelCase folders under `components/` (nest when a domain grows, e.g. `dashboard/controls/`). **Shared types** in `src/types/`. CamelCase for hooks and modules. Co-located tests use `*.test.ts(x)`; helpers use `*.testHelpers.ts(x)`. Leave `components/ui/*` as ShadCN generates them.
 
 ## Routing
 

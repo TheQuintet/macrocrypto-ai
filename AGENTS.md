@@ -32,18 +32,28 @@ Detailed Cursor-only rules live in `.cursor/rules/`. Keep this file and tool-spe
 
 | Folder | Use for |
 |--------|---------|
-| `api/` | Query keys, fetchers, API types |
+| `api/` | Query keys, fetchers (not shared type definitions) |
 | `hooks/` | React hooks, including Query wrappers |
 | `stores/` | Zustand stores |
-| `components/` | Shared UI; `components/ui/` = ShadCN (keep generator names) |
+| `components/` | Shared UI in grouped folders (`layout/`, `alerts/`, `dashboard/`, …); `components/ui/` = ShadCN (keep generator names) |
 | `pages/` | Route screens (`*Page.tsx`) |
-| Feature dirs (e.g. `dashboard/`) | Feature-specific modules |
+| `types/` | Shared domain / API types only (`@/types/...`) |
 | `lib/` | Shared helpers |
 | `test/` | Vitest setup only |
 | `e2e/ui-integration/` | Playwright **UI integration** (FE-only browser flows) |
 | `e2e/system/` | Playwright **E2E** (journeys with APIs/services when available) |
 
-- Components/pages: PascalCase files matching the export (`TimeRangePicker.tsx`).
+**Shared types (required):**
+- Put all shared domain and API types under `src/types/` (camelCase files, e.g. `types/chart.ts`, `types/alerts.ts`, `types/btcPriceHistory.ts`).
+- Import them via `@/types/...`. Do **not** declare or export shared types from `api/`, `stores/`, `hooks/`, `constants/`, or components.
+- Local non-exported `Props` types may stay in the component file.
+- Runtime values (constants, functions, stores) stay in their domain folders; only type aliases/interfaces belong in `types/`.
+
+**Component structure (required):**
+- **One function component per file** — single primary export; file name matches the component (`AlertListItem.tsx` → `export function AlertListItem`). Do not nest extra function components in the same file; extract them.
+- **Group related components in camelCase subfolders** under `components/` (e.g. `components/alerts/`, `components/timeRange/`). Nest further when a domain grows (`dashboard/price/`, `dashboard/controls/`, `dashboard/viewport/`, `dashboard/lib/`).
+- Do **not** use one-folder-per-component with `index.tsx`. Exception: ShadCN `components/ui/*` as generated.
+- Pages: PascalCase `*Page.tsx` under `pages/`.
 - Hooks: camelCase `use*` (`useBtcPriceHistoryQuery.ts`).
 - Modules: camelCase (`btcPriceHistory.ts`, `preferencesStore.ts`).
 - Unit tests: co-located `*.test.ts(x)`; helpers: `*.testHelpers.ts(x)`.

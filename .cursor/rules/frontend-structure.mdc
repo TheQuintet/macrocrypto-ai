@@ -13,17 +13,45 @@ alwaysApply: false
 | `api/` | Query keys, fetchers, API types |
 | `hooks/` | React hooks, including Query wrappers |
 | `stores/` | Zustand stores |
-| `components/` | Shared UI; `components/ui/` = ShadCN primitives (keep generator names) |
+| `components/` | Shared UI grouped by domain; `components/ui/` = ShadCN primitives (keep generator names) |
 | `pages/` | Route screens (`*Page.tsx`) |
-| Feature dirs (e.g. `dashboard/`) | Feature-specific modules |
+| `types/` | Shared domain / API TypeScript types only |
 | `lib/` | Shared helpers (`queryClient`, `utils`) |
 | `test/` | Vitest setup only |
+
+### `components/` groups
+
+| Folder | Use for |
+|--------|---------|
+| `layout/` | App shell (sidebar, header, toaster, page header) |
+| `alerts/` | Alerts list / empty / row UI |
+| `timeRange/` | Shared time-range picker and badge |
+| `dashboard/` | BTC price chart (`PriceChart` entry + `price/`, `controls/`, `viewport/`, `lib/`) |
+| `charts/` | Shared chart UI helpers (placeholders, etc.) |
+| `examples/` | Scaffold demos (e.g. Query patterns) |
+| `ui/` | ShadCN primitives only |
 
 Also under `frontend/e2e/`:
 - `ui-integration/` — Playwright **UI integration** (FE-only)
 - `system/` — Playwright **E2E** (APIs/services when available)
 
 Different strategy from Vitest **unit** tests under `src/` — never put UI integration/E2E in `src/` or run them with Vitest.
+
+## Component file rules (required)
+
+1. **One function component per file.** Each React function component is the single primary export of its own `.tsx` file. Do not define helper/child components in the same file as another component — extract them.
+2. **File name matches the component name** (`AppSidebarNavItem.tsx` → `export function AppSidebarNavItem`).
+3. **Group related components in subfolders** under `components/` (camelCase folder names). When several components belong to the same feature/UI concern, put them in a shared folder — do not leave a flat pile in `components/`.
+4. **Nest further when a group grows.** If a domain folder has multiple clear clusters, add subfolders (e.g. `dashboard/price/`, `dashboard/controls/`, `dashboard/viewport/`, `dashboard/lib/`). Keep a clear public entry at the domain root when useful (`dashboard/PriceChart.tsx`).
+5. **Do not** use one-folder-per-component with `index.tsx` (`TimeRangePicker/index.tsx`).
+6. **Exception:** leave `components/ui/*` as ShadCN generates them (may export multiple primitives per file).
+
+## Shared types (required)
+
+- Put **shared domain and API types** under `src/types/` (camelCase files, e.g. `types/chart.ts`, `types/alerts.ts`, `types/btcPriceHistory.ts`).
+- Import shared types from `@/types/...` — do not declare/export shared types from `api/`, `stores/`, `hooks/`, `constants/`, or component modules.
+- Local component `Props` types may stay private in the component file (not exported).
+- Runtime values (constants, functions, stores) stay in their domain folders; only the type aliases/interfaces move to `types/`.
 
 ## Naming (TypeScript / React)
 
@@ -34,17 +62,26 @@ Different strategy from Vitest **unit** tests under `src/` — never put UI inte
 - Tests: co-located `*.test.ts(x)`; helpers: `*.testHelpers.ts(x)`.
 - UI integration: `*.spec.ts` + co-located `*.specHelpers.ts` under `e2e/ui-integration/` (named act/expect helpers; arrange → act → assert).
 - Prefer TypeScript-style names above; do not introduce kebab-case app modules.
-- Exception: leave `components/ui/*` as ShadCN generates them.
 
-```ts
-// ❌ BAD — kebab-case or folder-per-component noise
+```tsx
+// ❌ BAD — two components in one file
+export function AlertsList() { /* ... */ }
+function AlertListItem() { /* ... */ }
+
+// ❌ BAD — flat unrelated pile / kebab-case / index.tsx wrapper
+src/components/AlertListItem.tsx
+src/components/TimeRangePicker.tsx
 src/components/time-range-picker.tsx
-src/hooks/use-btc-price-history-query.ts
 src/components/TimeRangePicker/index.tsx
 
-// ✅ GOOD — TypeScript-style file names
-src/components/TimeRangePicker.tsx
+// ✅ GOOD — one component per file, related pieces in a group folder
+src/components/alerts/AlertsList.tsx
+src/components/alerts/AlertListItem.tsx
+src/components/alerts/AlertsEmptyState.tsx
+src/components/timeRange/TimeRangePicker.tsx
+src/components/dashboard/PriceChart.tsx
+src/components/dashboard/price/PriceLineChart.tsx
+src/components/dashboard/controls/ChartTypeSwitcher.tsx
 src/hooks/useBtcPriceHistoryQuery.ts
 src/api/btcPriceHistory.ts
-src/stores/preferencesStore.ts
 ```
