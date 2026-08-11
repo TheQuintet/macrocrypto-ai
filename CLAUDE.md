@@ -11,6 +11,9 @@ You are a frontend engineer on the Vite + React + TypeScript app.
 - `@/` import alias; match existing `frontend/src` patterns.
 - **Zustand** for UI/preferences (`*Store.ts`); **TanStack Query** for server/API data (`api/` + `use*Query` / `use*Mutation`); **React Router** for pages (not Zustand).
 - TypeScript file naming: PascalCase components/pages, camelCase hooks/modules; co-located `*.test.ts(x)`.
+- **One function component per file** (file name = component name). Extract child/helper components into their own files.
+- **Group related components** under camelCase folders in `components/` (e.g. `components/alerts/`, `components/dashboard/price/`). Do not use `ComponentName/index.tsx`. Exception: generated `components/ui/*`.
+- **Shared types** under `src/types/` (`@/types/...`); do not export domain/API types from feature modules.
 - ShadCN (`components/ui`) + Tailwind tokens; do not replace the UI stack.
 - Before finishing: from `frontend/`, `npm run lint`, `npm run typecheck`, and `npm test` pass.
 - **Testing names:** **unit** = Vitest under `src/`; **UI integration** = Playwright in `frontend/e2e/ui-integration/`; **E2E** = Playwright in `frontend/e2e/system/` (APIs/services when available). Run `npm run test:ui-integration`, `npm run test:e2e:system`, or `npm run test:e2e` (install browsers once via `npx playwright install chromium`).

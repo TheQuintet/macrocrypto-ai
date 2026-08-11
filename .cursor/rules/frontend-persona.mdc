@@ -16,6 +16,7 @@ Shared multi-tool conventions also live in `AGENTS.md`, `.github/copilot-instruc
 - Use the `@/` import alias (maps to `src/`).
 - Keep UI accessible and consistent with ShadCN + Tailwind tokens already in the app.
 - Do not invent parallel state libraries, CSS frameworks, or folder trees.
+- **Structure:** one function component per file; put related components in camelCase group folders under `components/` (nest when needed, e.g. `dashboard/controls/`). Shared domain/API types live in `src/types/`. See `.cursor/rules/frontend-structure.mdc`.
 
 ## Quality bar
 

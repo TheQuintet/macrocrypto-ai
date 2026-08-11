@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
-
-export type Theme = 'light' | 'dark'
+import type { Theme } from '@/types/theme'
 
 const THEME_STORAGE_KEY = 'macrocrypto-theme'
 const DEFAULT_THEME: Theme = 'dark'

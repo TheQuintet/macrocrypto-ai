@@ -3,13 +3,9 @@
  * Replace with real API clients when the gateway is wired.
  */
 
-export const exampleItemsQueryKey = ['example-items'] as const
+import type { CreateExampleItemInput, ExampleItem } from '@/types/example'
 
-export type ExampleItem = {
-  id: string
-  title: string
-  updatedAt: string
-}
+export const exampleItemsQueryKey = ['example-items'] as const
 
 const MOCK_LATENCY_MS = 350
 
@@ -34,10 +30,6 @@ function delay(ms: number) {
 export async function fetchExampleItems(): Promise<ExampleItem[]> {
   await delay(MOCK_LATENCY_MS)
   return items.map((item) => ({ ...item }))
-}
-
-export type CreateExampleItemInput = {
-  title: string
 }
 
 /** Example POST — sync/update remote data via useMutation. */

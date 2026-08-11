@@ -1,10 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import {
-  createExampleItem,
-  exampleItemsQueryKey,
-  type CreateExampleItemInput,
-  type ExampleItem,
-} from '@/api/example'
+import { createExampleItem, exampleItemsQueryKey } from '@/api/example'
+import type { CreateExampleItemInput, ExampleItem } from '@/types/example'
 
 /** Example mutation pattern: sync/update remote data and refresh cache. */
 export function useCreateExampleItemMutation() {

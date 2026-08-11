@@ -49,11 +49,31 @@ const Toaster = ({ ...props }: ToasterProps) => {
           '--normal-text': 'var(--popover-foreground)',
           '--normal-border': 'var(--border)',
           '--border-radius': 'var(--radius)',
+          '--success-bg': 'var(--toast-success-bg)',
+          '--success-text': 'var(--toast-success-text)',
+          '--success-border': 'var(--toast-success-bg)',
+          '--error-bg': 'var(--toast-error-bg)',
+          '--error-text': 'var(--toast-error-text)',
+          '--error-border': 'var(--toast-error-bg)',
+          '--warning-bg': 'var(--toast-warning-bg)',
+          '--warning-text': 'var(--toast-warning-text)',
+          '--warning-border': 'var(--toast-warning-bg)',
+          '--info-bg': 'var(--toast-info-bg)',
+          '--info-text': 'var(--toast-info-text)',
+          '--info-border': 'var(--toast-info-bg)',
         } as CSSProperties
       }
       toastOptions={{
         classNames: {
-          toast: 'cn-toast',
+          toast:
+            'cn-toast !shadow-lg !border-transparent [&_[data-title]]:!font-semibold [&_[data-description]]:!opacity-95',
+          success:
+            '!bg-[var(--toast-success-bg)] !text-[var(--toast-success-text)] [&_[data-icon]]:!text-[var(--toast-success-text)]',
+          error:
+            '!bg-[var(--toast-error-bg)] !text-[var(--toast-error-text)] [&_[data-icon]]:!text-[var(--toast-error-text)]',
+          warning:
+            '!bg-[var(--toast-warning-bg)] !text-[var(--toast-warning-text)] [&_[data-icon]]:!text-[var(--toast-warning-text)]',
+          info: '!bg-[var(--toast-info-bg)] !text-[var(--toast-info-text)] [&_[data-icon]]:!text-[var(--toast-info-text)]',
         },
       }}
       {...props}
