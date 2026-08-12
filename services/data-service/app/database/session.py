@@ -5,6 +5,9 @@ from app.models.btc_price import Base
 # Import models so SQLAlchemy registers them with Base.metadata
 from app.models.btc_price import BTCPrice
 from app.models.macro_indicator import MacroIndicator
+from app.models.macro_regime import MacroRegime
+from app.models.regime_performance import RegimePerformance
+from app.models.current_regime import CurrentRegime
 
 from app.config import settings
 import logging

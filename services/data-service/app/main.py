@@ -414,6 +414,7 @@ async def run_market_cap_collection(
         await asyncio.sleep(900)
 
 
+
 # async def periodic_economic_collection():
 
 #     logger.info("🔥 FRED scheduler started")
@@ -431,7 +432,6 @@ async def run_market_cap_collection(
 #     )
 
 #     from app.config import settings
-
 
 #     while True:
 
@@ -452,71 +452,101 @@ async def run_market_cap_collection(
 #                     settings.MACRO_UPDATE_MINUTE_UTC,
 #                 )
 
-
 #             logger.info("🔥 FRED scheduler woke up")
-
 
 #             db = SessionLocal()
 
 #             logger.info("🔥 Database session created")
 
-
 #             try:
 
-#                 service = IndicatorService(db)
+#                 service = IndicatorService(db, cache_client)
 
 #                 logger.info("Starting scheduled macro update")
 
+#                 result = None
 
-#                 result = await service.update_all_indicators()
+#                 for attempt in range(3):
 
-#                 logger.info(f"Macro update completed: {list(result.keys())}")
+#                     try:
 
+#                         result = await service.update_all_indicators()
+
+#                         logger.info(
+#                             f"Macro update completed: {list(result.keys())}"
+#                         )
+
+#                         break
+
+#                     except Exception:
+
+#                         logger.exception(
+#                             f"Macro update attempt {attempt + 1} failed"
+#                         )
+
+#                         if attempt == 2:
+#                             raise
+
+#                         logger.info(
+#                             "Retrying macro update in 30 seconds..."
+#                         )
+
+#                         await asyncio.sleep(30)
 
 #                 await service.close()
 
-#                 logger.info("IndicatorService closed successfully")
-
+#                 logger.info(
+#                     "IndicatorService closed successfully"
+#                 )
 
 #             finally:
 
 #                 db.close()
 
-#                 logger.info("Database session closed")
+#                 logger.info(
+#                     "Database session closed"
+#                 )
 
+#         except Exception:
 
-#         except Exception as error:
-
-#             logger.error(
-#                 "🔥 FRED scheduler failed:",
-#                 error
+#             logger.exception(
+#                 "🔥 FRED scheduler failed"
 #             )
 
 async def periodic_economic_collection():
+    """
+    Periodically collect macroeconomic indicators from FRED
+    and update the current macroeconomic regime.
+
+    The process:
+    1. Waits for the configured macro update time/interval.
+    2. Creates a database session.
+    3. Updates all supported FRED indicators.
+    4. Processes macro regime detection.
+    5. Retries failed macro updates up to 3 times.
+    6. Closes the database session.
+    """
 
     logger.info("🔥 FRED scheduler started")
 
-    from app.services.indicator_service import (
-        IndicatorService,
-    )
-
-    from app.database.session import (
-        SessionLocal,
-    )
-
-    from app.services.scheduler import (
-        wait_until_next_run,
-    )
-
+    from app.services.indicator_service import IndicatorService
+    from app.database.session import SessionLocal
+    from app.services.scheduler import wait_until_next_run
     from app.config import settings
 
-    while True:
+    # Lazy import for regime processing.
+    from app.services.regime_service import RegimeService
 
+    while True:
         try:
+            # ============================================
+            # WAIT FOR NEXT MACRO UPDATE
+            # ============================================
 
             if settings.MACRO_UPDATE_INTERVAL_MINUTES > 0:
                 logger.info(
-                    f"🔥 Waiting {settings.MACRO_UPDATE_INTERVAL_MINUTES} minutes"
+                    f"🔥 Waiting "
+                    f"{settings.MACRO_UPDATE_INTERVAL_MINUTES} minutes"
                 )
 
                 await asyncio.sleep(
@@ -531,44 +561,62 @@ async def periodic_economic_collection():
 
             logger.info("🔥 FRED scheduler woke up")
 
+            # ============================================
+            # CREATE DATABASE SESSION
+            # ============================================
+
             db = SessionLocal()
 
             logger.info("🔥 Database session created")
 
             try:
+                # ========================================
+                # UPDATE MACRO INDICATORS
+                # ========================================
 
-                service = IndicatorService(db, cache_client)
+                service = IndicatorService(
+                    db,
+                    cache_client,
+                )
 
-                logger.info("Starting scheduled macro update")
+                logger.info(
+                    "Starting scheduled macro update"
+                )
 
                 result = None
 
                 for attempt in range(3):
-
                     try:
-
-                        result = await service.update_all_indicators()
+                        result = (
+                            await service.update_all_indicators()
+                        )
 
                         logger.info(
-                            f"Macro update completed: {list(result.keys())}"
+                            f"Macro update completed: "
+                            f"{list(result.keys())}"
                         )
 
                         break
 
                     except Exception:
-
                         logger.exception(
-                            f"Macro update attempt {attempt + 1} failed"
+                            f"Macro update attempt "
+                            f"{attempt + 1} failed"
                         )
 
                         if attempt == 2:
                             raise
 
                         logger.info(
-                            "Retrying macro update in 30 seconds..."
+                            "Retrying macro update "
+                            "in 30 seconds..."
                         )
 
                         await asyncio.sleep(30)
+
+                # ========================================
+                # CLOSE INDICATOR SERVICE
+                # ========================================
 
                 await service.close()
 
@@ -576,7 +624,37 @@ async def periodic_economic_collection():
                     "IndicatorService closed successfully"
                 )
 
+                # ========================================
+                # UPDATE MACROECONOMIC REGIME
+                # ========================================
+
+                try:
+                    logger.info(
+                        "Starting macro regime processing"
+                    )
+
+                    regime_service = RegimeService(db)
+
+                    regime_result = (
+                        await regime_service.update_regime()
+                    )
+
+                    logger.info(
+                        f"Macro regime processing completed: "
+                        f"{regime_result}"
+                    )
+
+                    await regime_service.close()
+
+                except Exception:
+                    logger.exception(
+                        "⚠️ Macro regime processing failed"
+                    )
+
             finally:
+                # ========================================
+                # CLOSE DATABASE SESSION
+                # ========================================
 
                 db.close()
 
@@ -585,7 +663,6 @@ async def periodic_economic_collection():
                 )
 
         except Exception:
-
             logger.exception(
                 "🔥 FRED scheduler failed"
             )
