@@ -17,6 +17,7 @@ Supported regimes:
 import logging
 from datetime import date, timedelta
 
+from app.config import settings
 from app.database.regime_repository import RegimeRepository
 
 logger = logging.getLogger(__name__)
@@ -56,12 +57,12 @@ class RegimeService:
 
         Classification rules:
 
-        - High Inflation: CPI > 3%
-        - Low Inflation: CPI < 2%
+        - High Inflation: CPI > configured threshold
+        - Low Inflation: CPI < configured threshold
         - Rising Rates: interest rates increased over 3 months
         - Falling Rates: interest rates decreased over 3 months
         - Recession: GDP negative growth for 2 consecutive quarters
-        - Growth: GDP positive growth > 2%
+        - Growth: GDP positive growth > configured threshold
 
         When multiple conditions overlap, rules are evaluated
         in a deterministic priority order.
@@ -104,7 +105,9 @@ class RegimeService:
 
             target_time = (
                 latest_cpi.time
-                - timedelta(days=365)
+                - timedelta(
+                    days=settings.DAYS_IN_YEAR
+                )
             )
 
             historical_cpi = min(
@@ -149,7 +152,9 @@ class RegimeService:
 
                 target_time = (
                     latest_rate.time
-                    - timedelta(days=90)
+                    - timedelta(
+                        days=settings.DAYS_IN_3_MONTHS
+                    )
                 )
 
                 historical_rate = min(
@@ -200,7 +205,7 @@ class RegimeService:
 
         if (
             cpi_inflation is not None
-            and cpi_inflation > 3.0
+            and cpi_inflation > settings.INFLATION_THRESHOLD
         ):
             return "high_inflation"
 
@@ -210,7 +215,7 @@ class RegimeService:
 
         if (
             cpi_inflation is not None
-            and cpi_inflation < 2.0
+            and cpi_inflation < settings.LOW_INFLATION_THRESHOLD
         ):
             return "low_inflation"
 
@@ -244,7 +249,8 @@ class RegimeService:
 
             if (
                 latest_gdp.change_percent is not None
-                and latest_gdp.change_percent > 2.0
+                and latest_gdp.change_percent
+                > settings.GDP_GROWTH_THRESHOLD
             ):
                 return "growth"
 

@@ -156,6 +156,20 @@ class Settings(BaseSettings):
     # Cache TTL for indicators in seconds
     MACRO_INDICATORS_CACHE_TTL: int = 3600  
     # ============================================
+    # MACROECONOMIC REGIME CLASSIFICATION
+    # ============================================
+
+    # CPI thresholds used by the regime classification engine.
+    # Values can be overridden through environment variables.
+
+    INFLATION_THRESHOLD: float = 3.0
+    LOW_INFLATION_THRESHOLD: float = 2.0
+    GDP_GROWTH_THRESHOLD: float = 2.0
+
+    # Approximate period used for interest-rate trend detection.
+    DAYS_IN_YEAR: int = 365
+    DAYS_IN_3_MONTHS: int = 90
+    # ============================================
     # COLLECTION INTERVALS (seconds)
     # ============================================
     PRICE_COLLECTION_INTERVAL: int = 60
@@ -190,19 +204,6 @@ class Settings(BaseSettings):
         """Detect if running inside a Docker container"""
         return os.path.exists('/.dockerenv') or os.path.exists('/proc/1/cgroup')
     
-    # class Config:
-    #     # Try .env first, fallback to .env.example
-    #     env_file = ".env" if os.path.exists(".env") else ".env.example"
-    #     env_file_encoding = "utf-8"
-    #     case_sensitive = True
-    # class Config:
-    #     env_file = (
-    #         ".env.local"
-    #         if os.path.exists(".env.local")
-    #         else ".env"
-    #     )
-    #     env_file_encoding = "utf-8"
-    #     case_sensitive = True
 
 @lru_cache()
 def get_settings() -> Settings:
