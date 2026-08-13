@@ -3,6 +3,7 @@ import { Bar, BarChart, CartesianGrid, Tooltip, XAxis, YAxis } from 'recharts'
 import type { ChartCandle } from '@/types/chart'
 import { chartPlotMargin } from '@/components/dashboard/lib/chartTheme'
 import { PriceCandle } from '@/components/dashboard/price/PriceCandle'
+import { PriceCandleHoverLine } from '@/components/dashboard/price/PriceCandleHoverLine'
 import { PriceCandleTooltip } from '@/components/dashboard/price/PriceCandleTooltip'
 
 type PriceCandlestickChartProps = {
@@ -54,7 +55,10 @@ export function PriceCandlestickChart({
         height={compact ? 32 : 56}
       />
       <YAxis domain={yDomain} hide width={0} />
-      <Tooltip content={<PriceCandleTooltip />} cursor={false} />
+      <Tooltip
+        content={<PriceCandleTooltip />}
+        cursor={<PriceCandleHoverLine />}
+      />
       <Bar dataKey="range" shape={<PriceCandle />} isAnimationActive={false} />
     </BarChart>
   )

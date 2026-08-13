@@ -102,3 +102,101 @@ export async function expectNoCandles(page: Page) {
   const candles = await readCandles(page)
   expect(candles?.count ?? 0).toBe(0)
 }
+
+/**
+ * Hover a candle that is actually on screen.
+ *
+ * Uses the candle's own client rect rather than SVG coordinates: the plot
+ * strip is translated and clipped for panning, so SVG-space maths can land
+ * outside the visible area.
+ */
+export async function hoverMiddleCandle(page: Page) {
+  const point = await page.evaluate((colors) => {
+    const surface = [...document.querySelectorAll('svg.recharts-surface')].pop()
+    if (!surface) {
+      return null
+    }
+
+    const visible = [...surface.querySelectorAll('line')]
+      .filter((line) => colors.includes(line.getAttribute('stroke') ?? ''))
+      .map((line) => line.getBoundingClientRect())
+      .filter(
+        (rect) =>
+          rect.left >= 0 &&
+          rect.right <= window.innerWidth &&
+          rect.top >= 0 &&
+          rect.bottom <= window.innerHeight,
+      )
+
+    if (visible.length === 0) {
+      return null
+    }
+
+    const rect = visible[Math.floor(visible.length / 2)]
+    return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }
+  }, CANDLE_COLORS)
+
+  expect(point, 'no candle visible to hover').not.toBeNull()
+  await page.mouse.move(point!.x, point!.y)
+}
+
+export async function movePointerOffChart(page: Page) {
+  await page.mouse.move(4, 4)
+}
+
+function hoverLine(page: Page) {
+  return page.locator('[data-slot="candle-hover-line"]')
+}
+
+/** A vertical marker on the hovered candle, spanning the plot. */
+export async function expectCandleHoverLine(page: Page) {
+  await expect(hoverLine(page)).toBeAttached({ timeout: 10_000 })
+
+  const geometry = await page.evaluate((colors) => {
+    const surface = [...document.querySelectorAll('svg.recharts-surface')].pop()
+    const line = surface?.querySelector('[data-slot="candle-hover-line"]')
+    if (!surface || !line) {
+      return null
+    }
+
+    const num = (el: Element, attr: string) => Number(el.getAttribute(attr))
+    const wicks = [...surface.querySelectorAll('line')].filter((l) =>
+      colors.includes(l.getAttribute('stroke') ?? ''),
+    )
+    const grid = [
+      ...surface.querySelectorAll('.recharts-cartesian-grid-horizontal line'),
+    ].map((l) => num(l, 'y1'))
+
+    return {
+      isVertical: num(line, 'x1') === num(line, 'x2'),
+      offFromNearestCandle: Math.min(
+        ...wicks.map((w) => Math.abs(num(w, 'x1') - num(line, 'x1'))),
+      ),
+      spanTop: num(line, 'y1'),
+      spanBottom: num(line, 'y2'),
+      plotTop: Math.min(...grid),
+      plotBottom: Math.max(...grid),
+    }
+  }, CANDLE_COLORS)
+
+  expect(geometry).not.toBeNull()
+  expect(geometry!.isVertical).toBe(true)
+  // Lands on a candle, not between two of them.
+  expect(geometry!.offFromNearestCandle).toBeLessThan(1)
+  // Covers the plot so the candle is traceable top to bottom.
+  expect(Math.abs(geometry!.spanTop - geometry!.plotTop)).toBeLessThan(2)
+  expect(Math.abs(geometry!.spanBottom - geometry!.plotBottom)).toBeLessThan(2)
+}
+
+export async function expectNoCandleHoverLine(page: Page) {
+  await expect(hoverLine(page)).toHaveCount(0, { timeout: 10_000 })
+}
+
+/** The candle tooltip breaks the bucket down into O/H/L/C. */
+export async function expectOhlcTooltip(page: Page) {
+  const tooltip = page.getByRole('tooltip')
+  await expect(tooltip).toBeVisible({ timeout: 10_000 })
+  for (const label of ['Open', 'High', 'Low', 'Close']) {
+    await expect(tooltip).toContainText(label)
+  }
+}
