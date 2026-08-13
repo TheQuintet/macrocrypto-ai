@@ -9,7 +9,10 @@ import {
 } from 'react'
 import type { ChartPoint } from '@/types/chart'
 import { ChartYAxis } from '@/components/dashboard/viewport/ChartYAxis'
-import { CHART_Y_AXIS_WIDTH } from '@/components/dashboard/lib/chartTheme'
+import {
+  chartYAxisWidth,
+  isChartCompact,
+} from '@/components/dashboard/lib/chartTheme'
 import { ChartZoomControls } from '@/components/dashboard/controls/ChartZoomControls'
 import {
   DEFAULT_CHART_POINT_WIDTH,
@@ -17,7 +20,8 @@ import {
 } from '@/components/dashboard/lib/chartZoom'
 import { cn } from '@/lib/utils'
 
-const CHART_HEIGHT = 288
+/** Fallback before ResizeObserver measures the plot area. */
+const DEFAULT_CHART_HEIGHT = 224
 const OVERSCAN_POINTS = 16
 
 type ChartPanViewportProps = {
@@ -27,6 +31,7 @@ type ChartPanViewportProps = {
     width: number
     height: number
     yDomain: [number, number]
+    compact: boolean
   }) => ReactNode
 }
 
@@ -44,14 +49,18 @@ export function ChartPanViewport({
   data,
   children,
 }: ChartPanViewportProps) {
+  const chartRowRef = useRef<HTMLDivElement>(null)
   const viewportRef = useRef<HTMLDivElement>(null)
   const [viewportWidth, setViewportWidth] = useState(0)
+  const [chartHeight, setChartHeight] = useState(DEFAULT_CHART_HEIGHT)
   const [offsetX, setOffsetX] = useState(0)
   const [pointWidth, setPointWidth] = useState(DEFAULT_CHART_POINT_WIDTH)
   const [seriesKey, setSeriesKey] = useState('')
   const [isDragging, setIsDragging] = useState(false)
   const dragRef = useRef<DragState | null>(null)
 
+  const compact = isChartCompact(viewportWidth)
+  const yAxisWidth = chartYAxisWidth(compact)
   const virtualWidth = Math.max(viewportWidth, data.length * pointWidth)
   const minOffsetX = Math.min(0, viewportWidth - virtualWidth)
   const canPan = virtualWidth > viewportWidth + 1
@@ -73,18 +82,21 @@ export function ChartPanViewport({
   }, [data])
 
   useEffect(() => {
-    const node = viewportRef.current
-    if (!node) {
+    const viewportNode = viewportRef.current
+    const rowNode = chartRowRef.current
+    if (!viewportNode || !rowNode) {
       return
     }
 
-    const syncWidth = () => {
-      setViewportWidth(node.clientWidth)
+    const syncSize = () => {
+      setViewportWidth(viewportNode.clientWidth)
+      setChartHeight(rowNode.clientHeight || DEFAULT_CHART_HEIGHT)
     }
 
-    syncWidth()
-    const observer = new ResizeObserver(syncWidth)
-    observer.observe(node)
+    syncSize()
+    const observer = new ResizeObserver(syncSize)
+    observer.observe(viewportNode)
+    observer.observe(rowNode)
     return () => observer.disconnect()
   }, [])
 
@@ -210,18 +222,25 @@ export function ChartPanViewport({
         </p>
       </div>
 
-      <div className="flex h-72 w-full min-w-0">
+      <div
+        ref={chartRowRef}
+        className="flex h-56 w-full min-w-0 sm:h-72 md:h-[340px]"
+      >
         <div
           className="shrink-0 bg-background"
-          style={{ width: CHART_Y_AXIS_WIDTH }}
+          style={{ width: yAxisWidth }}
         >
-          <ChartYAxis yDomain={yDomain} height={CHART_HEIGHT} />
+          <ChartYAxis
+            yDomain={yDomain}
+            height={chartHeight}
+            compact={compact}
+          />
         </div>
 
         <div
           ref={viewportRef}
           className={cn(
-            'h-full min-w-0 flex-1 overflow-hidden touch-none select-none',
+            'h-full min-w-0 flex-1 overflow-hidden touch-pan-y select-none',
             canPan && (isDragging ? 'cursor-grabbing' : 'cursor-grab'),
           )}
           onPointerDown={onPointerDown}
@@ -241,8 +260,9 @@ export function ChartPanViewport({
             {children({
               data: renderData,
               width: renderWidth,
-              height: CHART_HEIGHT,
+              height: chartHeight,
               yDomain,
+              compact,
             })}
           </div>
         </div>
@@ -253,7 +273,12 @@ export function ChartPanViewport({
           Showing <span className="font-medium text-foreground">{visibleFrom}</span>
           {' → '}
           <span className="font-medium text-foreground">{visibleTo}</span>
-          {canPan ? ' · drag to slide · zoom to change density' : null}
+          <span className="hidden sm:inline">
+            {canPan ? ' · drag to slide · zoom to change density' : null}
+          </span>
+          <span className="sm:hidden">
+            {canPan ? ' · drag or zoom' : null}
+          </span>
         </p>
       ) : null}
     </div>

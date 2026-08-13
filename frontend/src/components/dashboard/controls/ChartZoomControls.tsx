@@ -27,6 +27,7 @@ export function ChartZoomControls({
         size="icon-sm"
         variant="outline"
         aria-label="Zoom out"
+        className="size-11 touch-manipulation sm:size-7"
         disabled={pointWidth <= MIN_CHART_POINT_WIDTH}
         onClick={onZoomOut}
       >
@@ -37,6 +38,7 @@ export function ChartZoomControls({
         size="icon-sm"
         variant="outline"
         aria-label="Zoom in"
+        className="size-11 touch-manipulation sm:size-7"
         disabled={pointWidth >= MAX_CHART_POINT_WIDTH}
         onClick={onZoomIn}
       >

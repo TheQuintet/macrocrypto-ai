@@ -79,15 +79,16 @@ export function PriceChart() {
       {isInitialLoading ? (
         <p className="text-sm text-muted-foreground">Loading price history…</p>
       ) : (
-        <div className="min-w-0">
+        <div className="min-w-0 overflow-x-hidden">
           <ChartPanViewport data={data}>
-            {({ data: panData, width, height, yDomain }) =>
+            {({ data: panData, width, height, yDomain, compact }) =>
               chartType === 'line' ? (
                 <PriceLineChart
                   data={panData}
                   width={width}
                   height={height}
                   yDomain={yDomain}
+                  compact={compact}
                 />
               ) : (
                 <PriceBarChart
@@ -95,6 +96,7 @@ export function PriceChart() {
                   width={width}
                   height={height}
                   yDomain={yDomain}
+                  compact={compact}
                 />
               )
             }

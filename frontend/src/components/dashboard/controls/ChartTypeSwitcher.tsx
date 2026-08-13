@@ -17,7 +17,7 @@ export function ChartTypeSwitcher({
 }: ChartTypeSwitcherProps) {
   return (
     <div
-      className="flex flex-wrap items-center gap-2"
+      className="flex w-full min-w-0 flex-wrap items-center gap-1.5 sm:w-auto sm:gap-2"
       role="group"
       aria-label="Chart type"
     >
@@ -28,6 +28,7 @@ export function ChartTypeSwitcher({
           size="sm"
           variant={value === option.value ? 'default' : 'outline'}
           aria-pressed={value === option.value}
+          className="min-h-11 min-w-10 flex-1 touch-manipulation sm:min-h-7 sm:flex-none"
           onClick={() => onChange(option.value)}
         >
           {option.label}

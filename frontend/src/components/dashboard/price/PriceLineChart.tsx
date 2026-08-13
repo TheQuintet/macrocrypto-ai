@@ -8,7 +8,7 @@ import {
 } from 'recharts'
 import type { ChartPoint } from '@/types/chart'
 import {
-  CHART_PLOT_MARGIN,
+  chartPlotMargin,
   CHART_TOOLTIP_STYLE,
   formatPriceTooltip,
 } from '@/components/dashboard/lib/chartTheme'
@@ -18,6 +18,7 @@ type PriceLineChartProps = {
   width: number
   height: number
   yDomain: [number, number]
+  compact?: boolean
 }
 
 export function PriceLineChart({
@@ -25,24 +26,28 @@ export function PriceLineChart({
   width,
   height,
   yDomain,
+  compact = false,
 }: PriceLineChartProps) {
   return (
     <LineChart
       width={width}
       height={height}
       data={data}
-      margin={CHART_PLOT_MARGIN}
+      margin={chartPlotMargin(compact)}
     >
       <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" />
       <XAxis
         dataKey="time"
-        tick={{ fill: 'var(--muted-foreground)', fontSize: 11 }}
+        tick={{
+          fill: 'var(--muted-foreground)',
+          fontSize: compact ? 10 : 11,
+        }}
         tickLine={false}
         axisLine={{ stroke: 'var(--border)' }}
-        minTickGap={28}
-        angle={-25}
-        textAnchor="end"
-        height={56}
+        minTickGap={compact ? 40 : 28}
+        angle={compact ? 0 : -25}
+        textAnchor={compact ? 'middle' : 'end'}
+        height={compact ? 32 : 56}
       />
       <YAxis domain={yDomain} hide width={0} />
       <Tooltip
