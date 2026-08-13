@@ -1,5 +1,5 @@
 import { mapBtcPriceSnapshot } from '@/api/btcPrice'
-import type { BtcPriceSnapshot } from '@/types/btcPrice'
+import type { BtcPriceSnapshot, PriceSource } from '@/types/btcPrice'
 
 /** First retry waits this long; each further attempt doubles it. */
 export const RECONNECT_BASE_DELAY_MS = 1_000
@@ -20,7 +20,10 @@ export function reconnectDelayMs(attempt: number) {
  * the connection or the display down with it. Absent fields become `null`,
  * matching how the service reports values it does not have yet.
  */
-export function parsePriceStreamMessage(data: string): BtcPriceSnapshot | null {
+export function parsePriceStreamMessage(
+  data: string,
+  source: PriceSource = 'live',
+): BtcPriceSnapshot | null {
   let parsed: unknown
 
   try {
@@ -48,7 +51,7 @@ export function parsePriceStreamMessage(data: string): BtcPriceSnapshot | null {
     change_7d: numberOrNull(frame.change_7d),
     change_7d_percent: numberOrNull(frame.change_7d_percent),
     updated_at: stringOrNull(frame.updated_at),
-  })
+  }, source)
 }
 
 function numberOrNull(value: unknown) {

@@ -1,6 +1,7 @@
 import { PriceDayStats } from '@/components/dashboard/price/PriceDayStats'
 import { PriceStreamStatus } from '@/components/dashboard/price/PriceStreamStatus'
 import { PriceValue } from '@/components/dashboard/price/PriceValue'
+import { Badge } from '@/components/ui/badge'
 import type { BtcPriceSnapshot } from '@/types/btcPrice'
 import {
   Card,
@@ -23,7 +24,14 @@ export function BtcPriceCard() {
   return (
     <Card className="min-w-0">
       <CardHeader>
-        <CardDescription>BTC / USD</CardDescription>
+        <CardDescription className="flex flex-wrap items-center gap-2">
+          BTC / USD
+          {data?.source === 'simulated' ? (
+            <Badge variant="outline" className="text-[10px] font-normal">
+              Simulated
+            </Badge>
+          ) : null}
+        </CardDescription>
         <CardTitle className="min-w-0">
           {isPending ? (
             <Skeleton className="h-8 w-36 sm:h-9 sm:w-44 lg:h-10 lg:w-52" />

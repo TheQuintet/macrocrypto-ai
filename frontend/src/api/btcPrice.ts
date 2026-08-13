@@ -1,7 +1,12 @@
+import { apiUrl } from '@/lib/apiConfig'
 import type {
   BtcPriceSnapshot,
   BtcPriceSnapshotResponse,
+  PriceSource,
 } from '@/types/btcPrice'
+
+/** Real endpoint on the data service (see `app/api/btc.py`). */
+export const BTC_PRICE_PATH = '/api/v1/btc/price'
 
 export function btcPriceSnapshotQueryKey() {
   return ['btc-price-snapshot'] as const
@@ -32,8 +37,10 @@ function roundCents(value: number) {
 /** Wire -> UI mapping; the only piece that survives the real endpoint landing. */
 export function mapBtcPriceSnapshot(
   response: BtcPriceSnapshotResponse,
+  source: PriceSource = 'live',
 ): BtcPriceSnapshot {
   return {
+    source,
     currentPrice: response.current_price,
     change24h: response.change_24h,
     change24hPercent: response.change_24h_percent,
@@ -83,14 +90,43 @@ export function buildMockBtcPriceSnapshot(
   }
 }
 
-/**
- * Simulated snapshot API: returns the current BTC price plus the 24h and 7d
- * change windows the dashboard renders.
- */
-export async function fetchBtcPriceSnapshot(
+/** Stand-in snapshot for a frontend-only run, labelled as simulated. */
+export async function simulateBtcPriceSnapshot(
   nowMs = Date.now(),
 ): Promise<BtcPriceSnapshot> {
   await delay(MOCK_LATENCY_MS)
 
-  return mapBtcPriceSnapshot(buildMockBtcPriceSnapshot(nowMs))
+  return mapBtcPriceSnapshot(buildMockBtcPriceSnapshot(nowMs), 'simulated')
+}
+
+/**
+ * Current BTC snapshot from the data service.
+ *
+ * With no backend configured the app runs on simulated data so it still works
+ * standalone. When a backend *is* configured a failed request throws rather
+ * than quietly substituting fake prices — the card's error state is the honest
+ * answer there, and silently showing invented numbers next to a "Live" badge
+ * would not be.
+ */
+export async function fetchBtcPriceSnapshot(
+  nowMs = Date.now(),
+): Promise<BtcPriceSnapshot> {
+  const url = apiUrl(BTC_PRICE_PATH)
+
+  if (!url) {
+    return simulateBtcPriceSnapshot(nowMs)
+  }
+
+  const response = await fetch(url, {
+    headers: { Accept: 'application/json' },
+  })
+
+  if (!response.ok) {
+    throw new Error(`Price request failed with ${response.status}`)
+  }
+
+  return mapBtcPriceSnapshot(
+    (await response.json()) as BtcPriceSnapshotResponse,
+    'live',
+  )
 }

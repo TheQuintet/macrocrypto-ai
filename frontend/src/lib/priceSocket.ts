@@ -1,4 +1,5 @@
 import { createMockPriceSocket } from '@/lib/mockPriceSocket'
+import type { PriceSource } from '@/types/btcPrice'
 import type { PriceSocketFactory } from '@/types/priceStream'
 
 /**
@@ -9,6 +10,11 @@ import type { PriceSocketFactory } from '@/types/priceStream'
 export const PRICE_STREAM_URL = import.meta.env.VITE_PRICE_WS_URL as
   | string
   | undefined
+
+/** Whether the stream is a real socket or the simulated stand-in. */
+export function priceStreamSource(): PriceSource {
+  return PRICE_STREAM_URL ? 'live' : 'simulated'
+}
 
 /** Adapter over a real browser WebSocket. */
 export function createWebSocketPriceSocket(url: string): PriceSocketFactory {

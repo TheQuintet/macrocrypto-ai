@@ -6,6 +6,7 @@ import { renderWithQuery } from '@/test/renderWithQuery'
 import type { BtcPriceSnapshot } from '@/types/btcPrice'
 
 export const SNAPSHOT: BtcPriceSnapshot = {
+  source: 'live',
   currentPrice: 64_213.5,
   change24h: 1_113.5,
   change24hPercent: 1.76,

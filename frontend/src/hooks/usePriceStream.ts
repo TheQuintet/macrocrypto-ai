@@ -5,7 +5,7 @@ import {
   parsePriceStreamMessage,
   reconnectDelayMs,
 } from '@/components/dashboard/lib/priceStream'
-import { createPriceSocket } from '@/lib/priceSocket'
+import { createPriceSocket, priceStreamSource } from '@/lib/priceSocket'
 import { usePriceStreamStore } from '@/stores/priceStreamStore'
 import type { BtcPriceSnapshot } from '@/types/btcPrice'
 import type { PriceSocketFactory, PriceSocketHandle } from '@/types/priceStream'
@@ -84,7 +84,10 @@ export function usePriceStream({
         }
 
         if (event.type === 'message') {
-          const snapshot = parsePriceStreamMessage(event.data)
+          const snapshot = parsePriceStreamMessage(
+            event.data,
+            priceStreamSource(),
+          )
           if (snapshot) {
             applySnapshot(snapshot)
           }
