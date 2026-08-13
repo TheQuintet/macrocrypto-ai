@@ -193,3 +193,42 @@
     transform: translateX(100%);
   }
 }
+
+/*
+ * Price flash (issue #39): a brief tint behind the price on moves larger than
+ * 1%. Kept low-contrast so a ticking price does not pull focus, and skipped
+ * entirely for readers who ask for reduced motion.
+ */
+@keyframes price-flash-up {
+  0% {
+    background-color: transparent;
+  }
+  20% {
+    background-color: color-mix(in oklab, var(--positive) 24%, transparent);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+@keyframes price-flash-down {
+  0% {
+    background-color: transparent;
+  }
+  20% {
+    background-color: color-mix(in oklab, var(--negative) 24%, transparent);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .animate-price-flash-up {
+    animation: price-flash-up 500ms ease-out 1;
+  }
+
+  .animate-price-flash-down {
+    animation: price-flash-down 500ms ease-out 1;
+  }
+}
