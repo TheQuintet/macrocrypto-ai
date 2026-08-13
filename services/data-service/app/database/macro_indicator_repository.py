@@ -223,3 +223,37 @@ class MacroIndicatorRepository:
             )
             .all()
         )
+
+    def get_historical_data_for_similarity(
+        self,
+        start_date: datetime,
+    ):
+        """
+        Return historical macro indicator observations used
+        by the similar historical periods engine.
+
+        Returns all supported indicators from the supplied
+        start date onward.
+        """
+
+        return (
+            self.db.query(MacroIndicator)
+            .filter(
+                MacroIndicator.time >= start_date,
+                MacroIndicator.indicator_name.in_(
+                    [
+                        "cpi",
+                        "federal_funds_rate",
+                        "m2_money_supply",
+                        "dxy",
+                        "ten_year_treasury",
+                        "gdp",
+                        "unemployment",
+                    ]
+                ),
+            )
+            .order_by(
+                MacroIndicator.time.asc()
+            )
+            .all()
+        )

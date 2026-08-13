@@ -44,6 +44,7 @@ from app.core.rate_limit import limiter
 btc_task: Optional[asyncio.Task] = None
 market_cap_task: Optional[asyncio.Task] = None
 economic_task: Optional[asyncio.Task] = None
+current_regime_task: Optional[asyncio.Task] = None
 
 price_service: Optional[PriceService] = None
 data_processor: Optional[DataProcessor] = None
@@ -58,7 +59,7 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     """Lifespan context manager for startup and shutdown events"""
     # global btc_task, price_service, data_processor, cache_client, rabbitmq_producer
-    global btc_task, market_cap_task, economic_task, price_service, data_processor, cache_client, rabbitmq_producer, market_cap_service 
+    global btc_task, market_cap_task, economic_task, current_regime_task, price_service, data_processor, cache_client, rabbitmq_producer, market_cap_service 
 
     # ============================================
     # STARTUP PHASE
@@ -202,6 +203,17 @@ async def lifespan(app: FastAPI):
             f"{settings.MACRO_UPDATE_MINUTE_UTC:02d} UTC)"
         )
 
+        current_regime_task = asyncio.create_task(
+            periodic_current_regime_collection()
+        )
+
+        logger.info(
+            "✅ Current regime scheduler started "
+            f"(daily at "
+            f"{settings.CURRENT_REGIME_UPDATE_HOUR_UTC}:"
+            f"{settings.CURRENT_REGIME_UPDATE_MINUTE_UTC:02d} UTC)"
+        )
+
 
     except Exception as error:
         logger.error(
@@ -249,6 +261,26 @@ async def lifespan(app: FastAPI):
 
         finally:
             economic_task = None
+
+    if current_regime_task:
+        current_regime_task.cancel()
+
+        try:
+            await current_regime_task
+
+        except asyncio.CancelledError:
+            logger.info(
+                "✅ Current regime task cancelled successfully"
+            )
+
+        except Exception as error:
+            logger.error(
+                f"⚠️ Current regime shutdown error: {error}"
+            )
+
+        finally:
+            current_regime_task = None
+
     
     if rabbitmq_producer:
         try:
@@ -566,6 +598,105 @@ async def periodic_economic_collection():
         except Exception:
             logger.exception(
                 "🔥 FRED scheduler failed"
+            )
+
+async def periodic_current_regime_collection():
+    """
+    Periodically process and persist the current macroeconomic regime.
+
+    This scheduler is intentionally separate from the FRED scheduler.
+
+    The process:
+    1. Waits until the configured current-regime update time.
+    2. Creates a database session.
+    3. Loads macroeconomic indicators.
+    4. Determines the current regime.
+    5. Calculates confidence.
+    6. Determines the visual indicator.
+    7. Persists the current regime snapshot.
+    8. Closes the database session.
+    """
+
+    logger.info("🔥 Current regime scheduler started")
+
+    from app.database.session import SessionLocal
+    from app.services.current_regime_service import (
+        CurrentRegimeService,
+    )
+    from app.services.scheduler import (
+        wait_until_current_regime_run,
+    )
+
+    while True:
+        try:
+            # ============================================
+            # WAIT FOR NEXT CURRENT REGIME UPDATE
+            # ============================================
+
+            await wait_until_current_regime_run(
+                settings.CURRENT_REGIME_UPDATE_HOUR_UTC,
+                settings.CURRENT_REGIME_UPDATE_MINUTE_UTC,
+            )
+
+            logger.info(
+                "🔥 Current regime scheduler woke up"
+            )
+
+            # ============================================
+            # CREATE DATABASE SESSION
+            # ============================================
+
+            db = SessionLocal()
+
+            logger.info(
+                "🔥 Current regime database session created"
+            )
+
+            try:
+                # ========================================
+                # PROCESS CURRENT REGIME
+                # ========================================
+
+                service = CurrentRegimeService(db)
+
+                logger.info(
+                    "Starting current regime processing"
+                )
+
+                result = await service.process_current_regime()
+
+                logger.info(
+                    "Current regime processing completed: %s",
+                    result,
+                )
+
+                await service.close()
+
+            except Exception:
+                logger.exception(
+                    "⚠️ Current regime processing failed"
+                )
+
+            finally:
+                # ========================================
+                # CLOSE DATABASE SESSION
+                # ========================================
+
+                db.close()
+
+                logger.info(
+                    "Current regime database session closed"
+                )
+
+        except asyncio.CancelledError:
+            logger.info(
+                "Current regime scheduler cancelled"
+            )
+            raise
+
+        except Exception:
+            logger.exception(
+                "🔥 Current regime scheduler failed"
             )
 
 # ============================================

@@ -7,7 +7,7 @@ Provides API endpoints for retrieving:
 - BTC performance during completed regimes
 """
 
-from datetime import date
+from datetime import date, datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 
 from app.database.session import SessionLocal
 from app.models.macro_regime import MacroRegime
+from app.models.current_regime import CurrentRegime
 from app.models.regime_performance import RegimePerformance
 
 
@@ -67,7 +68,7 @@ class RegimePerformanceResponse(BaseModel):
 
 class RegimeResponse(BaseModel):
     """
-    Macroeconomic regime response.
+    Historical macroeconomic regime response.
     """
 
     id: int
@@ -84,62 +85,77 @@ class RegimeResponse(BaseModel):
     }
 
 
+class CurrentRegimeResponse(BaseModel):
+    """
+    Currently identified macroeconomic regime.
+
+    Includes confidence and visual classification
+    for the current regime.
+    """
+
+    id: int
+    regime_type: str
+    confidence: float
+    visual_indicator: str
+    identified_at: datetime
+    expires_at: Optional[datetime] = None
+
+    model_config = {
+        "from_attributes": True
+    }
+
+
 # ============================================================
 # CURRENT REGIME
 # ============================================================
 
 @router.get(
     "/current",
-    response_model=RegimeResponse,
+    response_model=CurrentRegimeResponse,
     summary="Get current macroeconomic regime",
     description="""
-    Returns the currently active macroeconomic regime.
+    Returns the most recently identified macroeconomic regime.
 
     The regime is determined from the latest available
     macroeconomic indicators collected from FRED.
 
-    The response includes BTC performance when performance
-    data is available.
+    The response includes:
+
+    - Regime type
+    - Confidence percentage
+    - Visual indicator
+    - Identification timestamp
+    - Optional expiration timestamp
     """,
 )
 async def get_current_regime(
     db: Session = Depends(get_db),
 ):
     """
-    Return the currently active macroeconomic regime.
+    Return the most recently identified current regime.
     """
 
-    regime = (
-        db.query(MacroRegime)
-        .filter(
-            MacroRegime.end_date.is_(None)
-        )
+    current_regime = (
+        db.query(CurrentRegime)
         .order_by(
-            MacroRegime.start_date.desc()
+            CurrentRegime.identified_at.desc()
         )
         .first()
     )
 
-    if regime is None:
+    if current_regime is None:
         raise HTTPException(
             status_code=404,
-            detail="No active macroeconomic regime found",
+            detail="No current macroeconomic regime found",
         )
 
-    performance = (
-        db.query(RegimePerformance)
-        .filter(
-            RegimePerformance.regime_id == regime.id
-        )
-        .first()
-    )
-
-    return RegimeResponse(
-        id=regime.id,
-        regime_type=regime.regime_type,
-        start_date=regime.start_date,
-        end_date=regime.end_date,
-        performance=performance,
+    return CurrentRegimeResponse(
+        id=current_regime.id,
+        regime_type=current_regime.regime_type,
+        confidence=current_regime.confidence,
+        visual_indicator=current_regime.visual_indicator,
+        identified_at=current_regime.identified_at,
+        expires_at=current_regime.expires_at,
     )
 
 
@@ -210,8 +226,8 @@ async def get_regime_history(
     response_model=RegimeResponse,
     summary="Get macroeconomic regime by ID",
     description="""
-    Returns a specific macroeconomic regime and its
-    associated BTC performance metrics.
+    Returns a specific historical macroeconomic regime
+    and its associated BTC performance metrics.
     """,
 )
 async def get_regime(

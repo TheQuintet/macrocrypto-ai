@@ -169,6 +169,30 @@ class Settings(BaseSettings):
     # Approximate period used for interest-rate trend detection.
     DAYS_IN_YEAR: int = 365
     DAYS_IN_3_MONTHS: int = 90
+
+    # ============================================
+    # CURRENT REGIME CONFIDENCE
+    # ============================================
+
+    REGIME_CONFIDENCE_CPI_WEIGHT: float = 40.0
+    REGIME_CONFIDENCE_RATE_WEIGHT: float = 30.0
+    REGIME_CONFIDENCE_GDP_WEIGHT: float = 30.0
+
+    REGIME_HIGH_CONFIDENCE_THRESHOLD: float = 80.0
+
+    REGIME_VISUAL_INDICATORS: dict = {
+        "high_inflation": "bear",
+        "low_inflation": "bull",
+        "rising_rates": "bear",
+        "falling_rates": "bull",
+        "recession": "recession",
+        "growth": "bull",
+    }
+
+    CURRENT_REGIME_UPDATE_HOUR_UTC: int = 1
+    CURRENT_REGIME_UPDATE_MINUTE_UTC: int = 0
+
+    
     # ============================================
     # COLLECTION INTERVALS (seconds)
     # ============================================
@@ -186,7 +210,7 @@ class Settings(BaseSettings):
 
     # Development/testing only.
     # Set to a value > 0 to run every N minutes instead of once per day.
-    MACRO_UPDATE_INTERVAL_MINUTES: int = 0
+    MACRO_UPDATE_INTERVAL_MINUTES: int = 2
     # ============================================
     # RATE LIMITING
     # ============================================
