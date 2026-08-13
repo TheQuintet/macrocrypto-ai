@@ -28,9 +28,7 @@ export function usePriceStream({
 }: UsePriceStreamOptions = {}) {
   const queryClient = useQueryClient()
   const status = usePriceStreamStore((state) => state.status)
-  const lastUpdatedAt = usePriceStreamStore((state) => state.lastUpdatedAt)
   const setStatus = usePriceStreamStore((state) => state.setStatus)
-  const setLastUpdatedAt = usePriceStreamStore((state) => state.setLastUpdatedAt)
   const reconnectAttempts = usePriceStreamStore(
     (state) => state.reconnectAttempts,
   )
@@ -58,7 +56,6 @@ export function usePriceStream({
         btcPriceSnapshotQueryKey(),
         snapshot,
       )
-      setLastUpdatedAt(snapshot.updatedAt ?? new Date().toISOString())
     }
 
     const scheduleReconnect = () => {
@@ -120,9 +117,8 @@ export function usePriceStream({
     queryClient,
     socketFactory,
     setStatus,
-    setLastUpdatedAt,
     setReconnectAttempts,
   ])
 
-  return { status, lastUpdatedAt, reconnectAttempts }
+  return { status, reconnectAttempts }
 }

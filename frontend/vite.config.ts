@@ -21,6 +21,13 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
     css: false,
+    // Vitest loads .env files through Vite, so a developer's local backend
+    // config would otherwise leak in and change what the app fetches under
+    // test. Pin these empty; tests that need them stub explicitly.
+    env: {
+      VITE_API_BASE_URL: '',
+      VITE_PRICE_WS_URL: '',
+    },
     exclude: [
       '**/node_modules/**',
       '**/dist/**',

@@ -48,13 +48,13 @@ describe('usePriceStream', () => {
 
   it('renders price updates immediately into the shared cache', () => {
     const socket = createControllableSocket()
-    const { view, queryClient } = renderPriceStream(socket.factory)
+    const { queryClient } = renderPriceStream(socket.factory)
 
     socket.open()
     socket.sendFrame()
 
     expect(getCachedSnapshot(queryClient)?.currentPrice).toBe(64_213.5)
-    expect(view.result.current.lastUpdatedAt).toBe(PRICE_FRAME.updated_at)
+    expect(getCachedSnapshot(queryClient)?.updatedAt).toBe(PRICE_FRAME.updated_at)
   })
 
   it('keeps applying each new frame as it arrives', () => {

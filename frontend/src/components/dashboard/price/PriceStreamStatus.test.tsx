@@ -8,24 +8,33 @@ import {
   openStatusTooltip,
   renderPriceStreamStatus,
 } from '@/components/dashboard/price/PriceStreamStatus.testHelpers'
+import { useBtcPriceSnapshotQuery } from '@/hooks/useBtcPriceSnapshotQuery'
 import { usePriceStream } from '@/hooks/usePriceStream'
 import type { PriceStreamStatus as StreamStatus } from '@/types/priceStream'
 
 vi.mock('@/hooks/usePriceStream', () => ({ usePriceStream: vi.fn() }))
+vi.mock('@/hooks/useBtcPriceSnapshotQuery', () => ({
+  useBtcPriceSnapshotQuery: vi.fn(),
+}))
 
 const priceStream = vi.mocked(usePriceStream)
+const snapshotQuery = vi.mocked(useBtcPriceSnapshotQuery)
 
 function givenStream(
   status: StreamStatus,
   lastUpdatedAt: string | null = null,
   reconnectAttempts = 0,
 ) {
-  priceStream.mockReturnValue({ status, lastUpdatedAt, reconnectAttempts })
+  priceStream.mockReturnValue({ status, reconnectAttempts })
+  snapshotQuery.mockReturnValue({
+    data: lastUpdatedAt ? { updatedAt: lastUpdatedAt } : undefined,
+  } as ReturnType<typeof useBtcPriceSnapshotQuery>)
 }
 
 describe('PriceStreamStatus', () => {
   beforeEach(() => {
     priceStream.mockReset()
+    snapshotQuery.mockReset()
   })
 
   afterEach(() => {
