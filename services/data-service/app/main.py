@@ -17,6 +17,7 @@ from slowapi import _rate_limit_exceeded_handler
 
 from app.config import settings
 from app.database.session import init_db, engine
+from sqlalchemy import text
 from app.cache.client import CacheClient
 from app.rabbitmq.producer import RabbitMQProducer
 from app.collectors.binance import BinanceCollector
@@ -771,11 +772,13 @@ async def health_check():
         ws_status = "running"
     
     db_status = "unknown"
+
     try:
         with engine.connect() as conn:
-            conn.execute("SELECT 1")
+            conn.execute(text("SELECT 1"))
             db_status = "connected"
     except Exception:
+        logger.exception("Database health check failed")
         db_status = "disconnected"
     
     dependencies = {
