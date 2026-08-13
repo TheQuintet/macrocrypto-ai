@@ -1,4 +1,4 @@
-import { Radio, RotateCw, WifiOff } from 'lucide-react'
+import { Radio, RefreshCw, RotateCw, WifiOff } from 'lucide-react'
 import { formatUpdatedAt } from '@/components/dashboard/lib/priceFormat'
 import {
   Tooltip,
@@ -13,24 +13,28 @@ const STATUS_LABEL: Record<StreamStatus, string> = {
   connecting: 'Connecting',
   connected: 'Live',
   disconnected: 'Disconnected',
+  unavailable: 'Polling',
 }
 
 const STATUS_STYLE: Record<StreamStatus, string> = {
   connecting: 'text-warning',
   connected: 'text-positive',
   disconnected: 'text-negative',
+  unavailable: 'text-muted-foreground',
 }
 
 const STATUS_ICON: Record<StreamStatus, typeof Radio> = {
   connecting: RotateCw,
   connected: Radio,
   disconnected: WifiOff,
+  unavailable: RefreshCw,
 }
 
 const STATUS_DETAIL: Record<StreamStatus, string> = {
   connecting: 'Opening the price feed connection',
   connected: 'Receiving live price updates',
   disconnected: 'Price feed lost — retrying automatically',
+  unavailable: 'No live stream configured — polling the price endpoint',
 }
 
 /**

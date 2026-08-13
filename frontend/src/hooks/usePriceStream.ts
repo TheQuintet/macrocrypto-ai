@@ -39,7 +39,15 @@ export function usePriceStream({
   )
 
   useEffect(() => {
-    const connect = socketFactory ?? createPriceSocket()
+    const factory = socketFactory ?? createPriceSocket()
+
+    if (!factory) {
+      setStatus('unavailable')
+      return
+    }
+
+    const connect = factory
+
     let handle: PriceSocketHandle | undefined
     let reconnectTimer: ReturnType<typeof setTimeout> | undefined
     let attempt = 0

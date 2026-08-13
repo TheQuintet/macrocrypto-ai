@@ -11,6 +11,13 @@ import {
 } from '@/hooks/usePriceStream.testHelpers'
 import { resetPriceStreamStore } from '@/stores/priceStreamStore.testHelpers'
 
+// Tests inject their own transport; stub the default so "no transport
+// configured" is reachable without stubbing env and reloading modules.
+vi.mock('@/lib/priceSocket', () => ({
+  createPriceSocket: () => null,
+  priceStreamSource: () => 'simulated',
+}))
+
 describe('usePriceStream', () => {
   beforeEach(() => {
     vi.useFakeTimers()
@@ -125,6 +132,12 @@ describe('usePriceStream', () => {
     expectStatus(view, 'disconnected')
     advanceBy(RECONNECT_BASE_DELAY_MS)
     expect(socket.connectCount()).toBe(2)
+  })
+
+  it('reports the stream unavailable when there is no transport', () => {
+    const { view } = renderPriceStream(null)
+
+    expectStatus(view, 'unavailable')
   })
 
   it('closes the socket and stops reconnecting on unmount', () => {
