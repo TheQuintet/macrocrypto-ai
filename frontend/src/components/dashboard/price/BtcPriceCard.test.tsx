@@ -17,6 +17,12 @@ vi.mock('@/api/btcPrice', async (importOriginal) => {
   return { ...actual, fetchBtcPriceSnapshot: vi.fn() }
 })
 
+// Keep the card's own states under test — no background socket writing frames
+// into the shared cache mid-assertion.
+vi.mock('@/hooks/usePriceStream', () => ({
+  usePriceStream: () => ({ status: 'connecting', lastUpdatedAt: null }),
+}))
+
 const fetchSnapshot = vi.mocked(fetchBtcPriceSnapshot)
 
 describe('BtcPriceCard', () => {

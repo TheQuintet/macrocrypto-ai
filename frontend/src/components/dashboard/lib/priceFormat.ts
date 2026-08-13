@@ -22,6 +22,28 @@ export function formatSignedPercent(value: number) {
   return `${signOf(value)}${Math.abs(value).toFixed(2)}%`
 }
 
+/**
+ * Wall-clock time of the last update, e.g. `14:32:05`.
+ * Rendered in the reader's own timezone — this is a "how fresh is this"
+ * signal, not a timestamp anyone reconciles across zones.
+ */
+export function formatUpdatedAt(isoTimestamp: string | null | undefined) {
+  if (!isoTimestamp) {
+    return PRICE_PLACEHOLDER
+  }
+
+  const parsed = new Date(isoTimestamp)
+  if (Number.isNaN(parsed.getTime())) {
+    return PRICE_PLACEHOLDER
+  }
+
+  return parsed.toLocaleTimeString('en-GB', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  })
+}
+
 export function priceDirection(value: number | null | undefined): PriceDirection {
   if (value == null || !Number.isFinite(value) || value === 0) {
     return 'flat'
