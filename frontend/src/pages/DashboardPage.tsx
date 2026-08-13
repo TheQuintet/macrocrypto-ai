@@ -13,6 +13,8 @@ import {
 import { Skeleton } from '@/components/ui/skeleton'
 import { pageCopy } from '@/constants/navigation'
 import { PriceChart } from '@/components/dashboard/PriceChart'
+import { MacroIndicators } from '@/components/dashboard/MacroIndicators'
+import { useMacroIndicatorsQuery } from '@/hooks/useMacroIndicatorsQuery'
 
 const macroSnapshot = [
   { label: 'CPI (YoY)', hint: 'Inflation' },
@@ -22,6 +24,7 @@ const macroSnapshot = [
 
 export function DashboardPage() {
   const page = pageCopy.dashboard
+  const { data: indicators, isLoading, error } = useMacroIndicatorsQuery();
 
   return (
     <div className="flex min-w-0 flex-col gap-4 sm:gap-6">
@@ -111,6 +114,21 @@ export function DashboardPage() {
         </div>
         <ExampleQueryDemo />
       </section>
+
+      <section className="flex min-w-0 flex-col gap-3">
+         <div className="flex flex-col gap-1">
+           <h2 className="text-base font-medium">Macroeconomic Indicators</h2>
+           <p className="text-sm text-muted-foreground">
+              Key economic indicators and their trends
+           </p>
+         </div>
+         <MacroIndicators 
+            indicators={indicators || []} 
+            isLoading={isLoading}
+            error={error}
+          />
+      </section>
+
     </div>
   )
 }
