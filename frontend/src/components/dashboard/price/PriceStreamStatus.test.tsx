@@ -62,6 +62,15 @@ describe('PriceStreamStatus', () => {
     expectStatusIndicator('Disconnected', 'text-negative')
   })
 
+  it('treats polling as healthy rather than degraded', () => {
+    // No stream configured, but the poll cadence matches the endpoint's cache
+    // TTL — real data is arriving, so this must not read as a problem.
+    givenStream('unavailable')
+    renderPriceStreamStatus()
+
+    expectStatusIndicator('Polling', 'text-positive')
+  })
+
   it('shows the time of the last update', () => {
     const updatedAt = new Date('2024-06-15T12:34:56.000Z')
     givenStream('connected', updatedAt.toISOString())
