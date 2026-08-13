@@ -1,6 +1,7 @@
 import { screen, waitFor } from '@testing-library/react'
 import { expect, vi } from 'vitest'
 import { BtcPriceCard } from '@/components/dashboard/price/BtcPriceCard'
+import { TooltipProvider } from '@/components/ui/tooltip'
 import { renderWithQuery } from '@/test/renderWithQuery'
 import type { BtcPriceSnapshot } from '@/types/btcPrice'
 
@@ -23,7 +24,12 @@ export function snapshotWith(
 }
 
 export function renderBtcPriceCard() {
-  return renderWithQuery(<BtcPriceCard />)
+  // AppLayout provides the tooltip context in the app; mirror it here.
+  return renderWithQuery(
+    <TooltipProvider>
+      <BtcPriceCard />
+    </TooltipProvider>,
+  )
 }
 
 export async function expectPriceShown(text: string) {
@@ -43,12 +49,18 @@ export async function expectPriceUnavailable() {
   })
 }
 
-export async function expect24hRangeShown() {
+export async function expect24hSessionShown() {
   await waitFor(() => {
-    expect(screen.getByText(/24h high/i)).toHaveTextContent(
-      '24h high $64,993.50 · low $63,573.50',
+    expect(screen.getByText('24h high').nextElementSibling).toHaveTextContent(
+      '$64,993.50',
     )
   })
+  expect(screen.getByText('24h low').nextElementSibling).toHaveTextContent(
+    '$63,573.50',
+  )
+  expect(screen.getByText('24h volume').nextElementSibling).toHaveTextContent(
+    '24,180.42 BTC',
+  )
 }
 
 /** Silence the expected console noise from a rejected query. */

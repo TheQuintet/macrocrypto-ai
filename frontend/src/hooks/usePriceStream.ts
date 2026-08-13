@@ -31,6 +31,12 @@ export function usePriceStream({
   const lastUpdatedAt = usePriceStreamStore((state) => state.lastUpdatedAt)
   const setStatus = usePriceStreamStore((state) => state.setStatus)
   const setLastUpdatedAt = usePriceStreamStore((state) => state.setLastUpdatedAt)
+  const reconnectAttempts = usePriceStreamStore(
+    (state) => state.reconnectAttempts,
+  )
+  const setReconnectAttempts = usePriceStreamStore(
+    (state) => state.setReconnectAttempts,
+  )
 
   useEffect(() => {
     const connect = socketFactory ?? createPriceSocket()
@@ -53,6 +59,7 @@ export function usePriceStream({
       }
 
       attempt += 1
+      setReconnectAttempts(attempt)
       setStatus('disconnected')
       reconnectTimer = setTimeout(open, reconnectDelayMs(attempt))
     }
@@ -71,6 +78,7 @@ export function usePriceStream({
 
         if (event.type === 'open') {
           attempt = 0
+          setReconnectAttempts(0)
           setStatus('connected')
           return
         }
@@ -97,7 +105,13 @@ export function usePriceStream({
       clearTimeout(reconnectTimer)
       handle?.close()
     }
-  }, [queryClient, socketFactory, setStatus, setLastUpdatedAt])
+  }, [
+    queryClient,
+    socketFactory,
+    setStatus,
+    setLastUpdatedAt,
+    setReconnectAttempts,
+  ])
 
-  return { status, lastUpdatedAt }
+  return { status, lastUpdatedAt, reconnectAttempts }
 }

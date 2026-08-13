@@ -4,6 +4,7 @@ import {
   formatSignedPercent,
   formatSignedPrice,
   formatUpdatedAt,
+  formatVolume,
   priceDirection,
 } from '@/components/dashboard/lib/priceFormat'
 
@@ -34,6 +35,17 @@ describe('formatSignedPercent', () => {
     expect(formatSignedPercent(1.876)).toBe('+1.88%')
     expect(formatSignedPercent(-0.42)).toBe('-0.42%')
     expect(formatSignedPercent(0)).toBe('0.00%')
+  })
+})
+
+describe('formatVolume', () => {
+  it('labels traded volume in the base asset', () => {
+    expect(formatVolume(24_180.42)).toBe('24,180.42 BTC')
+  })
+
+  it('keeps 2 decimals for small and large volumes alike', () => {
+    expect(formatVolume(0.5)).toBe('0.50 BTC')
+    expect(formatVolume(1_234_567.891)).toBe('1,234,567.89 BTC')
   })
 })
 

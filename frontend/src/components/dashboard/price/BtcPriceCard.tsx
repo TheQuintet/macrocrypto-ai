@@ -1,9 +1,7 @@
+import { PriceDayStats } from '@/components/dashboard/price/PriceDayStats'
 import { PriceStreamStatus } from '@/components/dashboard/price/PriceStreamStatus'
 import { PriceValue } from '@/components/dashboard/price/PriceValue'
-import {
-  formatPrice,
-  PRICE_PLACEHOLDER,
-} from '@/components/dashboard/lib/priceFormat'
+import type { BtcPriceSnapshot } from '@/types/btcPrice'
 import {
   Card,
   CardContent,
@@ -49,10 +47,10 @@ export function BtcPriceCard() {
 function renderFooter(
   isPending: boolean,
   isUnavailable: boolean,
-  data: { high24h: number | null; low24h: number | null } | undefined,
+  data: BtcPriceSnapshot | undefined,
 ) {
   if (isPending) {
-    return <Skeleton className="h-3 w-40" />
+    return <Skeleton className="h-3 w-48" />
   }
 
   if (isUnavailable) {
@@ -64,13 +62,10 @@ function renderFooter(
   }
 
   return (
-    <p className="truncate text-xs tabular-nums text-muted-foreground">
-      24h high {formatOrPlaceholder(data?.high24h)} · low{' '}
-      {formatOrPlaceholder(data?.low24h)}
-    </p>
+    <PriceDayStats
+      high={data?.high24h ?? null}
+      low={data?.low24h ?? null}
+      volume={data?.volume24h ?? null}
+    />
   )
-}
-
-function formatOrPlaceholder(value: number | null | undefined) {
-  return value == null ? PRICE_PLACEHOLDER : formatPrice(value)
 }

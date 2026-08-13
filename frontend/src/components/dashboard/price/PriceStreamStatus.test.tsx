@@ -1,21 +1,26 @@
-import { cleanup } from '@testing-library/react'
+import { cleanup, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   expectLastUpdated,
   expectStatusIndicator,
+  expectTooltipDetail,
+  openStatusTooltip,
   renderPriceStreamStatus,
 } from '@/components/dashboard/price/PriceStreamStatus.testHelpers'
 import { usePriceStream } from '@/hooks/usePriceStream'
+import type { PriceStreamStatus as StreamStatus } from '@/types/priceStream'
 
 vi.mock('@/hooks/usePriceStream', () => ({ usePriceStream: vi.fn() }))
 
 const priceStream = vi.mocked(usePriceStream)
 
 function givenStream(
-  status: 'connecting' | 'connected' | 'disconnected',
+  status: StreamStatus,
   lastUpdatedAt: string | null = null,
+  reconnectAttempts = 0,
 ) {
-  priceStream.mockReturnValue({ status, lastUpdatedAt })
+  priceStream.mockReturnValue({ status, lastUpdatedAt, reconnectAttempts })
 }
 
 describe('PriceStreamStatus', () => {
@@ -27,25 +32,25 @@ describe('PriceStreamStatus', () => {
     cleanup()
   })
 
-  it('shows a live indicator while connected', () => {
+  it('shows a green live indicator while connected', () => {
     givenStream('connected')
     renderPriceStreamStatus()
 
     expectStatusIndicator('Live', 'text-positive')
   })
 
-  it('shows a connecting indicator before the first handshake', () => {
+  it('shows an orange indicator while connecting', () => {
     givenStream('connecting')
     renderPriceStreamStatus()
 
-    expectStatusIndicator('Connecting', 'text-muted-foreground')
+    expectStatusIndicator('Connecting', 'text-warning')
   })
 
-  it('shows a reconnecting indicator after a connection loss', () => {
+  it('shows a red indicator once disconnected', () => {
     givenStream('disconnected')
     renderPriceStreamStatus()
 
-    expectStatusIndicator('Reconnecting', 'text-negative')
+    expectStatusIndicator('Disconnected', 'text-negative')
   })
 
   it('shows the time of the last update', () => {
@@ -69,10 +74,35 @@ describe('PriceStreamStatus', () => {
     expectLastUpdated('--')
   })
 
-  it('mounts the stream so the connection is owned in one place', () => {
-    givenStream('connected')
+  it('explains the connection in a tooltip', async () => {
+    const user = userEvent.setup()
+    givenStream('connected', '2024-06-15T12:34:56.000Z')
     renderPriceStreamStatus()
 
-    expect(priceStream).toHaveBeenCalled()
+    await openStatusTooltip(user)
+
+    expectTooltipDetail('Receiving live price updates')
+    expectTooltipDetail(/^Last update /)
+  })
+
+  it('reports retry attempts in the tooltip while disconnected', async () => {
+    const user = userEvent.setup()
+    givenStream('disconnected', null, 3)
+    renderPriceStreamStatus()
+
+    await openStatusTooltip(user)
+
+    expectTooltipDetail('Price feed lost — retrying automatically')
+    expectTooltipDetail('Reconnect attempts 3')
+  })
+
+  it('omits the attempt count when there have been none', async () => {
+    const user = userEvent.setup()
+    givenStream('connected', null, 0)
+    renderPriceStreamStatus()
+
+    await openStatusTooltip(user)
+
+    expect(screen.queryByText(/reconnect attempts/i)).not.toBeInTheDocument()
   })
 })
