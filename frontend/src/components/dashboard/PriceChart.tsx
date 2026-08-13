@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react'
-import { PriceBarChart } from '@/components/dashboard/price/PriceBarChart'
+import { PriceCandlestickChart } from '@/components/dashboard/price/PriceCandlestickChart'
 import { ChartIntervalSwitcher } from '@/components/dashboard/controls/ChartIntervalSwitcher'
 import {
   DEFAULT_CHART_INTERVAL,
 } from '@/components/dashboard/lib/chartInterval'
 import { ChartPanViewport } from '@/components/dashboard/viewport/ChartPanViewport'
-import { mapHistoryPointsToChartPoints } from '@/components/dashboard/lib/chartPoint'
+import { mapHistoryPointsToChartCandles } from '@/components/dashboard/lib/chartCandle'
 import { ChartTypeSwitcher } from '@/components/dashboard/controls/ChartTypeSwitcher'
 import type { ChartInterval, ChartType } from '@/types/chart'
 import { PriceLineChart } from '@/components/dashboard/price/PriceLineChart'
@@ -33,7 +33,7 @@ export function PriceChart() {
       return []
     }
 
-    return mapHistoryPointsToChartPoints(
+    return mapHistoryPointsToChartCandles(
       historyQuery.data.points,
       historyQuery.data.interval,
     )
@@ -91,7 +91,7 @@ export function PriceChart() {
                   compact={compact}
                 />
               ) : (
-                <PriceBarChart
+                <PriceCandlestickChart
                   data={panData}
                   width={width}
                   height={height}

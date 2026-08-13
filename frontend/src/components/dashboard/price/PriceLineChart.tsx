@@ -6,7 +6,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
-import type { ChartPoint } from '@/types/chart'
+import type { ChartCandle } from '@/types/chart'
 import {
   chartPlotMargin,
   CHART_TOOLTIP_STYLE,
@@ -14,7 +14,7 @@ import {
 } from '@/components/dashboard/lib/chartTheme'
 
 type PriceLineChartProps = {
-  data: ChartPoint[]
+  data: ChartCandle[]
   width: number
   height: number
   yDomain: [number, number]
@@ -56,7 +56,7 @@ export function PriceLineChart({
       />
       <Line
         type="monotone"
-        dataKey="price"
+        dataKey="close"
         stroke="var(--chart-1)"
         strokeWidth={2}
         dot={false}

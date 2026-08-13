@@ -3,7 +3,7 @@ import type { ChartType } from '@/types/chart'
 
 const CHART_TYPE_OPTIONS: { value: ChartType; label: string }[] = [
   { value: 'line', label: 'Line' },
-  { value: 'bar', label: 'Bar' },
+  { value: 'candles', label: 'Candles' },
 ]
 
 type ChartTypeSwitcherProps = {

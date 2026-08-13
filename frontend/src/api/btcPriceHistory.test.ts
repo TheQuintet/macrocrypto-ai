@@ -41,8 +41,8 @@ describe('fetchBtcPriceHistory', () => {
 
     for (const point of response.points) {
       expect(point.timestamp).toMatch(/^\d{4}-\d{2}-\d{2}T/)
-      expect(point.price).toBeGreaterThan(0)
-      expect(Number.isFinite(point.price)).toBe(true)
+      expect(point.close).toBeGreaterThan(0)
+      expect(Number.isFinite(point.close)).toBe(true)
     }
   })
 
@@ -87,6 +87,24 @@ describe('fetchBtcPriceHistory', () => {
     expect(gaps.every((gap) => gap >= stepMs)).toBe(true)
     expect(gaps.every((gap) => gap % stepMs === 0)).toBe(true)
     expect(Math.max(...gaps)).toBeGreaterThan(stepMs)
+  })
+
+  it('returns candles whose wicks contain the body', async () => {
+    const response = await fetchSettled({ range: '7d', interval: '1h' })
+
+    for (const point of response.points) {
+      expect(point.high).toBeGreaterThanOrEqual(Math.max(point.open, point.close))
+      expect(point.low).toBeLessThanOrEqual(Math.min(point.open, point.close))
+      expect(point.low).toBeGreaterThan(0)
+    }
+  })
+
+  it('opens each candle at the previous close', async () => {
+    const response = await fetchSettled({ range: '7d', interval: '1h' })
+
+    for (let index = 1; index < response.points.length; index += 1) {
+      expect(response.points[index].open).toBe(response.points[index - 1].close)
+    }
   })
 
   it('ends near the provided end time', async () => {
