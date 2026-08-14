@@ -1,8 +1,8 @@
 """
 Service for calculating BTC performance during macroeconomic regimes.
 
-The service calculates historical BTC performance for completed
-macroeconomic regimes and stores the results in regime_performance.
+The service calculates BTC performance for macroeconomic regimes
+and stores the results in regime_performance.
 
 BTC price data is read from the existing BTCPrice table.
 """
@@ -49,15 +49,12 @@ class RegimePerformanceService:
 
         If timeframe is provided, only prices within that
         timeframe from the end of the regime are returned.
-
-        Supported timeframes:
-        - 30d
-        - 90d
-        - 1y
-        - 5y
         """
 
-        if timeframe is not None and timeframe not in self.SUPPORTED_TIMEFRAMES:
+        if (
+            timeframe is not None
+            and timeframe not in self.SUPPORTED_TIMEFRAMES
+        ):
             raise ValueError(
                 f"Unsupported timeframe: {timeframe}. "
                 f"Supported timeframes: "
@@ -79,7 +76,6 @@ class RegimePerformanceService:
         else:
             end_datetime = datetime.now(timezone.utc)
 
-        # Apply timeframe restriction.
         if timeframe is not None:
             timeframe_days = self.SUPPORTED_TIMEFRAMES[timeframe]
 
@@ -113,22 +109,6 @@ class RegimePerformanceService:
         """
         Calculate the arithmetic mean of period-to-period
         BTC percentage returns.
-
-        Each consecutive BTC price observation represents one
-        return period. Invalid observations are skipped.
-
-        Example:
-            Prices: 100, 110, 99
-
-            Returns:
-                +10%
-                -10%
-
-            Average return:
-                (10 + -10) / 2 = 0%
-
-        Returns None when there are not enough valid price
-        observations to calculate at least one return.
         """
 
         if len(prices) < 2:
@@ -219,10 +199,7 @@ class RegimePerformanceService:
         prices: list[BTCPrice],
     ) -> float | None:
         """
-        Calculate standard deviation of period-to-period
-        BTC returns.
-
-        Returns sample standard deviation as percentage volatility.
+        Calculate sample standard deviation of BTC returns.
         """
 
         if len(prices) < 3:
@@ -241,6 +218,7 @@ class RegimePerformanceService:
                 previous_price is None
                 or current_price is None
                 or previous_price <= 0
+                or current_price is None
             ):
                 continue
 
@@ -276,11 +254,6 @@ class RegimePerformanceService:
 
         A zero risk-free rate is used for the initial
         implementation.
-
-        Sharpe ratio is calculated as:
-
-            mean period return / standard deviation of
-            period returns
         """
 
         if len(prices) < 3:
@@ -299,6 +272,7 @@ class RegimePerformanceService:
                 previous_price is None
                 or current_price is None
                 or previous_price <= 0
+                or current_price is None
             ):
                 continue
 
@@ -368,12 +342,6 @@ class RegimePerformanceService:
     ) -> dict:
         """
         Calculate BTC performance metrics for a specific timeframe.
-
-        Supported timeframes:
-        - 30d
-        - 90d
-        - 1y
-        - 5y
         """
 
         if timeframe not in self.SUPPORTED_TIMEFRAMES:
@@ -423,12 +391,12 @@ class RegimePerformanceService:
         regime: MacroRegime,
     ) -> RegimePerformance | None:
         """
-        Calculate and store BTC performance for a regime.
+        Calculate and persist BTC performance for a regime.
 
-        If performance already exists, the existing record is
-        updated with the latest available BTC price data.
+        If a performance record already exists, it is updated
+        with the latest available BTC price data.
 
-        The persisted record represents the complete regime period.
+        This works for both active and completed regimes.
         """
 
         prices = self.get_regime_prices(regime)
@@ -446,6 +414,9 @@ class RegimePerformanceService:
             self.db.query(RegimePerformance)
             .filter(
                 RegimePerformance.regime_id == regime.id
+            )
+            .order_by(
+                RegimePerformance.created_at.desc()
             )
             .first()
         )
@@ -476,6 +447,7 @@ class RegimePerformanceService:
             sharpe_ratio=metrics["sharpe_ratio"],
             btc_price_start=metrics["btc_price_start"],
             btc_price_end=metrics["btc_price_end"],
+            created_at=datetime.now(timezone.utc),
         )
 
         self.db.add(performance)
@@ -495,9 +467,7 @@ class RegimePerformanceService:
 
     def process_completed_regimes(self):
         """
-        Calculate performance for completed regimes.
-
-        The currently active regime is intentionally excluded.
+        Calculate and persist performance for completed regimes.
         """
 
         regimes = (
@@ -523,6 +493,11 @@ class RegimePerformanceService:
             if performance:
                 results.append(performance)
 
+        logger.info(
+            "Processed %s completed regime performance records",
+            len(results),
+        )
+
         return results
 
     # --------------------------------------------------
@@ -534,24 +509,139 @@ class RegimePerformanceService:
         regime: MacroRegime,
     ):
         """
-        Calculate performance for a regime when it becomes
-        completed.
+        Calculate and persist performance for the current regime.
 
-        This method is intended to be called immediately
-        after a regime transition.
+        Active regimes are now persisted and updated on each
+        scheduler execution.
         """
 
-        if regime.end_date is None:
-            logger.info(
-                "Regime %s is still active; "
-                "performance calculation deferred",
-                regime.id,
+        if regime is None:
+            logger.warning(
+                "No regime supplied for performance calculation"
             )
             return None
+
+        logger.info(
+            "Calculating BTC performance for active regime %s",
+            regime.id,
+        )
 
         return self.calculate_regime_performance(
             regime
         )
+
+    # --------------------------------------------------
+    # PROCESS ACTIVE REGIME
+    # --------------------------------------------------
+
+    def process_active_regime(self):
+        """
+        Find the currently active regime and persist its
+        latest BTC performance.
+
+        Returns:
+            RegimePerformance | None
+        """
+
+        regime = (
+            self.db.query(MacroRegime)
+            .filter(
+                MacroRegime.end_date.is_(None)
+            )
+            .order_by(
+                MacroRegime.start_date.desc()
+            )
+            .first()
+        )
+
+        if regime is None:
+            logger.info(
+                "No active macroeconomic regime found"
+            )
+            return None
+
+        return self.process_current_regime(
+            regime
+        )
+
+    # --------------------------------------------------
+    # PROCESS ALL REGIMES
+    # --------------------------------------------------
+
+    def process_all_regimes(self):
+        """
+        Process both completed and active regimes.
+
+        Completed regimes are persisted and the active regime
+        is inserted or updated with the latest BTC performance.
+        """
+
+        results = []
+
+        completed = self.process_completed_regimes()
+        results.extend(completed)
+
+        active = self.process_active_regime()
+
+        if active:
+            results.append(active)
+
+        logger.info(
+            "Processed total of %s regime performance records",
+            len(results),
+        )
+
+        return results
+
+    # --------------------------------------------------
+    # ACTIVE REGIME PERFORMANCE
+    # --------------------------------------------------
+
+    def get_active_regime_performance(self):
+        """
+        Calculate BTC performance for the currently active regime.
+
+        This method also persists the calculated performance.
+        """
+
+        regime = (
+            self.db.query(MacroRegime)
+            .filter(
+                MacroRegime.end_date.is_(None)
+            )
+            .order_by(
+                MacroRegime.start_date.desc()
+            )
+            .first()
+        )
+
+        if regime is None:
+            logger.info(
+                "No active regime found"
+            )
+            return None
+
+        performance = (
+            self.calculate_regime_performance(
+                regime
+            )
+        )
+
+        if performance is None:
+            return None
+
+        return {
+            "regime_id": regime.id,
+            "regime_type": regime.regime_type,
+            "start_date": regime.start_date,
+            "end_date": regime.end_date,
+            "avg_return": performance.avg_return,
+            "max_drawdown": performance.max_drawdown,
+            "volatility": performance.volatility,
+            "sharpe_ratio": performance.sharpe_ratio,
+            "btc_price_start": performance.btc_price_start,
+            "btc_price_end": performance.btc_price_end,
+        }
 
     # --------------------------------------------------
     # CSV EXPORT
@@ -609,7 +699,10 @@ class RegimePerformanceService:
                 self.db.query(RegimePerformance)
                 .filter(
                     RegimePerformance.regime_id
-                    == regime.id
+                    == regime.id,
+                )
+                .order_by(
+                    RegimePerformance.created_at.desc()
                 )
                 .first()
             )

@@ -524,3 +524,219 @@ def test_get_regime_prices_query_execution(
     assert mock_query.filter.called
     assert mock_filter.order_by.called
     assert len(result) == 2
+
+
+# ==========================================================
+# PERFORMANCE PERSISTENCE TESTS
+# ==========================================================
+
+def test_calculate_regime_performance_persists_record(
+    service,
+    sample_regime,
+    mock_db,
+):
+    """
+    Verifies that BTC performance for a completed regime is
+    calculated and persisted as a new RegimePerformance record.
+    """
+
+    prices = [
+        MockPriceRecord(100.0),
+        MockPriceRecord(110.0),
+        MockPriceRecord(99.0),
+    ]
+
+    service.get_regime_prices = MagicMock(
+        return_value=prices
+    )
+
+    # Mock the complete SQLAlchemy query chain used by
+    # calculate_regime_performance():
+    #
+    # db.query(...)
+    #   .filter(...)
+    #   .order_by(...)
+    #   .first()
+    performance_query = MagicMock()
+    performance_filter = MagicMock()
+    performance_order = MagicMock()
+
+    mock_db.query.return_value = performance_query
+    performance_query.filter.return_value = performance_filter
+    performance_filter.order_by.return_value = performance_order
+    performance_order.first.return_value = None
+
+    result = service.calculate_regime_performance(
+        sample_regime
+    )
+
+    assert result is not None
+    assert result.regime_id == sample_regime.id
+
+    assert result.avg_return == pytest.approx(0.0)
+    assert result.max_drawdown == pytest.approx(-10.0)
+    assert result.volatility == pytest.approx(
+        math.sqrt(200.0)
+    )
+    assert result.sharpe_ratio == pytest.approx(0.0)
+
+    assert result.btc_price_start == 100.0
+    assert result.btc_price_end == 99.0
+
+    mock_db.add.assert_called_once_with(result)
+    mock_db.commit.assert_called_once()
+    mock_db.refresh.assert_called_once_with(result)
+
+
+def test_calculate_regime_performance_updates_existing_record(
+    service,
+    sample_regime,
+    mock_db,
+):
+    """
+    Verifies that an existing RegimePerformance record is
+    updated instead of creating a duplicate record.
+    """
+
+    prices = [
+        MockPriceRecord(100.0),
+        MockPriceRecord(110.0),
+        MockPriceRecord(99.0),
+    ]
+
+    service.get_regime_prices = MagicMock(
+        return_value=prices
+    )
+
+    existing = MagicMock()
+    existing.regime_id = sample_regime.id
+
+    # Mock the complete SQLAlchemy query chain:
+    #
+    # db.query(...)
+    #   .filter(...)
+    #   .order_by(...)
+    #   .first()
+    performance_query = MagicMock()
+    performance_filter = MagicMock()
+    performance_order = MagicMock()
+
+    mock_db.query.return_value = performance_query
+    performance_query.filter.return_value = performance_filter
+    performance_filter.order_by.return_value = performance_order
+    performance_order.first.return_value = existing
+
+    result = service.calculate_regime_performance(
+        sample_regime
+    )
+
+    assert result is existing
+
+    assert existing.regime_id == sample_regime.id
+    assert existing.avg_return == pytest.approx(0.0)
+    assert existing.max_drawdown == pytest.approx(-10.0)
+    assert existing.volatility == pytest.approx(
+        math.sqrt(200.0)
+    )
+    assert existing.sharpe_ratio == pytest.approx(0.0)
+
+    assert existing.btc_price_start == 100.0
+    assert existing.btc_price_end == 99.0
+
+    # Existing record must be updated, not inserted.
+    mock_db.add.assert_not_called()
+    mock_db.commit.assert_called_once()
+    mock_db.refresh.assert_called_once_with(existing)
+
+def test_calculate_regime_performance_returns_none_without_enough_prices(
+    service,
+    sample_regime,
+):
+    """
+    Verifies that performance is not persisted when fewer than
+    two BTC price observations are available.
+    """
+
+    service.get_regime_prices = MagicMock(
+        return_value=[
+            MockPriceRecord(100.0),
+        ]
+    )
+
+    result = service.calculate_regime_performance(
+        sample_regime
+    )
+
+    assert result is None
+
+
+# ==========================================================
+# COMPLETED REGIME PROCESSING TESTS
+# ==========================================================
+
+
+def test_process_completed_regimes_processes_completed_regimes(
+    service,
+    sample_regime,
+    mock_db,
+):
+    """
+    Verifies that process_completed_regimes() selects only
+    completed regimes and calculates their BTC performance.
+    """
+
+    mock_query = mock_db.query.return_value
+    mock_filter = mock_query.filter.return_value
+    mock_order = mock_filter.order_by.return_value
+
+    mock_order.all.return_value = [
+        sample_regime
+    ]
+
+    expected_performance = MagicMock()
+
+    service.calculate_regime_performance = MagicMock(
+        return_value=expected_performance
+    )
+
+    result = service.process_completed_regimes()
+
+    assert result == [
+        expected_performance
+    ]
+
+    service.calculate_regime_performance.assert_called_once_with(
+        sample_regime
+    )
+
+    mock_db.query.assert_called_once_with(MacroRegime)
+    assert mock_query.filter.called
+    assert mock_filter.order_by.called
+    assert mock_order.all.called
+
+
+def test_process_completed_regimes_excludes_active_regimes(
+    service,
+    mock_db,
+):
+    """
+    Verifies that active regimes are excluded because their
+    end_date is NULL.
+    """
+
+    mock_query = mock_db.query.return_value
+    mock_filter = mock_query.filter.return_value
+    mock_order = mock_filter.order_by.return_value
+
+    mock_order.all.return_value = []
+
+    service.calculate_regime_performance = MagicMock()
+
+    result = service.process_completed_regimes()
+
+    assert result == []
+
+    service.calculate_regime_performance.assert_not_called()
+
+    mock_db.query.assert_called_once_with(MacroRegime)
+    assert mock_query.filter.called
