@@ -2,11 +2,12 @@
 
 import json
 import logging
-from fastapi import APIRouter, Request, Depends
+from fastapi import APIRouter, Request, Depends, HTTPException
 from typing import Optional
 
 from app.api.dependencies import jwt_auth
 from app.api.schemas.price_response import PriceResponse
+from app.database.btc_price_repository import BTCPriceRepository
 from app.core.rate_limit import limiter
 from app.config import settings
 
@@ -114,31 +115,86 @@ async def get_btc_price(
 
 @router.get(
     "/price/history",
-    summary="Get historical BTC price data"
+    summary="Get historical BTC price data",
 )
 @limiter.limit(f"{settings.RATE_LIMIT_REQUESTS}/minute")
 async def get_btc_history(
     request: Request,
     days: int = 7,
-    _: str | None = Depends(jwt_auth)
+    _: str | None = Depends(jwt_auth),
 ):
     """
     Get historical BTC price data.
 
+    Historical data is retrieved from the existing BTCPrice
+    TimescaleDB hypertable.
+
     Args:
-        days: Number of days of history (default: 7)
+        days: Number of days of history to retrieve.
+              Defaults to 7.
 
     Returns:
-        Historical price data
-    """
-    # This will be implemented when database/models.py is ready
-    # For now, return a placeholder
-    return {
-        "message": "Historical data endpoint - coming soon",
-        "days": days,
-        "data": []
-    }
+        Historical BTC price records ordered chronologically.
 
+    Raises:
+        HTTPException:
+            400 if days is less than 1.
+            500 if historical data cannot be retrieved.
+    """
+
+    # --------------------------------------------------
+    # Validate requested period
+    # --------------------------------------------------
+
+    if days < 1:
+        raise HTTPException(
+            status_code=400,
+            detail="days must be greater than 0",
+        )
+
+    repository = BTCPriceRepository()
+
+    # --------------------------------------------------
+    # Retrieve historical BTC data
+    # --------------------------------------------------
+
+    try:
+        records = repository.get_history(
+            days=days,
+        )
+
+    except Exception:
+        logger.exception(
+            "Failed to retrieve BTC price history "
+            "for %s days",
+            days,
+        )
+
+        raise HTTPException(
+            status_code=500,
+            detail="Unable to retrieve historical BTC price data",
+        )
+
+    # --------------------------------------------------
+    # Serialize database records
+    # --------------------------------------------------
+
+    data = [
+        {
+            "time": record.time.isoformat(),
+            "price": record.price,
+            "volume": record.volume,
+            "market_cap": record.market_cap,
+            "source": record.source,
+        }
+        for record in records
+    ]
+
+    return {
+        "days": days,
+        "count": len(data),
+        "data": data,
+    }
 
 @router.get(
     "/status",

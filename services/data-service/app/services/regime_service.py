@@ -12,6 +12,10 @@ Supported regimes:
 - falling_rates
 - recession
 - growth
+
+The service also calculates:
+- Classification confidence as a percentage (0-100)
+- Visual market indicator (bull/bear/recession)
 """
 
 import logging
@@ -35,6 +39,15 @@ class RegimeService:
         "falling_rates",
         "recession",
         "growth",
+    }
+
+    VISUAL_INDICATORS = {
+        "high_inflation": "bear",
+        "low_inflation": "bull",
+        "rising_rates": "bear",
+        "falling_rates": "bull",
+        "recession": "recession",
+        "growth": "bull",
     }
 
     def __init__(
@@ -205,7 +218,8 @@ class RegimeService:
 
         if (
             cpi_inflation is not None
-            and cpi_inflation > settings.INFLATION_THRESHOLD
+            and cpi_inflation
+            > settings.INFLATION_THRESHOLD
         ):
             return "high_inflation"
 
@@ -215,7 +229,8 @@ class RegimeService:
 
         if (
             cpi_inflation is not None
-            and cpi_inflation < settings.LOW_INFLATION_THRESHOLD
+            and cpi_inflation
+            < settings.LOW_INFLATION_THRESHOLD
         ):
             return "low_inflation"
 
@@ -261,6 +276,277 @@ class RegimeService:
         return "growth"
 
     # --------------------------------------------------
+    # CONFIDENCE
+    # --------------------------------------------------
+
+    def calculate_confidence(
+        self,
+        indicators: list,
+        regime_type: str,
+    ) -> float:
+        """
+        Calculate classification confidence as a percentage.
+
+        This is a deterministic confidence score, not a
+        statistical probability.
+
+        Confidence is based on the strength and availability
+        of the evidence supporting the identified regime.
+
+        Returns:
+            Float between 0 and 100.
+        """
+
+        if not indicators:
+            return 0.0
+
+        values = {}
+
+        for indicator in indicators:
+            name = indicator.indicator_name.lower()
+
+            values.setdefault(name, []).append(
+                indicator
+            )
+
+        # Sort newest first.
+        for name in values:
+            values[name] = sorted(
+                values[name],
+                key=lambda item: item.time,
+                reverse=True,
+            )
+
+        # --------------------------------------------------
+        # RECESSION
+        # --------------------------------------------------
+
+        if regime_type == "recession":
+
+            gdp_records = values.get(
+                "gdp",
+                [],
+            )
+
+            negative_quarters = sum(
+                1
+                for record in gdp_records[:2]
+                if (
+                    record.change_percent is not None
+                    and record.change_percent < 0
+                )
+            )
+
+            if negative_quarters >= 2:
+                return 100.0
+
+            return 50.0
+
+        # --------------------------------------------------
+        # CPI REGIMES
+        # --------------------------------------------------
+
+        if regime_type in {
+            "high_inflation",
+            "low_inflation",
+        }:
+
+            cpi_records = values.get(
+                "cpi",
+                [],
+            )
+
+            if len(cpi_records) < 2:
+                return 50.0
+
+            latest_cpi = cpi_records[0]
+
+            target_time = (
+                latest_cpi.time
+                - timedelta(
+                    days=settings.DAYS_IN_YEAR
+                )
+            )
+
+            historical_cpi = min(
+                cpi_records[1:],
+                key=lambda item: abs(
+                    (
+                        item.time
+                        - target_time
+                    ).total_seconds()
+                ),
+            )
+
+            if (
+                latest_cpi.value is None
+                or historical_cpi.value is None
+                or historical_cpi.value <= 0
+            ):
+                return 50.0
+
+            inflation = (
+                (
+                    latest_cpi.value
+                    - historical_cpi.value
+                )
+                / historical_cpi.value
+            ) * 100
+
+            if regime_type == "high_inflation":
+
+                threshold = (
+                    settings.INFLATION_THRESHOLD
+                )
+
+                if inflation > threshold:
+                    return min(
+                        100.0,
+                        50.0
+                        + (
+                            inflation
+                            - threshold
+                        ) * 10,
+                    )
+
+            if regime_type == "low_inflation":
+
+                threshold = (
+                    settings.LOW_INFLATION_THRESHOLD
+                )
+
+                if inflation < threshold:
+                    return min(
+                        100.0,
+                        50.0
+                        + (
+                            threshold
+                            - inflation
+                        ) * 10,
+                    )
+
+            return 50.0
+
+        # --------------------------------------------------
+        # INTEREST RATE REGIMES
+        # --------------------------------------------------
+
+        if regime_type in {
+            "rising_rates",
+            "falling_rates",
+        }:
+
+            rate_records = values.get(
+                "federal_funds_rate",
+                [],
+            )
+
+            if len(rate_records) < 2:
+                return 50.0
+
+            latest_rate = rate_records[0]
+
+            if latest_rate.value is None:
+                return 50.0
+
+            target_time = (
+                latest_rate.time
+                - timedelta(
+                    days=settings.DAYS_IN_3_MONTHS
+                )
+            )
+
+            historical_rate = min(
+                rate_records[1:],
+                key=lambda item: abs(
+                    (
+                        item.time
+                        - target_time
+                    ).total_seconds()
+                ),
+            )
+
+            if historical_rate.value is None:
+                return 50.0
+
+            rate_change = (
+                latest_rate.value
+                - historical_rate.value
+            )
+
+            if regime_type == "rising_rates" and rate_change > 0:
+                return min(
+                    100.0,
+                    50.0 + abs(rate_change) * 10,
+                )
+
+            if regime_type == "falling_rates" and rate_change < 0:
+                return min(
+                    100.0,
+                    50.0 + abs(rate_change) * 10,
+                )
+
+            return 50.0
+
+        # --------------------------------------------------
+        # GROWTH
+        # --------------------------------------------------
+
+        if regime_type == "growth":
+
+            gdp_records = values.get(
+                "gdp",
+                [],
+            )
+
+            if not gdp_records:
+                return 50.0
+
+            latest_gdp = gdp_records[0]
+
+            if latest_gdp.change_percent is None:
+                return 50.0
+
+            growth = latest_gdp.change_percent
+            threshold = settings.GDP_GROWTH_THRESHOLD
+
+            if growth > threshold:
+                return min(
+                    100.0,
+                    50.0
+                    + (
+                        growth
+                        - threshold
+                    ) * 10,
+                )
+
+            # Growth is the fallback classification.
+            return 50.0
+
+        return 50.0
+
+    # --------------------------------------------------
+    # VISUAL INDICATOR
+    # --------------------------------------------------
+
+    def get_visual_indicator(
+        self,
+        regime_type: str,
+    ) -> str:
+        """
+        Map the macroeconomic regime to a visual market
+        indicator used by the API/UI.
+
+        Returns:
+            bull, bear, or recession.
+        """
+
+        return self.VISUAL_INDICATORS.get(
+            regime_type,
+            "recession",
+        )
+
+    # --------------------------------------------------
     # REGIME UPDATE
     # --------------------------------------------------
 
@@ -292,6 +578,15 @@ class RegimeService:
             )
             return None
 
+        confidence = self.calculate_confidence(
+            indicators,
+            regime_type,
+        )
+
+        visual_indicator = self.get_visual_indicator(
+            regime_type
+        )
+
         current_regime = (
             self.repository.get_current_regime()
         )
@@ -310,12 +605,17 @@ class RegimeService:
             )
 
             self.repository.set_current_regime(
-                regime_type=regime_type
+                regime_type=regime_type,
+                confidence=confidence,
+                visual_indicator=visual_indicator,
             )
 
             logger.info(
-                "Initial macro regime created: %s",
+                "Initial macro regime created: "
+                "regime=%s, confidence=%.2f%%, indicator=%s",
                 regime_type,
+                confidence,
+                visual_indicator,
             )
 
             return regime
@@ -400,12 +700,17 @@ class RegimeService:
         )
 
         self.repository.set_current_regime(
-            regime_type=regime_type
+            regime_type=regime_type,
+            confidence=confidence,
+            visual_indicator=visual_indicator,
         )
 
         logger.info(
-            "New macro regime created: %s",
+            "New macro regime created: "
+            "regime=%s, confidence=%.2f%%, indicator=%s",
             regime_type,
+            confidence,
+            visual_indicator,
         )
 
         return new_regime

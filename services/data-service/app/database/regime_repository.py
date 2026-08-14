@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 from app.models.macro_regime import MacroRegime
 from app.models.regime_performance import RegimePerformance
 from app.models.current_regime import CurrentRegime
+from app.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -108,11 +109,10 @@ class RegimeRepository:
         regime.end_date = end_date
 
         if regime.start_date:
-            regime.duration_days = (
-                end_date - regime.start_date
-            ).days
             if end_date >= regime.start_date:
-                regime.duration_days = (end_date - regime.start_date).days
+                regime.duration_days = (
+                    end_date - regime.start_date
+                ).days
             else:
                 regime.duration_days = 0
 
@@ -187,14 +187,60 @@ class RegimeRepository:
     def set_current_regime(
         self,
         regime_type: str,
+        confidence: float,
+        visual_indicator: str,
         expires_at: datetime | None = None,
     ) -> CurrentRegime:
         """
         Store the currently identified macro regime.
+
+        Args:
+            regime_type:
+                Classified macroeconomic regime.
+
+            confidence:
+                Classification confidence expressed as
+                a percentage from 0 to 100.
+
+            visual_indicator:
+                Presentation-level market indicator.
+                Supported values are configured in settings.
+
+            expires_at:
+                Optional expiration timestamp.
         """
+
+        # ----------------------------------------------
+        # Validate confidence
+        # ----------------------------------------------
+
+        if not 0 <= confidence <= 100:
+            raise ValueError(
+                "Confidence must be between 0 and 100"
+            )
+
+        # ----------------------------------------------
+        # Validate visual indicator
+        # ----------------------------------------------
+
+        valid_visual_indicators = set(
+            settings.REGIME_VISUAL_INDICATORS.values()
+        )
+
+        if visual_indicator not in valid_visual_indicators:
+            raise ValueError(
+                "Visual indicator must be one of: "
+                + ", ".join(sorted(valid_visual_indicators))
+            )
+
+        # ----------------------------------------------
+        # Create current regime record
+        # ----------------------------------------------
 
         current = CurrentRegime(
             regime_type=regime_type,
+            confidence=confidence,
+            visual_indicator=visual_indicator,
             identified_at=datetime.now(timezone.utc),
             expires_at=expires_at,
         )
@@ -204,8 +250,11 @@ class RegimeRepository:
         self.db.refresh(current)
 
         logger.info(
-            "Current macro regime updated: %s",
+            "Current macro regime updated: %s "
+            "(confidence=%.1f%%, visual_indicator=%s)",
             regime_type,
+            confidence,
+            visual_indicator,
         )
 
         return current
