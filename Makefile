@@ -50,6 +50,20 @@ help:
 	@echo "  $(GREEN)make data-lint$(RESET)      - Lint data-service code"
 	@echo "  $(GREEN)make data-format$(RESET)    - Format data-service code"
 	@echo ""
+	@echo "$(YELLOW)Alert-Service Commands:$(RESET)"
+	@echo "  $(GREEN)make alert-up$(RESET)       - Start alert-service (rebuilds if needed)"
+	@echo "  $(GREEN)make alert-down$(RESET)     - Stop alert-service"
+	@echo "  $(GREEN)make alert-logs$(RESET)     - Show alert-service logs"
+	@echo "  $(GREEN)make alert-restart$(RESET)  - Restart alert-service"
+	@echo "  $(GREEN)make alert-shell$(RESET)    - Open shell in alert-service"
+	@echo "  $(GREEN)make alert-test$(RESET)     - Run alert-service tests"
+	@echo "  $(GREEN)make alert-test-unit$(RESET)- Run unit tests only"
+	@echo "  $(GREEN)make alert-test-int$(RESET) - Run integration tests only"
+	@echo "  $(GREEN)make alert-test-cov$(RESET) - Run tests with coverage"
+	@echo "  $(GREEN)make alert-health$(RESET)   - Check alert-service health"
+	@echo "  $(GREEN)make alert-lint$(RESET)     - Lint alert-service code"
+	@echo "  $(GREEN)make alert-format$(RESET)   - Format alert-service code"
+	@echo ""
 	@echo "$(YELLOW)Infrastructure Commands:$(RESET)"
 	@echo "  $(GREEN)make redis-cli$(RESET)      - Open Redis CLI"
 	@echo "  $(GREEN)make postgres-cli$(RESET)   - Open PostgreSQL CLI"
@@ -154,7 +168,85 @@ data-test-quick:
 	docker compose exec data-service pytest tests/ -v -k "not slow"
 
 # ============================================
-# LINTING & FORMATTING
+# ALERT-SERVICE COMMANDS
+# ============================================
+
+alert-up:
+	docker compose up -d --build alert-service
+	@echo "✅ Alert-service started. View logs with: make alert-logs"
+
+alert-down:
+	docker compose stop alert-service
+	docker compose rm -f alert-service
+	@echo "✅ Alert-service stopped"
+
+alert-logs:
+	docker compose logs -f alert-service
+
+alert-restart:
+	docker compose restart alert-service
+	@echo "✅ Alert-service restarted"
+
+alert-shell:
+	docker compose exec alert-service /bin/bash
+
+# ============================================
+# ALERT-SERVICE TEST COMMANDS
+# ============================================
+
+alert-test:
+	@echo "🧪 Running all tests..."
+	docker compose exec alert-service pytest tests/ -v
+
+alert-test-unit:
+	@echo "🧪 Running unit tests..."
+	docker compose exec alert-service pytest tests/unit/ -v
+
+alert-test-int:
+	@echo "🧪 Running integration tests..."
+	docker compose exec alert-service pytest tests/integration/ -v
+
+alert-test-cov:
+	@echo "🧪 Running tests with coverage..."
+	docker compose exec alert-service pytest tests/ --cov=app --cov-report=term --cov-report=html
+	@echo "📊 Coverage report: services/alert-service/htmlcov/index.html"
+
+alert-test-file:
+	@echo "🧪 Running test file: $(FILE)"
+	docker compose exec alert-service pytest $(FILE) -v
+
+alert-test-verbose:
+	@echo "🧪 Running tests with verbose output..."
+	docker compose exec alert-service pytest tests/ -v -s --tb=long
+
+alert-test-quick:
+	@echo "🧪 Running tests (skip slow)..."
+	docker compose exec alert-service pytest tests/ -v -k "not slow"
+
+# ============================================
+# ALERT-SERVICE HEALTH CHECK
+# ============================================
+
+alert-health:
+	@echo "🏥 Checking alert-service health..."
+	@curl -s http://localhost:8003/health | jq || echo "❌ Alert service not running or jq not installed"
+
+alert-ready:
+	@echo "🔄 Checking alert-service readiness..."
+	@curl -s http://localhost:8003/ready | jq || echo "❌ Alert service not ready or jq not installed"
+
+# ============================================
+# ALERT-SERVICE LINTING & FORMATTING
+# ============================================
+
+alert-lint:
+	docker compose exec alert-service ruff check app/ || echo "⚠️  Lint issues found"
+
+alert-format:
+	docker compose exec alert-service black app/ --line-length=120
+
+# ============================================
+# LINTING & FORMATTING (Data Service)
 # ============================================
 
 data-lint:
