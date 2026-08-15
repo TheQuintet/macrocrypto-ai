@@ -30,6 +30,11 @@ from app.services.price_service import PriceService
 from app.services.history_service import HistoryService
 from app.services.data_processor import DataProcessor
 
+from app.services.scheduler import (
+    periodic_macro_collection,
+    periodic_regime_collection,
+)
+
 # Import rate limiting
 from app.core.rate_limit import limiter
 
@@ -194,7 +199,7 @@ async def lifespan(app: FastAPI):
 
 
         economic_task = asyncio.create_task(
-            periodic_economic_collection()
+            periodic_macro_collection()
         )
 
         logger.info(
@@ -205,7 +210,7 @@ async def lifespan(app: FastAPI):
         )
 
         current_regime_task = asyncio.create_task(
-            periodic_current_regime_collection()
+            periodic_regime_collection()
         )
 
         logger.info(
@@ -447,258 +452,286 @@ async def run_market_cap_collection(
         await asyncio.sleep(900)
 
 
-async def periodic_economic_collection():
-    """
-    Periodically collect macroeconomic indicators from FRED
-    and update the current macroeconomic regime.
+# async def periodic_economic_collection():
+#     """
+#     Periodically collect macroeconomic indicators from FRED
+#     and update the current macroeconomic regime.
 
-    The process:
-    1. Waits for the configured macro update time/interval.
-    2. Creates a database session.
-    3. Updates all supported FRED indicators.
-    4. Processes macro regime detection.
-    5. Retries failed macro updates up to 3 times.
-    6. Closes the database session.
-    """
+#     The process:
+#     1. Waits for the configured macro update time/interval.
+#     2. Creates a database session.
+#     3. Updates all supported FRED indicators.
+#     4. Processes macro regime detection.
+#     5. Retries failed macro updates up to 3 times.
+#     6. Closes the database session.
+#     """
 
-    logger.info("🔥 FRED scheduler started")
+#     logger.info("🔥 FRED scheduler started")
 
-    from app.services.indicator_service import IndicatorService
-    from app.database.session import SessionLocal
-    from app.services.scheduler import wait_until_next_run
-    from app.config import settings
+#     from app.services.indicator_service import IndicatorService
+#     from app.database.session import SessionLocal
+#     from app.services.scheduler import wait_until_next_run
+#     from app.config import settings
 
-    # Lazy import for regime processing.
-    from app.services.regime_service import RegimeService
+#     # Lazy import for regime processing.
+#     from app.services.regime_service import RegimeService
 
-    while True:
-        try:
-            # ============================================
-            # WAIT FOR NEXT MACRO UPDATE
-            # ============================================
+#     while True:
+#         try:
+#             # ============================================
+#             # WAIT FOR NEXT MACRO UPDATE
+#             # ============================================
 
-            if settings.MACRO_UPDATE_INTERVAL_MINUTES > 0:
-                logger.info(
-                    f"🔥 Waiting "
-                    f"{settings.MACRO_UPDATE_INTERVAL_MINUTES} minutes"
-                )
+#             if settings.MACRO_UPDATE_INTERVAL_MINUTES > 0:
+#                 logger.info(
+#                     f"🔥 Waiting "
+#                     f"{settings.MACRO_UPDATE_INTERVAL_MINUTES} minutes"
+#                 )
 
-                await asyncio.sleep(
-                    settings.MACRO_UPDATE_INTERVAL_MINUTES * 60
-                )
+#                 await asyncio.sleep(
+#                     settings.MACRO_UPDATE_INTERVAL_MINUTES * 60
+#                 )
 
-            else:
-                await wait_until_next_run(
-                    settings.MACRO_UPDATE_HOUR_UTC,
-                    settings.MACRO_UPDATE_MINUTE_UTC,
-                )
+#             else:
+#                 await wait_until_next_run(
+#                     settings.MACRO_UPDATE_HOUR_UTC,
+#                     settings.MACRO_UPDATE_MINUTE_UTC,
+#                 )
 
-            logger.info("🔥 FRED scheduler woke up")
+#             logger.info("🔥 FRED scheduler woke up")
 
-            # ============================================
-            # CREATE DATABASE SESSION
-            # ============================================
+#             # ============================================
+#             # CREATE DATABASE SESSION
+#             # ============================================
 
-            db = SessionLocal()
+#             db = SessionLocal()
 
-            logger.info("🔥 Database session created")
+#             logger.info("🔥 Database session created")
 
-            try:
-                # ========================================
-                # UPDATE MACRO INDICATORS
-                # ========================================
+#             try:
+#                 # ========================================
+#                 # UPDATE MACRO INDICATORS
+#                 # ========================================
 
-                service = IndicatorService(
-                    db,
-                    cache_client,
-                )
+#                 service = IndicatorService(
+#                     db,
+#                     cache_client,
+#                 )
 
-                logger.info(
-                    "Starting scheduled macro update"
-                )
+#                 logger.info(
+#                     "Starting scheduled macro update"
+#                 )
 
-                result = None
+#                 result = None
 
-                for attempt in range(3):
-                    try:
-                        result = (
-                            await service.update_all_indicators()
-                        )
+#                 for attempt in range(3):
+#                     try:
+#                         result = (
+#                             await service.update_all_indicators()
+#                         )
 
-                        logger.info(
-                            f"Macro update completed: "
-                            f"{list(result.keys())}"
-                        )
+#                         logger.info(
+#                             f"Macro update completed: "
+#                             f"{list(result.keys())}"
+#                         )
 
-                        break
+#                         break
 
-                    except Exception:
-                        logger.exception(
-                            f"Macro update attempt "
-                            f"{attempt + 1} failed"
-                        )
+#                     except Exception:
+#                         logger.exception(
+#                             f"Macro update attempt "
+#                             f"{attempt + 1} failed"
+#                         )
 
-                        if attempt == 2:
-                            raise
+#                         if attempt == 2:
+#                             raise
 
-                        logger.info(
-                            "Retrying macro update "
-                            "in 30 seconds..."
-                        )
+#                         logger.info(
+#                             "Retrying macro update "
+#                             "in 30 seconds..."
+#                         )
 
-                        await asyncio.sleep(30)
+#                         await asyncio.sleep(30)
 
-                # ========================================
-                # CLOSE INDICATOR SERVICE
-                # ========================================
+#                 # ========================================
+#                 # CLOSE INDICATOR SERVICE
+#                 # ========================================
 
-                await service.close()
+#                 await service.close()
 
-                logger.info(
-                    "IndicatorService closed successfully"
-                )
+#                 logger.info(
+#                     "IndicatorService closed successfully"
+#                 )
 
-                # ========================================
-                # UPDATE MACROECONOMIC REGIME
-                # ========================================
+#                 # ========================================
+#                 # UPDATE MACROECONOMIC REGIME
+#                 # ========================================
 
-                try:
-                    logger.info(
-                        "Starting macro regime processing"
-                    )
+#                 try:
+#                     logger.info(
+#                         "Starting macro regime processing"
+#                     )
 
-                    regime_service = RegimeService(db)
+#                     regime_service = RegimeService(db)
 
-                    regime_result = (
-                        await regime_service.update_regime()
-                    )
+#                     regime_result = (
+#                         await regime_service.update_regime()
+#                     )
 
-                    logger.info(
-                        f"Macro regime processing completed: "
-                        f"{regime_result}"
-                    )
+#                     logger.info(
+#                         f"Macro regime processing completed: "
+#                         f"{regime_result}"
+#                     )
 
-                    await regime_service.close()
+#                     await regime_service.close()
 
-                except Exception:
-                    logger.exception(
-                        "⚠️ Macro regime processing failed"
-                    )
+#                 except Exception:
+#                     logger.exception(
+#                         "⚠️ Macro regime processing failed"
+#                     )
 
-            finally:
-                # ========================================
-                # CLOSE DATABASE SESSION
-                # ========================================
+#             finally:
+#                 # ========================================
+#                 # CLOSE DATABASE SESSION
+#                 # ========================================
 
-                db.close()
+#                 db.close()
 
-                logger.info(
-                    "Database session closed"
-                )
+#                 logger.info(
+#                     "Database session closed"
+#                 )
 
-        except Exception:
-            logger.exception(
-                "🔥 FRED scheduler failed"
-            )
+#         except Exception:
+#             logger.exception(
+#                 "🔥 FRED scheduler failed"
+#             )
 
-async def periodic_current_regime_collection():
-    """
-    Periodically process and persist the current macroeconomic regime.
 
-    This scheduler is intentionally separate from the FRED scheduler.
+# async def periodic_current_regime_collection():
+#     """
+#     Periodically process and persist the current macroeconomic regime.
 
-    The process:
-    1. Waits until the configured current-regime update time.
-    2. Creates a database session.
-    3. Loads macroeconomic indicators.
-    4. Determines the current regime.
-    5. Calculates confidence.
-    6. Determines the visual indicator.
-    7. Persists the current regime snapshot.
-    8. Closes the database session.
-    """
+#     The process:
+#     1. Waits for the configured current-regime update
+#        time/interval.
+#     2. Creates a database session.
+#     3. Loads macroeconomic indicators.
+#     4. Determines the current regime.
+#     5. Calculates confidence.
+#     6. Determines the visual indicator.
+#     7. Persists the current regime snapshot.
+#     8. Closes the database session.
 
-    logger.info("🔥 Current regime scheduler started")
+#     Configuration:
+#         CURRENT_REGIME_UPDATE_INTERVAL_MINUTES > 0
+#             Run every N minutes. Useful for QA/development.
 
-    from app.database.session import SessionLocal
-    from app.services.current_regime_service import (
-        CurrentRegimeService,
-    )
-    from app.services.scheduler import (
-        wait_until_current_regime_run,
-    )
+#         CURRENT_REGIME_UPDATE_INTERVAL_MINUTES = 0
+#             Use the configured daily UTC schedule.
+#     """
 
-    while True:
-        try:
-            # ============================================
-            # WAIT FOR NEXT CURRENT REGIME UPDATE
-            # ============================================
+#     logger.info("🔥 Current regime scheduler started")
 
-            await wait_until_current_regime_run(
-                settings.CURRENT_REGIME_UPDATE_HOUR_UTC,
-                settings.CURRENT_REGIME_UPDATE_MINUTE_UTC,
-            )
+#     from app.database.session import SessionLocal
+#     from app.services.current_regime_service import (
+#         CurrentRegimeService,
+#     )
+#     from app.services.scheduler import (
+#         wait_until_current_regime_run,
+#     )
+#     from app.config import settings
 
-            logger.info(
-                "🔥 Current regime scheduler woke up"
-            )
+#     while True:
+#         try:
+#             # ============================================
+#             # WAIT FOR NEXT CURRENT REGIME UPDATE
+#             # ============================================
 
-            # ============================================
-            # CREATE DATABASE SESSION
-            # ============================================
+#             if settings.CURRENT_REGIME_UPDATE_INTERVAL_MINUTES > 0:
 
-            db = SessionLocal()
+#                 logger.info(
+#                     "🔥 Waiting "
+#                     f"{settings.CURRENT_REGIME_UPDATE_INTERVAL_MINUTES} "
+#                     "minutes for current regime update"
+#                 )
 
-            logger.info(
-                "🔥 Current regime database session created"
-            )
+#                 await asyncio.sleep(
+#                     settings.CURRENT_REGIME_UPDATE_INTERVAL_MINUTES
+#                     * 60
+#                 )
 
-            try:
-                # ========================================
-                # PROCESS CURRENT REGIME
-                # ========================================
+#             else:
 
-                service = CurrentRegimeService(db)
+#                 await wait_until_current_regime_run(
+#                     settings.CURRENT_REGIME_UPDATE_HOUR_UTC,
+#                     settings.CURRENT_REGIME_UPDATE_MINUTE_UTC,
+#                 )
 
-                logger.info(
-                    "Starting current regime processing"
-                )
+#             logger.info(
+#                 "🔥 Current regime scheduler woke up"
+#             )
 
-                result = await service.process_current_regime()
+#             # ============================================
+#             # CREATE DATABASE SESSION
+#             # ============================================
 
-                logger.info(
-                    "Current regime processing completed: %s",
-                    result,
-                )
+#             db = SessionLocal()
 
-                await service.close()
+#             logger.info(
+#                 "🔥 Current regime database session created"
+#             )
 
-            except Exception:
-                logger.exception(
-                    "⚠️ Current regime processing failed"
-                )
+#             try:
+#                 # ========================================
+#                 # PROCESS CURRENT REGIME
+#                 # ========================================
 
-            finally:
-                # ========================================
-                # CLOSE DATABASE SESSION
-                # ========================================
+#                 service = CurrentRegimeService(db)
 
-                db.close()
+#                 logger.info(
+#                     "Starting current regime processing"
+#                 )
 
-                logger.info(
-                    "Current regime database session closed"
-                )
+#                 result = await service.process_current_regime()
 
-        except asyncio.CancelledError:
-            logger.info(
-                "Current regime scheduler cancelled"
-            )
-            raise
+#                 logger.info(
+#                     "Current regime processing completed: %s",
+#                     result,
+#                 )
 
-        except Exception:
-            logger.exception(
-                "🔥 Current regime scheduler failed"
-            )
+#                 await service.close()
+
+#                 logger.info(
+#                     "CurrentRegimeService closed successfully"
+#                 )
+
+#             except Exception:
+#                 logger.exception(
+#                     "⚠️ Current regime processing failed"
+#                 )
+
+#             finally:
+#                 # ========================================
+#                 # CLOSE DATABASE SESSION
+#                 # ========================================
+
+#                 db.close()
+
+#                 logger.info(
+#                     "Current regime database session closed"
+#                 )
+
+#         except asyncio.CancelledError:
+#             logger.info(
+#                 "Current regime scheduler cancelled"
+#             )
+#             raise
+
+#         except Exception:
+#             logger.exception(
+#                 "🔥 Current regime scheduler failed"
+#             )
+
 
 # ============================================
 # CREATE FASTAPI APP

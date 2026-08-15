@@ -306,3 +306,48 @@ SELECT
 FROM information_schema.columns
 WHERE table_name = 'current_regime'
 ORDER BY ordinal_position;
+
+-- ============================================================
+-- REGIME EVENT ANALYSIS
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS regime_event_analysis (
+    id SERIAL PRIMARY KEY,
+
+    regime_id INTEGER NOT NULL,
+
+    event_type VARCHAR(50) NOT NULL,
+
+    event_date DATE NOT NULL,
+
+    btc_price_before DOUBLE PRECISION NOT NULL,
+
+    btc_price_after DOUBLE PRECISION NOT NULL,
+
+    btc_return DOUBLE PRECISION NOT NULL,
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT fk_regime_event_analysis_regime
+        FOREIGN KEY (regime_id)
+        REFERENCES macro_regimes(id),
+
+    CONSTRAINT ck_regime_event_analysis_event_type
+        CHECK (
+            event_type IN (
+                'fed_meeting',
+                'cpi_release',
+                'gdp_release',
+                'employment_report'
+            )
+        )
+);
+
+CREATE INDEX IF NOT EXISTS ix_regime_event_analysis_regime_id
+    ON regime_event_analysis (regime_id);
+
+CREATE INDEX IF NOT EXISTS ix_regime_event_analysis_event_type
+    ON regime_event_analysis (event_type);
+
+CREATE INDEX IF NOT EXISTS ix_regime_event_analysis_event_date
+    ON regime_event_analysis (event_date);

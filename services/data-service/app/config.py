@@ -192,7 +192,14 @@ class Settings(BaseSettings):
     CURRENT_REGIME_UPDATE_HOUR_UTC: int = 1
     CURRENT_REGIME_UPDATE_MINUTE_UTC: int = 0
 
-    
+
+    # Development/testing only.
+    # Set > 0 to run current-regime processing every N minutes.
+    CURRENT_REGIME_UPDATE_INTERVAL_MINUTES: int = 1
+
+    # Development/testing only.
+    REGIME_PERFORMANCE_QA_MODE: bool = True
+    REGIME_EVENT_QA_MODE: bool = True
     # ============================================
     # COLLECTION INTERVALS (seconds)
     # ============================================

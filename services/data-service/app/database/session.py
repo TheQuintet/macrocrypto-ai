@@ -8,6 +8,7 @@ from app.models.macro_indicator import MacroIndicator
 from app.models.macro_regime import MacroRegime
 from app.models.regime_performance import RegimePerformance
 from app.models.current_regime import CurrentRegime
+from app.models.regime_event_analysis import RegimeEventAnalysis
 
 from app.config import settings
 import logging
