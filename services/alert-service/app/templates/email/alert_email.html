@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { font-family: Arial, sans-serif; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; text-align: center; border-radius: 10px 10px 0 0; }
+        .content { background: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px; }
+        .alert-details { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .price { font-size: 32px; font-weight: bold; color: #667eea; }
+        .threshold { font-size: 24px; color: #764ba2; }
+        .button { display: inline-block; background: #667eea; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin-top: 20px; }
+        .footer { text-align: center; color: #999; font-size: 12px; margin-top: 30px; }
+        .direction-up { background: #d4edda; color: #155724; padding: 4px 12px; border-radius: 20px; font-weight: bold; display: inline-block; }
+        .direction-down { background: #f8d7da; color: #721c24; padding: 4px 12px; border-radius: 20px; font-weight: bold; display: inline-block; }
+        .direction-reached { background: #fff3cd; color: #856404; padding: 4px 12px; border-radius: 20px; font-weight: bold; display: inline-block; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚨 Price Alert Triggered</h1>
+            <p>{{ asset }}</p>
+        </div>
+        <div class="content">
+            <h2>Alert Details</h2>
+            <div class="alert-details">
+                <p><strong>Current Price:</strong> <span class="price">${{ current_price:,.2f }}</span></p>
+                <p><strong>Threshold:</strong> <span class="threshold">${{ threshold_price:,.2f }}</span></p>
+                <p><strong>Direction:</strong> 
+                    <span class="direction-{{ alert_type }}">
+                        {{ alert_type }}
+                    </span>
+                </p>
+                <p><strong>Triggered At:</strong> {{ triggered_at }}</p>
+            </div>
+            <a href="{{ chart_url }}" class="button">View Price Chart</a>
+            <a href="https://macrocrypto.ai/alerts/{{ alert_id }}" class="button" style="background: #764ba2;">View Alert</a>
+        </div>
+        <div class="footer">
+            <p>MacroCrypto AI - Your AI-powered crypto intelligence platform</p>
+            <p>To unsubscribe from alerts, visit your <a href="https://macrocrypto.ai/settings">settings</a>.</p>
+        </div>
+    </div>
+</body>
+</html>
