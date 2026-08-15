@@ -1,0 +1,12 @@
+# ============================================
+# INHERIT PRODUCTION DEPENDENCIES
+# ============================================
+-r requirements.txt
+
+# ============================================
+# TESTING ONLY (Lightweight for CI)
+# ============================================
+pytest>=9.1.1
+pytest-asyncio>=1.4.0
+pytest-cov>=6.0.0
+pytest-xdist>=3.5.0

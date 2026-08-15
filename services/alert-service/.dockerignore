@@ -1,0 +1,33 @@
+# Development files
+.git/
+.gitignore
+Dockerfile.dev
+requirements-dev.txt
+requirements-test.txt
+requirements-docs.txt
+
+# Test files
+tests/
+pytest.ini
+.coverage
+htmlcov/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Logs
+*.log

@@ -1,0 +1,41 @@
+# ============================================
+# INHERIT PRODUCTION DEPENDENCIES
+# ============================================
+-r requirements.txt
+
+# ============================================
+# TESTING
+# ============================================
+pytest>=9.1.1
+pytest-asyncio>=1.4.0
+pytest-cov>=6.0.0
+pytest-mock>=3.12.0
+pytest-xdist>=3.5.0  # Parallel test execution
+
+# ============================================
+# CODE QUALITY
+# ============================================
+black>=24.0.0          # Code formatter
+ruff>=0.1.0            # Linter (replaces flake8, isort)
+mypy>=1.0.0            # Type checking
+pre-commit>=3.5.0      # Git hooks
+
+# ============================================
+# DEVELOPMENT TOOLS
+# ============================================
+debugpy>=1.8.0         # Debugging
+ipython>=8.12.0        # Better REPL
+watchfiles>=1.2.0      # Auto-reload (already in prod but kept here)
+
+# ============================================
+# DATABASE TOOLS (Optional)
+# ============================================
+# alembic>=1.12.0      # Database migrations
+# pgcli>=4.0.0         # Better PostgreSQL CLI
+
+# ============================================
+# MOCKING & FAKE DATA
+# ============================================
+faker>=20.0.0          # Generate fake data
+factory-boy>=3.3.0     # Factory patterns for tests
+freezegun>=1.4.0       # Freeze time in tests
