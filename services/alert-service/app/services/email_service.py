@@ -10,8 +10,9 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 
 from app.config import settings
-from app.models.alert import EmailQueue, EmailStatus, PriceAlert
+from app.models.alert import  PriceAlert
 from app.models.alert import AlertHistory
+from app.models.email_queue import EmailQueue, EmailStatus
 
 logger = logging.getLogger(__name__)
 

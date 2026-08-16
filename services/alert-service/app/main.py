@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 
 from app.config import settings
 from app.database.session import init_db, SessionLocal
@@ -152,7 +153,7 @@ async def health_check():
     # Check database
     try:
         db = SessionLocal()
-        db.execute("SELECT 1")
+        db.execute(text("SELECT 1"))
         db.close()
         health_status["database"] = "connected"
     except Exception as e:
@@ -181,7 +182,7 @@ async def ready_check():
     
     try:
         db = SessionLocal()
-        db.execute("SELECT 1")
+        db.execute(text("SELECT 1"))
         db.close()
     except:
         status["status"] = "not_ready"

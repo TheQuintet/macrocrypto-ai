@@ -7,7 +7,7 @@ from uuid import UUID
 from datetime import datetime
 
 from app.database.session import SessionLocal
-from app.models.alert import PriceAlert, AlertStatus, AlertType, AlertHistory
+from app.models.alert import HistoryEventType, PriceAlert, AlertStatus, AlertType, AlertHistory
 from app.schemas.alert import AlertCreate, AlertUpdate, AlertResponse, AlertListResponse
 from app.services.alert_engine import AlertEngine
 from app.config import settings
@@ -67,7 +67,7 @@ async def create_price_alert(
     # Create history entry
     history = AlertHistory(
         alert_id=alert.id,
-        event_type="created",
+        event_type=HistoryEventType.CREATED,
         event_source="user",
         previous_status=None,
         new_status=AlertStatus.ACTIVE,
@@ -194,7 +194,7 @@ async def update_price_alert(
     if alert.status != previous_status:
         history = AlertHistory(
             alert_id=alert.id,
-            event_type="updated",
+            event_type=HistoryEventType.UPDATED,
             event_source="user",
             previous_status=previous_status,
             new_status=alert.status,
@@ -232,7 +232,7 @@ async def delete_price_alert(
     # Create history entry
     history = AlertHistory(
         alert_id=alert.id,
-        event_type="deleted",
+        event_type=HistoryEventType.DELETED,
         event_source="user",
         previous_status=previous_status,
         new_status=AlertStatus.DISABLED,

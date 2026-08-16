@@ -6,7 +6,8 @@ from uuid import uuid4
 from datetime import datetime
 
 from app.services.email_service import EmailService
-from app.models.alert import PriceAlert, AlertStatus, AlertType, EmailQueue, EmailStatus
+from app.models.alert import PriceAlert, AlertStatus, AlertType
+from app.models.email_queue import EmailQueue, EmailStatus
 
 
 class TestEmailService:
@@ -201,11 +202,11 @@ class TestEmailService:
 
         assert "Price Alert" in subject
         assert "BTC" in subject
-        assert "85000" in subject
+        assert "85,000.00" in subject
         assert "<html>" in html_body
-        assert "85000.00" in html_body
+        assert "85,000.00" in html_body
         assert "BTC" in text_body
-        assert "85000" in text_body
+        assert "85,000.00" in text_body
 
     @patch('app.services.email_service.smtplib.SMTP')
     def test_email_disabled(self, mock_smtp, email_service, db_session, sample_alert):

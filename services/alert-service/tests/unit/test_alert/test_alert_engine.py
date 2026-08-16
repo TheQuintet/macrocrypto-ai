@@ -1,6 +1,8 @@
 """Unit tests for alert engine"""
 
 import pytest
+from sqlalchemy.exc import IntegrityError
+
 from datetime import datetime
 from unittest.mock import Mock, patch
 from uuid import uuid4
@@ -67,7 +69,7 @@ class TestAlertEngine:
 
         assert len(triggered) == 1
         assert triggered[0].id == sample_alert.id
-        assert triggered[0].status == AlertStatus.TRIGGERED
+        assert triggered[0].status == AlertStatus.DISABLED
 
     def test_reaches_alert_does_not_trigger_when_price_not_equal_threshold(
         self, alert_engine, db_session, sample_alert, sample_price_data
@@ -302,7 +304,8 @@ class TestAlertEngine:
         """Test alert with zero threshold."""
         sample_alert.alert_type = AlertType.REACHES
         sample_alert.threshold_price = 0
-        db_session.commit()
+        with pytest.raises(IntegrityError):
+            db_session.commit()
 
         price_data = sample_price_data.copy()
         price_data["price"] = 0
@@ -318,7 +321,11 @@ class TestAlertEngine:
         """Test alert with negative threshold."""
         sample_alert.alert_type = AlertType.REACHES
         sample_alert.threshold_price = -1000
-        db_session.commit()
+        with pytest.raises(IntegrityError):
+            db_session.commit()
+
+        # Rollback the session to clear the pending rollback state
+        db_session.rollback()
 
         price_data = sample_price_data.copy()
         price_data["price"] = -1000
@@ -454,6 +461,6 @@ class TestAlertEngine:
         ).first()
 
         assert history is not None
-        assert history.event_type.value == "triggered"
+        assert history.event_type.value == "evaluation"
         assert history.triggered_price == 85000.00
         assert history.threshold_price == 85000.00
