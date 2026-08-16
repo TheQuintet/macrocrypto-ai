@@ -5,7 +5,7 @@ from uuid import uuid4
 from datetime import datetime
 
 from app.services.notification_service import NotificationService
-from app.models.alert import InAppNotification, NotificationType
+from app.models.alert import InAppNotification, NotificationType, PriceAlert, AlertType, AlertStatus
 
 
 class TestNotificationService:
@@ -16,18 +16,44 @@ class TestNotificationService:
         """Create notification service instance."""
         return NotificationService(db_session)
 
-    @pytest.fixture
-    def sample_user_id(self):
-        """Sample user ID for testing."""
-        return uuid4()
+    # @pytest.fixture
+    # def sample_user_id(self):
+    #     """Sample user ID for testing."""
+    #     return uuid4()
 
-    @pytest.fixture
-    def sample_alert_id(self):
-        """Sample alert ID for testing."""
-        return uuid4()
+    # @pytest.fixture
+    # def sample_alert_id(self):
+    #     """Sample alert ID for testing."""
+    #     return uuid4()
+
+    # @pytest.fixture
+    # def sample_alert_id(db_session, sample_user_id):
+    #     """Sample alert ID that pre-creates a valid PriceAlert in the DB 
+    #     to satisfy foreign key constraints.
+    #     """
+    #     alert_id = uuid4()
+        
+    #     price_alert = PriceAlert(
+    #         id=alert_id,
+    #         user_id=sample_user_id,
+    #         threshold_price=85000.0,
+    #         alert_type=AlertType.REACHES,
+    #         asset="BTC/USD",
+    #         status=AlertStatus.ACTIVE,
+    #         one_time=True,
+    #         notify_in_app=True,
+    #         notify_email=True,
+    #         name="Test Price Alert"
+    #     )
+        
+    #     db_session.add(price_alert)
+    #     db_session.commit()
+        
+    #     return alert_id
+
 
     def test_create_notification(
-        self, notification_service, db_session, sample_user_id, sample_alert_id
+        self, notification_service, sample_user_id, sample_alert_id
     ):
         """Test creating a notification."""
         notification = notification_service.create_notification(

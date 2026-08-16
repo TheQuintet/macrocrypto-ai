@@ -225,7 +225,8 @@ class TestHistoryService:
             alert_type="reaches",
             previous_status=AlertStatus.ACTIVE,
             new_status=AlertStatus.ACTIVE,
-            triggered_at=datetime.utcnow() - timedelta(days=60)
+            # triggered_at=datetime.utcnow() - timedelta(days=60),
+            created_at=datetime.utcnow() - timedelta(days=60)
         )
         db_session.add(old_history)
         db_session.commit()

@@ -25,4 +25,8 @@ ENV PYTHONUNBUFFERED=1
 EXPOSE 8003
 
 # Production command
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8003"]
+# CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8003"]
+
+
+# For local debugging and wouldn't be used in production
+CMD ["python", "-m", "debugpy", "--listen", "0.0.0.0:5679", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8003"]

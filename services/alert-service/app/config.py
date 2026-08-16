@@ -63,6 +63,9 @@ class Settings(BaseSettings):
     MAX_ALERTS_PER_USER: int = 50
     ALERT_RETENTION_DAYS: int = 30
     
+    # This setting controls whether email notifications are enabled. If set to False, email notifications will be disabled.
+    EMAIL_ENABLED: bool = True
+
     # ============================================
     # EMAIL NOTIFICATIONS
     # ============================================

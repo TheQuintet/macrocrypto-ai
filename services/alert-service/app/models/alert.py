@@ -40,6 +40,8 @@ class NotificationType(PyEnum):
 
 
 class HistoryEventType(PyEnum):
+    CREATED = "created"
+    UPDATED = "updated"
     EVALUATION = "evaluation"
     TRIGGERED = "triggered"
     ACKNOWLEDGED = "acknowledged"
@@ -47,6 +49,7 @@ class HistoryEventType(PyEnum):
     DISABLED = "disabled"
     EXPIRED = "expired"
     ARCHIVED = "archived"
+    DELETED = "deleted"
 
 
 # ============================================
@@ -156,7 +159,7 @@ class AlertHistory(Base):
         Index('idx_alert_history_alert_id_created', 'alert_id', 'created_at'),
         Index('idx_alert_history_event_type', 'event_type'),
         Index('idx_alert_history_triggered_at', 'triggered_at'),
-        CheckConstraint("event_type IN ('evaluation', 'triggered', 'acknowledged', 'dismissed', 'disabled', 'expired', 'archived')", name='ck_event_type_valid'),
+        CheckConstraint("event_type IN ('evaluation', 'triggered', 'acknowledged', 'dismissed', 'disabled', 'expired', 'archived', 'created', 'updated', 'deleted')", name='ck_event_type_valid'),
     )
 
     def to_dict(self):
