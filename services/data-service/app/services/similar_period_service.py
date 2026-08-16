@@ -118,18 +118,33 @@ class SimilarPeriodService:
                     self.INDICATORS
                 )
             )
-            .order_by(MacroIndicator.time.asc())
+            .order_by(
+                MacroIndicator.time.asc()
+            )
             .all()
         )
 
         if not rows:
             return {}
 
+        # --------------------------------------------------------
+        # Group observations by indicator.
+        #
+        # Each list is already sorted by time because the
+        # database query above orders all rows chronologically.
+        # --------------------------------------------------------
+
         observations = defaultdict(list)
 
         for row in rows:
-            if row.value is not None:
+            if (
+                row.time is not None
+                and row.value is not None
+            ):
                 observations[row.indicator_name].append(row)
+
+        if not observations:
+            return {}
 
         all_dates = [
             row.time
@@ -143,38 +158,72 @@ class SimilarPeriodService:
         first_date = min(all_dates)
         last_date = max(all_dates)
 
-        snapshots = {}
+        # --------------------------------------------------------
+        # Maintain one pointer per indicator.
+        #
+        # Instead of repeatedly scanning every historical row
+        # for every snapshot, each pointer only moves forward.
+        # --------------------------------------------------------
+
+        pointers = {
+            indicator: 0
+            for indicator in self.INDICATORS
+        }
+
+        latest_values: dict[str, float] = {}
+
+        snapshots: dict[datetime, dict[str, float]] = {}
 
         snapshot_date = first_date
 
         while snapshot_date <= last_date:
-            values = {}
+
+            # ----------------------------------------------------
+            # Advance each indicator pointer to the latest
+            # observation available at or before snapshot_date.
+            # ----------------------------------------------------
 
             for indicator in self.INDICATORS:
-                candidates = [
-                    row
-                    for row in observations.get(indicator, [])
-                    if row.time <= snapshot_date
-                ]
 
-                if not candidates:
-                    continue
+                indicator_rows = observations.get(
+                    indicator,
+                    [],
+                )
 
-                latest = candidates[-1]
-                values[indicator] = latest.value
+                pointer = pointers[indicator]
 
+                while (
+                    pointer < len(indicator_rows)
+                    and indicator_rows[pointer].time
+                    <= snapshot_date
+                ):
+                    latest_values[indicator] = (
+                        indicator_rows[pointer].value
+                    )
+                    pointer += 1
+
+                pointers[indicator] = pointer
+
+            # ----------------------------------------------------
             # Only retain complete macroeconomic vectors.
+            # ----------------------------------------------------
+
             if all(
-                indicator in values
+                indicator in latest_values
                 for indicator in self.INDICATORS
             ):
-                snapshots[snapshot_date] = values
+                snapshots[snapshot_date] = {
+                    indicator: latest_values[indicator]
+                    for indicator in self.INDICATORS
+                }
 
             snapshot_date += timedelta(
                 days=self.SNAPSHOT_INTERVAL_DAYS
             )
 
         return snapshots
+
+
 
     # ============================================================
     # NORMALIZATION

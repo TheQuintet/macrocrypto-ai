@@ -13,6 +13,9 @@ from app.database.session import SessionLocal
 from app.services.similar_period_service import (
     SimilarPeriodService,
 )
+from fastapi import Request
+from app.core.rate_limit import limiter
+from app.config import settings
 
 
 router = APIRouter(
@@ -132,7 +135,9 @@ class SimilarPeriodsResponse(BaseModel):
     Suggestions are generated on-the-fly and are not persisted.
     """,
 )
+@limiter.limit(f"{settings.RATE_LIMIT_REQUESTS}/minute")
 async def get_similar_periods(
+    request: Request,
     limit: int = Query(
         default=5,
         ge=3,
@@ -169,3 +174,4 @@ async def get_similar_periods(
                 "historical periods"
             ),
         ) from exc
+
