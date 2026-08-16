@@ -62,12 +62,12 @@ class PriceAlert(Base):
     
     # Alert configuration
     threshold_price = Column(Float, nullable=False)
-    alert_type = Column(Enum(AlertType), nullable=False)  # reaches, crosses_above, crosses_below
+    alert_type = Column(Enum(AlertType, values_callable=lambda x: [e.value for e in x]), nullable=False)
     asset = Column(String(50), default="BTC/USD")
     
     # Status
-    status = Column(Enum(AlertStatus), default=AlertStatus.ACTIVE)
-    one_time = Column(Boolean, default=True)  # True = one-time, False = recurring
+    status = Column(Enum(AlertStatus, values_callable=lambda x: [e.value for e in x]), default=AlertStatus.ACTIVE)
+    one_time = Column(Boolean, default=True)
     
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
@@ -122,8 +122,8 @@ class AlertHistory(Base):
     alert_id = Column(PGUUID, ForeignKey("price_alerts.id", ondelete="CASCADE"), nullable=False, index=True)
     
     # Event details
-    event_type = Column(Enum(HistoryEventType), nullable=False)
-    event_source = Column(String(50))  # 'engine', 'user', 'scheduler', 'system'
+    event_type = Column(Enum(HistoryEventType, values_callable=lambda x: [e.value for e in x]), nullable=False)
+    event_source = Column(String(50))
     
     # Trigger details
     triggered_price = Column(Float)
@@ -131,8 +131,8 @@ class AlertHistory(Base):
     alert_type = Column(String(50))
     
     # Status changes
-    previous_status = Column(Enum(AlertStatus))
-    new_status = Column(Enum(AlertStatus))
+    previous_status = Column(Enum(AlertStatus, values_callable=lambda x: [e.value for e in x]))
+    new_status = Column(Enum(AlertStatus, values_callable=lambda x: [e.value for e in x]))
     
     # Notification tracking
     in_app_sent = Column(Boolean, default=False)
@@ -141,7 +141,7 @@ class AlertHistory(Base):
     read_status = Column(Boolean, default=False)
     
     # Metadata
-    ip_address = Column(String(45))  # IPv6 compatible
+    ip_address = Column(String(45))
     user_agent = Column(Text)
     note = Column(Text)
     
@@ -189,11 +189,11 @@ class InAppNotification(Base):
     # Notification content
     title = Column(String(255), nullable=False)
     message = Column(Text, nullable=False)
-    notification_type = Column(Enum(NotificationType), nullable=False)
+    notification_type = Column(Enum(NotificationType, values_callable=lambda x: [e.value for e in x]), nullable=False)
     
     # Additional data
-    data = Column(JSON)  # Additional alert details
-    action_url = Column(Text)  # Link to chart or alert detail
+    data = Column(JSON)
+    action_url = Column(Text)
     
     # Status
     read = Column(Boolean, default=False)
