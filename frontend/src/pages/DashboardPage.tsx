@@ -1,8 +1,8 @@
-import { ArrowUpRight } from 'lucide-react'
 import { ExampleQueryDemo } from '@/components/examples/ExampleQueryDemo'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { TimeRangePicker } from '@/components/timeRange/TimeRangePicker'
-import { Badge } from '@/components/ui/badge'
+import { BtcPriceCard } from '@/components/dashboard/price/BtcPriceCard'
+import { PriceChangeCard } from '@/components/dashboard/price/PriceChangeCard'
 import {
   Card,
   CardContent,
@@ -30,37 +30,9 @@ export function DashboardPage() {
       </PageHeader>
 
       <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
-        <Card className="min-w-0">
-          <CardHeader>
-            <CardDescription>BTC / USD</CardDescription>
-            <CardTitle className="min-w-0 truncate font-mono text-xl tabular-nums sm:text-2xl lg:text-3xl">
-              <Skeleton className="h-7 w-28 sm:h-8 sm:w-36 lg:h-9 lg:w-40" />
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <span className="text-xs text-muted-foreground">
-              Awaiting live feed
-            </span>
-          </CardContent>
-        </Card>
+        <BtcPriceCard />
 
-        <Card className="min-w-0">
-          <CardHeader>
-            <CardDescription>24h change</CardDescription>
-            <CardTitle className="flex min-w-0 items-center gap-2 truncate font-mono text-xl tabular-nums sm:text-2xl lg:text-3xl">
-              <Skeleton className="h-7 w-20 sm:h-8 sm:w-24 lg:h-9 lg:w-28" />
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Badge
-              variant="outline"
-              className="min-h-8 gap-1 border-transparent bg-positive/10 text-positive"
-            >
-              <ArrowUpRight className="size-3.5" />
-              <span className="font-mono tabular-nums">--.--%</span>
-            </Badge>
-          </CardContent>
-        </Card>
+        <PriceChangeCard />
 
         <Card className="min-w-0 sm:col-span-2 lg:col-span-1">
           <CardHeader>

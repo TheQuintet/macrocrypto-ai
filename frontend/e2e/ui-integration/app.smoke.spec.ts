@@ -1,13 +1,12 @@
-import { expect, test } from '@playwright/test'
+import { test } from '@playwright/test'
 import { expectPageHeading, goToRoute } from './routing.specHelpers'
+import { expectPriceRendered } from './priceDisplay.specHelpers'
 
 test.describe('app smoke', () => {
   test('loads the dashboard', async ({ page }) => {
     await goToRoute(page, 'dashboard')
 
     await expectPageHeading(page, 'dashboard')
-    await expect(
-      page.getByRole('button', { name: /get started/i }),
-    ).toBeVisible()
+    await expectPriceRendered(page)
   })
 })
