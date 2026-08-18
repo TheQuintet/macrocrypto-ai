@@ -1,32 +1,42 @@
 import { LineChart, YAxis } from 'recharts'
 import {
-  CHART_Y_AXIS_MARGIN,
-  CHART_Y_AXIS_WIDTH,
+  chartYAxisMargin,
+  chartYAxisWidth,
   formatPriceTick,
 } from '@/components/dashboard/lib/chartTheme'
 
 type ChartYAxisProps = {
   yDomain: [number, number]
   height: number
+  compact?: boolean
 }
 
 /** Fixed price axis that stays visible while the plot pans. */
-export function ChartYAxis({ yDomain, height }: ChartYAxisProps) {
+export function ChartYAxis({
+  yDomain,
+  height,
+  compact = false,
+}: ChartYAxisProps) {
+  const axisWidth = chartYAxisWidth(compact)
+
   return (
     <LineChart
-      width={CHART_Y_AXIS_WIDTH}
+      width={axisWidth}
       height={height}
       data={[{ price: yDomain[0] }, { price: yDomain[1] }]}
-      margin={CHART_Y_AXIS_MARGIN}
+      margin={chartYAxisMargin(compact)}
     >
       <YAxis
         dataKey="price"
         domain={yDomain}
-        width={CHART_Y_AXIS_WIDTH}
-        tick={{ fill: 'var(--muted-foreground)', fontSize: 12 }}
+        width={axisWidth}
+        tick={{
+          fill: 'var(--muted-foreground)',
+          fontSize: compact ? 10 : 12,
+        }}
         tickLine={false}
         axisLine={false}
-        tickFormatter={formatPriceTick}
+        tickFormatter={(value: number) => formatPriceTick(value, compact)}
       />
     </LineChart>
   )
