@@ -91,3 +91,36 @@ class PredictionAlertResponse(BaseModel):
     notify_email: bool
     name: Optional[str]
     description: Optional[str]
+
+
+# ============================================
+# PREDICTION CONFIG SCHEMA (Fixes review)
+# ============================================
+
+class PredictionConfigUpdate(BaseModel):
+    """Schema for updating prediction alert configuration."""
+    default_threshold: Optional[float] = Field(None, gt=0, le=10, description="Default threshold 1-10%")
+    confidence_change_threshold: Optional[float] = Field(None, ge=0, le=20, description="Confidence change threshold 0-20%")
+    default_horizon: Optional[str] = Field(None, description="24h or 7d")
+    notify_in_app_default: Optional[bool] = None
+    notify_email_default: Optional[bool] = None
+
+    @validator('default_horizon')
+    def validate_horizon(cls, v):
+        if v is not None:
+            valid_horizons = ['24h', '7d']
+            if v not in valid_horizons:
+                raise ValueError(f'default_horizon must be one of: {", ".join(valid_horizons)}')
+        return v
+
+    @validator('default_threshold')
+    def validate_threshold(cls, v):
+        if v is not None and (v <= 0 or v > 10):
+            raise ValueError('default_threshold must be between 1 and 10')
+        return v
+
+    @validator('confidence_change_threshold')
+    def validate_confidence_threshold(cls, v):
+        if v is not None and (v < 0 or v > 20):
+            raise ValueError('confidence_change_threshold must be between 0 and 20')
+        return v

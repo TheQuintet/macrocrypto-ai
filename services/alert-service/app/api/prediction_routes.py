@@ -17,7 +17,8 @@ from app.models.prediction_alert import (
 from app.schemas.prediction_alert import (
     PredictionAlertCreate,
     PredictionAlertUpdate,
-    PredictionAlertResponse
+    PredictionAlertResponse,
+    PredictionConfigUpdate
 )
 from app.config import settings
 
@@ -226,7 +227,7 @@ async def delete_prediction_alert(
 
 
 # ============================================
-# USER CONFIGURATION
+# USER CONFIGURATION (Updated with validation)
 # ============================================
 
 @router.get("/config/{user_id}")
@@ -256,7 +257,7 @@ async def get_prediction_config(
 @router.put("/config/{user_id}")
 async def update_prediction_config(
     user_id: UUID,
-    config_data: dict,
+    config_data: PredictionConfigUpdate,
     db: Session = Depends(get_db)
 ):
     """Update prediction alert configuration for a user."""
@@ -268,16 +269,19 @@ async def update_prediction_config(
         config = PredictionChangeConfig(user_id=user_id)
         db.add(config)
 
-    if "default_threshold" in config_data:
-        config.default_threshold = config_data["default_threshold"]
-    if "confidence_change_threshold" in config_data:
-        config.confidence_change_threshold = config_data["confidence_change_threshold"]
-    if "default_horizon" in config_data:
-        config.default_horizon = PredictionHorizon(config_data["default_horizon"])
-    if "notify_in_app_default" in config_data:
-        config.notify_in_app_default = config_data["notify_in_app_default"]
-    if "notify_email_default" in config_data:
-        config.notify_email_default = config_data["notify_email_default"]
+    # Update with validated data
+    update_data = config_data.model_dump(exclude_unset=True)
+
+    if "default_threshold" in update_data:
+        config.default_threshold = update_data["default_threshold"]
+    if "confidence_change_threshold" in update_data:
+        config.confidence_change_threshold = update_data["confidence_change_threshold"]
+    if "default_horizon" in update_data:
+        config.default_horizon = PredictionHorizon(update_data["default_horizon"])
+    if "notify_in_app_default" in update_data:
+        config.notify_in_app_default = update_data["notify_in_app_default"]
+    if "notify_email_default" in update_data:
+        config.notify_email_default = update_data["notify_email_default"]
 
     config.updated_at = datetime.utcnow()
 

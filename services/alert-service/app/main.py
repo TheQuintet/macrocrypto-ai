@@ -13,6 +13,8 @@ from app.database.session import init_db, SessionLocal
 from app.rabbitmq.consumer import RabbitMQConsumer
 from app.rabbitmq.producer import RabbitMQProducer
 from app.api.routes import router
+from app.api.prediction_routes import router as prediction_router
+from app.api.macro_routes import router as macro_router
 from app.services.alert_engine import AlertEngine
 
 # Configure logging
@@ -104,7 +106,9 @@ app.add_middleware(
 )
 
 # Include routes
-app.include_router(router)
+app.include_router(router)                    # Price alerts (T7)
+app.include_router(prediction_router)         # Prediction alerts (T8)
+app.include_router(macro_router)              # Macro event alerts (T9)
 
 
 # ============================================
