@@ -13,7 +13,7 @@ from app.models.prediction_alert import (
     PredictionHorizon,
     PredictionDirection
 )
-from app.models.alert import EmailQueue, EmailStatus
+from app.models.email_queue import EmailQueue, EmailStatus
 
 
 class TestPredictionEmailService:
@@ -67,6 +67,7 @@ class TestPredictionEmailService:
         assert email is not None
         assert email.to_email == user_email
         assert "Prediction Change Alert" in email.subject
+        assert "Up 3.7%" in email.subject or "Up 3.66%" in email.subject
         assert "$82,000" in email.html_body or "82000" in email.html_body
         assert "$85,000" in email.html_body or "85000" in email.html_body
         assert "3.66" in email.html_body or "3.7" in email.html_body
@@ -85,7 +86,7 @@ class TestPredictionEmailService:
 
         assert "Prediction Change Alert" in subject
         assert "BTC/USD" in subject
-        assert "3.66" in subject or "3.7" in subject
+        assert "Up 3.7%" in subject or "Up 3.66%" in subject
 
         assert "<html>" in html_body
         assert "$82,000" in html_body or "82000" in html_body
@@ -97,7 +98,7 @@ class TestPredictionEmailService:
         assert "BTC/USD" in text_body
         assert "$82,000" in text_body or "82000" in text_body
         assert "$85,000" in text_body or "85000" in text_body
-        assert "3.66" in text_body or "3.7" in text_body
+        assert "Up 3.7%" in text_body or "Up 3.66%" in text_body
         assert "Recommendation" in text_body
         assert "Consider adjusting position" in text_body
 
