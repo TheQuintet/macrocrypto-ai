@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { fetchMacroIndicators } from '@/api/macroIndicators';
-import type { MacroIndicator } from '@/components/dashboard/MacroIndicators';
+import type { MacroIndicator } from '@/types/macroIndicators';
 
 export const macroIndicatorsQueryKey = ['macroIndicators'];
 

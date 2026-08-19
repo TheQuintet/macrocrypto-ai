@@ -2,17 +2,7 @@ import { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
-
-// Types
-export interface MacroIndicator {
-  indicator_name: string;
-  time: string;
-  current_value: number;
-  previous_value: number | null;
-  change_percent: number | null;
-  trend: '↑' | '↓' | '→';
-  source: string;
-}
+import type { MacroIndicator } from '@/types/macroIndicators';
 
 interface MacroIndicatorsProps {
   indicators: MacroIndicator[];

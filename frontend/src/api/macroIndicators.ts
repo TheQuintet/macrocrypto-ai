@@ -1,4 +1,4 @@
-import type { MacroIndicator } from '@/components/dashboard/MacroIndicators';
+import type { MacroIndicator } from '@/types/macroIndicators';
 
 /** Names as returned by GET /api/v1/indicators (data-service / FRED collector). */
 const MAIN_INDICATORS = new Set([

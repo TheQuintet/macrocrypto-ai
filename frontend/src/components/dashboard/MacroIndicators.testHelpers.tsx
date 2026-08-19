@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { MacroIndicators } from './MacroIndicators';
-import type { MacroIndicator } from './MacroIndicators';
+import type { MacroIndicator } from '@/types/macroIndicators';
 
 export const mockIndicators: MacroIndicator[] = [
   {
