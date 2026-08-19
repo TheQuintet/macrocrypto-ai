@@ -8,20 +8,15 @@ const MAIN_INDICATORS = new Set([
 ]);
 
 export async function fetchMacroIndicators(): Promise<MacroIndicator[]> {
-  try {
-    const response = await fetch('/api/v1/indicators');
+  const response = await fetch('/api/v1/indicators');
 
-    if (!response.ok) {
-      throw new Error(`Failed to fetch indicators: ${response.statusText}`);
-    }
-
-    const data = await response.json();
-
-    return (data.indicators || []).filter((indicator: MacroIndicator) =>
-      MAIN_INDICATORS.has(indicator.indicator_name.toLowerCase()),
-    );
-  } catch (error) {
-    console.error('Error fetching macro indicators:', error);
-    return []; // Return empty array on error
+  if (!response.ok) {
+    throw new Error(`Failed to fetch indicators: ${response.statusText}`);
   }
+
+  const data = await response.json();
+
+  return (data.indicators || []).filter((indicator: MacroIndicator) =>
+    MAIN_INDICATORS.has(indicator.indicator_name.toLowerCase()),
+  );
 }
