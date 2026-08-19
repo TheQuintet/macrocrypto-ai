@@ -52,6 +52,44 @@ export async function expectTouchFriendlyChartControls(page: Page) {
   expect(box?.height ?? 0).toBeGreaterThanOrEqual(40)
 }
 
+export function getFeedStatus(page: Page) {
+  return page.getByRole('status')
+}
+
+export function getLastUpdated(page: Page) {
+  return getPriceCard(page).getByText(/^Updated /)
+}
+
+/** The stream reaches a live connection without any manual retry. */
+export async function expectFeedLive(page: Page) {
+  await expect(getFeedStatus(page)).toHaveText(/live/i, { timeout: 15_000 })
+}
+
+export async function expectLastUpdatedShown(page: Page) {
+  await expect(getLastUpdated(page)).toHaveText(/^Updated \d{2}:\d{2}:\d{2}$/, {
+    timeout: 15_000,
+  })
+}
+
+/** A later frame replaces the displayed one — updates render as they arrive. */
+export async function expectFeedKeepsUpdating(page: Page) {
+  const lastUpdated = getLastUpdated(page)
+  await expect(lastUpdated).toHaveText(/^Updated \d{2}:\d{2}:\d{2}$/, {
+    timeout: 15_000,
+  })
+  const first = await lastUpdated.textContent()
+
+  await expect(lastUpdated).not.toHaveText(first ?? '', { timeout: 15_000 })
+}
+
+/** The simulated socket drops on a schedule; the client must come back. */
+export async function expectFeedRecoversFromDrop(page: Page) {
+  await expect(getFeedStatus(page)).toHaveText(/reconnecting/i, {
+    timeout: 60_000,
+  })
+  await expect(getFeedStatus(page)).toHaveText(/live/i, { timeout: 30_000 })
+}
+
 export async function expectPriceWithinViewport(page: Page) {
   const viewportWidth = page.viewportSize()?.width ?? 0
   const box = await getPriceValue(page).boundingBox()

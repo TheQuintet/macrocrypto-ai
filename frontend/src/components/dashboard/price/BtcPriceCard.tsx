@@ -1,3 +1,4 @@
+import { PriceStreamStatus } from '@/components/dashboard/price/PriceStreamStatus'
 import { PriceValue } from '@/components/dashboard/price/PriceValue'
 import {
   formatPrice,
@@ -37,7 +38,10 @@ export function BtcPriceCard() {
         </CardTitle>
       </CardHeader>
 
-      <CardContent>{renderFooter(isPending, isUnavailable, data)}</CardContent>
+      <CardContent className="flex flex-col gap-1.5">
+        {renderFooter(isPending, isUnavailable, data)}
+        <PriceStreamStatus />
+      </CardContent>
     </Card>
   )
 }

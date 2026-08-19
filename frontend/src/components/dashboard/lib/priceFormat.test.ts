@@ -3,6 +3,7 @@ import {
   formatPrice,
   formatSignedPercent,
   formatSignedPrice,
+  formatUpdatedAt,
   priceDirection,
 } from '@/components/dashboard/lib/priceFormat'
 
@@ -33,6 +34,33 @@ describe('formatSignedPercent', () => {
     expect(formatSignedPercent(1.876)).toBe('+1.88%')
     expect(formatSignedPercent(-0.42)).toBe('-0.42%')
     expect(formatSignedPercent(0)).toBe('0.00%')
+  })
+})
+
+describe('formatUpdatedAt', () => {
+  it('shows the wall-clock time of the update', () => {
+    const updatedAt = new Date('2024-06-15T12:34:56.000Z')
+
+    expect(formatUpdatedAt(updatedAt.toISOString())).toBe(
+      updatedAt.toLocaleTimeString('en-GB', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+      }),
+    )
+  })
+
+  it('formats as zero-padded hh:mm:ss', () => {
+    expect(formatUpdatedAt('2024-06-15T01:02:03.000Z')).toMatch(
+      /^\d{2}:\d{2}:\d{2}$/,
+    )
+  })
+
+  it('placeholders a missing or unparseable timestamp', () => {
+    expect(formatUpdatedAt(null)).toBe('--')
+    expect(formatUpdatedAt(undefined)).toBe('--')
+    expect(formatUpdatedAt('')).toBe('--')
+    expect(formatUpdatedAt('not a date')).toBe('--')
   })
 })
 

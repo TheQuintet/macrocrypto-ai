@@ -4,19 +4,25 @@ import {
   fetchBtcPriceSnapshot,
   PRICE_SNAPSHOT_TICK_MS,
 } from '@/api/btcPrice'
+import { usePriceStreamStore } from '@/stores/priceStreamStore'
 import type { BtcPriceSnapshot } from '@/types/btcPrice'
 
 /**
  * Current BTC snapshot (price + 24h/7d change windows).
  *
- * Refetches on the snapshot cadence so the display stays current; the live
- * stream replaces this as the primary transport and leaves it as the fallback.
+ * The live stream is the primary transport and writes straight into this
+ * cache entry; polling is the fallback and stands down while the socket is
+ * connected, so the two never fight over the same key.
  */
 export function useBtcPriceSnapshotQuery() {
+  const isStreamConnected = usePriceStreamStore(
+    (state) => state.status === 'connected',
+  )
+
   return useQuery<BtcPriceSnapshot, Error>({
     queryKey: btcPriceSnapshotQueryKey(),
     queryFn: () => fetchBtcPriceSnapshot(),
-    refetchInterval: PRICE_SNAPSHOT_TICK_MS,
+    refetchInterval: isStreamConnected ? false : PRICE_SNAPSHOT_TICK_MS,
     staleTime: PRICE_SNAPSHOT_TICK_MS,
   })
 }
