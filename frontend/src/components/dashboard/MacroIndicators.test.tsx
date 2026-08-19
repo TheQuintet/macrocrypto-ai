@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import { MAIN_INDICATOR_NAMES } from '@/api/macroIndicators';
 import { MacroIndicators } from './MacroIndicators';
 import { renderMacroIndicators } from './MacroIndicators.testHelpers';
 
@@ -36,14 +37,13 @@ describe('MacroIndicators', () => {
 
   it('shows loading skeletons when isLoading is true', () => {
     const { container } = render(<MacroIndicators indicators={[]} isLoading={true} />);
-    
-    // Check for Skeleton components using data-slot attribute
+
+    const cards = container.querySelectorAll('[data-slot="card"]');
+    expect(cards).toHaveLength(MAIN_INDICATOR_NAMES.length);
+
     const skeletons = container.querySelectorAll('[data-slot="skeleton"]');
     expect(skeletons.length).toBeGreaterThan(0);
-    
-    // Also verify they have the bg-muted class
-    const skeletonWithBg = container.querySelectorAll('[data-slot="skeleton"].bg-muted');
-    expect(skeletonWithBg.length).toBeGreaterThan(0);
+    expect(container.querySelectorAll('[data-slot="skeleton"].bg-muted').length).toBeGreaterThan(0);
   });
 
   it('shows error message when error is provided', () => {

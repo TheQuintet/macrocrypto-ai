@@ -1,11 +1,13 @@
 import type { MacroIndicator } from '@/types/macroIndicators';
 
 /** Names as returned by GET /api/v1/indicators (data-service / FRED collector). */
-const MAIN_INDICATORS = new Set([
+export const MAIN_INDICATOR_NAMES = [
   'cpi',
   'federal_funds_rate',
   'gdp',
-]);
+] as const
+
+const MAIN_INDICATORS = new Set<string>(MAIN_INDICATOR_NAMES)
 
 export async function fetchMacroIndicators(): Promise<MacroIndicator[]> {
   const response = await fetch('/api/v1/indicators');
