@@ -6,5 +6,9 @@ export function resetPriceStreamStore(
   status: PriceStreamStatus = 'connecting',
   lastUpdatedAt: string | null = null,
 ): void {
-  usePriceStreamStore.setState({ status, lastUpdatedAt })
+  usePriceStreamStore.setState({
+    status,
+    lastUpdatedAt,
+    reconnectAttempts: 0,
+  })
 }

@@ -2,7 +2,7 @@ import { cleanup } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fetchBtcPriceSnapshot } from '@/api/btcPrice'
 import {
-  expect24hRangeShown,
+  expect24hSessionShown,
   expectLoadingSkeleton,
   expectPriceShown,
   expectPriceUnavailable,
@@ -20,7 +20,11 @@ vi.mock('@/api/btcPrice', async (importOriginal) => {
 // Keep the card's own states under test — no background socket writing frames
 // into the shared cache mid-assertion.
 vi.mock('@/hooks/usePriceStream', () => ({
-  usePriceStream: () => ({ status: 'connecting', lastUpdatedAt: null }),
+  usePriceStream: () => ({
+    status: 'connecting',
+    lastUpdatedAt: null,
+    reconnectAttempts: 0,
+  }),
 }))
 
 const fetchSnapshot = vi.mocked(fetchBtcPriceSnapshot)
@@ -42,11 +46,11 @@ describe('BtcPriceCard', () => {
     await expectPriceShown('$64,213.50')
   })
 
-  it('renders the 24h high and low alongside the price', async () => {
+  it('renders the 24h high, low and volume alongside the price', async () => {
     fetchSnapshot.mockResolvedValue(SNAPSHOT)
     renderBtcPriceCard()
 
-    await expect24hRangeShown()
+    await expect24hSessionShown()
   })
 
   it('shows a loading state while the price is in flight', () => {

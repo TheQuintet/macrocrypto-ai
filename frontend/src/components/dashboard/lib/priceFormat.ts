@@ -22,6 +22,14 @@ export function formatSignedPercent(value: number) {
   return `${signOf(value)}${Math.abs(value).toFixed(2)}%`
 }
 
+/** `24,180.42 BTC` — 24h traded volume in the base asset. */
+export function formatVolume(value: number) {
+  return `${value.toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })} BTC`
+}
+
 /**
  * Wall-clock time of the last update, e.g. `14:32:05`.
  * Rendered in the reader's own timezone — this is a "how fresh is this"

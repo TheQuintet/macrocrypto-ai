@@ -84,7 +84,7 @@ export async function expectFeedKeepsUpdating(page: Page) {
 
 /** The simulated socket drops on a schedule; the client must come back. */
 export async function expectFeedRecoversFromDrop(page: Page) {
-  await expect(getFeedStatus(page)).toHaveText(/reconnecting/i, {
+  await expect(getFeedStatus(page)).toHaveText(/disconnected/i, {
     timeout: 60_000,
   })
   await expect(getFeedStatus(page)).toHaveText(/live/i, { timeout: 30_000 })
