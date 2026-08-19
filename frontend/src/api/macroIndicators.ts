@@ -1,23 +1,25 @@
 import type { MacroIndicator } from '@/components/dashboard/MacroIndicators';
 
-// Define which indicators to show (only these 3)
-const MAIN_INDICATORS = ['CPI', 'FEDFUNDS', 'gdp'];
+/** Names as returned by GET /api/v1/indicators (data-service / FRED collector). */
+const MAIN_INDICATORS = new Set([
+  'cpi',
+  'federal_funds_rate',
+  'gdp',
+]);
 
 export async function fetchMacroIndicators(): Promise<MacroIndicator[]> {
   try {
     const response = await fetch('/api/v1/indicators');
-    
+
     if (!response.ok) {
       throw new Error(`Failed to fetch indicators: ${response.statusText}`);
     }
-    
+
     const data = await response.json();
-    
-    // Filter to only show CPI, FEDFUNDS, GDP
-    return (data.indicators || [])
-      .filter((indicator: MacroIndicator) => 
-        MAIN_INDICATORS.includes(indicator.indicator_name)
-      );
+
+    return (data.indicators || []).filter((indicator: MacroIndicator) =>
+      MAIN_INDICATORS.has(indicator.indicator_name.toLowerCase()),
+    );
   } catch (error) {
     console.error('Error fetching macro indicators:', error);
     return []; // Return empty array on error
