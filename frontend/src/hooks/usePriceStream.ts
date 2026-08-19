@@ -5,7 +5,7 @@ import {
   parsePriceStreamMessage,
   reconnectDelayMs,
 } from '@/components/dashboard/lib/priceStream'
-import { createPriceSocket } from '@/lib/priceSocket'
+import { createPriceSocket, priceStreamSource } from '@/lib/priceSocket'
 import { usePriceStreamStore } from '@/stores/priceStreamStore'
 import type { BtcPriceSnapshot } from '@/types/btcPrice'
 import type { PriceSocketFactory, PriceSocketHandle } from '@/types/priceStream'
@@ -28,9 +28,7 @@ export function usePriceStream({
 }: UsePriceStreamOptions = {}) {
   const queryClient = useQueryClient()
   const status = usePriceStreamStore((state) => state.status)
-  const lastUpdatedAt = usePriceStreamStore((state) => state.lastUpdatedAt)
   const setStatus = usePriceStreamStore((state) => state.setStatus)
-  const setLastUpdatedAt = usePriceStreamStore((state) => state.setLastUpdatedAt)
   const reconnectAttempts = usePriceStreamStore(
     (state) => state.reconnectAttempts,
   )
@@ -39,7 +37,15 @@ export function usePriceStream({
   )
 
   useEffect(() => {
-    const connect = socketFactory ?? createPriceSocket()
+    const factory = socketFactory ?? createPriceSocket()
+
+    if (!factory) {
+      setStatus('unavailable')
+      return
+    }
+
+    const connect = factory
+
     let handle: PriceSocketHandle | undefined
     let reconnectTimer: ReturnType<typeof setTimeout> | undefined
     let attempt = 0
@@ -50,7 +56,6 @@ export function usePriceStream({
         btcPriceSnapshotQueryKey(),
         snapshot,
       )
-      setLastUpdatedAt(snapshot.updatedAt ?? new Date().toISOString())
     }
 
     const scheduleReconnect = () => {
@@ -84,7 +89,10 @@ export function usePriceStream({
         }
 
         if (event.type === 'message') {
-          const snapshot = parsePriceStreamMessage(event.data)
+          const snapshot = parsePriceStreamMessage(
+            event.data,
+            priceStreamSource(),
+          )
           if (snapshot) {
             applySnapshot(snapshot)
           }
@@ -109,9 +117,8 @@ export function usePriceStream({
     queryClient,
     socketFactory,
     setStatus,
-    setLastUpdatedAt,
     setReconnectAttempts,
   ])
 
-  return { status, lastUpdatedAt, reconnectAttempts }
+  return { status, reconnectAttempts }
 }

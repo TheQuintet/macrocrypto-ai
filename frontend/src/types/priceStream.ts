@@ -1,5 +1,13 @@
-/** Transport state of the live price connection. */
-export type PriceStreamStatus = 'connecting' | 'connected' | 'disconnected'
+/**
+ * Transport state of the live price connection.
+ * `unavailable` means no stream is configured at all — distinct from one that
+ * dropped, because nothing is retrying and REST polling carries the data.
+ */
+export type PriceStreamStatus =
+  | 'connecting'
+  | 'connected'
+  | 'disconnected'
+  | 'unavailable'
 
 /**
  * The slice of socket behaviour the price stream depends on.

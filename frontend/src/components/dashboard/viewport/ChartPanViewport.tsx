@@ -7,7 +7,7 @@ import {
   type ReactNode,
   type WheelEvent as ReactWheelEvent,
 } from 'react'
-import type { ChartPoint } from '@/types/chart'
+import type { ChartCandle } from '@/types/chart'
 import { ChartYAxis } from '@/components/dashboard/viewport/ChartYAxis'
 import {
   chartYAxisWidth,
@@ -18,6 +18,7 @@ import {
   DEFAULT_CHART_POINT_WIDTH,
   zoomChartPointWidth,
 } from '@/components/dashboard/lib/chartZoom'
+import { candleYDomain } from '@/components/dashboard/lib/chartCandle'
 import { cn } from '@/lib/utils'
 
 /** Fallback before ResizeObserver measures the plot area. */
@@ -25,9 +26,9 @@ const DEFAULT_CHART_HEIGHT = 224
 const OVERSCAN_POINTS = 16
 
 type ChartPanViewportProps = {
-  data: ChartPoint[]
+  data: ChartCandle[]
   children: (args: {
-    data: ChartPoint[]
+    data: ChartCandle[]
     width: number
     height: number
     yDomain: [number, number]
@@ -65,21 +66,6 @@ export function ChartPanViewport({
   const minOffsetX = Math.min(0, viewportWidth - virtualWidth)
   const canPan = virtualWidth > viewportWidth + 1
   const nextSeriesKey = `${data.length}`
-
-  const yDomain = useMemo((): [number, number] => {
-    if (data.length === 0) {
-      return [0, 1]
-    }
-
-    let min = data[0].price
-    let max = data[0].price
-    for (const point of data) {
-      min = Math.min(min, point.price)
-      max = Math.max(max, point.price)
-    }
-
-    return [min - 200, max + 200]
-  }, [data])
 
   useEffect(() => {
     const viewportNode = viewportRef.current
@@ -123,6 +109,17 @@ export function ChartPanViewport({
   const renderData = data.slice(renderStart, renderEnd)
   const renderWidth = Math.max(viewportWidth, renderData.length * pointWidth)
   const stripOffsetX = clampedOffsetX + renderStart * pointWidth
+
+  const visibleEnd = Math.min(data.length, firstVisibleIndex + visibleCount)
+
+  // Auto-scale to what is on screen, the way a trading chart does. Scaling to
+  // the whole series would flatten the visible candles against the trend.
+  // Before the viewport is measured there is no window yet, so fall back to
+  // the whole series rather than collapsing onto an empty slice.
+  const yDomain = useMemo(() => {
+    const visible = data.slice(firstVisibleIndex, visibleEnd)
+    return candleYDomain(visible.length > 0 ? visible : data)
+  }, [data, firstVisibleIndex, visibleEnd])
 
   const visibleFrom = data[firstVisibleIndex]?.time
   const visibleTo =

@@ -31,6 +31,7 @@ describe('mapBtcPriceSnapshot', () => {
         updated_at: '2024-06-15T12:00:00.000Z',
       }),
     ).toEqual({
+      source: 'live',
       currentPrice: 64_213.5,
       change24h: 1_113.5,
       change24hPercent: 1.76,

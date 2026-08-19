@@ -11,12 +11,16 @@ export type BtcPriceHistoryParams = {
 }
 
 /**
- * Production-shaped history candle/close point.
- * Expand with open/high/low later when OHLC charts land.
+ * Production-shaped history candle.
+ * Mirrors a Binance kline as the service already reads it — see
+ * `DailyCandle` in `services/data-service/app/services/history_service.py`.
  */
 export type BtcPriceHistoryPoint = {
   timestamp: string
-  price: number
+  open: number
+  high: number
+  low: number
+  close: number
 }
 
 export type BtcPriceHistoryResponse = {

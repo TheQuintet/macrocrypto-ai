@@ -49,6 +49,7 @@ describe('parsePriceStreamMessage', () => {
     )
 
     expect(snapshot).toEqual({
+      source: 'live',
       currentPrice: 64_000,
       change24h: null,
       change24hPercent: null,

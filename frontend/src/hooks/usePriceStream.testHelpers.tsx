@@ -55,10 +55,10 @@ export function createControllableSocket() {
   }
 }
 
-export function renderPriceStream(socketFactory: PriceSocketFactory) {
+export function renderPriceStream(socketFactory: PriceSocketFactory | null) {
   const queryClient = createTestQueryClient()
 
-  const view = renderHook(() => usePriceStream({ socketFactory }), {
+  const view = renderHook(() => usePriceStream({ socketFactory: socketFactory ?? undefined }), {
     wrapper: ({ children }: { children: ReactNode }) => (
       <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
     ),

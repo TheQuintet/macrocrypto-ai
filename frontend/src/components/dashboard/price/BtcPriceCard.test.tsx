@@ -1,4 +1,4 @@
-import { cleanup } from '@testing-library/react'
+import { cleanup, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fetchBtcPriceSnapshot } from '@/api/btcPrice'
 import {
@@ -51,6 +51,22 @@ describe('BtcPriceCard', () => {
     renderBtcPriceCard()
 
     await expect24hSessionShown()
+  })
+
+  it('labels simulated data so it cannot pass as the real market', async () => {
+    fetchSnapshot.mockResolvedValue(snapshotWith({ source: 'simulated' }))
+    renderBtcPriceCard()
+
+    await expectPriceShown('$64,213.50')
+    expect(screen.getByText('Simulated')).toBeInTheDocument()
+  })
+
+  it('shows no such label for live data', async () => {
+    fetchSnapshot.mockResolvedValue(SNAPSHOT)
+    renderBtcPriceCard()
+
+    await expectPriceShown('$64,213.50')
+    expect(screen.queryByText('Simulated')).not.toBeInTheDocument()
   })
 
   it('shows a loading state while the price is in flight', () => {

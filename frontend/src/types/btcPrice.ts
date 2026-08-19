@@ -16,8 +16,15 @@ export type BtcPriceSnapshotResponse = {
   updated_at: string | null
 }
 
+/**
+ * Where a snapshot came from. Simulated data must be labelled in the UI —
+ * fake prices presented as real are worse than no prices.
+ */
+export type PriceSource = 'live' | 'simulated'
+
 /** Camel-cased snapshot used across the UI. */
 export type BtcPriceSnapshot = {
+  source: PriceSource
   currentPrice: number | null
   change24h: number | null
   change24hPercent: number | null
