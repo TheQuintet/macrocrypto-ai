@@ -57,6 +57,15 @@ describe('MacroIndicators', () => {
     expect(screen.getByText('No macroeconomic data available')).toBeInTheDocument();
   });
 
+  it('displays trend arrows with percentage change', () => {
+    renderMacroIndicators();
+
+    expect(screen.getAllByText(/↑ \+0\.23%/)[0]).toBeInTheDocument();
+    expect(screen.getAllByText(/→ 0\.00%/)[0]).toBeInTheDocument();
+    expect(screen.getAllByText(/↓ -2\.38%/)[0]).toBeInTheDocument();
+    expect(screen.getAllByText(/↑ \+1\.91%/)[0]).toBeInTheDocument();
+  });
+
   it('displays change indicators with BTC-positive/negative colors', () => {
     renderMacroIndicators();
 
