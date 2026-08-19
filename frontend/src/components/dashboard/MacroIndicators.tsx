@@ -21,31 +21,39 @@ interface MacroIndicatorsProps {
   className?: string;
 }
 
-// Helper function to determine color based on indicator and change
-const getColorForIndicator = (
-  indicatorName: string, 
-  changePercent: number | null
-): string => {
-  if (changePercent === null) return 'text-muted-foreground';
-  
-  // For most indicators: positive = good (green), negative = bad (red)
-  // For unemployment: negative change = good (green), positive = bad (red)
-  const isInverseIndicator = indicatorName.toLowerCase().includes('unemployment') ||
-                             indicatorName.toLowerCase().includes('unrate');
-  
-  const isPositive = changePercent > 0;
-  const isNegative = changePercent < 0;
-  
-  if (isInverseIndicator) {
-    if (isNegative) return 'text-green-500';
-    if (isPositive) return 'text-red-500';
+/**
+ * Green = positive for BTC, red = negative for BTC.
+ * Rising CPI / Fed funds / unemployment are typically risk-off → inverse coloring.
+ */
+function isInverseForBtc(indicatorName: string): boolean {
+  const name = indicatorName.toLowerCase().replace(/[\s-]+/g, '_');
+
+  return (
+    name === 'cpi' ||
+    name.includes('inflation') ||
+    name === 'federal_funds_rate' ||
+    name === 'fedfunds' ||
+    name.includes('fed_funds') ||
+    name.includes('interest') ||
+    name.includes('unemployment') ||
+    name.includes('unrate')
+  );
+}
+
+function getColorForIndicator(
+  indicatorName: string,
+  changePercent: number | null,
+): string {
+  if (changePercent === null || changePercent === 0) {
     return 'text-muted-foreground';
   }
-  
-  if (isPositive) return 'text-green-500';
-  if (isNegative) return 'text-red-500';
-  return 'text-muted-foreground';
-};
+
+  const riseIsBadForBtc = isInverseForBtc(indicatorName);
+  const isUp = changePercent > 0;
+  const isGoodForBtc = riseIsBadForBtc ? !isUp : isUp;
+
+  return isGoodForBtc ? 'text-green-500' : 'text-red-500';
+}
 
 // Helper to get change indicator symbol
 const getChangeSymbol = (changePercent: number | null): string => {

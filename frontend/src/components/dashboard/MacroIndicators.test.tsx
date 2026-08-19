@@ -57,25 +57,23 @@ describe('MacroIndicators', () => {
     expect(screen.getByText('No macroeconomic data available')).toBeInTheDocument();
   });
 
-  it('displays change indicators with correct colors', () => {
+  it('displays change indicators with BTC-positive/negative colors', () => {
     renderMacroIndicators();
-    
-    // Check for positive change (using getAllByText since it appears multiple times)
-    const positiveChanges = screen.getAllByText(/\+0.23%/);
-    expect(positiveChanges.length).toBeGreaterThan(0);
-    // Check first positive change has green color
-    expect(positiveChanges[0]).toHaveClass('text-green-500');
-    
-    // Check for negative change (unemployment)
-    const negativeChanges = screen.getAllByText(/-2.38%/);
-    expect(negativeChanges.length).toBeGreaterThan(0);
-    // Unemployment decreased → should be green (positive for this indicator)
-    expect(negativeChanges[0]).toHaveClass('text-green-500');
-    
-    // Check for neutral change (FEDFUNDS)
+
+    // CPI up → negative for BTC → red
+    const cpiChange = screen.getAllByText(/\+0.23%/);
+    expect(cpiChange[0]).toHaveClass('text-red-500');
+
+    // GDP up → positive for BTC → green
+    const gdpChange = screen.getAllByText(/\+1.91%/);
+    expect(gdpChange[0]).toHaveClass('text-green-500');
+
+    // Unemployment down → positive for BTC → green
+    const unemploymentChange = screen.getAllByText(/-2.38%/);
+    expect(unemploymentChange[0]).toHaveClass('text-green-500');
+
+    // Fed funds unchanged → muted
     const neutralChanges = screen.getAllByText(/0.00%/);
-    expect(neutralChanges.length).toBeGreaterThan(0);
-    // Neutral should have muted color
     expect(neutralChanges[0]).toHaveClass('text-muted-foreground');
   });
 });
