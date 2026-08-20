@@ -91,56 +91,56 @@ Replace placeholders with the forecast components below.
 **`MacroPage`**  
 Beyond the indicator grid: host or link regime timeline, calendar, correlations, event impact.
 
-### New — dashboard / macro
+### Missing — dashboard / macro
 
-| Component | Purpose |
-|-----------|---------|
-| `RegimeCard` | Current regime on the dashboard (`#240`). |
-| `RegimePerformance` | How BTC behaved in this regime (`#238`). |
-| `RegimeTimeline` | Historical regimes on a time axis (`#239`). |
-| `SimilarPeriods` | Similar-period suggestions (`#241`). |
-| Regime export | Export regime data (`#242`) — can live in `ExportModal`. |
-| `IndicatorHistory` | Drill-down / chart of historical indicator values (`#269`). |
+Check off when the component exists in the app.
 
-### New — forecasts (also reused on dashboard for `#508`)
+- [ ] `RegimeCard` — current regime on the dashboard (`#240`)
+- [ ] `RegimePerformance` — how BTC behaved in this regime (`#238`)
+- [ ] `RegimeTimeline` — historical regimes on a time axis (`#239`)
+- [ ] `SimilarPeriods` — similar-period suggestions (`#241`)
+- [ ] Regime export — export regime data (`#242`); can live in `ExportModal`
+- [ ] `IndicatorHistory` — drill-down / chart of historical indicator values (`#269`)
 
-| Component | Purpose |
-|-----------|---------|
-| `PredictionChart` | One chart for 24h **and** 7d: projected path, high/low, tooltips, confidence band, legend, CI in tooltip. |
-| `PredictionSummary` | Direction, expected range, key levels, confidence copy. |
-| `ConfidenceSelector` | Confidence level shown on the chart. |
-| `RecommendationCard` | Trade recommendation, horizon toggle, accuracy snippet, dismiss/acknowledge. |
-| `AccuracyPanel` | Accuracy summary, trend chart, predicted vs actual, market-condition breakdown. |
-| `AccuracyDetailsModal` | “View details”. |
+### Missing — forecasts (also reused on dashboard for `#508`)
 
-### New — alerts (beyond list CRUD)
+Check off when the component exists in the app.
 
-| Component | Purpose |
-|-----------|---------|
-| `AlertForm` / `AlertPreview` | Create/edit + preview. |
-| `AlertHistory` | Shared history for all alert types. |
-| `NotificationFeed` (or `AppToaster`) | In-app notifications. |
-| `MacroEventSubscriptions` | Subscribe to upcoming events. |
+- [ ] `PredictionChart` — one chart for 24h **and** 7d: projected path, high/low, tooltips, confidence band, legend, CI in tooltip
+- [ ] `PredictionSummary` — direction, expected range, key levels, confidence copy
+- [ ] `ConfidenceSelector` — confidence level shown on the chart
+- [ ] `RecommendationCard` — trade recommendation, horizon toggle, accuracy snippet, dismiss/acknowledge
+- [ ] `AccuracyPanel` — accuracy summary, trend chart, predicted vs actual, market-condition breakdown
+- [ ] `AccuracyDetailsModal` — “View details”
 
-### New — economic calendar & event impact
+### Missing — alerts (beyond list CRUD)
 
-| Component | Purpose |
-|-----------|---------|
-| `EconomicCalendar` | Upcoming events (`S3.6`); can also cover T9.8. |
-| `EventDetailsModal` | Event detail. |
-| `EventHistory` | Past events. |
-| `TimezoneSelector` | Event times in a chosen zone. |
-| `EventImpactPanel` | Impact analysis, event-type + date filters, impact chart, export. |
+Check off when the component exists in the app.
 
-### New — analyst: correlations, export, methodology
+- [ ] `AlertForm` / `AlertPreview` — create/edit + preview
+- [ ] `AlertHistory` — shared history for all alert types
+- [ ] `NotificationFeed` (or `AppToaster`) — in-app notifications
+- [ ] `MacroEventSubscriptions` — subscribe to upcoming events
 
-| Component | Purpose |
-|-----------|---------|
-| `CorrelationHeatmap` | BTC–macro correlation matrix. |
-| `RollingCorrelationChart` | Rolling correlations. |
-| `CorrelationInsights` | Written insights. |
-| `ExportModal` | Start export, progress, download notifications, history (correlation + charts; PNG/PDF is backend). |
-| `MethodologyPage` | New route: methodology, model metrics, search, FAQ, citations. |
+### Missing — economic calendar & event impact
+
+Not in the app today (no route, no components). Not Sprint 5 frontend — S3 calendar **backend** is in this sprint (`#294`–`#298`). Check off when each piece exists.
+
+- [ ] `EconomicCalendar` — upcoming events (`S3.6`); can also cover T9.8
+- [ ] `EventDetailsModal` — event detail
+- [ ] `EventHistory` — past events
+- [ ] `TimezoneSelector` — event times in a chosen zone
+- [ ] `EventImpactPanel` — impact analysis, event-type + date filters, impact chart, export (`A5`)
+
+### Missing — analyst: correlations, export, methodology
+
+Check off when the component exists in the app.
+
+- [ ] `CorrelationHeatmap` — BTC–macro correlation matrix
+- [ ] `RollingCorrelationChart` — rolling correlations
+- [ ] `CorrelationInsights` — written insights
+- [ ] `ExportModal` — start export, progress, download notifications, history (correlation + charts; PNG/PDF is backend)
+- [ ] `MethodologyPage` — new route: methodology, model metrics, search, FAQ, citations
 
 ## Suggested build order
 
