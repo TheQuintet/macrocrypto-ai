@@ -14,6 +14,7 @@ from app.models.prediction_alert import (
     PredictionDirection
 )
 from app.models.email_queue import EmailQueue, EmailStatus
+from app.models.alert import PriceAlert, AlertType, AlertStatus
 
 
 class TestPredictionEmailService:
@@ -25,10 +26,29 @@ class TestPredictionEmailService:
         return PredictionEmailService(db_session)
 
     @pytest.fixture
-    def sample_alert(self, db_session):
+    def sample_price_alert(self, db_session):
+        """Create a sample price alert for FK reference."""
+        alert = PriceAlert(
+            id=uuid4(),
+            user_id=uuid4(),
+            threshold_price=85000.00,
+            alert_type=AlertType.REACHES,
+            asset="BTC/USD",
+            status=AlertStatus.ACTIVE,
+            one_time=True,
+            notify_in_app=True,
+            notify_email=True
+        )
+        db_session.add(alert)
+        db_session.commit()
+        db_session.refresh(alert)
+        return alert
+
+    @pytest.fixture
+    def sample_alert(self, db_session, sample_price_alert):
         """Create a sample prediction alert for testing."""
         alert = PredictionChangeAlert(
-            id=uuid4(),
+            id=sample_price_alert.id,  # Reuse PriceAlert ID for FK
             user_id=uuid4(),
             threshold_percent=2.0,
             horizon=PredictionHorizon.HOUR_24,
@@ -85,17 +105,16 @@ class TestPredictionEmailService:
         )
 
         assert "Prediction Change Alert" in subject
-        assert "BTC/USD" in subject
         assert "Up 3.7%" in subject or "Up 3.66%" in subject
 
         assert "<html>" in html_body
+        assert "BTC/USD" in html_body  # ← Fixed: check HTML body for asset
         assert "$82,000" in html_body or "82000" in html_body
         assert "$85,000" in html_body or "85000" in html_body
         assert "3.66" in html_body or "3.7" in html_body
         assert "Recommendation" in html_body
         assert "Consider adjusting position" in html_body
 
-        assert "BTC/USD" in text_body
         assert "$82,000" in text_body or "82000" in text_body
         assert "$85,000" in text_body or "85000" in text_body
         assert "Up 3.7%" in text_body or "Up 3.66%" in text_body

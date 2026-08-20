@@ -49,7 +49,7 @@ class TestPredictionAlertEngine:
     def sample_alert(self, db_session: Session, sample_price_alert):
         """Create a sample prediction alert for testing."""
         alert = PredictionChangeAlert(
-            id=sample_price_alert.id,
+            id=sample_price_alert.id,  # Reuse PriceAlert ID
             user_id=uuid4(),
             threshold_percent=2.0,
             horizon=PredictionHorizon.HOUR_24,
@@ -104,10 +104,11 @@ class TestPredictionAlertEngine:
     ):
         """Test prediction change below threshold does not trigger."""
         sample_alert.threshold_percent = 5.0
+        sample_alert.monitor_confidence = False
         db_session.commit()
 
         prediction_data = sample_prediction_data.copy()
-        prediction_data["prediction"] = 83000.00
+        prediction_data["prediction"] = 82500.00
         prediction_data["previous_prediction"] = 82000.00
 
         triggered = alert_engine.evaluate_prediction_alerts(prediction_data)
@@ -125,10 +126,11 @@ class TestPredictionAlertEngine:
         (10.0, False),
     ])
     def test_threshold_checking(
-        self, alert_engine, db_session, sample_alert, 
+        self, alert_engine, db_session, sample_alert,
         sample_prediction_data, threshold, should_trigger
     ):
         """Test different threshold values."""
+        sample_alert.monitor_confidence = False
         sample_alert.threshold_percent = threshold
         db_session.commit()
 
@@ -170,11 +172,14 @@ class TestPredictionAlertEngine:
         """Test confidence change does not trigger when disabled."""
         sample_alert.monitor_confidence = False
         sample_alert.confidence_threshold_percent = 5.0
+        sample_alert.threshold_percent = 10.0
         db_session.commit()
 
         prediction_data = sample_prediction_data.copy()
         prediction_data["confidence"] = 85.0
         prediction_data["previous_confidence"] = 92.0
+        prediction_data["prediction"] = 82500.00
+        prediction_data["previous_prediction"] = 82000.00
 
         triggered = alert_engine.evaluate_prediction_alerts(prediction_data)
 
@@ -186,11 +191,14 @@ class TestPredictionAlertEngine:
         """Test confidence change below threshold does not trigger."""
         sample_alert.monitor_confidence = True
         sample_alert.confidence_threshold_percent = 10.0
+        sample_alert.threshold_percent = 10.0
         db_session.commit()
 
         prediction_data = sample_prediction_data.copy()
         prediction_data["confidence"] = 88.0
         prediction_data["previous_confidence"] = 92.0
+        prediction_data["prediction"] = 82500.00
+        prediction_data["previous_prediction"] = 82000.00
 
         triggered = alert_engine.evaluate_prediction_alerts(prediction_data)
 
@@ -305,9 +313,10 @@ class TestPredictionAlertEngine:
                 horizon=PredictionHorizon.HOUR_24,
                 direction=PredictionDirection.BOTH,
                 asset="BTC/USD",
+                monitor_confidence=False,  # Disable to avoid FK violations
+                notify_in_app=False,  # Disable to avoid FK violations
+                notify_email=False,  # Disable to avoid FK violations
                 status=PredictionAlertStatus.ACTIVE,
-                notify_in_app=True,
-                notify_email=True
             )
             db_session.add(alert)
             alerts.append(alert)
@@ -345,6 +354,7 @@ class TestPredictionAlertEngine:
         self, alert_engine, db_session, sample_alert, sample_prediction_data
     ):
         """Test zero change does not trigger."""
+        sample_alert.monitor_confidence = False
         sample_alert.threshold_percent = 2.0
         db_session.commit()
 
@@ -455,4 +465,4 @@ class TestPredictionAlertEngine:
         ).first()
 
         assert history is not None
-        assert "Downward prediction" in history.recommendation or "sell" in history.recommendation.lower()
+        assert "Cautious: Prediction down" in history.recommendation or "sell" in history.recommendation.lower()

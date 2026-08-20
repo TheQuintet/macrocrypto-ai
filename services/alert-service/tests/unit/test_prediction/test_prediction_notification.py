@@ -13,7 +13,7 @@ from app.models.prediction_alert import (
     PredictionHorizon,
     PredictionDirection
 )
-from app.models.alert import InAppNotification, NotificationType
+from app.models.alert import InAppNotification, NotificationType, PriceAlert, AlertType, AlertStatus
 
 
 class TestPredictionNotification:
@@ -25,10 +25,29 @@ class TestPredictionNotification:
         return NotificationService(db_session)
 
     @pytest.fixture
-    def sample_alert(self, db_session):
+    def sample_price_alert(self, db_session):
+        """Create a sample price alert for FK reference."""
+        alert = PriceAlert(
+            id=uuid4(),
+            user_id=uuid4(),
+            threshold_price=85000.00,
+            alert_type=AlertType.REACHES,
+            asset="BTC/USD",
+            status=AlertStatus.ACTIVE,
+            one_time=True,
+            notify_in_app=True,
+            notify_email=True
+        )
+        db_session.add(alert)
+        db_session.commit()
+        db_session.refresh(alert)
+        return alert
+
+    @pytest.fixture
+    def sample_alert(self, db_session, sample_price_alert):
         """Create a sample prediction alert for testing."""
         alert = PredictionChangeAlert(
-            id=uuid4(),
+            id=sample_price_alert.id,  # Reuse PriceAlert ID
             user_id=uuid4(),
             threshold_percent=2.0,
             horizon=PredictionHorizon.HOUR_24,
