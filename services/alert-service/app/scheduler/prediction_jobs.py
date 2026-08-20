@@ -1,7 +1,7 @@
 """Scheduled jobs for prediction monitoring"""
 
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Dict, Any
 
 from sqlalchemy.orm import Session
@@ -10,6 +10,7 @@ from app.database.session import SessionLocal
 from app.services.prediction_alert_engine import PredictionAlertEngine
 from app.services.prediction_email_service import PredictionEmailService
 from app.rabbitmq.producer import RabbitMQProducer
+from app.models.prediction_alert import PredictionChangeHistory
 
 logger = logging.getLogger(__name__)
 
@@ -45,10 +46,10 @@ def check_prediction_changes_job():
                 email_service = PredictionEmailService(db)
                 for alert in triggered:
                     # Get the history entry for this alert
-                    history = db.query(app.models.prediction_alert.PredictionChangeHistory).filter(
-                        app.models.prediction_alert.PredictionChangeHistory.alert_id == alert.id
+                    history = db.query(PredictionChangeHistory).filter(
+                        PredictionChangeHistory.alert_id == alert.id
                     ).order_by(
-                        app.models.prediction_alert.PredictionChangeHistory.created_at.desc()
+                        PredictionChangeHistory.created_at.desc()
                     ).first()
 
                     if history:
@@ -81,6 +82,7 @@ def _fetch_current_predictions() -> list:
     This is a placeholder - in production, this would call the Data Service API.
     """
     # Placeholder - in production, fetch from Data Service
+    now = datetime.utcnow()
     return [
         {
             "asset": "BTC/USD",
@@ -113,12 +115,11 @@ def cleanup_prediction_history_job():
     db = SessionLocal()
 
     try:
-        # Delete history older than 30 days
-        from datetime import timedelta
+        # Delete history older than 30 days based on triggered_at
         cutoff_date = datetime.utcnow() - timedelta(days=30)
 
-        deleted = db.query(app.models.prediction_alert.PredictionChangeHistory).filter(
-            app.models.prediction_alert.PredictionChangeHistory.created_at < cutoff_date
+        deleted = db.query(PredictionChangeHistory).filter(
+            PredictionChangeHistory.triggered_at < cutoff_date
         ).delete()
 
         db.commit()
