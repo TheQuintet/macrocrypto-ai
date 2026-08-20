@@ -4,6 +4,20 @@ Snapshot from backlog review of [open GitHub issues](https://github.com/TheQuint
 
 Related: [project scope](./project-scope.md), [user stories dependency map](./user-stories-dependency-map.md), frontend conventions in `AGENTS.md`.
 
+## How the issues are structured
+
+The tracker is layered like this:
+
+1. **Epics** — product areas ([#328](https://github.com/TheQuintet/macrocrypto-ai/issues/328) Dashboard, [#326](https://github.com/TheQuintet/macrocrypto-ai/issues/326) BTC Forecasting, [#329](https://github.com/TheQuintet/macrocrypto-ai/issues/329) Alert System, [#330](https://github.com/TheQuintet/macrocrypto-ai/issues/330) Correlation & Regimes, [#331](https://github.com/TheQuintet/macrocrypto-ai/issues/331) Export, [#332](https://github.com/TheQuintet/macrocrypto-ai/issues/332) Methodology, plus design/infra epics).
+2. **Stories** — persona + capability, with IDs:
+   - **T1–T9** — BTC trader (predictions, price, alerts)
+   - **A1–A5** — investment analyst (correlations, export, regimes, methodology, event impact)
+   - **S1–S3** — any user (macro indicators, public API, economic calendar)
+3. **Tasks** — numbered children such as `T1.8`, `A3.11`, `S3.6`, tagged `[FRONTEND]` / `[BACKEND]` / `[TESTING]`.
+4. **Labels** — `frontend` plus persona (`btc trader`, `investment analyst`, `any user`), owning service (`ai-service`, `alerts-service`, `data-service`), and sprint (`sprint-5`).
+
+Sprint 5 tagged frontend is mostly **carryover**: S1.7–S1.9, A3.9–A3.14, A4.6. Most of the 83 frontend issues are **unscheduled**. The two concrete dashboard tickets (not generated story slices) are [#508](https://github.com/TheQuintet/macrocrypto-ai/issues/508) and [#510](https://github.com/TheQuintet/macrocrypto-ai/issues/510).
+
 ## Things to remember
 
 - **83 open issues** are labeled `frontend`. Most are thin slices of the same screen (tooltip, summary box, then a separate “make it mobile” ticket), not 83 independent features.
@@ -28,17 +42,6 @@ Related: [project scope](./project-scope.md), [user stories dependency map](./us
 | Close every FE ticket | Full trader + analyst surfaces | ~8–12 weeks (10–16 if closing tickets one-by-one) |
 
 Ticket count overstates work. Story-level implementation is the 8–12 week number. Two frontend people in parallel (forecasts vs alerts/calendar) can cut calendar time toward ~6–8 weeks for the full set, not in half, because shared chart/layout/review still serialize.
-
-## How the issue tracker is structured
-
-278 open issues total. Layers:
-
-1. **Epics** — Dashboard (`#328`), BTC Forecasting (`#326`), Alert System (`#329`), Correlation & Regimes (`#330`), Export (`#331`), Methodology (`#332`), plus design/infra.
-2. **Stories** — **T1–T9** BTC trader, **A1–A5** investment analyst, **S1–S3** any user.
-3. **Tasks** — numbered children (`T1.8`, `A3.11`, `S3.6`) tagged `[FRONTEND]` / `[BACKEND]` / `[TESTING]`.
-4. **Labels** — `frontend`, persona, owning service, sprint.
-
-Sprint 5 tagged frontend is mostly **carryover**: S1.7–S1.9, A3.9–A3.14, A4.6. Most of the 83 frontend issues are **unscheduled**. The two concrete dashboard tickets (not generated story slices) are [#508](https://github.com/TheQuintet/macrocrypto-ai/issues/508) and [#510](https://github.com/TheQuintet/macrocrypto-ai/issues/510).
 
 ## What the app already has
 
