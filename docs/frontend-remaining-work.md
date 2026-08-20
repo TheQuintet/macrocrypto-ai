@@ -53,103 +53,119 @@ Vite + React + TypeScript under `frontend/`. Routes in `App.tsx`:
 | `/macro` | `MacroPage` | Same indicators query. |
 | `/forecasts` | `ForecastsPage` | Placeholder chart/cards. |
 | `/alerts` | `AlertsPage` | Client-only draft list. |
+| *(none)* | Methodology | No page yet. |
 
 State: Zustand for preferences/theme/ephemeral UI (including shared time range); TanStack Query for server data. Types in `src/types/`. Components grouped under `layout/`, `dashboard/price|controls|viewport|lib/`, `timeRange/`, `alerts/`, `charts/`, ShadCN in `ui/`.
 
 ---
 
-## Remaining work by component
+## Remaining work by page
 
-Tests and mobile layout are AC on each item, not listed here.
+Check off when it is done. Tests and mobile layout are AC on each item. `[x]` = already in the app.
 
-### Extend existing
+Sidebar (`AppSidebar`): add **Alerts** when that page is real; add **Methodology** if it becomes its own route.
 
-**`ChartPanViewport` + `PriceChart`**  
-Fit the visible window to the selected time range (`#510`). Zoom should start from that density, not a fixed candle width.
+### Dashboard — `/` (`DashboardPage`)
 
-**`TimeRangePicker`**  
-Already drives fetch; it must also drive what the chart shows (with `#510`).
+Glance view: live price, chart, regime, indicators, optional forecast snippet.
 
-**`PriceChart` / `PriceCandlestickChart` (or overlay)**  
-Optional path for `#508`: history continuing into a 24h projected path + uncertainty band, visually distinct from actuals.
+**Already there**
 
-**Dashboard “Macro regime” card** (skeleton in `DashboardPage`)  
-Replace with current regime (name, period, short explanation).
+- [x] `BtcPriceCard`, `PriceChangeCard`, day stats, stream status
+- [x] `PriceChart` (OHLC), zoom / interval switchers, pan viewport
+- [x] `TimeRangePicker` (fetches history)
+- [x] `MacroIndicators` snapshot grid (including color-coding)
 
-**`MacroIndicators`**  
-Color-coding is done. Still missing historical access (open an indicator → series / past values).
+**Still missing**
 
-**`AlertsList` / `AlertListItem` / `AlertsPage`**  
-Replace local drafts with real CRUD; rule preview; alert history; in-app notifications. Cover price-level (T7), prediction-change (T8), and macro-event subscriptions (T9) as **one management UI with types**, not three apps.
+- [ ] Chart shows the selected time range, not only one screen of candles (`#510`)
+- [ ] AI forecast on this page (`#508`) — overlay on the price chart **or** a small card that reuses Forecasts’ `PredictionChart`
+- [ ] `RegimeCard` — replace the skeleton with current regime (`#240`)
 
-**`AppSidebar` / `sidebarNavItems`**  
-Add Alerts. Add nav for any new first-class pages (calendar, correlations, methodology, export).
+### Macro — `/macro` (`MacroPage`)
 
-**`ForecastsPage`**  
-Replace placeholders with the forecast components below.
+Deeper macro context. Today it is only the same indicator cards as the dashboard.
 
-**`MacroPage`**  
-Beyond the indicator grid: host or link regime timeline, calendar, correlations, event impact.
+**Already there**
 
-### Missing — dashboard / macro
+- [x] `MacroIndicators` snapshot (same component as dashboard)
 
-Check off when the component exists in the app.
+**Still missing — indicators & regimes (Sprint 5 frontend)**
 
-- [ ] `RegimeCard` — current regime on the dashboard (`#240`)
-- [ ] `RegimePerformance` — how BTC behaved in this regime (`#238`)
-- [ ] `RegimeTimeline` — historical regimes on a time axis (`#239`)
-- [ ] `SimilarPeriods` — similar-period suggestions (`#241`)
-- [ ] Regime export — export regime data (`#242`); can live in `ExportModal`
-- [ ] `IndicatorHistory` — drill-down / chart of historical indicator values (`#269`)
+- [ ] `IndicatorHistory` — open an indicator → historical series (`#269`)
+- [ ] `RegimePerformance` (`#238`)
+- [ ] `RegimeTimeline` (`#239`)
+- [ ] `SimilarPeriods` (`#241`)
+- [ ] Regime export (`#242`; can use `ExportModal`)
 
-### Missing — forecasts (also reused on dashboard for `#508`)
+**Still missing — calendar, events, correlations, export (later; not Sprint 5 frontend)**
 
-Check off when the component exists in the app.
+Calendar (S3; backend `#294`–`#298` is in this sprint)
 
-- [ ] `PredictionChart` — one chart for 24h **and** 7d: projected path, high/low, tooltips, confidence band, legend, CI in tooltip
+- [ ] `EconomicCalendar` — upcoming events (`S3.6`; can also cover T9.8)
+- [ ] `EventDetailsModal`
+- [ ] `EventHistory`
+- [ ] `TimezoneSelector`
+
+Event impact (A5)
+
+- [ ] `EventImpactPanel` — filters, impact chart, export
+
+Correlations (A1)
+
+- [ ] `CorrelationHeatmap`
+- [ ] `RollingCorrelationChart`
+- [ ] `CorrelationInsights`
+
+Export (A2) — modal opened from this page, not its own route
+
+- [ ] `ExportModal` — progress, download notifications, history
+
+### Forecasts — `/forecasts` (`ForecastsPage`)
+
+**Already there**
+
+- [x] Page shell with placeholder chart and confidence skeletons
+
+**Still missing** (replace placeholders)
+
+- [ ] `PredictionChart` — one chart for 24h **and** 7d, path, high/low, tooltips, confidence band, legend
 - [ ] `PredictionSummary` — direction, expected range, key levels, confidence copy
-- [ ] `ConfidenceSelector` — confidence level shown on the chart
-- [ ] `RecommendationCard` — trade recommendation, horizon toggle, accuracy snippet, dismiss/acknowledge
-- [ ] `AccuracyPanel` — accuracy summary, trend chart, predicted vs actual, market-condition breakdown
-- [ ] `AccuracyDetailsModal` — “View details”
+- [ ] `ConfidenceSelector`
+- [ ] `RecommendationCard` — horizon toggle, accuracy snippet, dismiss
+- [ ] `AccuracyPanel` — trend, predicted vs actual, market-condition breakdown
+- [ ] `AccuracyDetailsModal`
 
-### Missing — alerts (beyond list CRUD)
+### Alerts — `/alerts` (`AlertsPage`)
 
-Check off when the component exists in the app.
+Route exists; **not in the sidebar**. Local mock list only.
 
-- [ ] `AlertForm` / `AlertPreview` — create/edit + preview
-- [ ] `AlertHistory` — shared history for all alert types
-- [ ] `NotificationFeed` (or `AppToaster`) — in-app notifications
-- [ ] `MacroEventSubscriptions` — subscribe to upcoming events
+**Already there**
 
-### Missing — economic calendar & event impact
+- [x] `AlertsEmptyState`, `AlertsList`, `AlertListItem` (client-only drafts)
 
-Not in the app today (no route, no components). Not Sprint 5 frontend — S3 calendar **backend** is in this sprint (`#294`–`#298`). Check off when each piece exists.
+**Still missing**
 
-- [ ] `EconomicCalendar` — upcoming events (`S3.6`); can also cover T9.8
-- [ ] `EventDetailsModal` — event detail
-- [ ] `EventHistory` — past events
-- [ ] `TimezoneSelector` — event times in a chosen zone
-- [ ] `EventImpactPanel` — impact analysis, event-type + date filters, impact chart, export (`A5`)
+- [ ] Put Alerts in the sidebar
+- [ ] Real CRUD (`AlertForm`) — price-level (T7), prediction-change (T8), macro-event (T9) as **types**, not three apps (`#152` / `#153` duplicate)
+- [ ] `AlertPreview`
+- [ ] `AlertHistory`
+- [ ] `NotificationFeed` (or `AppToaster`)
+- [ ] `MacroEventSubscriptions`
 
-### Missing — analyst: correlations, export, methodology
+### Methodology — no page yet
 
-Check off when the component exists in the app.
+New route (e.g. `/methodology`) plus a sidebar item.
 
-- [ ] `CorrelationHeatmap` — BTC–macro correlation matrix
-- [ ] `RollingCorrelationChart` — rolling correlations
-- [ ] `CorrelationInsights` — written insights
-- [ ] `ExportModal` — start export, progress, download notifications, history (correlation + charts; PNG/PDF is backend)
-- [ ] `MethodologyPage` — new route: methodology, model metrics, search, FAQ, citations
+- [ ] `MethodologyPage` — content, model performance metrics, search, FAQ (`#255`, Sprint 5), citations
 
-## Suggested build order
+## Suggested build order (by page)
 
-1. `ChartPanViewport` / range fit, then forecast overlay or `PredictionChart` on the dashboard.
-2. `RegimeCard` + timeline / performance / similar periods.
-3. `IndicatorHistory`.
-4. Fill `ForecastsPage` (chart, summary, confidence, recommendations, accuracy).
-5. Real `AlertForm` / history / notifications; add Alerts to the sidebar.
-6. `EconomicCalendar` + details / history / timezone, then event impact.
-7. Correlations, export modal, methodology page.
+1. **Dashboard** — range fit (`#510`), then forecast snippet (`#508`), then `RegimeCard`.
+2. **Macro** — `IndicatorHistory` + regime block (timeline / performance / similar).
+3. **Forecasts** — fill the placeholders.
+4. **Alerts** — real CRUD + sidebar.
+5. **Macro (later)** — calendar, event impact, correlations, export.
+6. **Methodology** — new page.
 
-**Must-ship for a useful capstone UI:** steps 1–5. Calendar, correlations, export, and methodology are separate surfaces that do not exist in the app yet.
+**Must-ship for a useful capstone UI:** steps 1–4. Calendar, correlations, export, and methodology stay on Macro / a new page until you get to them.
