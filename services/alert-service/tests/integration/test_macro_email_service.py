@@ -4,6 +4,8 @@ import pytest
 from unittest.mock import Mock, patch
 from uuid import uuid4
 from datetime import datetime, timedelta
+from sqlalchemy.orm import Session
+from app.models.alert import PriceAlert, AlertType, AlertStatus
 
 from app.services.macro_email_service import MacroEmailService
 from app.services.email_service import EmailService
@@ -15,7 +17,7 @@ from app.models.macro_alert import (
     EventImpact,
     MacroAlertStatus
 )
-from app.models.alert import EmailQueue, EmailStatus
+from app.models.email_queue import EmailQueue, EmailStatus
 
 
 class TestMacroEmailService:
@@ -27,10 +29,30 @@ class TestMacroEmailService:
         return MacroEmailService(db_session)
 
     @pytest.fixture
-    def sample_alert(self, db_session):
+    def sample_alert(self, db_session: Session):
+        """Create a sample alert for testing."""
+        alert = PriceAlert(
+            id=uuid4(),
+            user_id=uuid4(),
+            threshold_price=85000.00,
+            alert_type=AlertType.REACHES,
+            asset="BTC/USD",
+            status=AlertStatus.ACTIVE,
+            one_time=True,
+            notify_in_app=True,
+            notify_email=True
+        )
+        db_session.add(alert)
+        db_session.commit()
+        db_session.refresh(alert)
+        return alert
+
+
+    @pytest.fixture
+    def sample_macro_event(self, db_session: Session, sample_alert: PriceAlert):
         """Create a sample macro alert for testing."""
         alert = MacroEventAlert(
-            id=uuid4(),
+            id=sample_alert.id,  # Reuse PriceAlert ID for FK
             user_id=uuid4(),
             event_type=EventType.FED,
             timing=EventTiming.ONE_DAY,
@@ -45,10 +67,10 @@ class TestMacroEmailService:
         return alert
 
     @pytest.fixture
-    def sample_event(self, db_session):
+    def sample_event(self, db_session, sample_alert ):
         """Create a sample macro event for testing."""
         event = MacroEventCache(
-            id=uuid4(),
+            id=sample_alert.id,
             event_id="test_event_001",
             event_type=EventType.FED,
             event_name="Federal Reserve Meeting",
@@ -156,7 +178,7 @@ class TestMacroEmailService:
     def test_timezone_adjusted_event_times(self, macro_email_service, sample_alert):
         """Test timezone-adjusted event times in email."""
         event = MacroEventCache(
-            id=uuid4(),
+            id=sample_alert.id,
             event_id="test_event_002",
             event_type=EventType.FED,
             event_name="Test Event",

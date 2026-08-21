@@ -1,9 +1,16 @@
 # import pytest
+# from uuid import uuid4
+# from datetime import datetime, timedelta
+
 # from sqlalchemy.orm import Session
 
 # from app.database.session import engine, SessionLocal
-# from app.models.alert import Base
-
+# from app.models.alert import Base, PriceAlert, AlertType, AlertStatus
+# from app.models.macro_alert import (
+#     MacroEventCache,
+#     EventType,
+#     EventImpact,
+# )
 
 # @pytest.fixture(scope="session", autouse=True)
 # def setup_database():
@@ -25,7 +32,6 @@
 #     connection = engine.connect()
 #     transaction = connection.begin()
     
-#     # Bind the session to the active transaction connection
 #     session = SessionLocal(bind=connection)
     
 #     yield session
@@ -33,6 +39,59 @@
 #     session.close()
 #     transaction.rollback()
 #     connection.close()
+
+
+# @pytest.fixture
+# def sample_user_id():
+#     """Sample user ID for testing."""
+#     return uuid4()
+
+
+# @pytest.fixture
+# def sample_alert_id(db_session: Session, sample_user_id):
+#     """
+#     Sample alert ID that pre-creates a valid PriceAlert in the DB 
+#     to satisfy foreign key constraints.
+#     """
+#     alert_id = uuid4()
+    
+#     price_alert = PriceAlert(
+#         id=alert_id,
+#         user_id=sample_user_id,
+#         threshold_price=85000.0,
+#         alert_type=AlertType.REACHES,
+#         asset="BTC/USD",
+#         status=AlertStatus.ACTIVE,
+#         one_time=True,
+#         notify_in_app=True,
+#         notify_email=True,
+#         name="Test Price Alert"
+#     )
+    
+#     db_session.add(price_alert)
+#     db_session.commit()
+    
+#     return alert_id
+
+# @pytest.fixture
+# def sample_event(db_session: Session):
+#     """Create a sample upcoming macro event for testing."""
+#     event = MacroEventCache(
+#         id=uuid4(),
+#         event_id=f"test_event_{uuid4()}",
+#         event_type=EventType.FED,
+#         event_name="Fed Meeting",
+#         description="Test Fed meeting event",
+#         scheduled_at=datetime.utcnow() + timedelta(days=1),
+#         timezone="UTC",
+#         impact=EventImpact.HIGH,
+#         notified=False,
+#     )
+
+#     db_session.add(event)
+#     db_session.commit()
+
+#     return event
 
 import pytest
 from uuid import uuid4
@@ -61,13 +120,16 @@ def db_session() -> Session:
     """
     connection = engine.connect()
     transaction = connection.begin()
-    
+
     session = SessionLocal(bind=connection)
-    
+
     yield session
-    
+
     session.close()
-    transaction.rollback()
+
+    if transaction.is_active:
+        transaction.rollback()
+
     connection.close()
 
 
@@ -84,7 +146,7 @@ def sample_alert_id(db_session: Session, sample_user_id):
     to satisfy foreign key constraints.
     """
     alert_id = uuid4()
-    
+
     price_alert = PriceAlert(
         id=alert_id,
         user_id=sample_user_id,
@@ -97,8 +159,8 @@ def sample_alert_id(db_session: Session, sample_user_id):
         notify_email=True,
         name="Test Price Alert"
     )
-    
+
     db_session.add(price_alert)
     db_session.commit()
-    
+
     return alert_id

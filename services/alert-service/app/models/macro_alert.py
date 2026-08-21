@@ -55,6 +55,17 @@ class MacroEventAlert(Base):
     id = Column(PGUUID, primary_key=True, default=uuid.uuid4)
     user_id = Column(PGUUID, nullable=False, index=True)
     
+    # Specific macro event this alert belongs to
+    event_id = Column(
+        PGUUID,
+        ForeignKey("macro_event_cache.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    event = relationship("MacroEventCache")
+
+
     # Alert configuration
     event_type = Column(Enum(EventType, values_callable=lambda x: [e.value for e in x]), nullable=False)
     timing = Column(Enum(EventTiming, values_callable=lambda x: [e.value for e in x]), nullable=False)
@@ -85,7 +96,7 @@ class MacroEventAlert(Base):
         Index('idx_macro_alerts_event_type_timing', 'event_type', 'timing'),
         CheckConstraint("event_type IN ('fed', 'cpi', 'gdp', 'employment', 'other')", name='ck_event_type_valid'),
         CheckConstraint("timing IN ('1d', '12h', '1h')", name='ck_timing_valid'),
-        CheckConstraint("impact IN ('high', 'medium', 'low')", name='ck_impact_valid'),
+        CheckConstraint("impact_filter IN ('high', 'medium', 'low')", name='ck_impact_valid'),
         CheckConstraint("status IN ('active', 'triggered', 'disabled', 'expired')", name='ck_status_valid'),
     )
 
@@ -125,7 +136,7 @@ class MacroEventSubscription(Base):
         Index('idx_macro_subscriptions_user_id', 'user_id'),
         Index('idx_macro_subscriptions_user_event', 'user_id', 'event_type'),
         CheckConstraint("event_type IN ('fed', 'cpi', 'gdp', 'employment', 'other')", name='ck_sub_event_type_valid'),
-        CheckConstraint("impact IN ('high', 'medium', 'low')", name='ck_sub_impact_valid'),
+        CheckConstraint("impact_filter IN ('high', 'medium', 'low')", name='ck_sub_impact_valid'),
     )
 
     def to_dict(self):
