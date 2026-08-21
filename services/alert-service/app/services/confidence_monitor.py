@@ -92,7 +92,7 @@ class ConfidenceMonitor:
         """Calculate percent change between two values."""
         if old_value == 0:
             return 0
-        return ((new_value - old_value) / old_value) * 100
+        return round(((new_value - old_value) / old_value) * 100, 2)
 
     def get_active_alerts_for_confidence_monitoring(self) -> List[PredictionChangeAlert]:
         """Get all active alerts that have confidence monitoring enabled."""
