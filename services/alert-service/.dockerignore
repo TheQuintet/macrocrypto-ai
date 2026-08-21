@@ -2,15 +2,6 @@
 .git/
 .gitignore
 Dockerfile.dev
-requirements-dev.txt
-requirements-test.txt
-requirements-docs.txt
-
-# Test files
-tests/
-pytest.ini
-.coverage
-htmlcov/
 
 # Environment files
 .env
