@@ -38,4 +38,6 @@ watchfiles>=1.2.0      # Auto-reload (already in prod but kept here)
 # ============================================
 faker>=20.0.0          # Generate fake data
 factory-boy>=3.3.0     # Factory patterns for tests
-freezegun>=1.4.0       # Freeze time in tests
+freezegun>=1.4.0       # Freeze time in testspytz>=2024.1
+
+pytz>=2024.1
