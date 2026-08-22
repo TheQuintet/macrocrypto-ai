@@ -4,6 +4,7 @@ import pytest
 from unittest.mock import Mock, patch
 from uuid import uuid4
 from datetime import datetime
+from sqlalchemy.orm import Session
 
 from app.services.email_service import EmailService
 from app.models.alert import PriceAlert, AlertStatus, AlertType
@@ -14,12 +15,12 @@ class TestEmailService:
     """Test cases for EmailService."""
 
     @pytest.fixture
-    def email_service(self, db_session):
+    def email_service(self, db_session: Session):
         """Create email service instance."""
         return EmailService(db_session)
 
     @pytest.fixture
-    def sample_alert(self, db_session):
+    def sample_alert(self, db_session: Session):
         """Create a sample alert for testing."""
         alert = PriceAlert(
             id=uuid4(),

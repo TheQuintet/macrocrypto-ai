@@ -145,36 +145,37 @@ services:
   #     - macro-network
   #   restart: unless-stopped
 
-  # alert-service:
-  #   build:
-  #     context: ./services/alert-service
-  #     dockerfile: Dockerfile
-  #   container_name: macro-alert-service
-  #   ports:
-  #     - "8003:8003"
-  #   dns:
-  #     - 8.8.8.8
-  #     - 1.1.1.1
-  #   environment:
-  #     - REDIS_HOST=redis
-  #     - DATABASE_URL=postgresql://macro:crypto@postgres:5432/macrocrypto
-  #     - RABBITMQ_HOST=rabbitmq
-  #     - PYTHONUNBUFFERED=1
-  #   volumes:
-  #     - ./services/alert-service/app:/app/app
-  #     - ./shared:/app/shared
-  #   env_file:
-  #     - ./services/alert-service/.env
-  #   depends_on:
-  #     postgres:
-  #       condition: service_healthy
-  #     redis:
-  #       condition: service_healthy
-  #     rabbitmq:
-  #       condition: service_healthy
-  #   networks:
-  #     - macro-network
-  #   restart: unless-stopped
+  alert-service:
+    build:
+      context: ./services/alert-service
+      dockerfile: Dockerfile
+    container_name: macro-alert-service
+    ports:
+      - "8003:8003"
+      - "5679:5679"
+    # dns:
+    #   - 8.8.8.8
+    #   - 1.1.1.1
+    environment:
+      - REDIS_HOST=redis
+      - DATABASE_URL=postgresql://macro:crypto@postgres:5432/macrocrypto
+      - RABBITMQ_HOST=rabbitmq
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./services/alert-service/app:/app/app
+      - ./shared:/app/shared
+    env_file:
+      - ./services/alert-service/.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - macro-network
+    restart: unless-stopped
 
   # api-gateway:
   #   build:
