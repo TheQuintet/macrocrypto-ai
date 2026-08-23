@@ -13,6 +13,7 @@ from fastapi import FastAPI
 
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi.errors import RateLimitExceeded
+from app.core.rate_limit import limiter, rate_limit_exceeded_handler
 from slowapi import _rate_limit_exceeded_handler
 
 from app.config import settings
@@ -32,6 +33,7 @@ from app.services.data_processor import DataProcessor
 
 from app.services.scheduler import (
     periodic_macro_collection,
+    periodic_economic_calendar_collection,
     periodic_regime_collection,
 )
 
@@ -49,6 +51,7 @@ from app.core.rate_limit import limiter
 
 btc_task: Optional[asyncio.Task] = None
 market_cap_task: Optional[asyncio.Task] = None
+macro_task: Optional[asyncio.Task] = None
 economic_task: Optional[asyncio.Task] = None
 current_regime_task: Optional[asyncio.Task] = None
 
@@ -197,9 +200,17 @@ async def lifespan(app: FastAPI):
             f"(every {settings.PRICE_COLLECTION_INTERVAL}s)"
         )
 
+        macro_task = asyncio.create_task(
+            periodic_macro_collection()
+        )
+
+        logger.info(
+            "✅ Periodic macro/FRED collection started"
+        )
+
 
         economic_task = asyncio.create_task(
-            periodic_macro_collection()
+            periodic_economic_calendar_collection()
         )
 
         logger.info(

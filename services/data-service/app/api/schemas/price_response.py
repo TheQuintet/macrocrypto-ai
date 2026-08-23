@@ -1,8 +1,11 @@
 """Price response schema for API endpoints"""
 
-from pydantic import BaseModel, ConfigDict
-from typing import Optional
+from pydantic import BaseModel, ConfigDict, Field
+from typing import Literal, Optional
 from datetime import datetime
+
+TimeRange = Literal["24h", "7d", "30d", "90d"]
+ChartInterval = Literal["1m", "5m", "1h", "1d", "1w", "1y"]
 
 
 class PriceResponse(BaseModel):
@@ -21,6 +24,28 @@ class PriceResponse(BaseModel):
     change_7d: Optional[float] = None
     change_7d_percent: Optional[float] = None
     updated_at: Optional[datetime] = None
+
+
+class BtcPriceHistoryPoint(BaseModel):
+    """One OHLC candle. Matches frontend `BtcPriceHistoryPoint`."""
+
+    timestamp: str
+    open: float
+    high: float
+    low: float
+    close: float
+
+
+class BtcPriceHistoryResponse(BaseModel):
+    """
+    Historical BTC candles for the price chart.
+
+    Matches frontend `BtcPriceHistoryResponse`.
+    """
+
+    range: TimeRange
+    interval: ChartInterval
+    points: list[BtcPriceHistoryPoint] = Field(default_factory=list)
 
     # class Config:
     #     from_attributes = True

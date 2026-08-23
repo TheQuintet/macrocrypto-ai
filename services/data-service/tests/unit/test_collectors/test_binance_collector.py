@@ -221,7 +221,11 @@ async def test_get_klines_success(
     )
 
 
-    result = await collector.get_klines()
+    result = await collector.get_klines(
+        start_time=1,
+        end_time=2,
+        limit=50,
+    )
 
 
     assert len(result) == 1
@@ -229,6 +233,14 @@ async def test_get_klines_success(
     assert result[0]["open"] == 60000
 
     assert result[0]["close"] == 60500
+
+    params = collector.client.get.await_args.kwargs["params"]
+
+    assert params["startTime"] == 1
+
+    assert params["endTime"] == 2
+
+    assert params["limit"] == 50
 
 
 

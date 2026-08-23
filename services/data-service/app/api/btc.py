@@ -1,15 +1,20 @@
 """BTC price endpoints for data-service"""
 
-import json
 import logging
-from fastapi import APIRouter, Request, Depends, HTTPException
+from fastapi import APIRouter, Request, Depends, HTTPException, Response
 from typing import Optional
 
 from app.api.dependencies import jwt_auth
-from app.api.schemas.price_response import PriceResponse
-from app.database.btc_price_repository import BTCPriceRepository
+from app.api.schemas.price_response import (
+    BtcPriceHistoryResponse,
+    PriceResponse,
+)
 from app.core.rate_limit import limiter
 from app.config import settings
+from app.services.price_history_service import (
+    PriceHistoryService,
+    PriceHistoryValidationError,
+)
 
 # Setup logging
 logger = logging.getLogger(__name__)
@@ -28,6 +33,7 @@ router = APIRouter(
 @limiter.limit(f"{settings.RATE_LIMIT_REQUESTS}/minute")
 async def get_btc_price(
     request: Request,
+    response: Response,
     data_processor: Optional = Depends(lambda: None),  # Will be set in main.py
     cache_client: Optional = Depends(lambda: None),    # Will be set in main.py
     _: str | None = Depends(jwt_auth)
@@ -115,86 +121,78 @@ async def get_btc_price(
 
 @router.get(
     "/price/history",
-    summary="Get historical BTC price data",
+    response_model=BtcPriceHistoryResponse,
+    summary="Get historical BTC OHLC candles",
 )
 @limiter.limit(f"{settings.RATE_LIMIT_REQUESTS}/minute")
 async def get_btc_history(
     request: Request,
-    days: int = 7,
+    response: Response,
+    range: str = "7d",
+    interval: str = "1h",
     _: str | None = Depends(jwt_auth),
 ):
     """
-    Get historical BTC price data.
+    Historical BTC OHLC candles for the dashboard chart.
 
-    Historical data is retrieved from the existing BTCPrice
-    TimescaleDB hypertable.
+    Interval bucketing and the point cap are applied server-side.
+    Redis caching follows the same cache-aside pattern as `/price`.
 
-    Args:
-        days: Number of days of history to retrieve.
-              Defaults to 7.
-
-    Returns:
-        Historical BTC price records ordered chronologically.
-
-    Raises:
-        HTTPException:
-            400 if days is less than 1.
-            500 if historical data cannot be retrieved.
+    Query parameters:
+    - range: 24h, 7d, 30d, or 90d (default 7d)
+    - interval: 1m, 5m, 1h, 1d, 1w, or 1y (default 1h)
     """
 
-    # --------------------------------------------------
-    # Validate requested period
-    # --------------------------------------------------
+    cache_client = request.app.state.cache_client
+    cache_key = f"btc_price_history:{range}:{interval}"
 
-    if days < 1:
-        raise HTTPException(
-            status_code=400,
-            detail="days must be greater than 0",
-        )
+    if cache_client and cache_client.is_connected:
+        try:
+            cached = await cache_client.get(cache_key)
+            if cached is not None:
+                logger.info("✅ Returning BTC history from Redis cache")
+                return BtcPriceHistoryResponse(**cached)
+        except Exception as error:
+            logger.warning(f"⚠️ History cache read failed: {error}")
 
-    repository = BTCPriceRepository()
-
-    # --------------------------------------------------
-    # Retrieve historical BTC data
-    # --------------------------------------------------
+    service = PriceHistoryService()
 
     try:
-        records = repository.get_history(
-            days=days,
+        response = await service.get_history(
+            range_value=range,
+            interval=interval,
         )
-
+    except PriceHistoryValidationError as error:
+        raise HTTPException(
+            status_code=400,
+            detail=str(error),
+        ) from error
     except Exception:
         logger.exception(
             "Failed to retrieve BTC price history "
-            "for %s days",
-            days,
+            "range=%s interval=%s",
+            range,
+            interval,
         )
-
         raise HTTPException(
             status_code=500,
             detail="Unable to retrieve historical BTC price data",
         )
+    finally:
+        await service.close()
 
-    # --------------------------------------------------
-    # Serialize database records
-    # --------------------------------------------------
+    if cache_client and cache_client.is_connected:
+        try:
+            await cache_client.set(
+                cache_key,
+                response.model_dump(),
+                ttl=settings.PRICE_HISTORY_CACHE_TTL,
+            )
+            logger.info("💾 BTC history cached in Redis")
+        except Exception as error:
+            logger.warning(f"⚠️ History cache write failed: {error}")
 
-    data = [
-        {
-            "time": record.time.isoformat(),
-            "price": record.price,
-            "volume": record.volume,
-            "market_cap": record.market_cap,
-            "source": record.source,
-        }
-        for record in records
-    ]
-
-    return {
-        "days": days,
-        "count": len(data),
-        "data": data,
-    }
+    return response
 
 @router.get(
     "/status",

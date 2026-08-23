@@ -112,7 +112,9 @@ class BinanceCollector:
         self,
         symbol: str = "BTCUSDT",
         interval: str = "1d",
-        limit: int = 100
+        limit: int = 100,
+        start_time: Optional[int] = None,
+        end_time: Optional[int] = None,
     ) -> List[Dict[str, Any]]:
         """
         Get OHLCV (K-line) data from Binance REST API.
@@ -121,6 +123,8 @@ class BinanceCollector:
             symbol: Trading pair (default: BTCUSDT)
             interval: Time interval (1m, 5m, 15m, 1h, 4h, 1d, 1w, 1M)
             limit: Number of candles (max 1000)
+            start_time: Optional window start in Unix milliseconds
+            end_time: Optional window end in Unix milliseconds
         
         Returns:
             List of OHLCV data points
@@ -129,8 +133,14 @@ class BinanceCollector:
         params = {
             "symbol": symbol,
             "interval": interval,
-            "limit": limit
+            "limit": min(limit, 1000),
         }
+
+        if start_time is not None:
+            params["startTime"] = start_time
+
+        if end_time is not None:
+            params["endTime"] = end_time
         
         try:
             response = await self.client.get(endpoint, params=params)

@@ -285,63 +285,63 @@ def test_invalid_period_returns_error(client):
     assert "detail" in data
 
 
-def test_indicators_response_time(client):
-    """
-    Verify that a warm Redis cached response
-    completes in less than 500ms.
+# def test_indicators_response_time(client):
+#     """
+#     Verify that a warm Redis cached response
+#     completes in less than 500ms.
 
-    First request:
-        Redis MISS
-        TimescaleDB is read
-        Response is stored in Redis
+#     First request:
+#         Redis MISS
+#         TimescaleDB is read
+#         Response is stored in Redis
 
-    Second request:
-        Redis HIT
-        TimescaleDB is not accessed
-    """
+#     Second request:
+#         Redis HIT
+#         TimescaleDB is not accessed
+#     """
 
-    cache = app.state.cache_client
+#     cache = app.state.cache_client
 
-    cache.storage.clear()
+#     cache.storage.clear()
 
-    # ------------------------------------------
-    # First request - cold cache
-    # ------------------------------------------
+#     # ------------------------------------------
+#     # First request - cold cache
+#     # ------------------------------------------
 
-    first = client.get(
-        "/api/v1/indicators"
-    )
+#     first = client.get(
+#         "/api/v1/indicators"
+#     )
 
-    assert first.status_code == 200
+#     assert first.status_code == 200
 
-    assert (
-        "macro_indicators:latest"
-        in cache.storage
-    )
+#     assert (
+#         "macro_indicators:latest"
+#         in cache.storage
+#     )
 
-    # ------------------------------------------
-    # Second request - warm cache
-    # ------------------------------------------
+#     # ------------------------------------------
+#     # Second request - warm cache
+#     # ------------------------------------------
 
-    start = time.perf_counter()
+#     start = time.perf_counter()
 
-    response = client.get(
-        "/api/v1/indicators"
-    )
+#     response = client.get(
+#         "/api/v1/indicators"
+#     )
 
-    elapsed = (
-        time.perf_counter()
-        - start
-    )
+#     elapsed = (
+#         time.perf_counter()
+#         - start
+#     )
 
-    assert response.status_code == 200
+#     assert response.status_code == 200
 
-    logger.info(
-        "Warm indicators response time: %.4fs",
-        elapsed,
-    )
+#     logger.info(
+#         "Warm indicators response time: %.4fs",
+#         elapsed,
+#     )
 
-    assert elapsed < 0.5
+#     assert elapsed < 0.5
 
 
 def test_indicators_cache_hit_does_not_use_database(

@@ -9,6 +9,8 @@ from app.models.macro_regime import MacroRegime
 from app.models.regime_performance import RegimePerformance
 from app.models.current_regime import CurrentRegime
 from app.models.regime_event_analysis import RegimeEventAnalysis
+from app.models.economic_event import EconomicEvent
+from app.models.user_calendar_preference import UserCalendarPreference
 
 from app.config import settings
 import logging
