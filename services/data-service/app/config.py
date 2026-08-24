@@ -98,7 +98,6 @@ class Settings(BaseSettings):
         return self.BINANCE_WS_TESTNET_URL if self.BINANCE_USE_TESTNET else self.BINANCE_WS_URL
     
     
-    
     # COINGECKO API (Market Cap Data Source)
     COINGECKO_API_URL: str = "https://api.coingecko.com/api/v3"
     MARKET_CAP_CACHE_TTL: int = 900  # 15 minutes
@@ -153,11 +152,27 @@ class Settings(BaseSettings):
     # Prevent excessive requests
     FRED_REQUEST_DELAY: float = 0.5
 
+    # ============================================
+    # FRED ECONOMIC CALENDAR
+    # ============================================
+
+    FRED_CALENDAR_RELEASES: dict = {
+        "fed": 101,
+        "cpi": 10,
+        "employment": 50,
+        "gdp": 53,
+    }
+
+    FRED_CALENDAR_LOOKBACK_DAYS: int = 365 
+
+
     # Cache TTL for indicators in seconds
-    MACRO_INDICATORS_CACHE_TTL: int = 3600  
+    MACRO_INDICATORS_CACHE_TTL: int = 3600
+
     # ============================================
     # MACROECONOMIC REGIME CLASSIFICATION
     # ============================================
+    MACRO_REGIME_CACHE_TTL: int = 3600
 
     # CPI thresholds used by the regime classification engine.
     # Values can be overridden through environment variables.
@@ -169,6 +184,7 @@ class Settings(BaseSettings):
     # Approximate period used for interest-rate trend detection.
     DAYS_IN_YEAR: int = 365
     DAYS_IN_3_MONTHS: int = 90
+
 
     # ============================================
     # CURRENT REGIME CONFIDENCE
@@ -200,6 +216,7 @@ class Settings(BaseSettings):
     # Development/testing only.
     REGIME_PERFORMANCE_QA_MODE: bool = True
     REGIME_EVENT_QA_MODE: bool = True
+
     # ============================================
     # COLLECTION INTERVALS (seconds)
     # ============================================
@@ -218,12 +235,49 @@ class Settings(BaseSettings):
     # Development/testing only.
     # Set to a value > 0 to run every N minutes instead of once per day.
     MACRO_UPDATE_INTERVAL_MINUTES: int = 1
+
     # ============================================
     # RATE LIMITING
     # ============================================
     RATE_LIMIT_ENABLED: bool = True
     RATE_LIMIT_REQUESTS: int = 100
-    
+
+    # Rate-limit window in seconds.
+    RATE_LIMIT_WINDOW_SECONDS: int = 60
+
+    # Delay between requests during rate-limit integration tests.
+    RATE_LIMIT_TEST_DELAY_SECONDS: float = 0.05
+
+    # Number of requests kept below the configured rate limit
+    # during integration tests.
+    RATE_LIMIT_TEST_SAFETY_MARGIN: int = 5
+
+    # Number of additional requests used to trigger
+    # the rate limit during integration tests.
+    RATE_LIMIT_TEST_TRIGGER_REQUESTS: int = 10
+
+    # Additional buffer after the rate-limit window expires.
+    RATE_LIMIT_TEST_RESET_BUFFER_SECONDS: int = 5
+
+# ============================================
+    # API RESPONSE TIME
+    # ============================================
+
+    # Maximum acceptable response time for the BTC price endpoint.
+    # BTC uses Redis caching and has a stricter performance target.
+    BTC_PRICE_RESPONSE_TIME_LIMIT_MS: int = 200
+
+    # Maximum acceptable response time for standard API endpoints.
+    API_RESPONSE_TIME_LIMIT_MS: int = 500
+
+    # Number of repeated requests used by response-time tests.
+    RESPONSE_TIME_TEST_REQUEST_COUNT: int = 5
+
+    # BTC chart history (GET /api/v1/btc/price/history)
+    PRICE_HISTORY_MAX_POINTS: int = 500
+    PRICE_HISTORY_CACHE_TTL: int = 60
+
+
     # ============================================
     # DEVELOPMENT
     # ============================================

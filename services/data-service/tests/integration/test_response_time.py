@@ -1,104 +1,262 @@
 """
-Integration tests for BTC price API Redis cache performance.
+API response-time tests for data-service.
 
-Validates:
-- Redis cached response time
-- Multiple cache hits performance
-- Cached response consistency
-- Cache expiration recovery
+Each API endpoint has its own dedicated test function.
+Response-time thresholds and request counts are loaded
+from application settings.
 """
 
 import time
-import requests
-import pytest
+
+from fastapi.testclient import TestClient
+
+from app.config import settings
+from app.main import app
 
 
-API_URL = "http://127.0.0.1:8001/api/v1/btc/price"
+# ============================================================
+# BTC PRICE API
+# ============================================================
 
-CACHE_RESPONSE_LIMIT_MS = 200
-
-
-def measure_request_time():
+def test_btc_price_response_time():
     """
-    Execute API request and return:
-    - response
-    - elapsed time in milliseconds
-    """
-    start = time.perf_counter()
-
-    response = requests.get(API_URL)
-
-    elapsed = (time.perf_counter() - start) * 1000
-
-    return response, elapsed
-
-
-@pytest.mark.integration
-def test_btc_price_response_time_with_redis_cache():
-    """
-    Validate BTC price endpoint response time using Redis cache.
-
-    Acceptance Criteria:
-    - Cached response should be < 200ms
+    Verify BTC price API responds within the configured
+    BTC response-time limit.
     """
 
-    # Warm up request (populate Redis cache)
-    warmup_response, warmup_time = measure_request_time()
+    with TestClient(app) as client:
+        start_time = time.perf_counter()
 
-    assert warmup_response.status_code == 200
+        response = client.get(
+            "/api/v1/btc/price"
+        )
 
-    print(
-        f"\n🔥 Cache warmup request: {warmup_time:.2f} ms"
-    )
+        response_time_ms = (
+            time.perf_counter() - start_time
+        ) * 1000
 
-    # First cached request
-    response1, time1 = measure_request_time()
-
-    assert response1.status_code == 200
-
-    data1 = response1.json()
-
-    print(
-        f"🚀 First cached request: {time1:.2f} ms"
-    )
-
-    assert time1 < CACHE_RESPONSE_LIMIT_MS, (
-        f"Cached response too slow: {time1:.2f}ms"
-    )
-
-
-@pytest.mark.integration
-def test_multiple_cached_requests_under_200ms():
-    """
-    Validate repeated Redis cache hits remain fast.
-    """
-
-    # Warm cache
-    response, _ = measure_request_time()
     assert response.status_code == 200
+
+    assert response_time_ms <= (
+        settings.BTC_PRICE_RESPONSE_TIME_LIMIT_MS
+    ), (
+        f"BTC price API response time was "
+        f"{response_time_ms:.2f}ms, exceeding the configured "
+        f"limit of "
+        f"{settings.BTC_PRICE_RESPONSE_TIME_LIMIT_MS}ms"
+    )
+
+
+def test_btc_price_repeated_response_time():
+    """
+    Verify repeated BTC price requests remain within the
+    configured BTC response-time limit.
+    """
 
     response_times = []
 
-    for _ in range(5):
+    with TestClient(app) as client:
+        for _ in range(
+            settings.RESPONSE_TIME_TEST_REQUEST_COUNT
+        ):
+            start_time = time.perf_counter()
 
-        response, elapsed = measure_request_time()
+            response = client.get(
+                "/api/v1/btc/price"
+            )
+
+            response_time_ms = (
+                time.perf_counter() - start_time
+            ) * 1000
+
+            assert response.status_code == 200
+
+            response_times.append(response_time_ms)
+
+    max_response_time_ms = max(response_times)
+
+    assert max_response_time_ms <= (
+        settings.BTC_PRICE_RESPONSE_TIME_LIMIT_MS
+    ), (
+        f"BTC price API maximum response time was "
+        f"{max_response_time_ms:.2f}ms, exceeding the configured "
+        f"limit of "
+        f"{settings.BTC_PRICE_RESPONSE_TIME_LIMIT_MS}ms"
+    )
+
+
+# ============================================================
+# INDICATORS API
+# ============================================================
+
+def test_indicators_response_time():
+    """
+    Verify cached indicators API responds within the configured
+    standard API response-time limit.
+    """
+
+    with TestClient(app) as client:
+
+        # Populate the Redis cache.
+        response = client.get(
+            "/api/v1/indicators"
+        )
 
         assert response.status_code == 200
 
-        response_times.append(elapsed)
+        # Measure cached response.
+        start_time = time.perf_counter()
 
-    print("\n📊 Multiple cache hit performance:")
-
-    for index, elapsed in enumerate(response_times, start=1):
-        print(
-            f"Request {index}: {elapsed:.2f} ms"
+        response = client.get(
+            "/api/v1/indicators"
         )
 
-    # Every cached response should meet acceptance criteria
-    for elapsed in response_times:
-        assert elapsed < CACHE_RESPONSE_LIMIT_MS, (
-            f"Cache hit exceeded 200ms: {elapsed:.2f}ms"
+        response_time_ms = (
+            time.perf_counter() - start_time
+        ) * 1000
+
+    assert response.status_code == 200
+
+    assert response_time_ms <= (
+        settings.API_RESPONSE_TIME_LIMIT_MS
+    ), (
+        f"Indicators API response time was "
+        f"{response_time_ms:.2f}ms, exceeding the configured "
+        f"limit of "
+        f"{settings.API_RESPONSE_TIME_LIMIT_MS}ms"
+    )
+
+
+# ============================================================
+# CURRENT REGIME API
+# ============================================================
+
+def test_current_regime_response_time(seed_current_regime):
+    """
+    Verify current regime API responds within the configured
+    standard API response-time limit.
+
+    Uses seed_current_regime fixture to ensure data exists
+    so the endpoint returns 200 instead of 404.
+    """
+
+    with TestClient(app) as client:
+        start_time = time.perf_counter()
+
+        response = client.get(
+            "/api/v1/regimes/current"
         )
 
+        response_time_ms = (
+            time.perf_counter() - start_time
+        ) * 1000
+
+    assert response.status_code == 200
+
+    assert response_time_ms <= (
+        settings.API_RESPONSE_TIME_LIMIT_MS
+    ), (
+        f"Current regime API response time was "
+        f"{response_time_ms:.2f}ms, exceeding the configured "
+        f"limit of "
+        f"{settings.API_RESPONSE_TIME_LIMIT_MS}ms"
+    )
 
 
+# ============================================================
+# REGIME BTC API
+# ============================================================
+
+def test_regime_btc_response_time():
+    """
+    Verify regime BTC API responds within the configured
+    standard API response-time limit.
+    """
+
+    with TestClient(app) as client:
+        start_time = time.perf_counter()
+
+        response = client.get(
+            "/api/v1/regimes/btc"
+        )
+
+        response_time_ms = (
+            time.perf_counter() - start_time
+        ) * 1000
+
+    assert response.status_code == 200
+
+    assert response_time_ms <= (
+        settings.API_RESPONSE_TIME_LIMIT_MS
+    ), (
+        f"Regime BTC API response time was "
+        f"{response_time_ms:.2f}ms, exceeding the configured "
+        f"limit of "
+        f"{settings.API_RESPONSE_TIME_LIMIT_MS}ms"
+    )
+
+
+# ============================================================
+# SIMILAR HISTORICAL PERIODS API
+# ============================================================
+
+def test_similar_periods_response_time():
+    """
+    Verify similar historical periods API responds within
+    the configured standard API response-time limit.
+    """
+
+    with TestClient(app) as client:
+        start_time = time.perf_counter()
+
+        response = client.get(
+            "/api/v1/regimes/history/similar-periods"
+        )
+
+        response_time_ms = (
+            time.perf_counter() - start_time
+        ) * 1000
+
+    assert response.status_code == 200
+
+    assert response_time_ms <= (
+        settings.API_RESPONSE_TIME_LIMIT_MS
+    ), (
+        f"Similar periods API response time was "
+        f"{response_time_ms:.2f}ms, exceeding the configured "
+        f"limit of "
+        f"{settings.API_RESPONSE_TIME_LIMIT_MS}ms"
+    )
+
+
+# ============================================================
+# ECONOMIC CALENDAR API
+# ============================================================
+
+def test_economic_calendar_response_time():
+    """
+    Verify economic calendar API responds within the configured
+    standard API response-time limit.
+    """
+
+    with TestClient(app) as client:
+        start_time = time.perf_counter()
+
+        response = client.get(
+            "/api/v1/economic-calendar"
+        )
+
+        response_time_ms = (
+            time.perf_counter() - start_time
+        ) * 1000
+
+    assert response.status_code == 200
+
+    assert response_time_ms <= (
+        settings.API_RESPONSE_TIME_LIMIT_MS
+    ), (
+        f"Economic calendar API response time was "
+        f"{response_time_ms:.2f}ms, exceeding the configured "
+        f"limit of "
+        f"{settings.API_RESPONSE_TIME_LIMIT_MS}ms"
+    )

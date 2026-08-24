@@ -434,10 +434,13 @@ def test_get_btc_regime_authentication():
     pass
 
 
-def test_get_btc_regime_response_time():
+def test_get_btc_regime_response_time(seed_current_regime, seed_regime_history):
     """
     Verify the BTC regime endpoint meets the <500 ms
     response-time acceptance criterion.
+
+    Uses seed_current_regime and seed_regime_history fixtures
+    to ensure data exists.
     """
 
     import time

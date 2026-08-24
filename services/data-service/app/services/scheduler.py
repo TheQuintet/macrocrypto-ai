@@ -31,7 +31,8 @@ import logging
 from datetime import datetime, timedelta, timezone
 
 from app.config import settings
-
+from app.database.session import SessionLocal
+from app.services.economic_calendar_service import EconomicCalendarService
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -78,8 +79,6 @@ async def wait_until_next_run(
 # ============================================================
 # MACRO / FRED SCHEDULER
 # ============================================================
-
-
 async def periodic_macro_collection():
     """
     Scheduled macro/FRED data collection.
@@ -90,12 +89,12 @@ async def periodic_macro_collection():
 
     Production:
         MACRO_UPDATE_INTERVAL_MINUTES = 0
-        uses the configured daily UTC schedule.
+        runs once daily at the configured UTC time.
 
-    NOTE:
-        Keep the existing macro/FRED collection logic inside
-        this function. The interval configuration only controls
-        when the existing workflow executes.
+    Responsibilities:
+        - Wait for the configured schedule.
+        - Run the existing macro/FRED collection workflow.
+        - Handle scheduler errors without stopping the loop.
     """
 
     logger.info(
@@ -113,7 +112,10 @@ async def periodic_macro_collection():
     else:
 
         logger.info(
-            "Macro production schedule mode enabled"
+            "Macro production schedule mode enabled: "
+            "running daily at %02d:%02d UTC",
+            settings.MACRO_UPDATE_HOUR_UTC,
+            settings.MACRO_UPDATE_MINUTE_UTC,
         )
 
     while True:
@@ -143,17 +145,18 @@ async def periodic_macro_collection():
                 "📊 Macro/FRED scheduler woke up"
             )
 
-            # --------------------------------------------------
-            # KEEP YOUR EXISTING MACRO/FRED COLLECTION WORKFLOW
-            # HERE.
+            # ==================================================
+            # MACRO/FRED COLLECTION
+            # ==================================================
             #
-            # Example:
+            # Keep the existing macro/FRED indicator workflow
+            # here when it is connected to this scheduler.
             #
-            # await collect_macro_data()
+            # Economic calendar collection is intentionally NOT
+            # handled here. It has its own scheduler:
             #
-            # Do not duplicate or change the existing collector
-            # implementation here.
-            # --------------------------------------------------
+            # periodic_economic_calendar_collection()
+            #
 
             logger.info(
                 "📊 Macro/FRED scheduled job completed"
@@ -172,339 +175,293 @@ async def periodic_macro_collection():
             logger.exception(
                 "🔥 Macro/FRED scheduler failed"
             )
-
-
 # ============================================================
-# CURRENT REGIME SCHEDULER
+# ECONOMIC CALENDAR SCHEDULER
 # ============================================================
 
 
-# async def periodic_regime_collection():
+# async def periodic_economic_calendar_collection():
 #     """
-#     Scheduled current macroeconomic regime processing.
-
-#     QA/development:
-#         CURRENT_REGIME_UPDATE_INTERVAL_MINUTES > 0
-#         runs every N minutes.
+#     Scheduled economic calendar data collection.
 
 #     Production:
-#         CURRENT_REGIME_UPDATE_INTERVAL_MINUTES = 0
-#         uses the configured daily UTC schedule.
+#         Runs once per day using the configured macro UTC schedule.
+
+#     Development/QA:
+#         When MACRO_UPDATE_INTERVAL_MINUTES > 0, runs at the
+#         configured interval.
 
 #     Workflow:
-
-#     1. Wait for configured QA interval or production schedule.
-#     2. Process current macroeconomic regime.
-#     3. Calculate/update BTC regime performance when enabled.
-#     4. Process macro event analysis when enabled.
-#     5. Update similar historical periods.
-#     6. Clean up database/service resources.
-#     7. Continue until cancelled.
+#         1. Wait for the next scheduled execution.
+#         2. Create a database session.
+#         3. Collect economic calendar events from FRED.
+#         4. Persist only new events.
+#         5. Close the collector and database session.
+#         6. Continue until cancelled.
 #     """
 
 #     logger.info(
-#         "🔥 Current regime scheduler started"
+#         "📅 Economic calendar scheduler started"
 #     )
 
-#     # ========================================================
-#     # CONFIGURATION STATUS
-#     # ========================================================
-
-#     if settings.CURRENT_REGIME_UPDATE_INTERVAL_MINUTES > 0:
+#     if settings.MACRO_UPDATE_INTERVAL_MINUTES > 0:
 
 #         logger.info(
-#             "Current regime QA interval mode enabled: "
+#             "Economic calendar QA interval mode enabled: "
 #             "running every %s minute(s)",
-#             settings.CURRENT_REGIME_UPDATE_INTERVAL_MINUTES,
+#             settings.MACRO_UPDATE_INTERVAL_MINUTES,
 #         )
 
 #     else:
 
 #         logger.info(
-#             "Current regime production schedule enabled: "
-#             "running at %02d:%02d UTC",
-#             settings.CURRENT_REGIME_UPDATE_HOUR_UTC,
-#             settings.CURRENT_REGIME_UPDATE_MINUTE_UTC,
+#             "Economic calendar production schedule enabled: "
+#             "running daily at %02d:%02d UTC",
+#             settings.MACRO_UPDATE_HOUR_UTC,
+#             settings.MACRO_UPDATE_MINUTE_UTC,
 #         )
-
-#     logger.info(
-#         "Regime performance QA mode: %s",
-#         settings.REGIME_PERFORMANCE_QA_MODE,
-#     )
-
-#     logger.info(
-#         "Regime event QA mode: %s",
-#         settings.REGIME_EVENT_QA_MODE,
-#     )
-
-#     # ========================================================
-#     # IMPORTS
-#     # ========================================================
-
-#     from app.database.session import SessionLocal
-
-#     from app.services.current_regime_service import (
-#         CurrentRegimeService,
-#     )
-
-#     from app.services.regime_performance_service import (
-#         RegimePerformanceService,
-#     )
-
-#     from app.services.similar_period_service import (
-#         SimilarPeriodService,
-#     )
-
-#     # ========================================================
-#     # MAIN LOOP
-#     # ========================================================
 
 #     while True:
 
 #         try:
 
 #             # ==================================================
-#             # WAIT FOR NEXT REGIME EXECUTION
+#             # WAIT FOR NEXT EXECUTION
 #             # ==================================================
 
-#             if (
-#                 settings.CURRENT_REGIME_UPDATE_INTERVAL_MINUTES
-#                 > 0
-#             ):
+#             if settings.MACRO_UPDATE_INTERVAL_MINUTES > 0:
 
 #                 await asyncio.sleep(
-#                     settings.CURRENT_REGIME_UPDATE_INTERVAL_MINUTES
-#                     * 60
+#                     settings.MACRO_UPDATE_INTERVAL_MINUTES * 60
 #                 )
 
 #             else:
 
 #                 await wait_until_next_run(
-#                     settings.CURRENT_REGIME_UPDATE_HOUR_UTC,
-#                     settings.CURRENT_REGIME_UPDATE_MINUTE_UTC,
-#                     "current regime update",
+#                     settings.MACRO_UPDATE_HOUR_UTC,
+#                     settings.MACRO_UPDATE_MINUTE_UTC,
+#                     "economic calendar update",
 #                 )
 
 #             logger.info(
-#                 "🔥 Current regime scheduler woke up"
+#                 "📅 Economic calendar scheduler woke up"
 #             )
+
+#             # ==================================================
+#             # DATABASE SESSION
+#             # ==================================================
 
 #             db = SessionLocal()
 #             service = None
 
 #             try:
 
-#                 # ==================================================
-#                 # 1. CURRENT REGIME CLASSIFICATION
-#                 # ==================================================
+#                 service = EconomicCalendarService(db)
 
-#                 service = CurrentRegimeService(db)
+#                 logger.info(
+#                     "📅 Starting scheduled economic calendar "
+#                     "collection (lookback=%s days)",
+#                     settings.FRED_CALENDAR_LOOKBACK_DAYS,
+#                 )
 
-#                 current_regime = (
-#                     await service.process_current_regime()
+#                 events = await service.collect_events(
+#                     days=settings.FRED_CALENDAR_LOOKBACK_DAYS
 #                 )
 
 #                 logger.info(
-#                     "Current regime processing completed: %s",
-#                     current_regime,
+#                     "📅 Economic calendar update completed: "
+#                     "%d new events stored",
+#                     len(events),
 #                 )
 
-#                 # ==================================================
-#                 # 2. REGIME PERFORMANCE
-#                 # ==================================================
+#             except Exception:
 
-#                 if current_regime is not None:
-
-#                     if settings.REGIME_PERFORMANCE_QA_MODE:
-
-#                         logger.info(
-#                             "📈 Regime performance QA mode enabled"
-#                         )
-
-#                         performance_service = (
-#                             RegimePerformanceService(db)
-#                         )
-
-#                         try:
-
-#                             performance_result = (
-#                                 performance_service
-#                                 .calculate_regime_performance(
-#                                     current_regime
-#                                 )
-#                             )
-
-#                             logger.info(
-#                                 "Regime performance calculation "
-#                                 "completed: %s",
-#                                 performance_result,
-#                             )
-
-#                         except Exception:
-
-#                             logger.exception(
-#                                 "❌ Regime performance calculation failed"
-#                             )
-
-#                     else:
-
-#                         logger.info(
-#                             "Regime performance QA mode disabled; "
-#                             "skipping regime_performance"
-#                         )
-
-#                 else:
-
-#                     logger.info(
-#                         "No current regime identified; "
-#                         "skipping regime_performance"
-#                     )
-
-#                 # ==================================================
-#                 # 3. REGIME EVENT ANALYSIS
-#                 # ==================================================
-
-#                 if current_regime is not None:
-
-#                     if settings.REGIME_EVENT_QA_MODE:
-
-#                         logger.info(
-#                             "🧪 Regime event QA mode enabled"
-#                         )
-
-#                         try:
-
-#                             from app.services.regime_event_service import (
-#                                 RegimeEventService,
-#                             )
-
-#                             event_service = (
-#                                 RegimeEventService(db)
-#                             )
-
-#                             if hasattr(
-#                                 event_service,
-#                                 "process_current_regime_event",
-#                             ):
-
-#                                 event_result = (
-#                                     event_service
-#                                     .process_current_regime_event(
-#                                         current_regime
-#                                     )
-#                                 )
-
-#                                 logger.info(
-#                                     "Regime event analysis completed: %s",
-#                                     event_result,
-#                                 )
-
-#                             else:
-
-#                                 logger.info(
-#                                     "RegimeEventService does not "
-#                                     "implement "
-#                                     "process_current_regime_event(); "
-#                                     "skipping event analysis"
-#                                 )
-
-#                         except Exception:
-
-#                             logger.exception(
-#                                 "❌ Regime event analysis failed"
-#                             )
-
-#                     else:
-
-#                         logger.info(
-#                             "Regime event QA mode disabled; "
-#                             "skipping regime_event_analysis"
-#                         )
-
-#                 else:
-
-#                     logger.info(
-#                         "No current regime identified; "
-#                         "skipping regime_event_analysis"
-#                     )
-
-#                 # ==================================================
-#                 # 4. SIMILAR HISTORICAL PERIODS
-#                 # ==================================================
-
-#                 if current_regime is not None:
-
-#                     similar_service = (
-#                         SimilarPeriodService(db)
-#                     )
-
-#                     try:
-
-#                         similar_result = (
-#                             similar_service.find_similar_periods()
-#                         )
-
-#                         logger.info(
-#                             "Similar historical periods update "
-#                             "completed: %s",
-#                             similar_result,
-#                         )
-
-#                     except Exception:
-
-#                         logger.exception(
-#                             "❌ Similar historical periods update failed"
-#                         )
-
-#                 else:
-
-#                     logger.info(
-#                         "No current regime identified; "
-#                         "skipping similar historical periods"
-#                     )
-
-#                 # ==================================================
-#                 # COMPLETE
-#                 # ==================================================
-
-#                 logger.info(
-#                     "🔥 Current regime scheduled job "
-#                     "completed successfully"
+#                 logger.exception(
+#                     "🔥 Economic calendar scheduled collection failed"
 #                 )
 
 #             finally:
 
 #                 if service:
 
-#                     await service.close()
+#                     try:
+#                         await service.close()
 
-#                 db.close()
+#                     except Exception:
 
-#                 logger.info(
-#                     "Current regime database session closed"
-#                 )
+#                         logger.exception(
+#                             "⚠️ Failed to close economic calendar service"
+#                         )
 
-#         # ========================================================
-#         # CANCELLATION
-#         # ========================================================
+#                 try:
+#                     db.close()
+
+#                 except Exception:
+
+#                     logger.exception(
+#                         "⚠️ Failed to close economic calendar database session"
+#                     )
+
+#             logger.info(
+#                 "📅 Economic calendar scheduled job completed"
+#             )
 
 #         except asyncio.CancelledError:
 
 #             logger.info(
-#                 "Current regime scheduler cancelled"
+#                 "Economic calendar scheduler cancelled"
 #             )
 
 #             raise
 
-#         # ========================================================
-#         # UNEXPECTED ERROR
-#         # ========================================================
-
 #         except Exception:
 
 #             logger.exception(
-#                 "🔥 Current regime scheduler failed"
+#                 "🔥 Economic calendar scheduler failed"
 #             )
+
+async def periodic_economic_calendar_collection():
+    """
+    Scheduled economic calendar data collection.
+
+    QA/development:
+        MACRO_UPDATE_INTERVAL_MINUTES > 0
+        runs every N minutes.
+
+    Production:
+        MACRO_UPDATE_INTERVAL_MINUTES = 0
+        runs once daily at the configured UTC time.
+
+    Responsibilities:
+        - Wait for the configured schedule.
+        - Fetch economic calendar events from FRED.
+        - Persist new events.
+        - Handle collection errors without stopping the scheduler.
+        - Clean up the service and database session.
+    """
+
+    logger.info(
+        "📅 Economic calendar scheduler started"
+    )
+
+    if settings.MACRO_UPDATE_INTERVAL_MINUTES > 0:
+
+        logger.info(
+            "Economic calendar QA interval mode enabled: "
+            "running every %s minute(s)",
+            settings.MACRO_UPDATE_INTERVAL_MINUTES,
+        )
+
+    else:
+
+        logger.info(
+            "Economic calendar production schedule enabled: "
+            "running daily at %02d:%02d UTC",
+            settings.MACRO_UPDATE_HOUR_UTC,
+            settings.MACRO_UPDATE_MINUTE_UTC,
+        )
+
+    while True:
+
+        try:
+
+            # ==================================================
+            # WAIT FOR NEXT EXECUTION
+            # ==================================================
+
+            if settings.MACRO_UPDATE_INTERVAL_MINUTES > 0:
+
+                await asyncio.sleep(
+                    settings.MACRO_UPDATE_INTERVAL_MINUTES
+                    * 60
+                )
+
+            else:
+
+                await wait_until_next_run(
+                    settings.MACRO_UPDATE_HOUR_UTC,
+                    settings.MACRO_UPDATE_MINUTE_UTC,
+                    "economic calendar update",
+                )
+
+            logger.info(
+                "📅 Economic calendar scheduler woke up"
+            )
+
+            # ==================================================
+            # DATABASE SESSION
+            # ==================================================
+
+            db = SessionLocal()
+            service = None
+
+            try:
+
+                service = EconomicCalendarService(db)
+
+                logger.info(
+                    "📅 Starting economic calendar collection "
+                    "(lookback=%s days)",
+                    settings.FRED_CALENDAR_LOOKBACK_DAYS,
+                )
+
+                events = await service.collect_events(
+                    days=settings.FRED_CALENDAR_LOOKBACK_DAYS
+                )
+
+                logger.info(
+                    "📅 Economic calendar collection completed: "
+                    "%d new events stored",
+                    len(events),
+                )
+
+            except Exception:
+
+                logger.exception(
+                    "🔥 Economic calendar collection failed"
+                )
+
+            finally:
+
+                if service:
+
+                    try:
+                        await service.close()
+
+                    except Exception:
+
+                        logger.exception(
+                            "⚠️ Failed to close economic "
+                            "calendar service"
+                        )
+
+                try:
+                    db.close()
+
+                except Exception:
+
+                    logger.exception(
+                        "⚠️ Failed to close economic "
+                        "calendar database session"
+                    )
+
+            logger.info(
+                "📅 Economic calendar scheduled job completed"
+            )
+
+        except asyncio.CancelledError:
+
+            logger.info(
+                "Economic calendar scheduler cancelled"
+            )
+
+            raise
+
+        except Exception:
+
+            logger.exception(
+                "🔥 Economic calendar scheduler failed"
+            )
 
 async def periodic_regime_collection():
     """

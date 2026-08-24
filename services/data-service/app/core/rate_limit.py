@@ -71,6 +71,7 @@ class CustomRateLimitExceededHandler:
 # Create the rate limiter
 limiter = Limiter(
     key_func=get_rate_limit_key,
+    headers_enabled=False,
     default_limits=[
         f"{settings.RATE_LIMIT_REQUESTS}/minute" if settings.RATE_LIMIT_ENABLED else "1000000/minute"
     ],

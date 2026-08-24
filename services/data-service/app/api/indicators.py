@@ -130,6 +130,11 @@ async def get_indicators(
 
     cache_key = get_indicators_cache_key(period)
 
+    logger.info(
+        f"Redis client: {cache_client}, "
+        f"connected={getattr(cache_client, 'is_connected', None)}, "
+        f"key={cache_key}"
+    )
     # --------------------------------------------------
     # 3. Redis cache lookup
     # --------------------------------------------------
