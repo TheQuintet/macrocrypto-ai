@@ -434,27 +434,30 @@ def test_get_btc_regime_authentication():
     pass
 
 
-# def test_get_btc_regime_response_time():
-#     """
-#     Verify the BTC regime endpoint meets the <500 ms
-#     response-time acceptance criterion.
-#     """
+def test_get_btc_regime_response_time(seed_current_regime, seed_regime_history):
+    """
+    Verify the BTC regime endpoint meets the <500 ms
+    response-time acceptance criterion.
 
-#     import time
+    Uses seed_current_regime and seed_regime_history fixtures
+    to ensure data exists.
+    """
 
-#     start = time.perf_counter()
+    import time
 
-#     response = client.get(
-#         "/api/v1/regimes/btc"
-#     )
+    start = time.perf_counter()
 
-#     elapsed_ms = (
-#         time.perf_counter() - start
-#     ) * 1000
+    response = client.get(
+        "/api/v1/regimes/btc"
+    )
 
-#     assert response.status_code == 200
+    elapsed_ms = (
+        time.perf_counter() - start
+    ) * 1000
 
-#     assert elapsed_ms < 500, (
-#         f"Response time {elapsed_ms:.2f} ms "
-#         "exceeds the 500 ms acceptance criterion"
-#     )
+    assert response.status_code == 200
+
+    assert elapsed_ms < 500, (
+        f"Response time {elapsed_ms:.2f} ms "
+        "exceeds the 500 ms acceptance criterion"
+    )

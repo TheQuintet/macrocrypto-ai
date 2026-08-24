@@ -131,10 +131,13 @@ def test_indicators_response_time():
 # CURRENT REGIME API
 # ============================================================
 
-def test_current_regime_response_time():
+def test_current_regime_response_time(seed_current_regime):
     """
     Verify current regime API responds within the configured
     standard API response-time limit.
+
+    Uses seed_current_regime fixture to ensure data exists
+    so the endpoint returns 200 instead of 404.
     """
 
     with TestClient(app) as client:

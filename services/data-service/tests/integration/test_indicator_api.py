@@ -115,9 +115,11 @@ def test_get_indicators_endpoint(client):
     )
 
 
-def test_indicators_response_schema(client):
+def test_indicators_response_schema(client, seed_macro_indicators):
     """
     Test response format and schema.
+
+    Uses seed_macro_indicators fixture to ensure data exists.
     """
 
     response = client.get(
@@ -216,6 +218,7 @@ def test_indicators_historical_data(
     client,
     period,
     days,
+    seed_macro_indicators,
 ):
     """
     Test historical data access for all
@@ -223,6 +226,8 @@ def test_indicators_historical_data(
 
     Verifies that returned observations fall
     within the requested historical window.
+
+    Uses seed_macro_indicators fixture to ensure data exists.
     """
 
     response = client.get(
