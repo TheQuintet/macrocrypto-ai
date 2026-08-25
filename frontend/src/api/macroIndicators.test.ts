@@ -81,6 +81,14 @@ describe('fetchMacroIndicatorsFromApi', () => {
       'Failed to fetch indicators: Internal Server Error',
     )
   })
+
+  it('requests a historical window with ?period=', async () => {
+    mockFetchJson(mockIndicatorsApiResponse)
+
+    await fetchMacroIndicatorsFromApi('90d')
+
+    expect(fetch).toHaveBeenCalledWith('/api/v1/indicators?period=90d')
+  })
 })
 
 describe('fetchMockMacroIndicators', () => {
@@ -121,6 +129,16 @@ describe('fetchMockMacroIndicators', () => {
       expect(Number.isFinite(indicator.current_value)).toBe(true)
       expect(['↑', '↓', '→']).toContain(indicator.trend)
     }
+  })
+
+  it('serves a multi-point series for a historical period', async () => {
+    const pending = fetchMockMacroIndicators('1y')
+    await vi.advanceTimersByTimeAsync(MOCK_LATENCY_MS)
+    const indicators = await pending
+
+    const names = new Set(indicators.map((item) => item.indicator_name))
+    expect([...names]).toEqual([...MAIN_INDICATOR_NAMES])
+    expect(indicators.length).toBeGreaterThan(MAIN_INDICATOR_NAMES.length)
   })
 })
 
