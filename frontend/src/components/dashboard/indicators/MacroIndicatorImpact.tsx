@@ -30,7 +30,7 @@ export function MacroIndicatorImpact({
         <button
           type="button"
           className={cn(
-            'inline-flex min-h-11 items-center rounded-md px-1.5 text-sm font-medium',
+            'inline-flex min-h-11 items-center rounded-md px-1.5 text-sm font-medium sm:min-h-7',
             'touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
             impact.toneClass,
           )}
@@ -39,7 +39,7 @@ export function MacroIndicatorImpact({
           {changeSymbol} {formattedChange}
         </button>
       </TooltipTrigger>
-      <TooltipContent className="flex max-w-xs flex-col items-start gap-0.5">
+      <TooltipContent className="flex max-w-[min(20rem,calc(100vw-2rem))] flex-col items-start gap-0.5">
         <span className="font-medium">{impact.label}</span>
         <span>{impact.reason}</span>
       </TooltipContent>

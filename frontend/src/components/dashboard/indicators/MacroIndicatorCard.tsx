@@ -14,13 +14,13 @@ export function MacroIndicatorCard({ indicator }: MacroIndicatorCardProps) {
   return (
     <Card className="min-w-0 overflow-hidden transition-all hover:shadow-md">
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium uppercase tracking-wider text-muted-foreground">
+        <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground sm:text-sm">
           {formatIndicatorTitle(indicator.indicator_name)}
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="flex items-baseline justify-between gap-2">
-          <span className="text-2xl font-bold tabular-nums">
+        <div className="flex min-w-0 flex-wrap items-center justify-between gap-x-2 gap-y-1">
+          <span className="min-w-0 text-xl font-bold tabular-nums sm:text-2xl">
             {indicator.current_value.toFixed(2)}
           </span>
           <MacroIndicatorImpact
@@ -28,7 +28,7 @@ export function MacroIndicatorCard({ indicator }: MacroIndicatorCardProps) {
             changePercent={indicator.change_percent}
           />
         </div>
-        <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
+        <div className="mt-2 flex min-w-0 flex-col gap-0.5 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
           <span>Previous: {indicator.previous_value?.toFixed(2) ?? '--'}</span>
           <span>Updated: {formatIndicatorTimestamp(indicator.time)}</span>
         </div>

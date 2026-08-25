@@ -23,6 +23,12 @@ describe('MacroIndicators', () => {
     expect(screen.getAllByText('32475.21')[0]).toBeInTheDocument()
   })
 
+  it('uses a single-column grid so cards stack on small screens', () => {
+    const { container } = renderMacroIndicators()
+    const grid = container.querySelector('.grid')
+    expect(grid).toHaveClass('grid-cols-1')
+  })
+
   it('displays previous values correctly', () => {
     renderMacroIndicators()
 

@@ -29,7 +29,7 @@ export function MacroIndicatorHistory({
   if (isLoading) {
     return (
       <div className={cn('flex min-w-0 flex-col gap-4', className)}>
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
           {MAIN_INDICATOR_NAMES.map((name) => (
             <Card key={name} className="min-w-0 overflow-hidden">
               <CardHeader className="pb-2">
@@ -66,7 +66,7 @@ export function MacroIndicatorHistory({
 
   return (
     <div className={cn('flex min-w-0 flex-col gap-4', className)}>
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
         {series.map((item) => (
           <MacroIndicatorHistoryCard key={item.name} series={item} />
         ))}

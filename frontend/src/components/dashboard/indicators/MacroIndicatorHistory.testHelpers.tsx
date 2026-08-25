@@ -62,6 +62,6 @@ export function expectHistoryCharts() {
 
 export function expectHistoryTable() {
   expect(
-    screen.getByRole('table', { name: /historical indicator observations/i }),
+    screen.getByRole('region', { name: /historical indicator observations/i }),
   ).toBeInTheDocument()
 }

@@ -17,8 +17,8 @@ export function MacroIndicatorHistoryCard({
   return (
     <Card className="min-w-0 overflow-hidden">
       <CardHeader className="pb-2">
-        <div className="flex items-start justify-between gap-2">
-          <CardTitle className="text-sm font-medium uppercase tracking-wider text-muted-foreground">
+        <div className="flex min-w-0 flex-wrap items-start justify-between gap-2">
+          <CardTitle className="min-w-0 text-xs font-medium uppercase tracking-wider text-muted-foreground sm:text-sm">
             {title}
           </CardTitle>
           <MacroIndicatorImpact
