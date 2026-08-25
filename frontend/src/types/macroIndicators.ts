@@ -8,3 +8,13 @@ export type MacroIndicator = {
   trend: '↑' | '↓' | '→'
   source: string
 }
+
+/** BTC impact of an indicator print. Matches data-service regime visuals. */
+export type BtcImpactPolarity = 'positive' | 'negative' | 'neutral'
+
+export type BtcImpact = {
+  polarity: BtcImpactPolarity
+  toneClass: 'text-positive' | 'text-negative' | 'text-muted-foreground'
+  label: 'Positive for BTC' | 'Negative for BTC' | 'Neutral'
+  reason: string
+}

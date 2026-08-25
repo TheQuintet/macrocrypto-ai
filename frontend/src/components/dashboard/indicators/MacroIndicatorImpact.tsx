@@ -1,0 +1,48 @@
+import {
+  formatChangePercent,
+  getChangeSymbol,
+  getIndicatorBtcImpact,
+} from '@/lib/indicatorBtcImpact'
+import { cn } from '@/lib/utils'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
+
+type MacroIndicatorImpactProps = {
+  indicatorName: string
+  changePercent: number | null
+}
+
+/** Colored % change with a tooltip explaining the BTC impact. */
+export function MacroIndicatorImpact({
+  indicatorName,
+  changePercent,
+}: MacroIndicatorImpactProps) {
+  const impact = getIndicatorBtcImpact(indicatorName, changePercent)
+  const formattedChange = formatChangePercent(changePercent)
+  const changeSymbol = getChangeSymbol(changePercent)
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          className={cn(
+            'inline-flex min-h-11 items-center rounded-md px-1.5 text-sm font-medium',
+            'touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
+            impact.toneClass,
+          )}
+          aria-label={`${formattedChange}, ${impact.label}`}
+        >
+          {changeSymbol} {formattedChange}
+        </button>
+      </TooltipTrigger>
+      <TooltipContent className="flex max-w-xs flex-col items-start gap-0.5">
+        <span className="font-medium">{impact.label}</span>
+        <span>{impact.reason}</span>
+      </TooltipContent>
+    </Tooltip>
+  )
+}

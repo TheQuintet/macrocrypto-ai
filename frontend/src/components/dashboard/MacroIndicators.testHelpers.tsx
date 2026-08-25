@@ -1,6 +1,7 @@
-import { render, screen } from '@testing-library/react';
-import { MacroIndicators } from './MacroIndicators';
-import type { MacroIndicator } from '@/types/macroIndicators';
+import { render, screen } from '@testing-library/react'
+import { MacroIndicators } from './MacroIndicators'
+import { TooltipProvider } from '@/components/ui/tooltip'
+import type { MacroIndicator } from '@/types/macroIndicators'
 
 export const mockIndicators: MacroIndicator[] = [
   {
@@ -39,28 +40,28 @@ export const mockIndicators: MacroIndicator[] = [
     trend: '↑',
     source: 'fred',
   },
-];
+]
 
 export function renderMacroIndicators(
-  props: Partial<React.ComponentProps<typeof MacroIndicators>> = {}
+  props: Partial<React.ComponentProps<typeof MacroIndicators>> = {},
 ) {
   return render(
-    <MacroIndicators 
-      indicators={mockIndicators} 
-      isLoading={false}
-      error={null}
-      {...props} 
-    />
-  );
+    <TooltipProvider>
+      <MacroIndicators
+        indicators={mockIndicators}
+        isLoading={false}
+        error={null}
+        {...props}
+      />
+    </TooltipProvider>,
+  )
 }
 
-// Note: This helper is not currently used in tests, but kept for future use
 export function getCardByIndicatorName(name: string) {
-  // Use screen from @testing-library/react (already imported)
-  const element = screen.getByText(name);
-  return element.closest('[data-slot="card"]');
+  const element = screen.getByText(name)
+  return element.closest('[data-slot="card"]')
 }
 
 export function getChangeElement(card: Element | null | undefined) {
-  return card?.querySelector('.text-sm.font-medium');
+  return card?.querySelector('button')
 }
