@@ -13,7 +13,7 @@ from fastapi import APIRouter
 
 # Import all route modules
 from app.api.v1 import auth
-# from app.api.v1 import predictions  # Will be added later
+from app.api.v1 import predictions  # Added: Predictions endpoints
 # from app.api.v1 import market       # Will be added later
 # from app.api.v1 import alerts       # Will be added later
 # from app.api.v1 import exports      # Will be added later
@@ -31,12 +31,12 @@ router = APIRouter(prefix="/api/v1", tags=["API v1"])
 # Authentication routes (auth.router already has prefix="/auth")
 router.include_router(auth.router)
 
-# Prediction routes (to be added)
-# router.include_router(
-#     predictions.router,
-#     prefix="/predict",
-#     tags=["Predictions"],
-# )
+# Prediction routes
+router.include_router(
+    predictions.router,
+    prefix="/predict",
+    tags=["Predictions"],
+)
 
 # Market data routes (to be added)
 # router.include_router(
@@ -90,7 +90,10 @@ async def api_v1_root():
                 "change_password": "POST /api/v1/auth/change-password",
                 "verify": "GET /api/v1/auth/verify",
             },
-            "predictions": "Coming soon",
+            "predictions": {
+                "btc": "GET /api/v1/predict/btc?horizon=24h&model_type=ensemble",
+                "accuracy": "GET /api/v1/predict/btc/accuracy?days=30",
+            },
             "market_data": "Coming soon",
             "alerts": "Coming soon",
             "exports": "Coming soon",
