@@ -361,6 +361,27 @@ api-install:
 	@echo "✅ Dependencies installed"
 
 # ============================================
+# API-GATEWAY TEST COMMANDS (LOCAL)
+# ============================================
+
+api-test-local:
+	@echo "🧪 Running all tests locally..."
+	cd services/api-gateway && . venv/bin/activate && TESTING=true pytest tests/ -v
+
+api-test-local-unit:
+	@echo "🧪 Running unit tests locally..."
+	cd services/api-gateway && . venv/bin/activate && TESTING=true pytest tests/ -m unit -v
+
+api-test-local-cov:
+	@echo "🧪 Running tests with coverage locally..."
+	cd services/api-gateway && . venv/bin/activate && TESTING=true pytest tests/ --cov=app --cov-report=term --cov-report=html
+	@echo "📊 Coverage report: services/api-gateway/htmlcov/index.html"
+
+api-test-local-file:
+	@echo "🧪 Running test file locally: $(FILE)"
+	cd services/api-gateway && . venv/bin/activate && TESTING=true pytest $(FILE) -v
+
+# ============================================
 # LINTING & FORMATTING (Data Service)
 # ============================================
 
