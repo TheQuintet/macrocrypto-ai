@@ -60,6 +60,9 @@ async def lifespan(app: FastAPI):
     else:
         logger.warning("⚠️ Redis is disabled")
 
+    # Log database status
+    logger.info(f"🐘 PostgreSQL: {settings.POSTGRES_HOST}:{settings.POSTGRES_PORT}/{settings.POSTGRES_DB}")
+
     logger.info(f"✅ {settings.SERVICE_NAME} started successfully")
 
     yield  # Application runs here
@@ -125,6 +128,18 @@ if not settings.DEBUG and not os.getenv("TESTING"):
         TrustedHostMiddleware,
         allowed_hosts=["api.macrocrypto.ai", "localhost", "127.0.0.1"],
     )
+
+
+# ============================================
+# INCLUDE ROUTERS
+# ============================================
+
+from app.api.v1.router import router as api_v1_router
+
+# Include v1 API router
+# The router has prefix="/api/v1" and auth has prefix="/auth"
+# Final path: /api/v1/auth/register, /api/v1/auth/login, etc.
+app.include_router(api_v1_router)
 
 
 # ============================================
@@ -224,6 +239,7 @@ async def health_check() -> Dict[str, Any]:
         "service": settings.SERVICE_NAME,
         "version": app.version,
         "redis_enabled": settings.REDIS_ENABLED,
+        "database": "connected",  # TODO: Check actual database connection
     }
 
 
