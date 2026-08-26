@@ -6,6 +6,7 @@ health checks.
 """
 
 import logging
+import os
 from contextlib import asynccontextmanager
 from typing import Dict, Any
 
@@ -118,7 +119,8 @@ app.add_middleware(
 )
 
 # --- Trusted Host Middleware ---
-if not settings.DEBUG:
+# Disable in test environment to prevent "Invalid host header" errors
+if not settings.DEBUG and not os.getenv("TESTING"):
     app.add_middleware(
         TrustedHostMiddleware,
         allowed_hosts=["api.macrocrypto.ai", "localhost", "127.0.0.1"],
