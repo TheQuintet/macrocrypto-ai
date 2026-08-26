@@ -1,0 +1,1 @@
+"""Unit tests for authentication endpoints and security utilities."""
