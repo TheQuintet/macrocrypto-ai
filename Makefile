@@ -285,7 +285,7 @@ api-restart:
 	@echo "✅ API Gateway restarted"
 
 api-shell:
-	docker compose exec api-gateway /bin/bash
+	docker compose exec api-gateway /bin/sh
 
 api-health:
 	@echo "🏥 Checking API Gateway health..."
@@ -348,7 +348,7 @@ api-format:
 
 api-run:
 	@echo "🚀 Running API Gateway locally..."
-	cd services/api-gateway && source venv/bin/activate && python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+	cd services/api-gateway && . venv/bin/activate && python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 api-venv:
 	@echo "🔧 Creating virtual environment for API Gateway..."
