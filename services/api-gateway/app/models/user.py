@@ -148,6 +148,16 @@ class User(Base):
         doc="User's export history",
     )
 
+    def __init__(self, **kwargs):
+        """Initialize User with default values."""
+        if 'role' not in kwargs or kwargs.get('role') is None:
+            kwargs['role'] = UserRole.USER
+        if 'status' not in kwargs or kwargs.get('status') is None:
+            kwargs['status'] = UserStatus.PENDING
+        if 'is_email_verified' not in kwargs or kwargs.get('is_email_verified') is None:
+            kwargs['is_email_verified'] = False
+        super().__init__(**kwargs)
+
     def __repr__(self) -> str:
         """String representation of the user."""
         return f"<User(id={self.id}, username='{self.username}', email='{self.email}')>"

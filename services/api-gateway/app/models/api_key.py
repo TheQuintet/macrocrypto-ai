@@ -4,7 +4,7 @@ This module defines the APIKey model for managing API keys
 that allow external applications to access the API.
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional, List
 import secrets
 import json
@@ -108,6 +108,14 @@ class APIKey(Base):
         doc="The user who owns this API key",
     )
 
+    def __init__(self, **kwargs):
+        """Initialize APIKey with default values."""
+        if 'is_active' not in kwargs:
+            kwargs['is_active'] = True
+        if 'permissions' not in kwargs:
+            kwargs['permissions'] = []
+        super().__init__(**kwargs)
+
     def __repr__(self) -> str:
         """String representation of the API key."""
         return f"<APIKey(id={self.id}, name='{self.name}', prefix='{self.key_prefix}')>"
@@ -159,7 +167,7 @@ class APIKey(Base):
         """
         if self.expires_at is None:
             return False
-        return datetime.now(datetime.now().astimezone().tzinfo) > self.expires_at
+        return datetime.now(timezone.utc) > self.expires_at
 
     @property
     def is_valid(self) -> bool:
@@ -194,7 +202,7 @@ class APIKey(Base):
 
     def update_last_used(self) -> None:
         """Update the last_used_at timestamp to now."""
-        self.last_used_at = datetime.now(datetime.now().astimezone().tzinfo)
+        self.last_used_at = datetime.now(timezone.utc)
 
     def set_expiry_days(self, days: int) -> None:
         """Set expiration date to a number of days from now.
@@ -202,7 +210,7 @@ class APIKey(Base):
         Args:
             days: Number of days until expiration.
         """
-        self.expires_at = datetime.now(datetime.now().astimezone().tzinfo) + timedelta(days=days)
+        self.expires_at = datetime.now(timezone.utc) + timedelta(days=days)
 
     def dict(self) -> dict:
         """Convert API key to dictionary (excludes hashed_key).

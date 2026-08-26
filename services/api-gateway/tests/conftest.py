@@ -12,6 +12,8 @@ from typing import Generator
 import pytest
 from fastapi.testclient import TestClient
 from dotenv import load_dotenv
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session, sessionmaker
 
 # ============================================
 # ENVIRONMENT SETUP - MUST BE FIRST
@@ -44,6 +46,24 @@ if not os.getenv("SECRET_KEY"):
 # Set test mode flag
 os.environ["TESTING"] = "true"
 
+# ============================================
+# DATABASE FOR TESTS
+# ============================================
+
+# Use an in-memory SQLite database for tests
+# This avoids the need for a real PostgreSQL database during testing
+TEST_DATABASE_URL = "sqlite:///./test.db"
+
+engine = create_engine(
+    TEST_DATABASE_URL,
+    connect_args={"check_same_thread": False}
+)
+TestingSessionLocal = sessionmaker(
+    autocommit=False,
+    autoflush=False,
+    bind=engine
+)
+
 
 # ============================================
 # IMPORT APP AFTER ENV SETUP
@@ -51,11 +71,35 @@ os.environ["TESTING"] = "true"
 
 # Import app after environment is set up
 from app.main import app  # noqa: E402
+from app.models import Base  # noqa: E402
 
 
 # ============================================
 # FIXTURES
 # ============================================
+
+@pytest.fixture(scope="function")
+def db_session() -> Generator[Session, None, None]:
+    """
+    Create a new database session for a test.
+
+    This fixture creates a fresh database for each test function,
+    ensuring tests are isolated and repeatable.
+
+    Yields:
+        Session: SQLAlchemy session for the test.
+    """
+    # Create all tables before the test
+    Base.metadata.create_all(bind=engine)
+
+    db = TestingSessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+        # Drop all tables after the test to ensure isolation
+        Base.metadata.drop_all(bind=engine)
+
 
 @pytest.fixture(scope="session")
 def client() -> Generator[TestClient, None, None]:

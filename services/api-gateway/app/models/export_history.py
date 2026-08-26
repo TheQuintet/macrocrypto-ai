@@ -4,7 +4,7 @@ This module defines the ExportHistory model for tracking
 when users export data in various formats (CSV, PNG, PDF).
 """
 
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any
 import json
 
@@ -182,6 +182,14 @@ class ExportHistory(Base):
         doc="The user who requested this export",
     )
 
+    def __init__(self, **kwargs):
+        """Initialize ExportHistory with default values."""
+        if 'status' not in kwargs or kwargs.get('status') is None:
+            kwargs['status'] = ExportStatus.PENDING
+        if 'download_count' not in kwargs or kwargs.get('download_count') is None:
+            kwargs['download_count'] = 0
+        super().__init__(**kwargs)
+
     def __repr__(self) -> str:
         """String representation of the export history entry."""
         return (
@@ -225,7 +233,7 @@ class ExportHistory(Base):
         """
         if self.expires_at is None:
             return False
-        return datetime.now(datetime.now().astimezone().tzinfo) > self.expires_at
+        return datetime.now(timezone.utc) > self.expires_at
 
     @property
     def parameters_dict(self) -> Dict[str, Any]:
@@ -261,7 +269,7 @@ class ExportHistory(Base):
         self.file_path = file_path
         self.file_name = file_name
         self.file_size = file_size
-        self.completed_at = datetime.now(datetime.now().astimezone().tzinfo)
+        self.completed_at = datetime.now(timezone.utc)
 
     def mark_failed(self, error_message: str) -> None:
         """Mark the export as failed with an error message.
@@ -271,7 +279,7 @@ class ExportHistory(Base):
         """
         self.status = ExportStatus.FAILED
         self.error_message = error_message
-        self.completed_at = datetime.now(datetime.now().astimezone().tzinfo)
+        self.completed_at = datetime.now(timezone.utc)
 
     def mark_processing(self) -> None:
         """Mark the export as processing."""
@@ -280,7 +288,7 @@ class ExportHistory(Base):
     def increment_download_count(self) -> None:
         """Increment the download count and update downloaded_at."""
         self.download_count += 1
-        self.downloaded_at = datetime.now(datetime.now().astimezone().tzinfo)
+        self.downloaded_at = datetime.now(timezone.utc)
 
     def set_expiry_days(self, days: int) -> None:
         """Set expiration date to a number of days from now.
@@ -288,8 +296,7 @@ class ExportHistory(Base):
         Args:
             days: Number of days until expiration.
         """
-        from datetime import timedelta
-        self.expires_at = datetime.now(datetime.now().astimezone().tzinfo) + timedelta(days=days)
+        self.expires_at = datetime.now(timezone.utc) + timedelta(days=days)
 
     def dict(self) -> dict:
         """Convert export history to dictionary.
