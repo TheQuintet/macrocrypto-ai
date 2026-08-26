@@ -291,6 +291,10 @@ async def login(
     access_token = create_access_token(data=token_data)
     refresh_token = create_refresh_token(data=token_data)
 
+    # Store user in request state for rate limiting
+    request.state.user_id = user.id
+    request.state.current_user = user
+
     # Publish UserLoggedIn event
     try:
         rabbitmq_client.publish_event(
@@ -317,6 +321,7 @@ async def login(
 @router.post("/refresh", response_model=TokenResponse)
 async def refresh_token(
     refresh_request: RefreshTokenRequest,
+    request: Request,
     db: Session = Depends(get_db)
 ):
     """
@@ -326,6 +331,7 @@ async def refresh_token(
 
     Args:
         refresh_request: The refresh token request.
+        request: The HTTP request object.
         db: The database session.
 
     Returns:
@@ -378,6 +384,10 @@ async def refresh_token(
         access_token = create_access_token(data=token_data)
         refresh_token = create_refresh_token(data=token_data)
 
+        # Store user in request state for rate limiting
+        request.state.user_id = user.id
+        request.state.current_user = user
+
         return {
             "access_token": access_token,
             "refresh_token": refresh_token,
@@ -395,6 +405,7 @@ async def refresh_token(
 
 @router.post("/logout")
 async def logout(
+    request: Request,
     current_user: User = Depends(get_current_active_user)
 ):
     """
@@ -405,6 +416,7 @@ async def logout(
     require a token blacklist (implemented separately).
 
     Args:
+        request: The HTTP request object.
         current_user: The authenticated user.
 
     Returns:
@@ -419,6 +431,7 @@ async def logout(
 
 @router.get("/me", response_model=UserResponse)
 async def get_current_user_info(
+    request: Request,
     current_user: User = Depends(get_current_active_user)
 ):
     """
@@ -427,17 +440,23 @@ async def get_current_user_info(
     Returns the authenticated user's information.
 
     Args:
+        request: The HTTP request object.
         current_user: The authenticated user.
 
     Returns:
         UserResponse: The user's profile data.
     """
+    # Store user in request state for rate limiting
+    request.state.user_id = current_user.id
+    request.state.current_user = current_user
+
     return current_user
 
 
 @router.post("/change-password")
 async def change_password(
     password_data: ChangePasswordRequest,
+    request: Request,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
@@ -448,6 +467,7 @@ async def change_password(
 
     Args:
         password_data: The current and new passwords.
+        request: The HTTP request object.
         current_user: The authenticated user.
         db: The database session.
 
@@ -457,6 +477,10 @@ async def change_password(
     Raises:
         HTTPException: If the current password is incorrect.
     """
+    # Store user in request state for rate limiting
+    request.state.user_id = current_user.id
+    request.state.current_user = current_user
+
     # Verify current password
     if not verify_password(password_data.current_password, current_user.hashed_password):
         raise HTTPException(
@@ -486,6 +510,7 @@ async def change_password(
 @router.get("/verify", response_model=UserResponse)
 async def verify_email(
     token: str,
+    request: Request,
     db: Session = Depends(get_db)
 ):
     """
@@ -495,6 +520,7 @@ async def verify_email(
 
     Args:
         token: The verification token (JWT containing user_id).
+        request: The HTTP request object.
         db: The database session.
 
     Returns:
@@ -544,6 +570,10 @@ async def verify_email(
 
         db.commit()
         db.refresh(user)
+
+        # Store user in request state for rate limiting
+        request.state.user_id = user.id
+        request.state.current_user = user
 
         return {
             "message": "Email verified successfully",

@@ -17,6 +17,7 @@ from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 
 from app.core.config import settings
+from app.core.redis import redis_client
 
 # ============================================
 # LOGGING CONFIGURATION
@@ -54,8 +55,9 @@ async def lifespan(app: FastAPI):
     logger.info(f"🤖 AI Service: {settings.AI_SERVICE_URL}")
     logger.info(f"🔔 Alert Service: {settings.ALERT_SERVICE_URL}")
 
-    # Log Redis status
+    # Connect to Redis
     if settings.REDIS_ENABLED:
+        await redis_client.connect()
         logger.info(f"🗄️  Redis: {settings.REDIS_HOST}:{settings.REDIS_PORT}")
     else:
         logger.warning("⚠️ Redis is disabled")
@@ -68,6 +70,7 @@ async def lifespan(app: FastAPI):
     yield  # Application runs here
 
     # --- SHUTDOWN ---
+    await redis_client.disconnect()
     logger.info(f"🛑 Shutting down {settings.SERVICE_NAME}...")
 
 
@@ -140,6 +143,17 @@ from app.api.v1.router import router as api_v1_router
 # The router has prefix="/api/v1" and auth has prefix="/auth"
 # Final path: /api/v1/auth/register, /api/v1/auth/login, etc.
 app.include_router(api_v1_router)
+
+
+# ============================================
+# RATE LIMIT MIDDLEWARE
+# ============================================
+
+from app.core.rate_limiter import RateLimitMiddleware
+
+# Add rate limit middleware (after CORS, before routers)
+# Note: Order matters - rate limiting should be applied after CORS
+app.add_middleware(RateLimitMiddleware)
 
 
 # ============================================
