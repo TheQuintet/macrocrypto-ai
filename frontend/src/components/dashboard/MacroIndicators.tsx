@@ -92,15 +92,15 @@ export function MacroIndicators({
   // Loading state
   if (isLoading) {
     return (
-      <div className={cn('grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3', className)}>
+      <div className={cn('grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 sm:gap-4 lg:gap-6', className)}>
         {MAIN_INDICATOR_NAMES.map((name) => (
           <Card key={name} className="overflow-hidden">
-            <CardHeader className="pb-2">
+            <CardHeader className="pb-1 sm:pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
                 <Skeleton className="h-4 w-20" />
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-3 sm:p-4 lg:p-5">
               <Skeleton className="h-8 w-24 mb-2" />
               <Skeleton className="h-4 w-16" />
             </CardContent>
@@ -130,24 +130,27 @@ export function MacroIndicators({
   }
 
   return (
-    <div className={cn('grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3', className)}>
+    <div className={cn('grid grid-cols-1 gap-3 sm:gap-4 lg:gap-6 sm:grid-cols-2 lg:grid-cols-3', className)}>
       {formattedIndicators.map((indicator) => (
-        <Card key={indicator.indicator_name} className="overflow-hidden transition-all hover:shadow-md">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+        <Card 
+          key={indicator.indicator_name} 
+          className="overflow-hidden transition-all hover:shadow-md touch-manipulation cursor-default"
+        >
+          <CardHeader className="pb-1 sm:pb-2">
+            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider sm:text-sm">
               {indicator.indicator_name.replace(/_/g, ' ')}
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="flex items-baseline justify-between">
-              <span className="text-2xl font-bold tabular-nums">
+          <CardContent className="p-3 sm:p-4 lg:p-5">
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="text-xl font-bold tabular-nums sm:text-2xl lg:text-3xl">
                 {indicator.current_value.toFixed(2)}
               </span>
-              <span className={cn('text-sm font-medium', indicator.color)}>
+              <span className={cn('text-sm font-medium sm:text-base whitespace-nowrap', indicator.color)}>
                 {indicator.changeSymbol} {indicator.formattedChange}
               </span>
             </div>
-            <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
+            <div className="mt-2 flex flex-wrap items-center justify-between gap-1 text-xs text-muted-foreground sm:text-sm">
               <span>Previous: {indicator.previous_value?.toFixed(2) ?? '--'}</span>
               <span>Updated: {indicator.formattedTime}</span>
             </div>
