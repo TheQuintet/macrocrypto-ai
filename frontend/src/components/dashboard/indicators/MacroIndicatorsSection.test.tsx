@@ -1,40 +1,88 @@
-import { cleanup, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, describe, expect, it } from 'vitest'
+import { act, cleanup, screen, within } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
-  expectCurrentView,
-  expectHistoricalControls,
+  expectHistoryOnPage,
   renderSection,
-  selectHistoryView,
 } from './MacroIndicatorsSection.testHelpers'
+import { resetPreferencesStore } from '@/stores/preferencesStore.testHelpers'
+import { usePreferencesStore } from '@/stores/preferencesStore'
 
 describe('MacroIndicatorsSection', () => {
+  beforeEach(() => {
+    resetPreferencesStore()
+  })
+
   afterEach(() => {
     cleanup()
+    resetPreferencesStore()
   })
 
-  it('starts on the current snapshot and can switch to historical', async () => {
+  it('shows latest cards and history on the same page', () => {
+    renderSection()
+
+    expectHistoryOnPage()
+    expect(screen.getByText(/aligned to each btc candle/i)).toHaveTextContent(
+      '30d',
+    )
+  })
+
+  it('follows the shared time range for history', () => {
+    renderSection()
+
+    act(() => {
+      usePreferencesStore.getState().setTimeRange('90d')
+    })
+
+    expectHistoryOnPage()
+    expect(screen.getByText(/aligned to each btc candle/i)).toHaveTextContent(
+      '90d',
+    )
+  })
+
+  it('stacks indicator history under BTC price in one panel', () => {
+    renderSection()
+
+    const panel = screen.getByRole('region', {
+      name: /price and indicator history/i,
+    })
+    const btc = within(panel).getByRole('heading', { name: 'BTC price' })
+    const history = within(panel).getByRole('heading', {
+      name: 'Indicator history',
+    })
+
+    expect(
+      btc.compareDocumentPosition(history) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+  })
+
+  it('puts indicator copy under the history chart', async () => {
+    renderSection()
+
+    const chart = await screen.findByRole('img', {
+      name: /macro indicator history/i,
+    })
+    const heading = screen.getByRole('heading', { name: 'Indicator history' })
+
+    expect(
+      chart.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+  })
+
+  it('filters the observations table to one indicator', async () => {
     const user = userEvent.setup()
-    renderSection(true)
+    renderSection()
 
-    expectCurrentView()
+    const filter = await screen.findByRole('group', { name: 'Indicator filter' })
+    await user.click(within(filter).getByRole('button', { name: 'CPI' }))
+
+    const table = await screen.findByRole('region', {
+      name: /historical indicator observations/i,
+    })
+    expect(within(table).getAllByText(/^cpi$/i).length).toBeGreaterThan(0)
+    expect(within(table).queryByText(/gdp/i)).not.toBeInTheDocument()
     expect(
-      screen.queryByRole('group', { name: 'Historical period' }),
-    ).not.toBeInTheDocument()
-
-    await selectHistoryView(user)
-
-    expectHistoricalControls()
-    expect(
-      screen.getByRole('button', { name: '90d' }),
-    ).toHaveAttribute('aria-pressed', 'true')
-  })
-
-  it('hides the view toggle when history is not enabled', () => {
-    renderSection(false)
-
-    expect(
-      screen.queryByRole('group', { name: 'Indicator view' }),
+      within(table).queryByText(/federal funds rate/i),
     ).not.toBeInTheDocument()
   })
 })

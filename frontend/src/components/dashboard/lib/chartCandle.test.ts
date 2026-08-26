@@ -31,6 +31,7 @@ describe('mapHistoryPointsToChartCandles', () => {
     expect(first.high).toBe(64_400)
     expect(first.low).toBe(63_900)
     expect(first.close).toBe(64_100.5)
+    expect(first.timeMs).toBe(Date.parse('2024-03-05T14:30:00.000Z'))
   })
 
   it('formats fine intervals with day and clock time', () => {
@@ -69,6 +70,15 @@ describe('mapHistoryPointsToChartCandles', () => {
     expect(point.time).toBe('Mar 5')
   })
 
+  it('formats monthly labels as month and year', () => {
+    const [point] = mapHistoryPointsToChartCandles(
+      [{ timestamp: '2024-03-05T14:30:00.000Z', open: 1, high: 1, low: 1, close: 1 }],
+      '1mo',
+    )
+
+    expect(point.time).toBe('Mar 2024')
+  })
+
   it('formats yearly labels as the UTC year', () => {
     const [point] = mapHistoryPointsToChartCandles(
       [{ timestamp: '2024-03-05T14:30:00.000Z', open: 1, high: 1, low: 1, close: 1 }],
@@ -87,6 +97,7 @@ describe('candleYDomain', () => {
   function candles(...ranges: [number, number][]) {
     return ranges.map(([low, high]) => ({
       time: 't',
+      timeMs: 0,
       open: low,
       high,
       low,

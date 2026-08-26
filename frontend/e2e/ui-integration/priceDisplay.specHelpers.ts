@@ -43,13 +43,11 @@ export async function expectNoHorizontalScroll(page: Page) {
 
 /** Touch targets need to be tall enough to hit reliably on a phone. */
 export async function expectTouchFriendlyChartControls(page: Page) {
-  const button = page
-    .getByRole('group', { name: 'Chart interval' })
-    .getByRole('button')
-    .first()
-
-  const box = await button.boundingBox()
-  expect(box?.height ?? 0).toBeGreaterThanOrEqual(40)
+  for (const label of ['Time range', 'Chart interval'] as const) {
+    const button = page.getByRole('group', { name: label }).getByRole('button').first()
+    const box = await button.boundingBox()
+    expect(box?.height ?? 0).toBeGreaterThanOrEqual(40)
+  }
 }
 
 export function getFeedStatus(page: Page) {

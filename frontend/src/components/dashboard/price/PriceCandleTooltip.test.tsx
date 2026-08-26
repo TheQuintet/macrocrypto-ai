@@ -5,6 +5,7 @@ import type { ChartCandle } from '@/types/chart'
 
 const CANDLE: ChartCandle = {
   time: 'Mar 5 14:00',
+  timeMs: Date.parse('2024-03-05T14:00:00.000Z'),
   open: 64_000,
   high: 64_400,
   low: 63_900,
@@ -54,5 +55,18 @@ describe('PriceCandleTooltip', () => {
     renderTooltip(true, undefined)
 
     expect(screen.queryByRole('tooltip')).not.toBeInTheDocument()
+  })
+
+  it('lists as-of macro change instead of raw prints', () => {
+    renderTooltip(true, {
+      ...CANDLE,
+      asOfIndicators: {
+        cpi: { value: 322.13, indexed: 101.2, changePercent: 0.21 },
+        gdp: { value: 30353.9, indexed: 100.8, changePercent: -0.5 },
+      },
+    })
+
+    expectRow('cpi', '↑ +0.21%')
+    expectRow('gdp', '↓ -0.50%')
   })
 })

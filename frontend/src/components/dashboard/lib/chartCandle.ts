@@ -8,6 +8,7 @@ export function mapHistoryPointsToChartCandles(
 ): ChartCandle[] {
   return points.map((point) => ({
     time: formatHistoryLabel(point.timestamp, interval),
+    timeMs: Date.parse(point.timestamp),
     open: point.open,
     high: point.high,
     low: point.low,
@@ -65,6 +66,12 @@ function formatHistoryLabel(timestamp: string, interval: ChartInterval) {
       })
     case '1w':
       return day
+    case '1mo':
+      return date.toLocaleDateString('en-US', {
+        month: 'short',
+        year: 'numeric',
+        timeZone: 'UTC',
+      })
     case '1y':
       return String(date.getUTCFullYear())
   }

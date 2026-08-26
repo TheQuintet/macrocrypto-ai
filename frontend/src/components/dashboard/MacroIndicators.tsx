@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { MAIN_INDICATOR_NAMES } from '@/api/macroIndicators'
 import { MacroIndicatorCard } from '@/components/dashboard/indicators/MacroIndicatorCard'
+import { indicatorSeriesColor } from '@/lib/indicatorSeriesColor'
 import { cn } from '@/lib/utils'
 import type { MacroIndicator } from '@/types/macroIndicators'
 
@@ -27,7 +28,11 @@ export function MacroIndicators({
         )}
       >
         {MAIN_INDICATOR_NAMES.map((name) => (
-          <Card key={name} className="min-w-0 overflow-hidden">
+          <Card
+            key={name}
+            className="min-w-0 overflow-hidden border-l-[3px]"
+            style={{ borderLeftColor: indicatorSeriesColor(name) }}
+          >
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
                 <Skeleton className="h-4 w-20" />

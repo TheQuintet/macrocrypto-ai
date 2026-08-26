@@ -36,5 +36,7 @@ describe('chart theme layout helpers', () => {
     expect(chartYAxisWidth(false)).toBe(CHART_Y_AXIS_WIDTH)
     expect(chartPlotMargin(true).bottom).toBeLessThan(chartPlotMargin(false).bottom)
     expect(chartYAxisMargin(true).bottom).toBe(chartPlotMargin(true).bottom)
+    expect(chartPlotMargin(false, true).bottom).toBe(8)
+    expect(chartYAxisMargin(false, true).bottom).toBe(8)
   })
 })

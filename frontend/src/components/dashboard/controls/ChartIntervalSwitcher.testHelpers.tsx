@@ -1,26 +1,22 @@
-import { render, screen } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { render, screen, within } from '@testing-library/react'
+import type { UserEvent } from '@testing-library/user-event'
 import { expect } from 'vitest'
 import { ChartIntervalSwitcher } from '@/components/dashboard/controls/ChartIntervalSwitcher'
-import type { ChartInterval } from '@/types/chart'
+import { usePreferencesStore } from '@/stores/preferencesStore'
 
-export function renderChartIntervalSwitcher(
-  value: ChartInterval = '1h',
-  onChange: (value: ChartInterval) => void = () => undefined,
-) {
-  return render(
-    <ChartIntervalSwitcher value={value} onChange={onChange} />,
-  )
+export function renderChartIntervalSwitcher() {
+  return render(<ChartIntervalSwitcher />)
+}
+
+export function getIntervalGroup() {
+  return screen.getByRole('group', { name: 'Chart interval' })
 }
 
 export function getIntervalButton(label: string) {
-  return screen.getByRole('button', { name: label })
+  return within(getIntervalGroup()).getByRole('button', { name: label })
 }
 
-export async function selectChartInterval(
-  user: ReturnType<typeof userEvent.setup>,
-  label: string,
-) {
+export async function selectChartInterval(user: UserEvent, label: string) {
   await user.click(getIntervalButton(label))
 }
 
@@ -28,8 +24,10 @@ export function expectIntervalSelected(label: string) {
   expect(getIntervalButton(label)).toHaveAttribute('aria-pressed', 'true')
 }
 
-export function expectTouchFriendlyIntervalButtons() {
-  const group = screen.getByRole('group', { name: 'Chart interval' })
-  expect(group).toHaveClass('w-full')
-  expect(getIntervalButton('1h')).toHaveClass('min-h-11')
+export function expectIntervalNotSelected(label: string) {
+  expect(getIntervalButton(label)).toHaveAttribute('aria-pressed', 'false')
+}
+
+export function expectCandleInterval(value: '1d' | '1w') {
+  expect(usePreferencesStore.getState().candleInterval).toBe(value)
 }

@@ -56,8 +56,9 @@ export function renderHistory(
 }
 
 export function expectHistoryCharts() {
-  expect(screen.getByRole('img', { name: /cpi history/i })).toBeInTheDocument()
-  expect(screen.getByRole('img', { name: /gdp history/i })).toBeInTheDocument()
+  expect(
+    screen.getByRole('img', { name: /macro indicator history/i }),
+  ).toBeInTheDocument()
 }
 
 export function expectHistoryTable() {

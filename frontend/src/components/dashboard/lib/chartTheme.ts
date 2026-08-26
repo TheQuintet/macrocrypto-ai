@@ -19,11 +19,6 @@ export function formatPriceTick(value: number, compact = false) {
   return `$${Math.round(value).toLocaleString()}`
 }
 
-export function formatPriceTooltip(value: unknown) {
-  const price = typeof value === 'number' ? value : Number(value)
-  return [`$${price.toLocaleString()}`, 'Price'] as [string, string]
-}
-
 export const CHART_TOOLTIP_STYLE = {
   background: 'var(--popover)',
   border: '1px solid var(--border)',
@@ -49,6 +44,20 @@ export const CHART_PLOT_MARGIN_COMPACT = {
   bottom: 32,
 } as const
 
+export const CHART_PLOT_MARGIN_NO_X = {
+  top: 8,
+  right: 8,
+  left: 8,
+  bottom: 8,
+} as const
+
+export const CHART_PLOT_MARGIN_NO_X_COMPACT = {
+  top: 8,
+  right: 4,
+  left: 4,
+  bottom: 8,
+} as const
+
 /** Margins for the fixed Y-axis — match plot top/bottom for tick alignment. */
 export const CHART_Y_AXIS_MARGIN = {
   top: 8,
@@ -64,14 +73,30 @@ export const CHART_Y_AXIS_MARGIN_COMPACT = {
   bottom: 32,
 } as const
 
+export const CHART_Y_AXIS_MARGIN_NO_X = {
+  top: 8,
+  right: 0,
+  left: 0,
+  bottom: 8,
+} as const
+
+/** Shared Recharts tooltip cursor across stacked BTC + indicator panes. */
+export const LINKED_CHART_SYNC_ID = 'btc-macro-history'
+
 export function chartYAxisWidth(compact: boolean) {
   return compact ? CHART_Y_AXIS_WIDTH_COMPACT : CHART_Y_AXIS_WIDTH
 }
 
-export function chartPlotMargin(compact: boolean) {
+export function chartPlotMargin(compact: boolean, hideXAxis = false) {
+  if (hideXAxis) {
+    return compact ? CHART_PLOT_MARGIN_NO_X_COMPACT : CHART_PLOT_MARGIN_NO_X
+  }
   return compact ? CHART_PLOT_MARGIN_COMPACT : CHART_PLOT_MARGIN
 }
 
-export function chartYAxisMargin(compact: boolean) {
+export function chartYAxisMargin(compact: boolean, hideXAxis = false) {
+  if (hideXAxis) {
+    return CHART_Y_AXIS_MARGIN_NO_X
+  }
   return compact ? CHART_Y_AXIS_MARGIN_COMPACT : CHART_Y_AXIS_MARGIN
 }

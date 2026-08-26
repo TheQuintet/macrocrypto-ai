@@ -1,9 +1,12 @@
 import { test } from '@playwright/test'
 import {
+  expectCandleIntervalSelected,
+  selectCandleInterval,
+} from './priceChart.specHelpers'
+import {
   clickSidebarNav,
   expectPageHeading,
   expectRoute,
-  expectTimeRangeBadge,
   expectTimeRangeSelected,
   goToRoute,
   selectTimeRange,
@@ -39,6 +42,19 @@ test.describe('client routing UI integration', () => {
 
     await clickSidebarNav(page, 'macro')
     await expectRoute(page, 'macro')
-    await expectTimeRangeBadge(page, '30d')
+    await expectTimeRangeSelected(page, '30d')
+  })
+
+  test('candle interval selection on dashboard is shown on macro indicators', async ({
+    page,
+  }) => {
+    await goToRoute(page, 'dashboard')
+
+    await selectCandleInterval(page, 'Weekly')
+    await expectCandleIntervalSelected(page, 'Weekly')
+
+    await clickSidebarNav(page, 'macro')
+    await expectRoute(page, 'macro')
+    await expectCandleIntervalSelected(page, 'Weekly')
   })
 })

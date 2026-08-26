@@ -1,8 +1,12 @@
 import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { MAIN_INDICATOR_NAMES } from '@/api/macroIndicators'
+import { indicatorSeriesColor } from '@/lib/indicatorSeriesColor'
 import { MacroIndicators } from './MacroIndicators'
-import { renderMacroIndicators } from './MacroIndicators.testHelpers'
+import {
+  getCardByIndicatorName,
+  renderMacroIndicators,
+} from './MacroIndicators.testHelpers'
 
 describe('MacroIndicators', () => {
   afterEach(() => {
@@ -21,6 +25,19 @@ describe('MacroIndicators', () => {
     expect(screen.getAllByText('5.50')[0]).toBeInTheDocument()
     expect(screen.getAllByText('4.10')[0]).toBeInTheDocument()
     expect(screen.getAllByText('32475.21')[0]).toBeInTheDocument()
+  })
+
+  it('colors each known series card to match the chart tokens', () => {
+    renderMacroIndicators()
+
+    for (const name of ['CPI', 'GDP'] as const) {
+      const card = getCardByIndicatorName(name)
+      const color = indicatorSeriesColor(name)
+      expect(card).toHaveStyle({ borderLeftColor: color })
+      expect(card?.querySelector('[data-slot="card-title"]')).toHaveStyle({
+        color,
+      })
+    }
   })
 
   it('uses a single-column grid so cards stack on small screens', () => {

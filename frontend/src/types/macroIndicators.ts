@@ -9,15 +9,28 @@ export type MacroIndicator = {
   source: string
 }
 
-/** `period` query on GET /api/v1/indicators — omit for latest. */
-export type MacroIndicatorPeriod = '30d' | '90d' | '1y' | '5y'
+/** Backend `period` query on GET /api/v1/indicators. */
+export type MacroIndicatorApiPeriod = '30d' | '90d' | '1y' | '5y'
 
-export type MacroIndicatorView = 'current' | 'historical'
+/** Names shown in the history chart, table, and series filter. */
+export type MainIndicatorName = 'cpi' | 'federal_funds_rate' | 'gdp'
+
+/** `'all'` shows every series; otherwise only that indicator. */
+export type IndicatorHistoryFilter = 'all' | MainIndicatorName
 
 export type MacroIndicatorSeries = {
   name: string
   points: MacroIndicator[]
   latest: MacroIndicator
+}
+
+/** One aligned timestamp for the combined history chart (series keys are indexed to 100). */
+export type IndexedIndicatorChartRow = {
+  time: string
+  timeMs: number
+  values: Record<string, number>
+  /** Raw as-of prints when the row is aligned to a BTC candle. */
+  prints?: Record<string, number>
 }
 
 /** BTC impact of an indicator print. Matches data-service regime visuals. */

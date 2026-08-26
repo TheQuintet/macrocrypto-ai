@@ -10,8 +10,8 @@ const FIXED_END_MS = Date.UTC(2024, 5, 15, 12, 0, 0) // 2024-06-15T12:00:00.000Z
 describe('btcPriceHistoryQueryKey', () => {
   it('keys history by range and interval', () => {
     expect(
-      btcPriceHistoryQueryKey({ range: '7d', interval: '1h' }),
-    ).toEqual(['btc-price-history', '7d', '1h'])
+      btcPriceHistoryQueryKey({ range: '30d', interval: '1h' }),
+    ).toEqual(['btc-price-history', '30d', '1h'])
   })
 })
 
@@ -33,9 +33,9 @@ describe('fetchBtcPriceHistory', () => {
   }
 
   it('returns chart-ready points already bucketed by interval', async () => {
-    const response = await fetchSettled({ range: '7d', interval: '1h' })
+    const response = await fetchSettled({ range: '30d', interval: '1h' })
 
-    expect(response.range).toBe('7d')
+    expect(response.range).toBe('30d')
     expect(response.interval).toBe('1h')
     expect(response.points.length).toBeGreaterThan(1)
 
@@ -47,8 +47,8 @@ describe('fetchBtcPriceHistory', () => {
   })
 
   it('spaces points by the requested interval when under the cap', async () => {
-    const response = await fetchSettled({ range: '7d', interval: '1h' })
-    const stepMs = INTERVAL_DURATION_MS['1h']
+    const response = await fetchSettled({ range: '30d', interval: '1d' })
+    const stepMs = INTERVAL_DURATION_MS['1d']
 
     expect(response.points.length).toBeLessThanOrEqual(500)
 
@@ -59,15 +59,15 @@ describe('fetchBtcPriceHistory', () => {
     }
   })
 
-  it('uses enough lookback for coarse intervals even with a short range', async () => {
-    const response = await fetchSettled({ range: '24h', interval: '1w' })
+  it('keeps lookback to the selected range', async () => {
+    const response = await fetchSettled({ range: '30d', interval: '1d' })
 
-    // 24h alone cannot produce multiple weekly buckets; min lookback for 1w does.
     expect(response.points.length).toBeGreaterThan(1)
 
     const first = Date.parse(response.points[0].timestamp)
     const last = Date.parse(response.points.at(-1)!.timestamp)
-    expect(last - first).toBeGreaterThan(24 * 60 * 60_000)
+    expect(last - first).toBeLessThanOrEqual(30 * 24 * 60 * 60_000)
+    expect(last - first).toBeGreaterThan(20 * 24 * 60 * 60_000)
   })
 
   it('caps series length and widens the step when needed', async () => {
@@ -90,7 +90,7 @@ describe('fetchBtcPriceHistory', () => {
   })
 
   it('returns candles whose wicks contain the body', async () => {
-    const response = await fetchSettled({ range: '7d', interval: '1h' })
+    const response = await fetchSettled({ range: '30d', interval: '1h' })
 
     for (const point of response.points) {
       expect(point.high).toBeGreaterThanOrEqual(Math.max(point.open, point.close))
@@ -100,7 +100,7 @@ describe('fetchBtcPriceHistory', () => {
   })
 
   it('opens each candle at the previous close', async () => {
-    const response = await fetchSettled({ range: '7d', interval: '1h' })
+    const response = await fetchSettled({ range: '30d', interval: '1h' })
 
     for (let index = 1; index < response.points.length; index += 1) {
       expect(response.points[index].open).toBe(response.points[index - 1].close)
@@ -108,7 +108,7 @@ describe('fetchBtcPriceHistory', () => {
   })
 
   it('ends near the provided end time', async () => {
-    const response = await fetchSettled({ range: '7d', interval: '1d' })
+    const response = await fetchSettled({ range: '30d', interval: '1d' })
     const last = Date.parse(response.points.at(-1)!.timestamp)
 
     expect(last).toBeLessThanOrEqual(FIXED_END_MS)

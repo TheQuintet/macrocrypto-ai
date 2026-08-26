@@ -10,7 +10,10 @@ export async function clickSidebarNav(page: Page, id: Exclude<NavItemId, 'alerts
 }
 
 export async function selectTimeRange(page: Page, range: string) {
-  await page.getByRole('button', { name: range, exact: true }).click()
+  await page
+    .getByRole('group', { name: 'Time range' })
+    .getByRole('button', { name: range, exact: true })
+    .click()
 }
 
 export async function expectRoute(page: Page, id: NavItemId) {
@@ -30,7 +33,9 @@ export async function expectPageHeading(page: Page, id: NavItemId) {
 
 export async function expectTimeRangeSelected(page: Page, range: string) {
   await expect(
-    page.getByRole('button', { name: range, exact: true }),
+    page
+      .getByRole('group', { name: 'Time range' })
+      .getByRole('button', { name: range, exact: true }),
   ).toHaveAttribute('aria-pressed', 'true')
 }
 

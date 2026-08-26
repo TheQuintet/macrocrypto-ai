@@ -9,13 +9,17 @@ type ChartYAxisProps = {
   yDomain: [number, number]
   height: number
   compact?: boolean
+  hideXAxis?: boolean
+  tickFormatter?: (value: number, compact?: boolean) => string
 }
 
-/** Fixed price axis that stays visible while the plot pans. */
+/** Fixed axis that stays visible while the plot pans. */
 export function ChartYAxis({
   yDomain,
   height,
   compact = false,
+  hideXAxis = false,
+  tickFormatter = formatPriceTick,
 }: ChartYAxisProps) {
   const axisWidth = chartYAxisWidth(compact)
 
@@ -24,7 +28,7 @@ export function ChartYAxis({
       width={axisWidth}
       height={height}
       data={[{ price: yDomain[0] }, { price: yDomain[1] }]}
-      margin={chartYAxisMargin(compact)}
+      margin={chartYAxisMargin(compact, hideXAxis)}
     >
       <YAxis
         dataKey="price"
@@ -36,7 +40,7 @@ export function ChartYAxis({
         }}
         tickLine={false}
         axisLine={false}
-        tickFormatter={(value: number) => formatPriceTick(value, compact)}
+        tickFormatter={(value: number) => tickFormatter(value, compact)}
       />
     </LineChart>
   )

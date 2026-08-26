@@ -7,6 +7,10 @@ import {
   fetchMockMacroIndicators,
 } from '@/api/macroIndicators'
 import {
+  groupIndicatorsByName,
+  indexSeriesToBase100,
+} from '@/lib/macroIndicatorHistory'
+import {
   makeIndicator,
   mockIndicatorsApiResponse,
 } from '@/api/macroIndicators.testHelpers'
@@ -89,6 +93,14 @@ describe('fetchMacroIndicatorsFromApi', () => {
 
     expect(fetch).toHaveBeenCalledWith('/api/v1/indicators?period=90d')
   })
+
+  it('requests the selected window without client-side clipping', async () => {
+    mockFetchJson(mockIndicatorsApiResponse)
+
+    await fetchMacroIndicatorsFromApi('30d')
+
+    expect(fetch).toHaveBeenCalledWith('/api/v1/indicators?period=30d')
+  })
 })
 
 describe('fetchMockMacroIndicators', () => {
@@ -132,13 +144,35 @@ describe('fetchMockMacroIndicators', () => {
   })
 
   it('serves a multi-point series for a historical period', async () => {
-    const pending = fetchMockMacroIndicators('1y')
+    const pending = fetchMockMacroIndicators('30d')
     await vi.advanceTimersByTimeAsync(MOCK_LATENCY_MS)
     const indicators = await pending
 
     const names = new Set(indicators.map((item) => item.indicator_name))
     expect([...names]).toEqual([...MAIN_INDICATOR_NAMES])
     expect(indicators.length).toBeGreaterThan(MAIN_INDICATOR_NAMES.length)
+  })
+
+  it('keeps CPI, Fed funds, and GDP on distinct rebased paths', async () => {
+    const pending = fetchMockMacroIndicators('1y')
+    await vi.advanceTimersByTimeAsync(MOCK_LATENCY_MS)
+    const series = groupIndicatorsByName(await pending)
+    const indexed = series.map((item) =>
+      indexSeriesToBase100(item.points).map((point) => point.value),
+    )
+
+    expect(series.map((item) => item.name)).toEqual([...MAIN_INDICATOR_NAMES])
+
+    for (let left = 0; left < indexed.length; left += 1) {
+      for (let right = left + 1; right < indexed.length; right += 1) {
+        const maxDiff = Math.max(
+          ...indexed[left].map((value, index) =>
+            Math.abs(value - indexed[right][index]),
+          ),
+        )
+        expect(maxDiff).toBeGreaterThan(2)
+      }
+    }
   })
 })
 

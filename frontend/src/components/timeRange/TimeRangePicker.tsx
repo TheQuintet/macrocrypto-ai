@@ -10,7 +10,7 @@ export function TimeRangePicker() {
 
   return (
     <div
-      className="flex w-full flex-wrap items-center gap-1.5 sm:w-auto sm:gap-2"
+      className="flex w-full flex-wrap items-center justify-start gap-1.5 sm:w-auto sm:gap-2"
       role="group"
       aria-label="Time range"
     >
@@ -21,7 +21,7 @@ export function TimeRangePicker() {
           size="sm"
           variant={timeRange === option.value ? 'default' : 'outline'}
           aria-pressed={timeRange === option.value}
-          className="min-w-10 flex-1 sm:flex-none"
+          className="min-h-11 min-w-10 flex-1 touch-manipulation sm:min-h-7 sm:flex-none"
           onClick={() => setTimeRange(option.value)}
         >
           {option.label}

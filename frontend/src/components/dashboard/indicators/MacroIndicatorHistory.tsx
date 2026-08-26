@@ -1,9 +1,8 @@
 import { useMemo } from 'react'
-import { MacroIndicatorHistoryCard } from '@/components/dashboard/indicators/MacroIndicatorHistoryCard'
+import { MacroIndicatorHistoryChart } from '@/components/dashboard/indicators/MacroIndicatorHistoryChart'
 import { MacroIndicatorHistoryTable } from '@/components/dashboard/indicators/MacroIndicatorHistoryTable'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import { MAIN_INDICATOR_NAMES } from '@/api/macroIndicators'
 import { groupIndicatorsByName } from '@/lib/macroIndicatorHistory'
 import { cn } from '@/lib/utils'
 import type { MacroIndicator } from '@/types/macroIndicators'
@@ -13,6 +12,8 @@ type MacroIndicatorHistoryProps = {
   isLoading?: boolean
   error?: Error | null
   className?: string
+  includeTable?: boolean
+  framed?: boolean
 }
 
 export function MacroIndicatorHistory({
@@ -20,6 +21,8 @@ export function MacroIndicatorHistory({
   isLoading = false,
   error = null,
   className,
+  includeTable = true,
+  framed = true,
 }: MacroIndicatorHistoryProps) {
   const series = useMemo(
     () => groupIndicatorsByName(indicators),
@@ -27,22 +30,16 @@ export function MacroIndicatorHistory({
   )
 
   if (isLoading) {
+    const skeleton = <Skeleton className="h-56 w-full sm:h-72" />
     return (
       <div className={cn('flex min-w-0 flex-col gap-4', className)}>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
-          {MAIN_INDICATOR_NAMES.map((name) => (
-            <Card key={name} className="min-w-0 overflow-hidden">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  <Skeleton className="h-4 w-20" />
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Skeleton className="h-36 w-full" />
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        {framed ? (
+          <Card className="min-w-0 overflow-hidden">
+            <CardContent className="pt-6">{skeleton}</CardContent>
+          </Card>
+        ) : (
+          skeleton
+        )}
       </div>
     )
   }
@@ -64,14 +61,21 @@ export function MacroIndicatorHistory({
     )
   }
 
+  const chart = <MacroIndicatorHistoryChart series={series} />
+
   return (
     <div className={cn('flex min-w-0 flex-col gap-4', className)}>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
-        {series.map((item) => (
-          <MacroIndicatorHistoryCard key={item.name} series={item} />
-        ))}
-      </div>
-      <MacroIndicatorHistoryTable indicators={indicators} />
+      {framed ? (
+        <Card className="min-w-0 overflow-hidden">
+          <CardContent className="pt-6">{chart}</CardContent>
+        </Card>
+      ) : (
+        chart
+      )}
+
+      {includeTable ? (
+        <MacroIndicatorHistoryTable indicators={indicators} />
+      ) : null}
     </div>
   )
 }

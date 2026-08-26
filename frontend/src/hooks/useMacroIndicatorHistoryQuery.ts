@@ -3,18 +3,16 @@ import {
   fetchMacroIndicators,
   macroIndicatorsQueryKey,
 } from '@/api/macroIndicators'
-import type {
-  MacroIndicator,
-  MacroIndicatorPeriod,
-} from '@/types/macroIndicators'
+import type { MacroIndicator } from '@/types/macroIndicators'
+import type { TimeRange } from '@/types/preferences'
 
 export function useMacroIndicatorHistoryQuery(
-  period: MacroIndicatorPeriod,
+  range: TimeRange,
   enabled = true,
 ) {
   return useQuery<MacroIndicator[], Error>({
-    queryKey: macroIndicatorsQueryKey(period),
-    queryFn: () => fetchMacroIndicators(period),
+    queryKey: macroIndicatorsQueryKey(range),
+    queryFn: () => fetchMacroIndicators(range),
     enabled,
     staleTime: 1000 * 60 * 5,
     placeholderData: keepPreviousData,

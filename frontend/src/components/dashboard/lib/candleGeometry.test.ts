@@ -13,6 +13,7 @@ const SLOT = { x: 10, y: 0, width: 20, height: 100 }
 function candle(overrides: Partial<ChartCandle> = {}): ChartCandle {
   return {
     time: 'Mar 5 14:00',
+    timeMs: 0,
     open: 120,
     high: 200,
     low: 100,

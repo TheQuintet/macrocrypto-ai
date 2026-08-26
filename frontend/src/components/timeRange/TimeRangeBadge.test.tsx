@@ -14,12 +14,12 @@ describe('TimeRangeBadge', () => {
 
   it('shows the current time range from preferences', () => {
     renderTimeRangeBadge()
-    expectBadgeShows('7d')
+    expectBadgeShows('30d')
 
     act(() => {
-      usePreferencesStore.getState().setTimeRange('30d')
+      usePreferencesStore.getState().setTimeRange('90d')
     })
 
-    expectBadgeShows('30d')
+    expectBadgeShows('90d')
   })
 })

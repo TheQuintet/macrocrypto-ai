@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { MacroIndicatorImpact } from '@/components/dashboard/indicators/MacroIndicatorImpact'
+import { indicatorSeriesColor } from '@/lib/indicatorSeriesColor'
 import {
   formatIndicatorTimestamp,
   formatIndicatorTitle,
@@ -11,11 +12,20 @@ type MacroIndicatorCardProps = {
 }
 
 export function MacroIndicatorCard({ indicator }: MacroIndicatorCardProps) {
+  const seriesColor = indicatorSeriesColor(indicator.indicator_name)
+
   return (
-    <Card className="min-w-0 overflow-hidden transition-all hover:shadow-md">
+    <Card
+      data-indicator={indicator.indicator_name}
+      className="min-w-0 overflow-hidden border-l-[3px] transition-all hover:shadow-md"
+      style={{ borderLeftColor: seriesColor }}
+    >
       <CardHeader className="pb-2">
-        <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground sm:text-sm">
-          {formatIndicatorTitle(indicator.indicator_name)}
+        <CardTitle
+          className="text-xs font-medium tracking-wider sm:text-sm"
+          style={{ color: seriesColor }}
+        >
+          {formatIndicatorTitle(indicator.indicator_name).toUpperCase()}
         </CardTitle>
       </CardHeader>
       <CardContent>
