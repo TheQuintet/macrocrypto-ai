@@ -254,9 +254,9 @@ Code changes follow [GitHub Flow](../GITHUB_FLOW.md). See also [Contributing](..
 
 **Completed**
 
-- Frontend dashboard: candlesticks (line view dropped); macro-indicator cards with color coding (demoed 26 Aug)
+- Frontend: **Loredana** implemented **macro-indicator charts and history** (color-coded cards, historical graph/table; demoed 26 Aug); candlesticks replace the line view
+- **Richard** implemented **alerts** (recognized 26 Aug; Loredana mentored)
 - Backend connections for macro-indicator data and BTC/USD price data (reported 26 Aug)
-- Alerts implementation (Richard; recognized 26 Aug)
 
 **Retrospective notes**
 

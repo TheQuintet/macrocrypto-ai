@@ -42,8 +42,9 @@ Backlog refinement notes: clarify stories, acceptance criteria, and estimates.
 | Selectable 24-hour / seven-day candlesticks | Sid documents requirement and implementation guidance on the issue | Yes (issue update) |
 | Historical candlestick timeframes | Clarify display behaviour vs historical-range selection | Yes (requirements) |
 | Five BTC + five macro / USD indicators | Add to project stories (not only Slack) | Yes (documentation) |
-| Alerts + frontend alert issues | Current-sprint focus; connect to API gateway | Yes |
-| Remaining macro-indicator graph | Finish graph and backend wiring | Carry / September |
+| Historical indicator data | Loredana implemented macro-indicator charts and history | Partial |
+| Alerts + frontend alert issues | Richard owns alerts; connect to API gateway | Yes |
+| Remaining macro-indicator graph | Loredana continues remaining graph and backend wiring | Carry / September |
 | ML feature selection and model evaluation | Tenfold cross-validation and related design | Deferred to September |
 
 **Notes**

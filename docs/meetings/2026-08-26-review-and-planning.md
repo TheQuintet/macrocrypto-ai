@@ -8,7 +8,7 @@ Combined session: dashboard demo and review, product-scope refinement, current-s
 | **Type** | Review + Refinement + Planning |
 | **Sprint** | Current sprint (alerts and frontend) — ML / remaining AI work deferred to September |
 | **Attendees** | Sid Ahmed Mahieddine, Loredana Lungu, Kingson Emma-Ochu (joined later) |
-| **Also expected** | Mael Taye Deneke — connectivity risk; recording to be shared. Richard Owusu was credited for alerts work; attendance was not confirmed in the source notes. |
+| **Also expected** | Mael Taye Deneke — connectivity risk; recording to be shared. Richard Owusu implemented alerts (attendance was not confirmed in the source notes). |
 | **Facilitator** | Loredana Lungu (Scrum Master) |
 | **Product Owner** | Sid Ahmed Mahieddine |
 
@@ -18,7 +18,8 @@ Combined session: dashboard demo and review, product-scope refinement, current-s
 
 - The chart is for **prediction analysis**, not trading execution. Twenty-four-hour and seven-day intervals are enough for the current solution.
 - The dashboard uses **candlesticks** (line view dropped). Users should be able to choose **24-hour** or **seven-day** candles on the same one-year chart, with historical navigation via extra data fetching.
-- **This sprint:** alerts and frontend alert issues. **September:** remaining macro-indicator work, ML model, AI service, indicator rationale, and a broader project review.
+- **Work delivered:** **Richard** implemented **alerts**. **Loredana** implemented **macro-indicator charts and history** (color-coded cards, graph/table historical views; demoed in this session).
+- **This sprint:** alerts (Richard) and remaining frontend alert issues. **September:** remaining macro-indicator work, ML model, AI service, indicator rationale, and a broader project review.
 - Front-end alert work should connect to the **API gateway** as soon as possible so request parameters, URLs, response shape, pagination, and data format can be validated together.
 - **Vercel** is the preferred first deployment; Amazon is available but more complex. The team still decides the platform together. Plan: a simple working deploy now, plus a diagram of a more complete production architecture later.
 
@@ -46,17 +47,17 @@ Combined session: dashboard demo and review, product-scope refinement, current-s
 
 ## Sprint review
 
-Loredana demonstrated the latest dashboard. Sid asked about Bitcoin trading research; Loredana’s observations were about chart usage — BTC traders may lean on daily / broader-market views more than the shorter time frames common in Forex.
+Loredana demonstrated the latest dashboard, including the **macro-indicator charts and history** she implemented. Sid asked about Bitcoin trading research; Loredana’s observations were about chart usage — BTC traders may lean on daily / broader-market views more than the shorter time frames common in Forex.
 
-| Area | Status |
-|------|--------|
-| **Dashboard / price chart** | Candlesticks replace the former line view. Granularity still changes with historical range (including current one-year behaviour). Pagination, scrolling, and the split between historical-range selection and candlestick-size still need clearer requirements in the issue |
-| **Macro-indicator UI** | Color-coded cards (colors reused on the macro-indicators page). Demo covered mocked data, tooltips, influence, indicator lines, filtering, and historical values in graph and table form |
-| **Indicator data** | Indicators can have periodicities from roughly **15 days to six months**. Table beneath the chart approved. Macro-indicator and BTC/USD price data already connect to the backend; remaining work is pagination and historical indicator shape |
-| **Alerts** | Richard implemented alerts; Loredana’s mentorship was credited with supporting that progress |
-| **Responsive frontend** | Bugs remain, including combo-box values appearing away from the control on mobile |
-| **API gateway** | Still in progress — needed before the team can validate frontend requests and backend responses together |
-| **Richard’s mobile changes** | Related issue stayed open pending completion of the broader macro-indicator graph |
+| Area | Owner | Status |
+|------|-------|--------|
+| **Dashboard / price chart** | Loredana | Candlesticks replace the former line view. Granularity still changes with historical range (including current one-year behaviour). Pagination, scrolling, and the split between historical-range selection and candlestick-size still need clearer requirements in the issue |
+| **Macro-indicator charts and history** | Loredana | Color-coded cards (colors reused on the macro-indicators page). Demo covered mocked data, tooltips, influence, indicator lines, filtering, and historical values in graph and table form |
+| **Indicator data** | Loredana (frontend) | Indicators can have periodicities from roughly **15 days to six months**. Table beneath the chart approved. Macro-indicator and BTC/USD price data already connect to the backend; remaining work is pagination and historical indicator shape |
+| **Alerts** | Richard | Richard implemented alerts; Loredana’s mentorship was credited with supporting that progress |
+| **Responsive frontend** | Loredana | Bugs remain, including combo-box values appearing away from the control on mobile |
+| **API gateway** | Sid | Still in progress — needed before the team can validate frontend requests and backend responses together |
+| **Richard’s mobile changes** | Richard | Related issue stayed open pending completion of the broader macro-indicator graph |
 
 ---
 
@@ -69,10 +70,10 @@ The team asked for clearer **business and UX** context when stories enter a spri
 | Selectable 24-hour and seven-day candlesticks | Sid documents the requirement and adds implementation guidance on the relevant issue | Yes (requirements / issue update) |
 | Historical candlestick timeframes | Sid reviews issue comments and clarifies display behaviour vs historical-range selection | Yes (requirements) |
 | Five BTC + five macro / USD indicators | Add to project stories so they are visible outside Slack | Yes (documentation) |
-| Alerts + frontend alert issues | Current-sprint focus; connect to the API gateway and test as soon as possible | Yes |
+| Alerts + frontend alert issues | Richard owns alerts; connect to the API gateway and test as soon as possible | Yes |
 | Indicator color-coding | Carry color-coding logic and related unit tests into sprint work | Partial (this / next sprint) |
-| Historical indicator data | Loredana implements; remaining backend concerns are pagination and historical structure | Partial |
-| Macro-indicator graph (remaining) | Finish graph implementation and wire the display to backend data | Carry / September |
+| Historical indicator data | Loredana implemented macro-indicator charts and history; remaining backend concerns are pagination and historical structure | Partial |
+| Macro-indicator graph (remaining) | Loredana continues remaining graph work and backend wiring | Carry / September |
 | Macro indicators in different colors for BTC Trader | Next sprint | Next sprint |
 | ML feature selection, model construction, 10-fold cross-validation | Discuss in September; remaining AI service work then | Deferred |
 | Deployment platform | Team decides; Vercel preferred for the first deploy | Later (simple deploy first) |
@@ -85,12 +86,12 @@ Narrow the sprint to foundational work that still fits the timeline.
 
 | Focus | Owner | Notes |
 |-------|-------|-------|
-| Alerts and frontend alert issues | Loredana | Connect to the appropriate service and test integration as soon as possible |
+| Alerts and frontend alert issues | Richard | Richard implemented alerts; connect to the appropriate service and test integration as soon as possible |
 | API gateway completion | Sid | Needed so frontend and backend can validate requests and responses together |
 | API contract alignment | Sid + Loredana | Request parameters, endpoint URLs, response structure, pagination, data format |
 | Indicator color-coding | TBD (source notes: “meeting participant”) | Include color-coding logic |
 | Indicator unit tests | TBD (source notes: “meeting participant”) | Carry over into this sprint |
-| Historical indicator data | Loredana | Frontend historical indicator data |
+| Macro-indicator charts and history | Loredana | Loredana implemented the charts and historical views; remaining pagination / historical structure still open |
 | Frontend support tasks | Kingson (with Loredana) | Kingson picks ready frontend tasks he can support or complete |
 | Sprint-story review | Team | Review stories from a business and UX perspective before or during planning |
 
@@ -114,13 +115,11 @@ Narrow the sprint to foundational work that still fits the timeline.
 | Sid | Add the selected five BTC indicators and five macroeconomic / US-dollar indicators to the relevant project stories | ⏳ Open |
 | Sid | Complete the API gateway so the team can validate frontend requests and backend responses together | ⏳ Open |
 | Sid + Loredana | Align API request parameters, endpoint URLs, response structure, pagination, and data format during integration | ⏳ Open |
-| Loredana | Focus the current sprint on alerts and frontend alert issues | ⏳ Open |
-| Loredana | Implement historical indicator data | ⏳ Open |
-| Loredana | Connect frontend alert work to the appropriate service and test the integration as soon as possible | ⏳ Open |
+| Richard | Continue alerts work; connect frontend alert work to the appropriate service and test the integration as soon as possible | ⏳ Open |
+| Loredana | Continue macro-indicator charts and history (pagination and remaining historical structure) | ⏳ Open |
+| Loredana | Complete the remaining macro-indicator graph implementation and connect the display to backend data | ⏳ Open |
 | Loredana | Create a prompt to evaluate the repository against Quantic’s capstone criteria | ⏳ Open |
 | Kingson | Coordinate with Loredana to select frontend tasks he can support or complete | ⏳ Open |
-| TBD | Complete the remaining macro-indicator graph implementation | ⏳ Open |
-| TBD | Connect the macro-indicator display to backend data | ⏳ Open |
 | TBD | Implement color-coding logic for indicators | ⏳ Open |
 | TBD | Carry over unit tests for indicators into the sprint work | ⏳ Open |
 | TBD | Implement macro indicators in different colors for BTC Trader in the next sprint | ⏳ Open |
@@ -150,7 +149,7 @@ Loredana showed the updated dashboard with candlesticks instead of the former li
 
 ### Macro-indicator design and demonstration
 
-Loredana showed color-coded macro-indicator cards and explained that the same colors are reused on the macro-indicators page. The demo included mocked indicator data, tooltips, influence information, indicator lines, filtering, and historical values in graph and table formats.
+Loredana demonstrated the **macro-indicator charts and history** she implemented: color-coded cards (the same colors are reused on the macro-indicators page), mocked indicator data, tooltips, influence information, indicator lines, filtering, and historical values in graph and table formats.
 
 ### Candlestick timeframes and historical navigation
 
@@ -178,7 +177,7 @@ Keep issue history organized and retain MVP value. Broader implementation depend
 
 ### Progress on alerts and team support
 
-Prioritize and document only essential work in the remaining timeline. Richard was recognized for implementing alerts; Loredana’s mentorship was credited with supporting his rapid improvement.
+Prioritize and document only essential work in the remaining timeline. **Richard implemented alerts**; Loredana’s mentorship was credited with supporting his rapid improvement. **Loredana implemented the macro-indicator charts and history** shown in the demo.
 
 ### Team availability and development progress
 
@@ -246,6 +245,7 @@ Options included Vercel and the Amazon account with available credit. Amazon is 
 
 - Prediction analysis is in scope; trading execution is not.
 - Chart: candlesticks only, with user-selectable **24-hour** and **seven-day** intervals on the one-year view.
+- **Richard** delivered **alerts**; **Loredana** delivered **macro-indicator charts and history**.
 - This sprint is alerts + frontend alerts + API-gateway integration; ML and remaining AI work wait until September.
 - Document the five BTC and five macro / USD indicators in stories, and show them in the UI for transparency.
 - Prefer a simple Vercel-first deploy; keep a production-architecture diagram for later.

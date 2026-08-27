@@ -41,10 +41,10 @@ Sprint planning notes: select stories, estimate, assign owners.
 
 | Story / focus | Owner | Notes |
 |---------------|-------|-------|
-| Alerts and frontend alert issues | Loredana | Connect to the service and test integration ASAP |
+| Alerts and frontend alert issues | Richard | Richard implemented alerts; connect to the service and test integration ASAP |
 | API gateway completion | Sid | Needed for joint frontend / backend validation |
 | API contract alignment | Sid + Loredana | Parameters, URLs, response shape, pagination, data format |
-| Historical indicator data | Loredana | Pagination / historical structure still open |
+| Macro-indicator charts and history | Loredana | Loredana implemented charts and historical views; pagination / historical structure still open |
 | Indicator color-coding and unit tests | TBD | Carry into this sprint |
 | Frontend support tasks | Kingson (with Loredana) | Pick ready frontend work |
 

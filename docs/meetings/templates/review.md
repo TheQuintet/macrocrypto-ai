@@ -54,13 +54,13 @@ Sprint review notes: demo completed work, gather feedback, review progress.
 
 **Progress by area**
 
-| Area | Status |
-|------|--------|
-| Dashboard / price chart | Candlesticks replace the line view; 24-hour vs seven-day controls still to be documented |
-| Macro-indicator UI | Color-coded cards demoed (mocked data, tooltips, filtering, historical graph/table) |
-| Indicator / price data | Backend connections for macro indicators and BTC/USD; pagination and historical shape remain |
-| Alerts | Implemented (Richard); frontend alert work is the current-sprint focus |
-| API gateway | Still in progress — needed for joint frontend / backend validation |
+| Area | Owner | Status |
+|------|-------|--------|
+| Dashboard / price chart | Loredana | Candlesticks replace the line view; 24-hour vs seven-day controls still to be documented |
+| Macro-indicator charts and history | Loredana | Color-coded cards, historical graph/table; Loredana implemented and demoed |
+| Indicator / price data | Loredana (frontend) | Backend connections for macro indicators and BTC/USD; pagination and historical shape remain |
+| Alerts | Richard | Richard implemented alerts; frontend alert work continues |
+| API gateway | Sid | Still in progress — needed for joint frontend / backend validation |
 
 **Feedback**
 
