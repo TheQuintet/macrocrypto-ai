@@ -156,4 +156,4 @@ Both extra agenda items planned for this session were decided — nothing carrie
 
 ## Next meeting
 
-See [recurring sync schedule](../team-roles.md#recurring-meetings-through-14-oct-2026) — next sync **Wed 12 Aug 2026, Slot B**.
+See [recurring sync schedule](../team-roles.md#recurring-meetings-through-14-oct-2026). Recurring Slot B also ran on **12 Aug** and **19 Aug** (not written up in `docs/meetings/` yet). Next documented session: **Wed 26 Aug 2026** — [Review, Refinement & Planning](./2026-08-26-review-and-planning.md).

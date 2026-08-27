@@ -27,6 +27,33 @@ Backlog refinement notes: clarify stories, acceptance criteria, and estimates.
 
 ## Sessions
 
+### Refinement (combined with review and planning) — 26 Aug 2026
+
+| | |
+|---|---|
+| **Date** | Wed 26 Aug 2026 |
+| **Attendees** | Sid Ahmed Mahieddine, Loredana Lungu, Kingson Emma-Ochu (joined later) |
+| **Full notes** | [2026-08-26 Review, Refinement & Planning](../2026-08-26-review-and-planning.md) |
+
+**Stories refined**
+
+| Story | Changes | Ready for sprint? |
+|-------|---------|-------------------|
+| Selectable 24-hour / seven-day candlesticks | Sid documents requirement and implementation guidance on the issue | Yes (issue update) |
+| Historical candlestick timeframes | Clarify display behaviour vs historical-range selection | Yes (requirements) |
+| Five BTC + five macro / USD indicators | Add to project stories (not only Slack) | Yes (documentation) |
+| Historical indicator data | Loredana implemented macro-indicator charts and history | Partial |
+| Alerts + frontend alert issues | Richard owns alerts; connect to API gateway | Yes |
+| Remaining macro-indicator graph | Loredana continues remaining graph and backend wiring | Carry / September |
+| ML feature selection and model evaluation | Tenfold cross-validation and related design | Deferred to September |
+
+**Notes**
+
+- Sprint stories should be closed for modification; new requirements go in as feature requests
+- Review stories from a business and UX perspective before or during planning
+
+---
+
 ### Refinement (combined with retro, review, planning) — 5 Aug 2026
 
 | | |
