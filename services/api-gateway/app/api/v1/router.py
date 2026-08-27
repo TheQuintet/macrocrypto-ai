@@ -13,8 +13,8 @@ from fastapi import APIRouter
 
 # Import all route modules
 from app.api.v1 import auth
-from app.api.v1 import predictions  # Added: Predictions endpoints
-# from app.api.v1 import market       # Will be added later
+from app.api.v1 import predictions
+from app.api.v1 import market  # Added: Market data endpoints
 # from app.api.v1 import alerts       # Will be added later
 # from app.api.v1 import exports      # Will be added later
 
@@ -38,11 +38,11 @@ router.include_router(
     tags=["Predictions"],
 )
 
-# Market data routes (to be added)
-# router.include_router(
-#     market.router,
-#     tags=["Market Data"],
-# )
+# Market data routes
+router.include_router(
+    market.router,
+    tags=["Market Data"],
+)
 
 # Alert routes (to be added)
 # router.include_router(
@@ -94,7 +94,12 @@ async def api_v1_root():
                 "btc": "GET /api/v1/predict/btc?horizon=24h&model_type=ensemble",
                 "accuracy": "GET /api/v1/predict/btc/accuracy?days=30",
             },
-            "market_data": "Coming soon",
+            "market_data": {
+                "prices": "GET /api/v1/btc/prices?limit=100&offset=0",
+                "indicators": "GET /api/v1/indicators",
+                "correlation": "GET /api/v1/correlation/btc?window=30d",
+                "regimes": "GET /api/v1/regimes/btc?timeframe=1w",
+            },
             "alerts": "Coming soon",
             "exports": "Coming soon",
         },
