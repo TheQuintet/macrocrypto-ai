@@ -11,6 +11,7 @@ Welcome. This is the home page for project documentation.
 
 - [**Team**](./team-roles.md) — members, roles, availability, communication
 - [**Agile & sprints**](./project-workflow.md) — task board, ceremonies, sprint log, dev workflow
+- [**Meeting notes**](./meetings/2026-08-26-review-and-planning.md) — latest sync (26 Aug 2026); also [5 Aug](./meetings/2026-08-05-retrospective.md) · [29 Jul](./meetings/2026-07-29-refinement-and-planning.md)
 - [**GitHub Flow**](../GITHUB_FLOW.md) — branching, PRs, deployment
 - [**Contributing**](../CONTRIBUTING.md) — contribution guidelines
 

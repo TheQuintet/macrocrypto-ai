@@ -43,6 +43,39 @@ Sprint review notes: demo completed work, gather feedback, review progress.
 
 ## Sessions
 
+### Review (combined with refinement and planning) — 26 Aug 2026
+
+| | |
+|---|---|
+| **Date** | Wed 26 Aug 2026 |
+| **Attendees** | Sid Ahmed Mahieddine, Loredana Lungu, Kingson Emma-Ochu (joined later) |
+| **Sprint** | Current sprint (alerts and frontend) |
+| **Full notes** | [2026-08-26 Review, Refinement & Planning](../2026-08-26-review-and-planning.md) |
+
+**Progress by area**
+
+| Area | Status |
+|------|--------|
+| Dashboard / price chart | Candlesticks replace the line view; 24-hour vs seven-day controls still to be documented |
+| Macro-indicator UI | Color-coded cards demoed (mocked data, tooltips, filtering, historical graph/table) |
+| Indicator / price data | Backend connections for macro indicators and BTC/USD; pagination and historical shape remain |
+| Alerts | Implemented (Richard); frontend alert work is the current-sprint focus |
+| API gateway | Still in progress — needed for joint frontend / backend validation |
+
+**Feedback**
+
+- Sid praised the visual design, especially color use
+- Table beneath the chart approved
+- Clearer business requirements needed for historical candlestick timeframes
+- Responsive bugs remain (e.g. combo-box values appearing away from the control on mobile)
+
+**Next sprint preview**
+
+- This sprint: alerts + frontend alerts + API-gateway integration
+- September: remaining macro indicators, ML model, AI service, indicator rationale
+
+---
+
 ### Sprint 2 — Review (combined with retro, refinement, planning) — 5 Aug 2026
 
 | | |

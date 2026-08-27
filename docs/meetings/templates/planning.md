@@ -28,6 +28,34 @@ Sprint planning notes: select stories, estimate, assign owners.
 
 ## Sessions
 
+### Current sprint — Planning (combined with review and refinement) — 26 Aug 2026
+
+| | |
+|---|---|
+| **Date** | Wed 26 Aug 2026 |
+| **Attendees** | Sid Ahmed Mahieddine, Loredana Lungu, Kingson Emma-Ochu (joined later) |
+| **Sprint goal** | Alerts and frontend alert issues; API-gateway integration. Macro / ML / remaining AI work deferred to September |
+| **Full notes** | [2026-08-26 Review, Refinement & Planning](../2026-08-26-review-and-planning.md) |
+
+**Stories / focus selected**
+
+| Story / focus | Owner | Notes |
+|---------------|-------|-------|
+| Alerts and frontend alert issues | Loredana | Connect to the service and test integration ASAP |
+| API gateway completion | Sid | Needed for joint frontend / backend validation |
+| API contract alignment | Sid + Loredana | Parameters, URLs, response shape, pagination, data format |
+| Historical indicator data | Loredana | Pagination / historical structure still open |
+| Indicator color-coding and unit tests | TBD | Carry into this sprint |
+| Frontend support tasks | Kingson (with Loredana) | Pick ready frontend work |
+
+**Notes**
+
+- Prediction analysis is in scope; trading execution is not
+- Candlesticks only; selectable 24-hour and seven-day intervals
+- Vercel preferred for the first deploy; team still decides the platform
+
+---
+
 ### Sprint 3 — Planning (combined with retro, review, refinement) — 5 Aug 2026
 
 | | |
