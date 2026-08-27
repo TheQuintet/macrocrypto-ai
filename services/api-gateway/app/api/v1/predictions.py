@@ -6,6 +6,7 @@ with different horizons (24h, 7d) and model types.
 
 import httpx
 import logging
+import json
 from typing import Optional, List, Dict, Any
 from datetime import datetime, timezone
 
@@ -17,6 +18,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.security import get_current_active_user
 from app.core.rate_limiter import RateLimiter
+from app.cache.service import cache_service
 from app.services.prediction_service import prediction_service
 from app.models.user import User
 
@@ -87,12 +89,12 @@ async def get_btc_predictions(
     horizon: str = Query(
         "24h",
         description="Prediction horizon: '24h' or '7d'",
-        regex="^(24h|7d)$"
+        pattern="^(24h|7d)$"
     ),
     model_type: str = Query(
         "ensemble",
         description="Model type: 'ensemble', 'lstm', 'transformer'",
-        regex="^(ensemble|lstm|transformer)$"
+        pattern="^(ensemble|lstm|transformer)$"
     ),
     current_user: User = Depends(get_current_active_user),
 ):
@@ -114,18 +116,14 @@ async def get_btc_predictions(
     Raises:
         HTTPException: If the AI Service is unavailable or returns an error.
     """
-    # Get cache key
-    cache_key = f"predictions_btc_{horizon}_{model_type}"
-
-    # Try to get from cache
-    from app.core.redis import redis_client
-    cached_data = await redis_client.get(cache_key)
+    # Try to get from cache using cache service
+    cached_data = await cache_service.get_predictions("BTC", horizon, model_type)
     if cached_data:
         import json
-        logger.info(f"Cache hit for {cache_key}")
-        response_data = json.loads(cached_data)
-        response_data["cached"] = True
-        return response_data
+        logger.info(f"Cache hit for predictions_btc_{horizon}_{model_type}")
+        if isinstance(cached_data, dict):
+            cached_data["cached"] = True
+        return cached_data
 
     try:
         # Fetch predictions from AI Service
@@ -135,14 +133,9 @@ async def get_btc_predictions(
             model_type=model_type,
         )
 
-        # Cache the response (5 minutes TTL)
-        import json
-        await redis_client.set(
-            cache_key,
-            json.dumps(predictions),
-            expire=settings.REDIS_CACHE_TTL
-        )
-        logger.info(f"Cached predictions for {cache_key}")
+        # Cache the response using cache service
+        await cache_service.set_predictions("BTC", horizon, model_type, predictions)
+        logger.info(f"Cached predictions for BTC_{horizon}_{model_type}")
 
         return predictions
 
@@ -192,14 +185,14 @@ async def get_btc_accuracy(
     Returns:
         Dict: Accuracy metrics.
     """
-    cache_key = f"accuracy_btc_{days}"
-    from app.core.redis import redis_client
-
-    cached_data = await redis_client.get(cache_key)
+    # Try to get from cache using cache service
+    cached_data = await cache_service.get_accuracy("BTC", days)
     if cached_data:
         import json
-        logger.info(f"Cache hit for {cache_key}")
-        return json.loads(cached_data)
+        logger.info(f"Cache hit for accuracy_btc_{days}")
+        if isinstance(cached_data, dict):
+            cached_data["cached"] = True
+        return cached_data
 
     try:
         accuracy_data = await prediction_service.get_accuracy_metrics(
@@ -207,13 +200,9 @@ async def get_btc_accuracy(
             days=days,
         )
 
-        import json
-        await redis_client.set(
-            cache_key,
-            json.dumps(accuracy_data),
-            expire=600  # 10 minutes
-        )
-        logger.info(f"Cached accuracy for {cache_key}")
+        # Cache the response using cache service
+        await cache_service.set_accuracy("BTC", days, accuracy_data)
+        logger.info(f"Cached accuracy for BTC_{days}")
 
         return accuracy_data
 
