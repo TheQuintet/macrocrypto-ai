@@ -1,0 +1,1 @@
+"""Response format validation tests for API endpoints."""
