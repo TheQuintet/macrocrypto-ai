@@ -16,9 +16,9 @@ from fastapi import APIRouter
 from app.api.v1 import auth
 from app.api.v1 import predictions
 from app.api.v1 import market
-from app.api.v1 import recommendations  # Added: Recommendations endpoints
+from app.api.v1 import recommendations
+from app.api.v1 import exports  # Added: Export endpoints
 # from app.api.v1 import alerts       # Will be added later
-# from app.api.v1 import exports      # Will be added later
 
 # ============================================
 # MAIN ROUTER
@@ -53,18 +53,18 @@ router.include_router(
     tags=["Recommendations"],
 )
 
+# Export routes
+router.include_router(
+    exports.router,
+    prefix="/export",
+    tags=["Exports"],
+)
+
 # Alert routes (to be added)
 # router.include_router(
 #     alerts.router,
 #     prefix="/alerts",
 #     tags=["Alerts"],
-# )
-
-# Export routes (to be added)
-# router.include_router(
-#     exports.router,
-#     prefix="/export",
-#     tags=["Exports"],
 # )
 
 # ============================================
@@ -112,7 +112,11 @@ async def api_v1_root():
             "recommendations": {
                 "btc": "GET /api/v1/recommendations/btc?timeframe=24h&risk_level=moderate",
             },
+            "exports": {
+                "data": "GET /api/v1/export?export_type=predictions&format=csv",
+                "history": "GET /api/v1/export/history",
+                "download": "GET /api/v1/export/{id}/download",
+            },
             "alerts": "Coming soon",
-            "exports": "Coming soon",
         },
     }
