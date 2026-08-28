@@ -7,6 +7,7 @@ health checks.
 
 import logging
 import os
+import asyncio
 from contextlib import asynccontextmanager
 from typing import Dict, Any
 
@@ -18,6 +19,7 @@ from fastapi.exceptions import RequestValidationError
 
 from app.core.config import settings
 from app.core.redis import redis_client
+from app.core.rabbitmq import rabbitmq_client
 
 # ============================================
 # LOGGING CONFIGURATION
@@ -62,6 +64,14 @@ async def lifespan(app: FastAPI):
     else:
         logger.warning("⚠️ Redis is disabled")
 
+    # Connect to RabbitMQ and start consumer
+    if await rabbitmq_client.connect():
+        logger.info(f"📨 RabbitMQ: {settings.RABBITMQ_HOST}:{settings.RABBITMQ_PORT}")
+        # Start consuming price updates in background
+        asyncio.create_task(_start_rabbitmq_consumer())
+    else:
+        logger.warning("⚠️ RabbitMQ is disabled or not connected")
+
     # Log database status
     logger.info(f"🐘 PostgreSQL: {settings.POSTGRES_HOST}:{settings.POSTGRES_PORT}/{settings.POSTGRES_DB}")
 
@@ -70,8 +80,38 @@ async def lifespan(app: FastAPI):
     yield  # Application runs here
 
     # --- SHUTDOWN ---
+    rabbitmq_client.close()
     await redis_client.disconnect()
     logger.info(f"🛑 Shutting down {settings.SERVICE_NAME}...")
+
+
+# ============================================
+# RABBITMQ CONSUMER TASK
+# ============================================
+
+async def _start_rabbitmq_consumer():
+    """Start the RabbitMQ consumer for price updates."""
+    try:
+        # Start consuming in a separate thread or use the connection's start_consuming
+        # Since pika's start_consuming is blocking, we run it in a thread pool
+        import threading
+
+        def consume():
+            try:
+                # Use the existing connection's channel
+                if rabbitmq_client._channel and rabbitmq_client._connected:
+                    rabbitmq_client.start_consuming()
+                    rabbitmq_client._channel.start_consuming()
+            except Exception as e:
+                logger.error(f"RabbitMQ consumer error: {e}")
+
+        # Start consuming in background thread
+        consumer_thread = threading.Thread(target=consume, daemon=True)
+        consumer_thread.start()
+        logger.info("✅ RabbitMQ consumer started in background")
+
+    except Exception as e:
+        logger.error(f"Failed to start RabbitMQ consumer: {e}")
 
 
 # ============================================
@@ -138,11 +178,15 @@ if not settings.DEBUG and not os.getenv("TESTING"):
 # ============================================
 
 from app.api.v1.router import router as api_v1_router
+from app.api.v1.websocket import router as websocket_router
 
 # Include v1 API router
 # The router has prefix="/api/v1" and auth has prefix="/auth"
 # Final path: /api/v1/auth/register, /api/v1/auth/login, etc.
 app.include_router(api_v1_router)
+
+# Include WebSocket router (no prefix, handled in router)
+app.include_router(websocket_router)
 
 
 # ============================================
@@ -253,6 +297,7 @@ async def health_check() -> Dict[str, Any]:
         "service": settings.SERVICE_NAME,
         "version": app.version,
         "redis_enabled": settings.REDIS_ENABLED,
+        "rabbitmq_connected": rabbitmq_client.is_connected(),
         "database": "connected",  # TODO: Check actual database connection
     }
 
@@ -273,6 +318,7 @@ async def readiness_check() -> Dict[str, Any]:
         "status": "ready",
         "service": settings.SERVICE_NAME,
         "version": app.version,
+        "rabbitmq_connected": rabbitmq_client.is_connected(),
     }
 
 

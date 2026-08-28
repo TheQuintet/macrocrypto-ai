@@ -67,6 +67,7 @@ class Settings(BaseSettings):
     RABBITMQ_USER: str = "guest"
     RABBITMQ_PASSWORD: str = "guest"
     RABBITMQ_VHOST: str = "/"
+    RABBITMQ_EXCHANGE: str = "macro_events"
 
     @property
     def RABBITMQ_URL(self) -> str:
