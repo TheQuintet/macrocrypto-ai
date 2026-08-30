@@ -2,25 +2,25 @@
 
 ## Team members
 
-| Name                  | Location                             | Timezone | Strengths                                                         | GitHub                                     | E-mail                                                                | LinkedIn                                                             |
-| --------------------- | ------------------------------------ | -------- | ----------------------------------------------------------------- | ------------------------------------------ | --------------------------------------------------------------------- | -------------------------------------------------------------------- |
-| Sid Ahmed Mahieddine  | Berrouaghia District, Médéa, Algeria | GMT +1   | Project lead, software architecture, microservices, DevOps        | [GitHub](https://github.com/TheWhiteSword) | [mahieddine.sidahmed@gmail.com](mailto:mahieddine.sidahmed@gmail.com) | [LinkedIn](https://www.linkedin.com/in/sidahmedmahieddine/)          |
-| Kingson Emma-Ochu     | Lagos State, Nigeria                 | GMT +1   | Full-stack development, front-end, back-end                       | [GitHub](https://github.com/4mcking)       | [mckingchi@gmail.com](mailto:mckingchi@gmail.com)   [kingsonchi@gmail.com](mailto:kingsonchi@gmail.com)                     | [LinkedIn](https://www.linkedin.com/in/kingceo)                      |
-| Richard Owusu (Ph.D.) | Kumasi, Ashanti Region, Ghana        | GMT +2   | Frontend development, alerts, machine learning, Python data analysis, climate modeling, HPC | [GitHub](https://github.com/CobeRich)      | [coberich@gmail.com](mailto:coberich@gmail.com)                       | [LinkedIn](https://www.linkedin.com/in/richard-owusu-ph-d-089427a1/) |
-| Loredana Lungu        | Bucharest, Romania                   | GMT +3   | Frontend architecture, React, TypeScript, AI-assisted development | [GitHub](https://github.com/lgloredana)    | [lgloredanaelena@gmail.com](mailto:lgloredanaelena@gmail.com)         | [LinkedIn](https://www.linkedin.com/in/loredana-lungu/)              |
-| Mael Taye Deneke      | Addis Ababa, Ethiopia                | GMT +3   | AWS, technical project management, software engineering           | _[GitHub](https://github.com/maelocrowd)_  | [maelo.smarter@gmail.com](mailto:maelo.smarter@gmail.com)             | [LinkedIn](https://www.linkedin.com/in/mael-taye-deneke-32b20923a/)  |
+| Name                  | Location                             | Timezone | Strengths                                                                                   | GitHub                                     | E-mail                                                                                                | LinkedIn                                                             |
+| --------------------- | ------------------------------------ | -------- | ------------------------------------------------------------------------------------------- | ------------------------------------------ | ----------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| Sid Ahmed Mahieddine  | Berrouaghia District, Médéa, Algeria | GMT +1   | Project lead, software architecture, microservices, DevOps                                  | [GitHub](https://github.com/TheWhiteSword) | [mahieddine.sidahmed@gmail.com](mailto:mahieddine.sidahmed@gmail.com)                                 | [LinkedIn](https://www.linkedin.com/in/sidahmedmahieddine/)          |
+| Kingson Emma-Ochu     | Lagos State, Nigeria                 | GMT +1   | Full-stack development, front-end, back-end                                                 | [GitHub](https://github.com/4mcking)       | [mckingchi@gmail.com](mailto:mckingchi@gmail.com) [kingsonchi@gmail.com](mailto:kingsonchi@gmail.com) | [LinkedIn](https://www.linkedin.com/in/kingceo)                      |
+| Richard Owusu (Ph.D.) | Kumasi, Ashanti Region, Ghana        | GMT +2   | Frontend development, alerts, machine learning, Python data analysis, climate modeling, HPC | [GitHub](https://github.com/CobeRich)      | [coberich@gmail.com](mailto:coberich@gmail.com)                                                       | [LinkedIn](https://www.linkedin.com/in/richard-owusu-ph-d-089427a1/) |
+| Loredana Lungu        | Bucharest, Romania                   | GMT +3   | Frontend architecture, React, TypeScript, AI-assisted development                           | [GitHub](https://github.com/lgloredana)    | [lgloredanaelena@gmail.com](mailto:lgloredanaelena@gmail.com)                                         | [LinkedIn](https://www.linkedin.com/in/loredana-lungu/)              |
+| Mael Taye Deneke      | Addis Ababa, Ethiopia                | GMT +3   | AWS, technical project management, software engineering                                     | _[GitHub](https://github.com/maelocrowd)_  | [maelo.smarter@gmail.com](mailto:maelo.smarter@gmail.com)                                             | [LinkedIn](https://www.linkedin.com/in/mael-taye-deneke-32b20923a/)  |
 
 ## Roles
 
 Current assignments (can rotate per sprint — log changes in [project-workflow.md](./project-workflow.md)).
 
-| Member                | Primary        | Secondary        |
-| --------------------- | -------------- | ---------------- |
-| Sid Ahmed Mahieddine  | Product Owner  | Coding           |
-| Loredana Lungu        | Scrum Master   | Frontend         |
-| Mael Taye Deneke      | Code Owner     | Backend          |
-| Kingson Emma-Ochu     | Frontend       | Comms & meetings |
-| Richard Owusu (Ph.D.) | Frontend       | ML model         |
+| Member                | Primary       | Secondary        |
+| --------------------- | ------------- | ---------------- |
+| Sid Ahmed Mahieddine  | Product Owner | Coding           |
+| Loredana Lungu        | Scrum Master  | Frontend         |
+| Mael Taye Deneke      | Code Owner    | Backend          |
+| Kingson Emma-Ochu     | Frontend      | Comms & meetings |
+| Richard Owusu (Ph.D.) | Frontend      | ML model         |
 
 ### Mandatory Agile roles
 
@@ -32,7 +32,7 @@ Every group must designate these roles to meet the Capstone grading criteria.
 | Scrum Master  | Loredana Lungu       | Facilitates sprints and ceremonies; helps remove blockers                                   |
 | Code Owner    | Mael Taye Deneke     | Reviews and approves pull requests to maintain code quality                                 |
 
-A member can hold both a mandatory Agile role and a technical role. Roles can rotate per sprint — log changes in [project-workflow.md](./project-workflow.md). Richard contributes as a **developer** (frontend, including alerts, and the ML workstream), not as a QA-only role.
+A member can hold both a mandatory Agile role and a technical role. Roles can rotate per sprint — log changes in [project-workflow.md](./project-workflow.md).
 
 ## Availability
 
@@ -64,13 +64,13 @@ Marked as **📅 sync** on Wednesday Slot B in the weekly grids below (from Week
 
 ### Member codes
 
-| Code | Member                | Primary role   | Offset |
-| ---- | --------------------- | -------------- | ------ |
-| 🟦   | Sid Ahmed Mahieddine  | Product Owner  | +1     |
-| 🟧   | Kingson Emma-Ochu     | Frontend       | +1     |
-| 🟩   | Richard Owusu (Ph.D.) | Frontend       | +2     |
-| 🟥   | Loredana Lungu        | Scrum Master   | +3     |
-| 🟪   | Mael Taye Deneke      | Code Owner     | +3     |
+| Code | Member                | Primary role  | Offset |
+| ---- | --------------------- | ------------- | ------ |
+| 🟦   | Sid Ahmed Mahieddine  | Product Owner | +1     |
+| 🟧   | Kingson Emma-Ochu     | Frontend      | +1     |
+| 🟩   | Richard Owusu (Ph.D.) | Frontend      | +2     |
+| 🟥   | Loredana Lungu        | Scrum Master  | +3     |
+| 🟪   | Mael Taye Deneke      | Code Owner    | +3     |
 
 ### Slots (local times)
 
