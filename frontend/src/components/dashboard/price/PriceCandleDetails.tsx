@@ -1,9 +1,6 @@
 import { formatPrice } from '@/components/dashboard/lib/priceFormat'
 import { candleDirection } from '@/components/dashboard/lib/candleGeometry'
-import {
-  formatChangePercent,
-  getChangeSymbol,
-} from '@/lib/indicatorBtcImpact'
+import { getIndicatorChangeDisplay } from '@/lib/indicatorBtcImpact'
 import { formatIndicatorTitle } from '@/lib/macroIndicatorHistory'
 import { indicatorSeriesColor } from '@/lib/indicatorSeriesColor'
 import { cn } from '@/lib/utils'
@@ -17,13 +14,6 @@ const OHLC_ROWS = [
 ] as const
 
 const BODY_KEYS = new Set<(typeof OHLC_ROWS)[number]['key']>(['open', 'close'])
-
-function changeToneClass(changePercent: number | null) {
-  if (changePercent == null || changePercent === 0) {
-    return 'text-muted-foreground'
-  }
-  return changePercent > 0 ? 'text-positive' : 'text-negative'
-}
 
 type PriceCandleDetailsProps = {
   candle: ChartCandle
@@ -62,25 +52,28 @@ export function PriceCandleDetails({ candle }: PriceCandleDetailsProps) {
       </dl>
       {prints.length > 0 ? (
         <dl className="mt-1.5 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 border-t border-border pt-1.5">
-          {prints.map(([name, print]) => (
-            <div key={name} className="contents">
-              <dt
-                className="uppercase"
-                style={{ color: indicatorSeriesColor(name) }}
-              >
-                {formatIndicatorTitle(name)}
-              </dt>
-              <dd
-                className={cn(
-                  'text-right font-mono tabular-nums',
-                  changeToneClass(print.changePercent),
-                )}
-              >
-                {getChangeSymbol(print.changePercent)}{' '}
-                {formatChangePercent(print.changePercent)}
-              </dd>
-            </div>
-          ))}
+          {prints.map(([name, print]) => {
+            const change = getIndicatorChangeDisplay(name, print.changePercent)
+
+            return (
+              <div key={name} className="contents">
+                <dt
+                  className="uppercase"
+                  style={{ color: indicatorSeriesColor(name) }}
+                >
+                  {formatIndicatorTitle(name)}
+                </dt>
+                <dd
+                  className={cn(
+                    'text-right font-mono tabular-nums',
+                    change.toneClass,
+                  )}
+                >
+                  {change.text}
+                </dd>
+              </div>
+            )
+          })}
         </dl>
       ) : null}
     </>

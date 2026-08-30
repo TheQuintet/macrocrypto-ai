@@ -3,7 +3,7 @@ import {
   btcPriceSnapshotQueryKey,
   fetchBtcPriceSnapshot,
   PRICE_SNAPSHOT_TICK_MS,
-} from '@/api/btcPrice'
+} from '@/api/btcPrice/btcPrice'
 import { usePriceStreamStore } from '@/stores/priceStreamStore'
 import type { BtcPriceSnapshot } from '@/types/btcPrice'
 

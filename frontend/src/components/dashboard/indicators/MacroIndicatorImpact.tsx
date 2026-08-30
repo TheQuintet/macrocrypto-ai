@@ -1,8 +1,4 @@
-import {
-  formatChangePercent,
-  getChangeSymbol,
-  getIndicatorBtcImpact,
-} from '@/lib/indicatorBtcImpact'
+import { getIndicatorChangeDisplay } from '@/lib/indicatorBtcImpact'
 import { cn } from '@/lib/utils'
 import {
   Tooltip,
@@ -20,9 +16,7 @@ export function MacroIndicatorImpact({
   indicatorName,
   changePercent,
 }: MacroIndicatorImpactProps) {
-  const impact = getIndicatorBtcImpact(indicatorName, changePercent)
-  const formattedChange = formatChangePercent(changePercent)
-  const changeSymbol = getChangeSymbol(changePercent)
+  const change = getIndicatorChangeDisplay(indicatorName, changePercent)
 
   return (
     <Tooltip>
@@ -32,16 +26,16 @@ export function MacroIndicatorImpact({
           className={cn(
             'inline-flex min-h-11 items-center rounded-md px-1.5 text-sm font-medium sm:min-h-7',
             'touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
-            impact.toneClass,
+            change.toneClass,
           )}
-          aria-label={`${formattedChange}, ${impact.label}`}
+          aria-label={`${change.formatted}, ${change.label}`}
         >
-          {changeSymbol} {formattedChange}
+          {change.text}
         </button>
       </TooltipTrigger>
       <TooltipContent className="flex max-w-[min(20rem,calc(100vw-2rem))] flex-col items-start gap-0.5">
-        <span className="font-medium">{impact.label}</span>
-        <span>{impact.reason}</span>
+        <span className="font-medium">{change.label}</span>
+        <span>{change.reason}</span>
       </TooltipContent>
     </Tooltip>
   )

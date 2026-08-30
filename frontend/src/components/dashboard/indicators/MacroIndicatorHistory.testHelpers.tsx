@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react'
 import { expect } from 'vitest'
 import { MacroIndicatorHistory } from '@/components/dashboard/indicators/MacroIndicatorHistory'
 import { TooltipProvider } from '@/components/ui/tooltip'
-import { makeIndicator } from '@/api/macroIndicators.testHelpers'
+import { makeIndicator } from '@/api/macroIndicators/macroIndicators.testHelpers'
 import type { MacroIndicator } from '@/types/macroIndicators'
 
 export const mockHistoryIndicators: MacroIndicator[] = [

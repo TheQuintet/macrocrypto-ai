@@ -2,7 +2,7 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import {
   btcPriceHistoryQueryKey,
   fetchBtcPriceHistory,
-} from '@/api/btcPriceHistory'
+} from '@/api/btcPrice/btcPriceHistory'
 import type {
   BtcPriceHistoryParams,
   BtcPriceHistoryResponse,

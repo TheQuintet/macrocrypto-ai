@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { makeIndicator } from '@/api/macroIndicators.testHelpers'
+import { makeIndicator } from '@/api/macroIndicators/macroIndicators.testHelpers'
 import {
   asOfIndexedYDomain,
   attachAsOfIndicators,

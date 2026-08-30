@@ -19,7 +19,7 @@ function okResponse(body: unknown) {
 }
 
 async function loadApi() {
-  return import('@/api/btcPrice')
+  return import('@/api/btcPrice/btcPrice')
 }
 
 describe('fetchBtcPriceSnapshot with a backend configured', () => {

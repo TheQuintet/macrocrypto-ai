@@ -1,8 +1,8 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import {
-  fetchMacroIndicators,
-  macroIndicatorsQueryKey,
-} from '@/api/macroIndicators'
+  fetchMacroIndicatorHistory,
+  macroIndicatorHistoryQueryKey,
+} from '@/api/macroIndicators/macroIndicatorHistory'
 import type { MacroIndicator } from '@/types/macroIndicators'
 import type { TimeRange } from '@/types/preferences'
 
@@ -11,8 +11,8 @@ export function useMacroIndicatorHistoryQuery(
   enabled = true,
 ) {
   return useQuery<MacroIndicator[], Error>({
-    queryKey: macroIndicatorsQueryKey(range),
-    queryFn: () => fetchMacroIndicators(range),
+    queryKey: macroIndicatorHistoryQueryKey(range),
+    queryFn: () => fetchMacroIndicatorHistory(range),
     enabled,
     staleTime: 1000 * 60 * 5,
     placeholderData: keepPreviousData,

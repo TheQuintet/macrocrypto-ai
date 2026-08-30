@@ -3,6 +3,7 @@ import {
   formatChangePercent,
   getChangeSymbol,
   getIndicatorBtcImpact,
+  getIndicatorChangeDisplay,
   indicatorFamily,
 } from '@/lib/indicatorBtcImpact'
 
@@ -71,5 +72,23 @@ describe('change formatters', () => {
     expect(getChangeSymbol(-2.38)).toBe('↓')
     expect(getChangeSymbol(0)).toBe('→')
     expect(getChangeSymbol(null)).toBe('→')
+  })
+})
+
+describe('getIndicatorChangeDisplay', () => {
+  it('keeps the numeric arrow and colors by BTC impact', () => {
+    const risingCpi = getIndicatorChangeDisplay('cpi', 0.21)
+    expect(risingCpi.symbol).toBe('↑')
+    expect(risingCpi.text).toBe('↑ +0.21%')
+    expect(risingCpi.toneClass).toBe('text-negative')
+
+    const fallingGdp = getIndicatorChangeDisplay('gdp', -0.5)
+    expect(fallingGdp.symbol).toBe('↓')
+    expect(fallingGdp.text).toBe('↓ -0.50%')
+    expect(fallingGdp.toneClass).toBe('text-negative')
+
+    const risingGdp = getIndicatorChangeDisplay('gdp', 1.91)
+    expect(risingGdp.symbol).toBe('↑')
+    expect(risingGdp.toneClass).toBe('text-positive')
   })
 })

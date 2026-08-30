@@ -128,3 +128,23 @@ export function formatChangePercent(changePercent: number | null): string {
   if (changePercent === null) return '--'
   return `${changePercent > 0 ? '+' : ''}${changePercent.toFixed(2)}%`
 }
+
+/**
+ * Arrow follows the print (up/down). Color follows BTC impact — same
+ * pairing the cards and history table use.
+ */
+export function getIndicatorChangeDisplay(
+  indicatorName: string,
+  changePercent: number | null,
+) {
+  const impact = getIndicatorBtcImpact(indicatorName, changePercent)
+  const symbol = getChangeSymbol(changePercent)
+  const formatted = formatChangePercent(changePercent)
+
+  return {
+    ...impact,
+    symbol,
+    formatted,
+    text: `${symbol} ${formatted}`,
+  }
+}

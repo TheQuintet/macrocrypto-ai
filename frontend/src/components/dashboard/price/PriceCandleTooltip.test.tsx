@@ -68,5 +68,7 @@ describe('PriceCandleTooltip', () => {
 
     expectRow('cpi', '↑ +0.21%')
     expectRow('gdp', '↓ -0.50%')
+    expect(screen.getByText('↑ +0.21%')).toHaveClass('text-negative')
+    expect(screen.getByText('↓ -0.50%')).toHaveClass('text-negative')
   })
 })

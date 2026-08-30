@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import {
   fetchMacroIndicators,
   macroIndicatorsQueryKey,
-} from '@/api/macroIndicators'
+} from '@/api/macroIndicators/macroIndicators'
 import type { MacroIndicator } from '@/types/macroIndicators'
 
 export { macroIndicatorsQueryKey }

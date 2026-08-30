@@ -58,7 +58,7 @@ describe('PriceCandleDetails', () => {
       '↑ +0.21%',
     )
     expect(screen.getByText('cpi').nextElementSibling).toHaveClass(
-      'text-positive',
+      'text-negative',
     )
     expect(screen.getByText('gdp').nextElementSibling).toHaveClass(
       'text-negative',
@@ -67,5 +67,25 @@ describe('PriceCandleDetails', () => {
       '↓ -0.50%',
     )
     expect(screen.queryByText('322.13')).not.toBeInTheDocument()
+  })
+
+  it('colors as-of change by BTC impact, not by whether the print went up', () => {
+    render(
+      <PriceCandleDetails
+        candle={candle({
+          asOfIndicators: {
+            cpi: { value: 322.13, indexed: 101.2, changePercent: 0.21 },
+            gdp: { value: 30_353.9, indexed: 101.5, changePercent: 1.91 },
+          },
+        })}
+      />,
+    )
+
+    expect(screen.getByText('cpi').nextElementSibling).toHaveClass(
+      'text-negative',
+    )
+    expect(screen.getByText('gdp').nextElementSibling).toHaveClass(
+      'text-positive',
+    )
   })
 })

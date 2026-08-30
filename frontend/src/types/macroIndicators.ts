@@ -1,3 +1,9 @@
+/**
+ * Where indicator values came from. Simulated data must be labelled in the UI
+ * the same way BTC snapshots use `PriceSource`.
+ */
+export type MacroIndicatorDataSource = 'live' | 'simulated'
+
 /** Latest observation from GET /api/v1/indicators. */
 export type MacroIndicator = {
   indicator_name: string
@@ -6,7 +12,10 @@ export type MacroIndicator = {
   previous_value: number | null
   change_percent: number | null
   trend: '↑' | '↓' | '→'
+  /** Data vendor on the wire, e.g. `fred`. */
   source: string
+  /** Live API vs frontend stand-in — set by the fetcher, not the UI. */
+  dataSource: MacroIndicatorDataSource
 }
 
 /** Backend `period` query on GET /api/v1/indicators. */

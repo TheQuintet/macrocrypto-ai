@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
-import { btcPriceSnapshotQueryKey } from '@/api/btcPrice'
+import { btcPriceSnapshotQueryKey } from '@/api/btcPrice/btcPrice'
 import {
   parsePriceStreamMessage,
   reconnectDelayMs,

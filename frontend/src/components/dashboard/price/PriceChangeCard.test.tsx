@@ -1,6 +1,6 @@
 import { cleanup } from '@testing-library/react'
 import { afterEach, beforeEach, describe, it, vi } from 'vitest'
-import { fetchBtcPriceSnapshot } from '@/api/btcPrice'
+import { fetchBtcPriceSnapshot } from '@/api/btcPrice/btcPrice'
 import { SNAPSHOT } from '@/components/dashboard/price/BtcPriceCard.testHelpers'
 import {
   expectLoadingSkeletons,
@@ -8,8 +8,8 @@ import {
   renderPriceChangeCard,
 } from '@/components/dashboard/price/PriceChangeCard.testHelpers'
 
-vi.mock('@/api/btcPrice', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/api/btcPrice')>()
+vi.mock('@/api/btcPrice/btcPrice', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/api/btcPrice/btcPrice')>()
   return { ...actual, fetchBtcPriceSnapshot: vi.fn() }
 })
 

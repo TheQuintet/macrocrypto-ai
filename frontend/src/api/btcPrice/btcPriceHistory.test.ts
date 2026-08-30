@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   btcPriceHistoryQueryKey,
   fetchBtcPriceHistory,
-} from '@/api/btcPriceHistory'
+} from '@/api/btcPrice/btcPriceHistory'
 import { INTERVAL_DURATION_MS } from '@/components/dashboard/lib/chartInterval'
 
 const FIXED_END_MS = Date.UTC(2024, 5, 15, 12, 0, 0) // 2024-06-15T12:00:00.000Z

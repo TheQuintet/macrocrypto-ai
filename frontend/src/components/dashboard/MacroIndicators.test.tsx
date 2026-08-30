@@ -1,10 +1,11 @@
 import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { MAIN_INDICATOR_NAMES } from '@/api/macroIndicators'
+import { MAIN_INDICATOR_NAMES } from '@/api/macroIndicators/macroIndicators'
 import { indicatorSeriesColor } from '@/lib/indicatorSeriesColor'
 import { MacroIndicators } from './MacroIndicators'
 import {
   getCardByIndicatorName,
+  mockIndicators,
   renderMacroIndicators,
 } from './MacroIndicators.testHelpers'
 
@@ -84,6 +85,21 @@ describe('MacroIndicators', () => {
     expect(
       screen.getByText('No macroeconomic data available'),
     ).toBeInTheDocument()
+  })
+
+  it('labels simulated data so it cannot pass as live FRED prints', () => {
+    renderMacroIndicators({
+      indicators: mockIndicators.map((indicator) => ({
+        ...indicator,
+        dataSource: 'simulated',
+      })),
+    })
+    expect(screen.getByText('Simulated')).toBeInTheDocument()
+  })
+
+  it('shows no such label for live data', () => {
+    renderMacroIndicators()
+    expect(screen.queryByText('Simulated')).not.toBeInTheDocument()
   })
 
   it('displays trend arrows with percentage change', () => {

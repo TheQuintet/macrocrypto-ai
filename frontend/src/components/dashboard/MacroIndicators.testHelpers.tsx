@@ -12,6 +12,7 @@ export const mockIndicators: MacroIndicator[] = [
     change_percent: 0.23,
     trend: '↑',
     source: 'fred',
+    dataSource: 'live',
   },
   {
     indicator_name: 'FEDFUNDS',
@@ -21,6 +22,7 @@ export const mockIndicators: MacroIndicator[] = [
     change_percent: 0.0,
     trend: '→',
     source: 'fred',
+    dataSource: 'live',
   },
   {
     indicator_name: 'UNEMPLOYMENT',
@@ -30,6 +32,7 @@ export const mockIndicators: MacroIndicator[] = [
     change_percent: -2.38,
     trend: '↓',
     source: 'fred',
+    dataSource: 'live',
   },
   {
     indicator_name: 'GDP',
@@ -39,6 +42,7 @@ export const mockIndicators: MacroIndicator[] = [
     change_percent: 1.91,
     trend: '↑',
     source: 'fred',
+    dataSource: 'live',
   },
 ]
 
