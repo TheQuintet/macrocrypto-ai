@@ -1,71 +1,88 @@
-import { render, screen, fireEvent } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
-import { PriceAlertForm } from '../PriceAlertForm';
-import { mockAlert } from './testHelpers';
+import { cleanup, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import {
+  expectRuleSummary,
+  expectValidationError,
+  fillPrice,
+  getCreateButton,
+  getPriceInput,
+  getSaveButton,
+  renderCreateForm,
+  renderEditForm,
+  selectAlertCondition,
+  submitCreateForm,
+  toggleNamedSwitch,
+} from '../PriceAlertForm.testHelpers'
 
 describe('PriceAlertForm', () => {
-  const defaultProps = {
-    open: true,
-    onOpenChange: vi.fn(),
-    userId: 'b5e2102c-c4ac-46f9-95c3-2a3c389399a9',
-    editingAlert: null,
-    onSubmit: vi.fn().mockResolvedValue(undefined),
-    isLoading: false,
-  };
+  afterEach(() => {
+    cleanup()
+  })
 
-  it('renders create form correctly', () => {
-    render(<PriceAlertForm {...defaultProps} />);
+  it('leads with the price rule and a live summary', () => {
+    renderCreateForm()
 
-    expect(screen.getByText('Create Price Alert')).toBeInTheDocument();
-    expect(screen.getByLabelText(/Threshold Price/i)).toBeInTheDocument();
-    const createButtons = screen.getAllByText('Create Alert');
-    expect(createButtons.length).toBeGreaterThan(0);
-  });
+    expect(screen.getByText('Create price alert')).toBeInTheDocument()
+    expect(screen.getByText(/Set a BTC\/USD price rule and how you want to be notified/)).toBeInTheDocument()
+    expect(screen.getByText('When should this fire?')).toBeInTheDocument()
+    expect(screen.getByText('BTC/USD')).toBeInTheDocument()
+    expect(getPriceInput()).toBeInTheDocument()
+    expectRuleSummary('Enter a price to see when this alert will fire.')
+    expect(getCreateButton()).toBeInTheDocument()
+  })
 
-  it('renders edit form correctly', () => {
-    render(
-      <PriceAlertForm
-        {...defaultProps}
-        editingAlert={mockAlert}
-        open={true}
-        onOpenChange={vi.fn()}
-        userId="b5e2102c-c4ac-46f9-95c3-2a3c389399a9"
-        onSubmit={vi.fn()}
-      />
-    );
+  it('fills the edit form and shows the current status', () => {
+    renderEditForm()
 
-    expect(screen.getByText('Edit Price Alert')).toBeInTheDocument();
-    expect(screen.getByDisplayValue('85000')).toBeInTheDocument();
-    const updateButtons = screen.getAllByText('Update Alert');
-    expect(updateButtons.length).toBeGreaterThan(0);
-  });
+    expect(screen.getByText('Edit price alert')).toBeInTheDocument()
+    expect(screen.getByText('Active')).toBeInTheDocument()
+    expect(getPriceInput()).toHaveValue(85000)
+    expectRuleSummary("We'll notify you when BTC/USD goes above $85,000.00.")
+    expect(getSaveButton()).toBeInTheDocument()
+  })
 
-  it('shows validation errors for empty fields', async () => {
-    render(<PriceAlertForm {...defaultProps} />);
+  it('updates the summary as the price and condition change', async () => {
+    const user = userEvent.setup()
+    renderCreateForm()
 
-    const submitButtons = screen.getAllByText('Create Alert');
-    fireEvent.click(submitButtons[0]);
+    await fillPrice(user, '85000')
+    expectRuleSummary("We'll notify you when BTC/USD hits $85,000.00.")
 
-    // Wait for validation error
-    const errorMessage = await screen.findByText('Threshold must be greater than 0');
-    expect(errorMessage).toBeInTheDocument();
-  });
+    await selectAlertCondition(user, 'Goes below')
+    expectRuleSummary("We'll notify you when BTC/USD goes below $85,000.00.")
+  })
 
-  it('calls onSubmit with form data', async () => {
-    const onSubmit = vi.fn().mockResolvedValue(undefined);
-    render(<PriceAlertForm {...defaultProps} onSubmit={onSubmit} />);
+  it('shows a validation error when the price is missing', async () => {
+    const user = userEvent.setup()
+    renderCreateForm()
 
-    // Fill in threshold price
-    const thresholdInput = screen.getByLabelText(/Threshold Price/i);
-    fireEvent.change(thresholdInput, { target: { value: '85000' } });
-    
-    // Find the submit button and click it
-    const submitButtons = screen.getAllByText('Create Alert');
-    fireEvent.click(submitButtons[0]);
+    await submitCreateForm(user)
+    expectValidationError('Enter a price greater than 0.')
+  })
 
-    // Wait for onSubmit to be called
+  it('requires at least one notification channel', async () => {
+    const user = userEvent.setup()
+    renderCreateForm()
+
+    await fillPrice(user, '85000')
+    await toggleNamedSwitch(user, 'In the app')
+    await submitCreateForm(user)
+
+    expectValidationError('Choose at least one way to be notified.')
+    expect(screen.getByText(/Sent to the email on your account/)).toBeInTheDocument()
+  })
+
+  it('submits the filled create form', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn().mockResolvedValue(undefined)
+    renderCreateForm({ onSubmit })
+
+    await fillPrice(user, '85000')
+    await submitCreateForm(user)
+
     await vi.waitFor(() => {
-      expect(onSubmit).toHaveBeenCalled();
-    }, { timeout: 2000 });
-  });
-});
+      expect(onSubmit).toHaveBeenCalled()
+    })
+  })
+})

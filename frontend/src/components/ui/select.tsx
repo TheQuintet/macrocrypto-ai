@@ -43,7 +43,7 @@ export const Select: React.FC<SelectProps> = ({
   );
 };
 
-interface SelectTriggerProps {
+interface SelectTriggerProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   children: React.ReactNode;
   className?: string;
 }
@@ -51,6 +51,7 @@ interface SelectTriggerProps {
 export const SelectTrigger: React.FC<SelectTriggerProps> = ({
   children,
   className,
+  ...props
 }) => {
   const context = React.useContext(SelectContext);
   if (!context) throw new Error("SelectTrigger must be used within Select");
@@ -58,11 +59,15 @@ export const SelectTrigger: React.FC<SelectTriggerProps> = ({
   return (
     <button
       type="button"
+      {...props}
       className={cn(
         "flex w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
         className
       )}
-      onClick={() => context.onOpenChange(!context.open)}
+      onClick={(event) => {
+        props.onClick?.(event);
+        context.onOpenChange(!context.open);
+      }}
     >
       {children}
     </button>

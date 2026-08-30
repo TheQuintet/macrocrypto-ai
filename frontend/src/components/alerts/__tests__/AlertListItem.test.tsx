@@ -1,9 +1,13 @@
-import { render, screen, fireEvent } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
+import { cleanup, render, screen, fireEvent } from '@testing-library/react';
+import { afterEach, describe, it, expect, vi } from 'vitest';
 import { AlertListItem } from '../AlertListItem';
 import { mockAlert } from '../price/__tests__/testHelpers';
 
 describe('AlertListItem', () => {
+  afterEach(() => {
+    cleanup();
+  });
+
   const defaultProps = {
     alert: mockAlert,
     onDelete: vi.fn(),
