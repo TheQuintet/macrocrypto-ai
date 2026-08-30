@@ -1,4 +1,5 @@
-import apiClient from '@/lib/apiClient'
+import axios from 'axios'
+import { alertApiUrl } from '@/lib/apiConfig'
 import {
   simulateCreateAlert,
   simulateDeleteAlert,
@@ -8,7 +9,6 @@ import {
   simulateTriggerAlert,
   simulateUpdateAlert,
 } from './simulatedPriceAlerts'
-import { withSimulatedFallback } from './withSimulatedFallback'
 import type {
   PriceAlert,
   CreatePriceAlertRequest,
@@ -17,77 +17,123 @@ import type {
   PriceAlertListResponse,
 } from '@/types/alerts/priceAlert'
 
+/** Real endpoint on the alert service (see `app/api/routes.py`). */
+export const PRICE_ALERTS_PATH = '/api/v1/alerts/price'
+
+const JSON_HEADERS = { Accept: 'application/json' }
+
+/**
+ * Price-alert CRUD from the alert service.
+ *
+ * `VITE_ALERT_API_BASE_URL` is the switch (data-service prices use
+ * `VITE_API_BASE_URL` on :8001). Unset → simulated seed data. Set → axios to
+ * that host (alert-service on :8003) and a failed request throws rather than
+ * quietly substituting seed rules.
+ */
+async function fromApiOrSimulate<T>(
+  path: string,
+  simulate: () => Promise<T>,
+  live: (url: string) => Promise<T>,
+): Promise<T> {
+  const url = alertApiUrl(path)
+  if (!url) {
+    return simulate()
+  }
+
+  return live(url)
+}
+
 export const priceAlertApi = {
   getAlerts: async (
     userId: string,
     params?: { status?: string; alert_type?: string; limit?: number; offset?: number },
   ): Promise<PriceAlertListResponse> =>
-    withSimulatedFallback(
-      async () => {
-        const response = await apiClient.get('/alerts/price', {
+    fromApiOrSimulate(
+      PRICE_ALERTS_PATH,
+      () => simulateGetAlerts(userId, params),
+      async (url) => {
+        const response = await axios.get<PriceAlertListResponse>(url, {
           params: { user_id: userId, ...params },
+          headers: JSON_HEADERS,
         })
         return response.data
       },
-      () => simulateGetAlerts(userId, params),
     ),
 
   getAlert: async (alertId: string): Promise<PriceAlert> =>
-    withSimulatedFallback(
-      async () => {
-        const response = await apiClient.get(`/alerts/price/${alertId}`)
+    fromApiOrSimulate(
+      `${PRICE_ALERTS_PATH}/${alertId}`,
+      () => simulateGetAlert(alertId),
+      async (url) => {
+        const response = await axios.get<PriceAlert>(url, {
+          headers: JSON_HEADERS,
+        })
         return response.data
       },
-      () => simulateGetAlert(alertId),
     ),
 
   createAlert: async (data: CreatePriceAlertRequest): Promise<PriceAlert> =>
-    withSimulatedFallback(
-      async () => {
-        const response = await apiClient.post('/alerts/price', data)
+    fromApiOrSimulate(
+      PRICE_ALERTS_PATH,
+      () => simulateCreateAlert(data),
+      async (url) => {
+        const response = await axios.post<PriceAlert>(url, data, {
+          headers: JSON_HEADERS,
+        })
         return response.data
       },
-      () => simulateCreateAlert(data),
     ),
 
   updateAlert: async (
     alertId: string,
     data: UpdatePriceAlertRequest,
   ): Promise<PriceAlert> =>
-    withSimulatedFallback(
-      async () => {
-        const response = await apiClient.put(`/alerts/price/${alertId}`, data)
+    fromApiOrSimulate(
+      `${PRICE_ALERTS_PATH}/${alertId}`,
+      () => simulateUpdateAlert(alertId, data),
+      async (url) => {
+        const response = await axios.put<PriceAlert>(url, data, {
+          headers: JSON_HEADERS,
+        })
         return response.data
       },
-      () => simulateUpdateAlert(alertId, data),
     ),
 
   deleteAlert: async (alertId: string): Promise<void> =>
-    withSimulatedFallback(
-      () => apiClient.delete(`/alerts/price/${alertId}`).then(() => undefined),
+    fromApiOrSimulate(
+      `${PRICE_ALERTS_PATH}/${alertId}`,
       () => simulateDeleteAlert(alertId),
+      (url) => axios.delete(url, { headers: JSON_HEADERS }).then(() => undefined),
     ),
 
   triggerAlert: async (alertId: string): Promise<PriceAlert> =>
-    withSimulatedFallback(
-      async () => {
-        const response = await apiClient.post(`/alerts/price/${alertId}/trigger`)
+    fromApiOrSimulate(
+      `${PRICE_ALERTS_PATH}/${alertId}/trigger`,
+      () => simulateTriggerAlert(alertId),
+      async (url) => {
+        const response = await axios.post<PriceAlert>(url, undefined, {
+          headers: JSON_HEADERS,
+        })
         return response.data
       },
-      () => simulateTriggerAlert(alertId),
     ),
 
   getHistory: async (
     alertId: string,
     params?: { limit?: number; offset?: number },
   ): Promise<{ history: PriceAlertHistory[]; total: number }> =>
-    withSimulatedFallback(
-      async () => {
-        const response = await apiClient.get(`/alerts/price/${alertId}/history`, {
+    fromApiOrSimulate(
+      `${PRICE_ALERTS_PATH}/${alertId}/history`,
+      () => simulateGetHistory(alertId, params),
+      async (url) => {
+        const response = await axios.get<{
+          history: PriceAlertHistory[]
+          total: number
+        }>(url, {
           params,
+          headers: JSON_HEADERS,
         })
         return response.data
       },
-      () => simulateGetHistory(alertId, params),
     ),
 }

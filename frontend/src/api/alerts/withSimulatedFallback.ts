@@ -1,16 +1,16 @@
-import { isApiConfigured } from '@/lib/apiConfig'
+import { isAlertApiConfigured } from '@/lib/apiConfig'
 
 /**
- * Frontend-only (no `VITE_API_BASE_URL`) uses simulated alerts/notifications.
- * When a backend *is* configured but the alert service is down, we still
- * simulate so the UI can be used without that extra process — unlike prices,
- * these are not live market figures.
+ * Frontend-only (no `VITE_ALERT_API_BASE_URL`) uses simulated notifications.
+ * When an alert backend *is* configured but the notification HTTP API is
+ * missing, we still simulate so the inbox can be used. Price-alert CRUD does
+ * not use this — live failures there propagate like prices.
  */
 export async function withSimulatedFallback<T>(
   live: () => Promise<T>,
   simulate: () => Promise<T>,
 ): Promise<T> {
-  if (!isApiConfigured()) {
+  if (!isAlertApiConfigured()) {
     return simulate()
   }
 

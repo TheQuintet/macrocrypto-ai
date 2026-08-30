@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const isApiConfigured = vi.fn()
+const isAlertApiConfigured = vi.fn()
 
 vi.mock('@/lib/apiConfig', () => ({
-  isApiConfigured: () => isApiConfigured(),
+  isAlertApiConfigured: () => isAlertApiConfigured(),
 }))
 
 beforeEach(() => {
@@ -11,12 +11,12 @@ beforeEach(() => {
 })
 
 afterEach(() => {
-  isApiConfigured.mockReset()
+  isAlertApiConfigured.mockReset()
 })
 
 describe('withSimulatedFallback', () => {
   it('uses simulated data when no backend is configured', async () => {
-    isApiConfigured.mockReturnValue(false)
+    isAlertApiConfigured.mockReturnValue(false)
     const { withSimulatedFallback } = await import('./withSimulatedFallback')
     const live = vi.fn()
     const simulate = vi.fn().mockResolvedValue('simulated')
@@ -26,7 +26,7 @@ describe('withSimulatedFallback', () => {
   })
 
   it('uses the live response when the backend answers', async () => {
-    isApiConfigured.mockReturnValue(true)
+    isAlertApiConfigured.mockReturnValue(true)
     const { withSimulatedFallback } = await import('./withSimulatedFallback')
     const live = vi.fn().mockResolvedValue('live')
     const simulate = vi.fn()
@@ -36,7 +36,7 @@ describe('withSimulatedFallback', () => {
   })
 
   it('falls back to simulated data when the live request fails', async () => {
-    isApiConfigured.mockReturnValue(true)
+    isAlertApiConfigured.mockReturnValue(true)
     const { withSimulatedFallback } = await import('./withSimulatedFallback')
     const live = vi.fn().mockRejectedValue(new Error('offline'))
     const simulate = vi.fn().mockResolvedValue('simulated')
