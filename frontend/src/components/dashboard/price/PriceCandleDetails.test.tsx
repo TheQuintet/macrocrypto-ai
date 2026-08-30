@@ -26,8 +26,12 @@ describe('PriceCandleDetails', () => {
     expect(screen.getByText('Bullish').parentElement).toHaveClass('text-positive')
     expect(screen.getByText('$64,000.00')).toHaveClass('text-positive')
     expect(screen.getByText('$64,100.50')).toHaveClass('text-positive')
-    expect(screen.getByText('$64,400.00')).not.toHaveClass('text-positive')
-    expect(screen.getByText('$63,900.00')).not.toHaveClass('text-negative')
+    expect(screen.getByLabelText('↑ +0.63% from open')).toHaveClass(
+      'text-positive',
+    )
+    expect(screen.getByLabelText('↓ -0.31% from close')).toHaveClass(
+      'text-negative',
+    )
   })
 
   it('colors open and close red on a bearish candle', () => {
@@ -40,6 +44,8 @@ describe('PriceCandleDetails', () => {
     expect(screen.getByText('Bearish').parentElement).toHaveClass('text-negative')
     expect(screen.getByText('$64,100.00')).toHaveClass('text-negative')
     expect(screen.getByText('$64,000.00')).toHaveClass('text-negative')
+    expect(screen.getByLabelText(/from open/)).toHaveTextContent('↑ +0.16%')
+    expect(screen.getByLabelText(/from close/)).toHaveTextContent('↓ -0.16%')
   })
 
   it('shows as-of indicator change instead of the raw print', () => {

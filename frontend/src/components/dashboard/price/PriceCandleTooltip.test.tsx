@@ -37,6 +37,8 @@ describe('PriceCandleTooltip', () => {
     expectRow('High', '$64,400.00')
     expectRow('Low', '$63,900.00')
     expectRow('Close', '$64,100.50')
+    expect(screen.getByLabelText('↑ +0.63% from open')).toBeInTheDocument()
+    expect(screen.getByLabelText('↓ -0.31% from close')).toBeInTheDocument()
   })
 
   it('labels the bucket it belongs to', () => {

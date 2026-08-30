@@ -22,6 +22,14 @@ export function formatSignedPercent(value: number) {
   return `${signOf(value)}${Math.abs(value).toFixed(2)}%`
 }
 
+/** Percent change from `from` to `to`. Flat when the base cannot be used. */
+export function percentChange(from: number, to: number): number {
+  if (from === 0 || !Number.isFinite(from) || !Number.isFinite(to)) {
+    return 0
+  }
+  return ((to - from) / from) * 100
+}
+
 /** `24,180.42 BTC` — 24h traded volume in the base asset. */
 export function formatVolume(value: number) {
   return `${value.toLocaleString('en-US', {

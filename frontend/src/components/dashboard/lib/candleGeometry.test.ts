@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   candleDirection,
+  candleExtremePercents,
   candleLayout,
   MAX_CANDLE_BODY_WIDTH,
   MIN_CANDLE_BODY_HEIGHT,
@@ -43,6 +44,26 @@ describe('candleDirection', () => {
 
   it('treats an unchanged close as up', () => {
     expect(candleDirection(candle({ open: 100, close: 100 }))).toBe('up')
+  })
+})
+
+describe('candleExtremePercents', () => {
+  it('compares high to open and low to close', () => {
+    const extremes = candleExtremePercents(
+      candle({ open: 100, high: 110, low: 90, close: 105 }),
+    )
+
+    expect(extremes.highFromOpen).toBeCloseTo(10)
+    expect(extremes.lowFromClose).toBeCloseTo(-14.2857, 3)
+  })
+
+  it('is flat when the wick sits on the body edge', () => {
+    const extremes = candleExtremePercents(
+      candle({ open: 100, high: 100, low: 100, close: 100 }),
+    )
+
+    expect(extremes.highFromOpen).toBe(0)
+    expect(extremes.lowFromClose).toBe(0)
   })
 })
 
