@@ -16,15 +16,17 @@ PLAN → ASSIGN → WORK → REVIEW → TRACK → CLOSE → RETROSPECT
 
 Sprint **review** and **retrospective** are different ceremonies. We do not run a formal live review — there is not enough overlapping time — so review is **offline**. Retrospective stays on the weekly sync when scheduled.
 
-| Ceremony | Purpose | Meeting notes |
-|----------|---------|---------------|
-| **Sprint planning** | Select stories, estimate, assign owners | [Planning template](./meetings/templates/planning.md) · [29 Jul 2026](./meetings/2026-07-29-refinement-and-planning.md) · [5 Aug 2026](./meetings/2026-08-05-retrospective.md) · [26 Aug 2026](./meetings/2026-08-26-review-and-planning.md) notes |
-| **Backlog refinement** | Clarify stories, acceptance criteria, estimates | [Refinement template](./meetings/templates/refinement.md) · [29 Jul 2026](./meetings/2026-07-29-refinement-and-planning.md) · [5 Aug 2026](./meetings/2026-08-05-retrospective.md) · [26 Aug 2026](./meetings/2026-08-26-review-and-planning.md) notes |
-| **Daily standup** (async) | Yesterday / today / blockers | [Standup template](./meetings/templates/standup.md) · written updates in Slack (role-specific channels) |
-| **Sprint review** (offline) | Each teammate has repo access and explores/plays with the app to see what shipped | [Review template](./meetings/templates/review.md) · [5 Aug 2026](./meetings/2026-08-05-retrospective.md) · [26 Aug 2026 live demo](./meetings/2026-08-26-review-and-planning.md) notes |
-| **Retrospective** | What went well, what to improve | [Retrospective template](./meetings/templates/retrospective.md) · [5 Aug 2026 notes](./meetings/2026-08-05-retrospective.md) · [Team Retrospective board](https://github.com/orgs/TheQuintet/projects/4) |
+Write-ups: [29 Jul refinement and planning](./meetings/2026-07-29-refinement-and-planning.md) · [5 Aug retrospective, review, refinement, and planning](./meetings/2026-08-05-retrospective.md) · [26 Aug review, refinement, and planning](./meetings/2026-08-26-review-and-planning.md). Blank formats: [meetings/templates/](./meetings/templates/).
 
-### Daily standup template
+### Sprint planning
+
+Select stories, estimate, and assign owners. Product Owner prioritizes; the team commits to the sprint goal.
+
+### Backlog refinement
+
+Clarify stories and acceptance criteria before they enter a sprint.
+
+### Daily standup
 
 Standups are **async** — we cannot sync daily across time zones. Each person posts their own update in `#capstone-project-group` on working days.
 
@@ -37,7 +39,7 @@ Standups are **async** — we cannot sync daily across time zones. Each person p
 
 Replace the heading with your name. If you have a blocker, add the `blocked` label to the relevant issue and mention it here.
 
-### Sprint review (offline)
+### Sprint review
 
 There is no scheduled live demo. After each sprint (or when useful), every team member:
 
@@ -46,13 +48,9 @@ There is no scheduled live demo. After each sprint (or when useful), every team 
 - [ ] Check completed work on the [Daily board](https://github.com/orgs/TheQuintet/projects/3)
 - [ ] Flag issues or feedback in Slack or on the relevant GitHub issue
 
-### Retrospective checklist
+### Retrospective
 
-- [ ] Capture what went well / what to improve on the [Team Retrospective board](https://github.com/orgs/TheQuintet/projects/4)
-- [ ] Agree action items and owners
-- [ ] Update [meeting notes](./meetings/2026-08-26-review-and-planning.md)
-
-### Retrospective questions
+What went well, what to improve. Capture items on the [Team Retrospective board](https://github.com/orgs/TheQuintet/projects/4), agree action items and owners, and add a write-up next to the other session notes in `docs/meetings/`.
 
 | Question | Purpose |
 |----------|---------|
@@ -240,7 +238,7 @@ Code changes follow [GitHub Flow](../GITHUB_FLOW.md). See also [Contributing](..
 | **Dates** | Started Wed 5 Aug 2026 (1-week cadence) |
 | **Status** | **In progress** — 26 Aug session narrowed remaining work (see below) |
 | **Sprint goal** | API Gateway and Alert Service |
-| **Actual focus** | Finish the Sprint 2 carryover before adding new scope — [5 Aug planning notes](./meetings/2026-08-05-retrospective.md#sprint-planning--sprint-3). **26 Aug:** alerts and frontend alert issues this sprint; remaining macro / ML / AI work deferred to September — [26 Aug notes](./meetings/2026-08-26-review-and-planning.md) |
+| **Actual focus** | Finish the Sprint 2 carryover before adding new scope — [5 Aug planning notes](./meetings/2026-08-05-retrospective.md). **26 Aug:** alerts and frontend alert issues this sprint; remaining macro / ML / AI work deferred to September — [26 Aug notes](./meetings/2026-08-26-review-and-planning.md) |
 | **Product Owner** | Sid Ahmed Mahieddine |
 | **Scrum Master** | Loredana Lungu |
 
@@ -305,6 +303,7 @@ Acceptance criteria:
 | 1.3 | 2026-07-30 | Document four GitHub Project boards (Daily, MacroCrypto AI Team Planning, Team Retrospective, Roadmap) |
 | 1.4 | 2026-08-05 | Sprint 2 closed / Sprint 3 started in the sprint log; link 5 Aug combined session notes from planning, refinement, and review ceremonies |
 | 1.5 | 2026-08-26 | Link 26 Aug review / refinement / planning notes; record current-sprint focus (alerts + frontend) and September deferrals |
+| 1.6 | 2026-08-30 | Richard Owusu: developer (frontend and ML), not Follow-up & QA — see [team-roles.md](./team-roles.md) |
 
 ---
 

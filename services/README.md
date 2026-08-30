@@ -2,7 +2,7 @@
 
 Backend microservices and the infrastructure they depend on, run through Docker Compose from the repository root.
 
-Only **data-service** is active today; the other folders are scaffolding. See [Services](#services).
+**data-service** and **alert-service** are active in Compose today; `ai-service` and `api-gateway` are still scaffolding. See [Services](#services).
 
 ## Prerequisites
 
@@ -12,25 +12,28 @@ Only **data-service** is active today; the other folders are scaffolding. See [S
 
 ## Quick start
 
-### 1. Create the data-service env file
+### 1. Create the service env files
 
 ```bash
 cp services/data-service/.env.example services/data-service/.env
+cp services/alert-service/.env.example services/alert-service/.env
 ```
 
-**Required.** `docker-compose.yml` declares `env_file: ./services/data-service/.env`, so Compose fails immediately without it. The file is gitignored, so it is never in a fresh clone — this is the step that usually blocks people.
+**Required.** `docker-compose.yml` declares `env_file` for both services, so Compose needs these files. They are gitignored and are not in a fresh clone.
 
 No edits needed. The defaults use Compose service names (`postgres`, `redis`, `rabbitmq`) rather than `localhost`, which is what the containers need.
 
 ### 2. Start
 
+In the repository root:
+
 ```bash
 make up
 ```
 
-The first run takes a few minutes — it builds the data-service image and pulls three base images. Later starts take seconds.
+The first run takes a few minutes — it builds the service images and pulls the infrastructure images. Later starts take seconds.
 
-data-service declares `depends_on: condition: service_healthy`, so it waits for Postgres, Redis and RabbitMQ to pass their health checks before starting. A pause with no output is normal.
+data-service and alert-service declare `depends_on: condition: service_healthy`, so they wait for Postgres, Redis and RabbitMQ to pass their health checks before starting. A pause with no output is normal.
 
 ### 3. Verify
 
@@ -38,7 +41,7 @@ data-service declares `depends_on: condition: service_healthy`, so it waits for 
 make ps
 ```
 
-Four containers `Up`, with data-service `(healthy)`.
+Four containers `Up` for infrastructure plus data-service `(healthy)`. With this Compose file you should also see `macro-alert-service`.
 
 ```bash
 make price
@@ -82,7 +85,7 @@ Starting the backend does not make everything live. Current state:
 | redis | `macro-redis` | 6379 | Response and snapshot caching | **Active** |
 | rabbitmq | `macro-rabbitmq` | 5672, 15672 | Event bus; management UI on 15672 (`guest`/`guest`) | **Active** |
 | `ai-service` | — | 8002 | Prophet price forecasting | Commented out in Compose |
-| `alert-service` | — | — | Alert rules and notifications | Commented out in Compose |
+| `alert-service` | `macro-alert-service` | 8003 | Alert rules and notifications | **Active** |
 | `api-gateway` | — | — | REST + WebSocket gateway | Commented out; folder is empty `__init__.py` stubs |
 
 The frontend is in `docker-compose.yml` too but commented out, and there is no `frontend/Dockerfile`, so it cannot start that way. Run it on the host — see [frontend/README.md](../frontend/README.md).
