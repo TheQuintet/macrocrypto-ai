@@ -7,9 +7,10 @@ type AlertsListProps = {
   alerts: PriceAlert[];
   onDelete: (alert: PriceAlert) => void;
   onEdit?: (alert: PriceAlert) => void;
+  onToggleStatus?: (alert: PriceAlert) => void;
 };
 
-export function AlertsList({ alerts, onDelete, onEdit }: AlertsListProps) {
+export function AlertsList({ alerts, onDelete, onEdit, onToggleStatus }: AlertsListProps) {
   if (alerts.length === 0) {
     return (
       <div className="p-8 text-center text-muted-foreground">
@@ -24,7 +25,12 @@ export function AlertsList({ alerts, onDelete, onEdit }: AlertsListProps) {
         {alerts.map((alert, index) => (
           <div key={alert.id}>
             {index > 0 ? <Separator /> : null}
-            <AlertListItem alert={alert} onDelete={onDelete} onEdit={onEdit} />
+            <AlertListItem
+              alert={alert}
+              onDelete={onDelete}
+              onEdit={onEdit}
+              onToggleStatus={onToggleStatus}
+            />
           </div>
         ))}
       </CardContent>

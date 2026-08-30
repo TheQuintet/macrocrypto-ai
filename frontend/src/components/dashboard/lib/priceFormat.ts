@@ -6,7 +6,12 @@ export const PRICE_PLACEHOLDER = '--'
 
 /** `$64,213.50` — thousands separator, always 2 decimals. */
 export function formatPrice(value: number) {
-  return `$${value.toLocaleString('en-US', {
+  const amount = Number(value)
+  if (!Number.isFinite(amount)) {
+    return PRICE_PLACEHOLDER
+  }
+
+  return `$${amount.toLocaleString('en-US', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`

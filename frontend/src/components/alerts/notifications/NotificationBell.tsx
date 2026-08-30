@@ -1,88 +1,101 @@
-// src/components/alerts/notifications/NotificationBell.tsx
-
-import React, { useState, useEffect } from 'react';
-import { Bell } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { Bell } from 'lucide-react'
+import { NotificationList } from '@/components/alerts/notifications/NotificationList'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import {
   Sheet,
   SheetContent,
+  SheetFooter,
   SheetHeader,
   SheetTitle,
   SheetTrigger,
-} from '@/components/ui/sheet';
-import { NotificationList } from './NotificationList';
-import { useNotificationStore } from '@/stores/alerts/notificationStore';
-import { cn } from '@/lib/utils';
+} from '@/components/ui/sheet'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
+import { routes } from '@/constants/navigation'
+import { cn } from '@/lib/utils'
+import { useNotificationStore } from '@/stores/alerts/notificationStore'
 
-interface NotificationBellProps {
-  userId: string;
-  className?: string;
+type NotificationBellProps = {
+  userId: string
+  className?: string
 }
 
-export const NotificationBell: React.FC<NotificationBellProps> = ({
-  userId,
-  className,
-}) => {
-  const [isOpen, setIsOpen] = useState(false);
+export function NotificationBell({ userId, className }: NotificationBellProps) {
+  const [isOpen, setIsOpen] = useState(false)
   const { unreadCount, fetchNotifications, fetchUnreadCount } =
-    useNotificationStore();
+    useNotificationStore()
 
-  // Fetch notifications when bell is clicked
   const handleOpenChange = (open: boolean) => {
-    setIsOpen(open);
+    setIsOpen(open)
     if (open) {
-      fetchNotifications(userId);
+      fetchNotifications(userId)
     }
-  };
+  }
 
-  // Fetch unread count periodically
   useEffect(() => {
-    if (userId) {
-      fetchUnreadCount(userId);
-      // Refresh unread count every 30 seconds
-      const interval = setInterval(() => {
-        fetchUnreadCount(userId);
-      }, 30000);
-      return () => clearInterval(interval);
-    }
-  }, [userId, fetchUnreadCount]);
+    if (!userId) return
+
+    fetchUnreadCount(userId)
+    const interval = setInterval(() => {
+      fetchUnreadCount(userId)
+    }, 30_000)
+    return () => clearInterval(interval)
+  }, [userId, fetchUnreadCount])
 
   return (
     <Sheet open={isOpen} onOpenChange={handleOpenChange}>
-      <SheetTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          className={cn('relative', className)}
-          aria-label="Notifications"
-        >
-          <Bell className="h-5 w-5" />
-          {unreadCount > 0 && (
-            <Badge
-              variant="destructive"
-              className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs"
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <SheetTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className={cn('relative', className)}
+              aria-label="Notifications"
             >
-              {unreadCount > 99 ? '99+' : unreadCount}
-            </Badge>
-          )}
-        </Button>
-      </SheetTrigger>
-      <SheetContent side="right" className="w-full sm:w-[400px]">
+              <Bell />
+              {unreadCount > 0 ? (
+                <Badge
+                  variant="destructive"
+                  className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center p-0 text-xs"
+                >
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </Badge>
+              ) : null}
+            </Button>
+          </SheetTrigger>
+        </TooltipTrigger>
+        <TooltipContent>Notifications</TooltipContent>
+      </Tooltip>
+      <SheetContent side="right" className="flex w-full flex-col sm:max-w-md">
         <SheetHeader>
-          <SheetTitle className="flex items-center justify-between">
+          <SheetTitle className="flex items-center justify-between gap-2">
             <span>Notifications</span>
-            {unreadCount > 0 && (
+            {unreadCount > 0 ? (
               <span className="text-sm font-normal text-muted-foreground">
                 {unreadCount} unread
               </span>
-            )}
+            ) : null}
           </SheetTitle>
         </SheetHeader>
-        <div className="mt-4 h-[calc(100vh-100px)] overflow-y-auto">
+        <div className="min-h-0 flex-1 overflow-y-auto px-4">
           <NotificationList userId={userId} />
         </div>
+        <SheetFooter>
+          <Button variant="outline" className="w-full" asChild>
+            <Link to={routes.alerts} onClick={() => setIsOpen(false)}>
+              Manage alerts
+            </Link>
+          </Button>
+        </SheetFooter>
       </SheetContent>
     </Sheet>
-  );
-};
+  )
+}

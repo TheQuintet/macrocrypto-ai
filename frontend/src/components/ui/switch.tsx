@@ -9,6 +9,8 @@ interface SwitchProps {
   onCheckedChange?: (checked: boolean) => void;
   disabled?: boolean;
   className?: string;
+  size?: 'sm' | 'default';
+  'aria-label'?: string;
 }
 
 export const Switch: React.FC<SwitchProps> = ({
@@ -17,16 +19,22 @@ export const Switch: React.FC<SwitchProps> = ({
   onCheckedChange,
   disabled = false,
   className,
+  size = 'default',
+  'aria-label': ariaLabel,
 }) => {
+  const compact = size === 'sm';
+
   return (
     <button
       id={id}
       type="button"
       role="switch"
       aria-checked={checked}
+      aria-label={ariaLabel}
       disabled={disabled}
       className={cn(
-        "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
+        "relative inline-flex items-center rounded-full transition-colors",
+        compact ? "h-4 w-7" : "h-6 w-11",
         checked ? "bg-primary" : "bg-gray-300 dark:bg-gray-600",
         disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer",
         className
@@ -35,8 +43,11 @@ export const Switch: React.FC<SwitchProps> = ({
     >
       <span
         className={cn(
-          "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
-          checked ? "translate-x-6" : "translate-x-1"
+          "inline-block transform rounded-full bg-white transition-transform",
+          compact ? "h-3 w-3" : "h-4 w-4",
+          checked
+            ? compact ? "translate-x-3.5" : "translate-x-6"
+            : compact ? "translate-x-0.5" : "translate-x-1"
         )}
       />
     </button>

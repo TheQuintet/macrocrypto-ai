@@ -1,15 +1,21 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { usePriceAlerts } from '@/hooks/alerts/usePriceAlerts';
 import { PriceAlertForm } from './price/PriceAlertForm';
 import { AlertsList } from './AlertsList';
 import { AlertsEmptyState } from './AlertsEmptyState';
+import { AlertStatusFilter } from './AlertStatusFilter';
 import { ConfirmationDialog } from './shared/ConfirmationDialog';
 import { showToast } from './shared/ToastNotification';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Plus, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import {
+  matchesAlertStatusFilter,
+  toggledAlertStatus,
+  type AlertListStatusFilter,
+} from './shared/alertStatus';
 import type { PriceAlert, CreatePriceAlertRequest, UpdatePriceAlertRequest } from '@/types/alerts/priceAlert';
 
 interface AlertManagementProps {
@@ -20,6 +26,7 @@ export const AlertManagement: React.FC<AlertManagementProps> = ({ userId }) => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingAlert, setEditingAlert] = useState<PriceAlert | null>(null);
   const [deletingAlert, setDeletingAlert] = useState<PriceAlert | null>(null);
+  const [statusFilter, setStatusFilter] = useState<AlertListStatusFilter>('all');
 
   const {
     alerts,
@@ -31,6 +38,11 @@ export const AlertManagement: React.FC<AlertManagementProps> = ({ userId }) => {
     remove: deleteAlert,
   } = usePriceAlerts(userId);
 
+  const visibleAlerts = useMemo(
+    () => alerts.filter((alert) => matchesAlertStatusFilter(alert.status, statusFilter)),
+    [alerts, statusFilter],
+  );
+
   const handleRefresh = () => {
     fetchAlerts();
     showToast.info('Refreshing alerts...');
@@ -40,7 +52,7 @@ export const AlertManagement: React.FC<AlertManagementProps> = ({ userId }) => {
     try {
       await createAlert(data as CreatePriceAlertRequest);
       setShowCreateModal(false);
-      showToast.success('Alert created successfully');
+      showToast.success('Alert created');
     } catch {
       showToast.error('Failed to create alert');
     }
@@ -51,7 +63,17 @@ export const AlertManagement: React.FC<AlertManagementProps> = ({ userId }) => {
     try {
       await updateAlert(editingAlert.id, data as UpdatePriceAlertRequest);
       setEditingAlert(null);
-      showToast.success('Alert updated successfully');
+      showToast.success('Alert updated');
+    } catch {
+      showToast.error('Failed to update alert');
+    }
+  };
+
+  const handleToggleStatus = async (alert: PriceAlert) => {
+    const nextStatus = toggledAlertStatus(alert.status);
+    try {
+      await updateAlert(alert.id, { status: nextStatus });
+      showToast.success(nextStatus === 'active' ? 'Alert activated' : 'Alert paused');
     } catch {
       showToast.error('Failed to update alert');
     }
@@ -62,7 +84,7 @@ export const AlertManagement: React.FC<AlertManagementProps> = ({ userId }) => {
     try {
       await deleteAlert(deletingAlert.id);
       setDeletingAlert(null);
-      showToast.success('Alert deleted successfully');
+      showToast.success('Alert deleted');
     } catch {
       showToast.error('Failed to delete alert');
     }
@@ -115,14 +137,11 @@ export const AlertManagement: React.FC<AlertManagementProps> = ({ userId }) => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">Price Alerts</h2>
-          <p className="text-sm text-muted-foreground">
-            {alerts.length} {alerts.length === 1 ? 'alert' : 'alerts'} configured
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        {alerts.length > 0 ? (
+          <AlertStatusFilter value={statusFilter} onChange={setStatusFilter} />
+        ) : null}
+        <div className="flex items-center gap-2 sm:ml-auto">
           <Button
             variant="outline"
             size="sm"
@@ -142,21 +161,17 @@ export const AlertManagement: React.FC<AlertManagementProps> = ({ userId }) => {
       {/* Alert List */}
       {alerts.length === 0 ? (
         <AlertsEmptyState onCreateAlert={() => setShowCreateModal(true)} />
+      ) : visibleAlerts.length === 0 ? (
+        <p className="p-8 text-center text-muted-foreground">
+          {statusFilter === 'active' ? 'No active alerts' : 'No inactive alerts'}
+        </p>
       ) : (
-        <Card>
-          <CardHeader className="pb-0">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Your Alerts
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-4">
-            <AlertsList
-              alerts={alerts}
-              onDelete={setDeletingAlert}
-              onEdit={setEditingAlert}
-            />
-          </CardContent>
-        </Card>
+        <AlertsList
+          alerts={visibleAlerts}
+          onDelete={setDeletingAlert}
+          onEdit={setEditingAlert}
+          onToggleStatus={handleToggleStatus}
+        />
       )}
 
       {/* Create Modal */}
@@ -186,8 +201,8 @@ export const AlertManagement: React.FC<AlertManagementProps> = ({ userId }) => {
         open={!!deletingAlert}
         onOpenChange={() => setDeletingAlert(null)}
         onConfirm={handleDelete}
-        title="Delete Alert"
-        description={`Are you sure you want to delete the alert "${deletingAlert?.name || 'Untitled'}"? This action cannot be undone.`}
+        title="Delete alert"
+        description={`Delete "${deletingAlert?.name || 'this alert'}"?`}
         confirmText="Delete"
         variant="destructive"
       />

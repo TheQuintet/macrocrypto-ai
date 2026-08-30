@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 
 type PageHeaderProps = {
   title: string
-  description: string
+  description?: string
   children?: ReactNode
 }
 
@@ -14,9 +14,11 @@ export function PageHeader({ title, description, children }: PageHeaderProps) {
         <h1 className="text-pretty text-xl font-semibold tracking-tight sm:text-2xl">
           {title}
         </h1>
-        <p className="max-w-2xl text-pretty text-sm text-muted-foreground">
-          {description}
-        </p>
+        {description ? (
+          <p className="max-w-2xl text-pretty text-sm text-muted-foreground">
+            {description}
+          </p>
+        ) : null}
       </div>
       {children ? (
         <div className="flex w-full min-w-0 shrink-0 flex-wrap items-center gap-2 sm:w-auto sm:justify-end">

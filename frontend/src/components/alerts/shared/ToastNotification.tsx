@@ -7,7 +7,6 @@ export const showToast = {
     toast.success(message, {
       description,
       duration: 4000,
-      position: 'top-right',
     });
   },
 
@@ -15,7 +14,6 @@ export const showToast = {
     toast.error(message, {
       description,
       duration: 5000,
-      position: 'top-right',
     });
   },
 
@@ -23,7 +21,6 @@ export const showToast = {
     toast.info(message, {
       description,
       duration: 3000,
-      position: 'top-right',
     });
   },
 
@@ -31,7 +28,6 @@ export const showToast = {
     toast.warning(message, {
       description,
       duration: 4000,
-      position: 'top-right',
     });
   },
 };

@@ -1,5 +1,6 @@
-import { Link, Outlet, useLocation } from 'react-router-dom'
-import { Bell, Moon, Sun } from 'lucide-react'
+import { Outlet } from 'react-router-dom'
+import { Moon, Sun } from 'lucide-react'
+import { NotificationBell } from '@/components/alerts/notifications/NotificationBell'
 import { AppSidebar } from '@/components/layout/AppSidebar'
 import { AppToaster } from '@/components/layout/AppToaster'
 import { Button } from '@/components/ui/button'
@@ -15,18 +16,14 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import { navItemFromPathname, routes } from '@/constants/navigation'
+import { ALERTS_USER_ID } from '@/constants/alerts'
 import { useIsMobile } from '@/hooks/useMobile'
 import { useTheme } from '@/hooks/useTheme'
-import { cn } from '@/lib/utils'
 
 /** Shell layout: sidebar + header stay mounted; page content is the route outlet. */
 export function AppLayout() {
   const { isDark, toggleTheme } = useTheme()
   const isMobile = useIsMobile()
-  const { pathname } = useLocation()
-  const activeNav = navItemFromPathname(pathname)
-  const alertsActive = activeNav === 'alerts'
 
   return (
     <TooltipProvider>
@@ -44,27 +41,7 @@ export function AppLayout() {
             </span>
 
             <div className="ml-auto flex shrink-0 items-center gap-1">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    aria-label="Open alerts"
-                    className={cn(
-                      'relative',
-                      alertsActive && 'bg-accent text-accent-foreground',
-                    )}
-                    asChild
-                  >
-                    <Link to={routes.alerts}>
-                      <Bell />
-                      <span className="absolute right-2 top-2 size-1.5 rounded-full bg-primary" />
-                    </Link>
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Alerts</TooltipContent>
-              </Tooltip>
+              <NotificationBell userId={ALERTS_USER_ID} />
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button

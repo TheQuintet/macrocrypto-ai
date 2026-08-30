@@ -4,11 +4,14 @@ import {
   selectCandleInterval,
 } from './priceChart.specHelpers'
 import {
+  clickManageAlerts,
   clickSidebarNav,
+  expectNotificationsOpen,
   expectPageHeading,
   expectRoute,
   expectTimeRangeSelected,
   goToRoute,
+  openNotifications,
   selectTimeRange,
 } from './routing.specHelpers'
 
@@ -23,6 +26,24 @@ test.describe('client routing UI integration', () => {
     await clickSidebarNav(page, 'forecasts')
     await expectRoute(page, 'forecasts')
     await expectPageHeading(page, 'forecasts')
+
+    await clickSidebarNav(page, 'alerts')
+    await expectRoute(page, 'alerts')
+    await expectPageHeading(page, 'alerts')
+  })
+
+  test('header bell opens notifications and can reach alert settings', async ({
+    page,
+  }) => {
+    await goToRoute(page, 'dashboard')
+
+    await openNotifications(page)
+    await expectNotificationsOpen(page)
+    await expectRoute(page, 'dashboard')
+
+    await clickManageAlerts(page)
+    await expectRoute(page, 'alerts')
+    await expectPageHeading(page, 'alerts')
   })
 
   test('deep links open the matching page', async ({ page }) => {

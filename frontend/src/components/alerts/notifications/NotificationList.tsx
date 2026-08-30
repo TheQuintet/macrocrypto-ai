@@ -64,7 +64,7 @@ export const NotificationList: React.FC<NotificationListProps> = ({ userId }) =>
         <BellOff className="h-12 w-12 mx-auto text-muted-foreground" />
         <p className="mt-4 text-muted-foreground">No notifications</p>
         <p className="text-sm text-muted-foreground">
-          You're all caught up!
+          Fired alerts will show up here.
         </p>
       </div>
     );

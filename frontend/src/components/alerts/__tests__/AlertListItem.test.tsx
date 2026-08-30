@@ -1,53 +1,99 @@
-import { cleanup, render, screen, fireEvent } from '@testing-library/react';
-import { afterEach, describe, it, expect, vi } from 'vitest';
-import { AlertListItem } from '../AlertListItem';
-import { mockAlert } from '../price/__tests__/testHelpers';
+import { cleanup, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { afterEach, describe, expect, it } from 'vitest'
+import { mockAlert } from '../price/__tests__/testHelpers'
+import {
+  clickActivate,
+  clickDeactivate,
+  clickEditRow,
+  expectActivateControl,
+  expectDeactivateControl,
+  getDeleteButton,
+  renderAlertListItem,
+} from '../AlertListItem.testHelpers'
 
 describe('AlertListItem', () => {
   afterEach(() => {
-    cleanup();
-  });
+    cleanup()
+  })
 
-  const defaultProps = {
-    alert: mockAlert,
-    onDelete: vi.fn(),
-    onEdit: vi.fn(),
-  };
+  it('renders the set name as the row title', () => {
+    renderAlertListItem()
 
-  it('renders alert information correctly', () => {
-    render(<AlertListItem {...defaultProps} />);
+    expect(screen.getByText('BTC Breakout Alert')).toBeInTheDocument()
+    expect(screen.getByText('BTC/USD goes above $85,000.00')).toBeInTheDocument()
+    expect(screen.getByText('Active')).toBeInTheDocument()
+    expectDeactivateControl()
+  })
 
-    expect(screen.getByText('BTC Breakout Alert')).toBeInTheDocument();
-    expect(screen.getByText('Active')).toBeInTheDocument();
-  });
+  it('uses the price rule as the title when no name is set', () => {
+    renderAlertListItem({
+      alert: { ...mockAlert, name: '', description: '' },
+    })
 
-  it('calls onDelete when delete button is clicked', () => {
-    const onDelete = vi.fn();
-    render(<AlertListItem {...defaultProps} onDelete={onDelete} />);
+    expect(screen.getByText('BTC/USD goes above $85,000.00')).toBeInTheDocument()
+    expect(screen.queryByText('BTC Breakout Alert')).not.toBeInTheDocument()
+  })
 
-    // Find all delete buttons and click the first one
-    const deleteButtons = screen.getAllByLabelText('Delete alert');
-    expect(deleteButtons.length).toBeGreaterThan(0);
-    
-    // Use fireEvent directly on the button
-    fireEvent.click(deleteButtons[0]);
+  it('calls onDelete when delete is clicked', async () => {
+    const user = userEvent.setup()
+    const { onDelete } = renderAlertListItem()
 
-    expect(onDelete).toHaveBeenCalledTimes(1);
-    expect(onDelete).toHaveBeenCalledWith(mockAlert);
-  });
+    await user.click(getDeleteButton())
 
-  it('calls onEdit when edit button is clicked', () => {
-    const onEdit = vi.fn();
-    render(<AlertListItem {...defaultProps} onEdit={onEdit} />);
+    expect(onDelete).toHaveBeenCalledTimes(1)
+    expect(onDelete).toHaveBeenCalledWith(mockAlert)
+  })
 
-    // Find all edit buttons and click the first one
-    const editButtons = screen.getAllByLabelText('Edit alert');
-    expect(editButtons.length).toBeGreaterThan(0);
-    
-    // Use fireEvent directly on the button
-    fireEvent.click(editButtons[0]);
+  it('opens edit when the row is clicked', async () => {
+    const user = userEvent.setup()
+    const { onEdit } = renderAlertListItem()
 
-    expect(onEdit).toHaveBeenCalledTimes(1);
-    expect(onEdit).toHaveBeenCalledWith(mockAlert);
-  });
-});
+    await clickEditRow(user)
+
+    expect(onEdit).toHaveBeenCalledTimes(1)
+    expect(onEdit).toHaveBeenCalledWith(mockAlert)
+  })
+
+  it('does not open edit when delete is clicked', async () => {
+    const user = userEvent.setup()
+    const { onEdit, onDelete } = renderAlertListItem()
+
+    await user.click(getDeleteButton())
+
+    expect(onDelete).toHaveBeenCalledTimes(1)
+    expect(onEdit).not.toHaveBeenCalled()
+  })
+
+  it('does not open edit when the alert is paused from the row', async () => {
+    const user = userEvent.setup()
+    const { onEdit, onToggleStatus } = renderAlertListItem()
+
+    await clickDeactivate(user)
+
+    expect(onToggleStatus).toHaveBeenCalledTimes(1)
+    expect(onEdit).not.toHaveBeenCalled()
+  })
+
+  it('deactivates an active alert from the row action', async () => {
+    const user = userEvent.setup()
+    const { onToggleStatus } = renderAlertListItem()
+
+    await clickDeactivate(user)
+
+    expect(onToggleStatus).toHaveBeenCalledTimes(1)
+    expect(onToggleStatus).toHaveBeenCalledWith(mockAlert)
+  })
+
+  it('activates an inactive alert from the row action', async () => {
+    const user = userEvent.setup()
+    const inactiveAlert = { ...mockAlert, status: 'disabled' as const }
+    const { onToggleStatus } = renderAlertListItem({ alert: inactiveAlert })
+
+    expectActivateControl()
+    await clickActivate(user)
+
+    expect(onToggleStatus).toHaveBeenCalledTimes(1)
+    expect(onToggleStatus).toHaveBeenCalledWith(inactiveAlert)
+  })
+})

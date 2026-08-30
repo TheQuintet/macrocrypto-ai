@@ -13,6 +13,7 @@ describe('formatPrice', () => {
   it('uses a currency label, thousands separators and 2 decimals', () => {
     expect(formatPrice(64213.5)).toBe('$64,213.50')
     expect(formatPrice(1000000)).toBe('$1,000,000.00')
+    expect(formatPrice(13123)).toBe('$13,123.00')
   })
 
   it('rounds to cents', () => {

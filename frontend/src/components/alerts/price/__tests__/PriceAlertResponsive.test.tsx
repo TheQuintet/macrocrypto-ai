@@ -1,6 +1,10 @@
 import { render } from '@testing-library/react';
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { AlertManagement } from '../../AlertManagement';
+
+vi.mock('@/hooks/useBtcPriceSnapshotQuery', () => ({
+  useBtcPriceSnapshotQuery: () => ({ data: undefined, isPending: true, isError: false }),
+}));
 
 describe('PriceAlert Mobile Responsive', () => {
   it('renders alert management without crashing', () => {
