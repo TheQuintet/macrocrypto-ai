@@ -1,4 +1,4 @@
-import { mapBtcPriceSnapshot } from '@/api/btcPrice'
+import { mapBtcPriceSnapshot } from '@/api/btcPrice/btcPrice'
 import type { BtcPriceSnapshot, PriceSource } from '@/types/btcPrice'
 
 /** First retry waits this long; each further attempt doubles it. */

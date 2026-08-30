@@ -23,6 +23,9 @@
   --color-chart-3: var(--chart-3);
   --color-chart-2: var(--chart-2);
   --color-chart-1: var(--chart-1);
+  --color-indicator-cpi: var(--indicator-cpi);
+  --color-indicator-federal-funds-rate: var(--indicator-federal-funds-rate);
+  --color-indicator-gdp: var(--indicator-gdp);
   --color-ring: var(--ring);
   --color-input: var(--input);
   --color-border: var(--border);
@@ -100,6 +103,11 @@
   --chart-4: oklch(0.6 0.02 240);
   --chart-5: oklch(0.45 0.015 240);
 
+  /* Macro series — cards, chart, table, and tooltips all read these */
+  --indicator-cpi: var(--chart-1);
+  --indicator-federal-funds-rate: var(--warning);
+  --indicator-gdp: oklch(0.66 0.16 300);
+
   --sidebar: oklch(0.975 0.003 220);
   --sidebar-foreground: oklch(0.28 0.012 240);
   --sidebar-primary: oklch(0.52 0.083 194);
@@ -161,6 +169,10 @@
   --chart-3: oklch(0.55 0.04 230);
   --chart-4: oklch(0.5 0.02 240);
   --chart-5: oklch(0.72 0.02 235);
+
+  --indicator-cpi: var(--chart-1);
+  --indicator-federal-funds-rate: var(--warning);
+  --indicator-gdp: oklch(0.74 0.14 300);
 
   --sidebar: oklch(0.195 0.007 240);
   --sidebar-foreground: oklch(0.9 0.004 220);

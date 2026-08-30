@@ -1,14 +1,17 @@
-import { useQuery } from '@tanstack/react-query';
-import { fetchMacroIndicators } from '@/api/macroIndicators';
-import type { MacroIndicator } from '@/types/macroIndicators';
+import { useQuery } from '@tanstack/react-query'
+import {
+  fetchMacroIndicators,
+  macroIndicatorsQueryKey,
+} from '@/api/macroIndicators/macroIndicators'
+import type { MacroIndicator } from '@/types/macroIndicators'
 
-export const macroIndicatorsQueryKey = ['macroIndicators'];
+export { macroIndicatorsQueryKey }
 
 export function useMacroIndicatorsQuery() {
-  return useQuery<MacroIndicator[]>({
-    queryKey: macroIndicatorsQueryKey,
-    queryFn: fetchMacroIndicators,
-    staleTime: 1000 * 60 * 5, // 5 minutes
-    refetchInterval: 1000 * 60 * 30, // 30 minutes
-  });
+  return useQuery<MacroIndicator[], Error>({
+    queryKey: macroIndicatorsQueryKey(),
+    queryFn: () => fetchMacroIndicators(),
+    staleTime: 1000 * 60 * 5,
+    refetchInterval: 1000 * 60 * 30,
+  })
 }

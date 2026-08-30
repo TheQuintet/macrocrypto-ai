@@ -12,6 +12,7 @@ export function makeIndicator(
     change_percent: 0,
     trend: '→',
     source: 'fred',
+    dataSource: 'live',
     ...overrides,
   }
 }

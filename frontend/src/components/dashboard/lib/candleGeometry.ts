@@ -1,3 +1,4 @@
+import { percentChange } from '@/components/dashboard/lib/priceFormat'
 import type { ChartCandle } from '@/types/chart'
 
 /** Narrowest a candle body may render, so a doji stays visible. */
@@ -22,6 +23,17 @@ export type CandleLayout = {
 
 export function candleDirection(candle: ChartCandle): CandleDirection {
   return candle.close < candle.open ? 'down' : 'up'
+}
+
+/**
+ * How far the wicks sit from the body edges the tooltip compares:
+ * high vs open, low vs close.
+ */
+export function candleExtremePercents(candle: ChartCandle) {
+  return {
+    highFromOpen: percentChange(candle.open, candle.high),
+    lowFromClose: percentChange(candle.close, candle.low),
+  }
 }
 
 /**

@@ -1,6 +1,5 @@
 import { ExampleQueryDemo } from '@/components/examples/ExampleQueryDemo'
 import { PageHeader } from '@/components/layout/PageHeader'
-import { TimeRangePicker } from '@/components/timeRange/TimeRangePicker'
 import { BtcPriceCard } from '@/components/dashboard/price/BtcPriceCard'
 import { PriceChangeCard } from '@/components/dashboard/price/PriceChangeCard'
 import {
@@ -22,9 +21,7 @@ export function DashboardPage() {
 
   return (
     <div className="flex min-w-0 flex-col gap-4 sm:gap-6">
-      <PageHeader title={page.title} description={page.body}>
-        <TimeRangePicker />
-      </PageHeader>
+      <PageHeader title={page.title} description={page.body} />
 
       <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
         <BtcPriceCard />

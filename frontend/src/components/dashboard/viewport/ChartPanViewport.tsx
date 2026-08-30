@@ -8,32 +8,36 @@ import {
   type WheelEvent as ReactWheelEvent,
 } from 'react'
 import type { ChartCandle } from '@/types/chart'
+import { ChartPanPlotRow } from '@/components/dashboard/viewport/ChartPanPlotRow'
 import { ChartYAxis } from '@/components/dashboard/viewport/ChartYAxis'
-import {
-  chartYAxisWidth,
-  isChartCompact,
-} from '@/components/dashboard/lib/chartTheme'
+import { chartYAxisWidth, isChartCompact } from '@/components/dashboard/lib/chartTheme'
 import { ChartZoomControls } from '@/components/dashboard/controls/ChartZoomControls'
 import {
   DEFAULT_CHART_POINT_WIDTH,
   zoomChartPointWidth,
 } from '@/components/dashboard/lib/chartZoom'
 import { candleYDomain } from '@/components/dashboard/lib/chartCandle'
-import { cn } from '@/lib/utils'
 
 /** Fallback before ResizeObserver measures the plot area. */
 const DEFAULT_CHART_HEIGHT = 224
 const OVERSCAN_POINTS = 16
 
+type PlotRenderArgs = {
+  data: ChartCandle[]
+  width: number
+  height: number
+  yDomain: [number, number]
+  compact: boolean
+  hideXAxis: boolean
+}
+
 type ChartPanViewportProps = {
   data: ChartCandle[]
-  children: (args: {
-    data: ChartCandle[]
-    width: number
-    height: number
-    yDomain: [number, number]
-    compact: boolean
-  }) => ReactNode
+  showVisibleRange?: boolean
+  secondaryYDomain?: (visible: ChartCandle[]) => [number, number]
+  secondary?: (args: PlotRenderArgs) => ReactNode
+  footer?: (args: { compact: boolean }) => ReactNode
+  children: (args: PlotRenderArgs) => ReactNode
 }
 
 type DragState = {
@@ -45,15 +49,22 @@ type DragState = {
 /**
  * Wide chart strip with drag-to-pan and zoom in/out (point width).
  * Bars/lines slide via CSS transform instead of morphing values.
+ * An optional secondary pane shares the same offset so dates stay aligned.
  */
 export function ChartPanViewport({
   data,
+  showVisibleRange = true,
+  secondaryYDomain,
+  secondary,
+  footer,
   children,
 }: ChartPanViewportProps) {
-  const chartRowRef = useRef<HTMLDivElement>(null)
+  const priceRowRef = useRef<HTMLDivElement>(null)
+  const indicatorRowRef = useRef<HTMLDivElement>(null)
   const viewportRef = useRef<HTMLDivElement>(null)
   const [viewportWidth, setViewportWidth] = useState(0)
-  const [chartHeight, setChartHeight] = useState(DEFAULT_CHART_HEIGHT)
+  const [priceHeight, setPriceHeight] = useState(DEFAULT_CHART_HEIGHT)
+  const [indicatorHeight, setIndicatorHeight] = useState(DEFAULT_CHART_HEIGHT)
   const [offsetX, setOffsetX] = useState(0)
   const [pointWidth, setPointWidth] = useState(DEFAULT_CHART_POINT_WIDTH)
   const [seriesKey, setSeriesKey] = useState('')
@@ -66,25 +77,32 @@ export function ChartPanViewport({
   const minOffsetX = Math.min(0, viewportWidth - virtualWidth)
   const canPan = virtualWidth > viewportWidth + 1
   const nextSeriesKey = `${data.length}`
+  const hidePriceXAxis = Boolean(secondary)
 
   useEffect(() => {
     const viewportNode = viewportRef.current
-    const rowNode = chartRowRef.current
-    if (!viewportNode || !rowNode) {
+    const priceRow = priceRowRef.current
+    if (!viewportNode || !priceRow) {
       return
     }
 
     const syncSize = () => {
       setViewportWidth(viewportNode.clientWidth)
-      setChartHeight(rowNode.clientHeight || DEFAULT_CHART_HEIGHT)
+      setPriceHeight(priceRow.clientHeight || DEFAULT_CHART_HEIGHT)
+      const indicatorRow = indicatorRowRef.current
+      if (indicatorRow) {
+        setIndicatorHeight(indicatorRow.clientHeight || DEFAULT_CHART_HEIGHT)
+      }
     }
 
     syncSize()
     const observer = new ResizeObserver(syncSize)
     observer.observe(viewportNode)
-    observer.observe(rowNode)
+    observer.observe(priceRow)
+    const indicatorRow = indicatorRowRef.current
+    if (indicatorRow) observer.observe(indicatorRow)
     return () => observer.disconnect()
-  }, [])
+  }, [hidePriceXAxis])
 
   if (seriesKey !== nextSeriesKey) {
     setSeriesKey(nextSeriesKey)
@@ -121,6 +139,14 @@ export function ChartPanViewport({
     return candleYDomain(visible.length > 0 ? visible : data)
   }, [data, firstVisibleIndex, visibleEnd])
 
+  const indicatorYDomain = useMemo(() => {
+    if (!secondaryYDomain) {
+      return [0, 1] as [number, number]
+    }
+    const visible = data.slice(firstVisibleIndex, visibleEnd)
+    return secondaryYDomain(visible.length > 0 ? visible : data)
+  }, [data, firstVisibleIndex, visibleEnd, secondaryYDomain])
+
   const visibleFrom = data[firstVisibleIndex]?.time
   const visibleTo =
     data[Math.min(data.length - 1, firstVisibleIndex + visibleCount - 1)]?.time
@@ -137,10 +163,8 @@ export function ChartPanViewport({
       return
     }
 
-    const centerIndex =
-      (-clampedOffsetX + viewportWidth / 2) / pointWidth
-    const nextOffset =
-      viewportWidth / 2 - centerIndex * nextPointWidth
+    const centerIndex = (-clampedOffsetX + viewportWidth / 2) / pointWidth
+    const nextOffset = viewportWidth / 2 - centerIndex * nextPointWidth
 
     setPointWidth(nextPointWidth)
     setOffsetX(clampOffset(nextOffset, nextPointWidth))
@@ -206,9 +230,27 @@ export function ChartPanViewport({
     setOffsetX(clampOffset(clampedOffsetX - delta))
   }
 
+  const plotArgs = {
+    data: renderData,
+    width: renderWidth,
+    compact,
+    hideXAxis: hidePriceXAxis,
+  }
+  const panHandlers = {
+    renderWidth,
+    stripOffsetX,
+    canPan,
+    isDragging,
+    onPointerDown,
+    onPointerMove,
+    onPointerUp: endDrag,
+    onPointerCancel: endDrag,
+    onWheel,
+  }
+
   return (
-    <div className="flex w-full min-w-0 flex-col gap-2">
-      <div className="flex flex-wrap items-center justify-between gap-2">
+    <div className="flex w-full min-w-0 flex-col gap-5 sm:gap-6">
+      <div className="flex flex-wrap items-center justify-between gap-2 pb-1">
         <ChartZoomControls
           pointWidth={pointWidth}
           onZoomIn={() => zoom('in')}
@@ -219,53 +261,55 @@ export function ChartPanViewport({
         </p>
       </div>
 
-      <div
-        ref={chartRowRef}
-        className="flex h-56 w-full min-w-0 sm:h-72 md:h-[340px]"
-      >
-        <div
-          className="shrink-0 bg-background"
-          style={{ width: yAxisWidth }}
-        >
+      <ChartPanPlotRow
+        yAxis={
           <ChartYAxis
             yDomain={yDomain}
-            height={chartHeight}
+            height={priceHeight}
             compact={compact}
+            hideXAxis={hidePriceXAxis}
           />
-        </div>
+        }
+        yAxisWidth={yAxisWidth}
+        heightClassName="flex h-56 w-full min-w-0 sm:h-72 md:h-[340px]"
+        rowRef={priceRowRef}
+        viewportRef={viewportRef}
+        {...panHandlers}
+      >
+        {children({
+          ...plotArgs,
+          height: priceHeight,
+          yDomain,
+        })}
+      </ChartPanPlotRow>
 
-        <div
-          ref={viewportRef}
-          className={cn(
-            'h-full min-w-0 flex-1 overflow-hidden touch-pan-y select-none',
-            canPan && (isDragging ? 'cursor-grabbing' : 'cursor-grab'),
-          )}
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={endDrag}
-          onPointerCancel={endDrag}
-          onWheel={onWheel}
-          role="presentation"
+      {secondary ? (
+        <ChartPanPlotRow
+          yAxis={
+            <ChartYAxis
+              yDomain={indicatorYDomain}
+              height={indicatorHeight}
+              compact={compact}
+              tickFormatter={(value) => value.toFixed(0)}
+            />
+          }
+          yAxisWidth={yAxisWidth}
+          heightClassName="flex h-56 w-full min-w-0 sm:h-72"
+          rowRef={indicatorRowRef}
+          {...panHandlers}
         >
-          <div
-            className="h-full will-change-transform"
-            style={{
-              width: renderWidth,
-              transform: `translate3d(${stripOffsetX}px, 0, 0)`,
-            }}
-          >
-            {children({
-              data: renderData,
-              width: renderWidth,
-              height: chartHeight,
-              yDomain,
-              compact,
-            })}
-          </div>
-        </div>
-      </div>
+          {secondary({
+            ...plotArgs,
+            height: indicatorHeight,
+            yDomain: indicatorYDomain,
+            hideXAxis: false,
+          })}
+        </ChartPanPlotRow>
+      ) : null}
 
-      {visibleFrom && visibleTo ? (
+      {footer?.({ compact })}
+
+      {showVisibleRange && visibleFrom && visibleTo ? (
         <p className="text-xs text-muted-foreground">
           Showing <span className="font-medium text-foreground">{visibleFrom}</span>
           {' → '}

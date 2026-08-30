@@ -1,13 +1,10 @@
-import {
-  INTERVAL_DURATION_MS,
-  MIN_LOOKBACK_MS_BY_INTERVAL,
-} from '@/components/dashboard/lib/chartInterval'
+import { INTERVAL_DURATION_MS } from '@/components/dashboard/lib/chartInterval'
+import { TIME_RANGE_LOOKBACK_MS } from '@/lib/timeRange'
 import type {
   BtcPriceHistoryParams,
   BtcPriceHistoryPoint,
   BtcPriceHistoryResponse,
 } from '@/types/btcPriceHistory'
-import type { TimeRange } from '@/types/preferences'
 
 export function btcPriceHistoryQueryKey(params: BtcPriceHistoryParams) {
   return ['btc-price-history', params.range, params.interval] as const
@@ -15,14 +12,6 @@ export function btcPriceHistoryQueryKey(params: BtcPriceHistoryParams) {
 
 const MOCK_LATENCY_MS = 280
 const MAX_POINTS = 500
-const MINUTE_MS = 60_000
-
-const RANGE_LOOKBACK_MS: Record<TimeRange, number> = {
-  '24h': 24 * 60 * MINUTE_MS,
-  '7d': 7 * 24 * 60 * MINUTE_MS,
-  '30d': 30 * 24 * 60 * MINUTE_MS,
-  '90d': 90 * 24 * 60 * MINUTE_MS,
-}
 
 function delay(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms))
@@ -38,10 +27,7 @@ export async function fetchBtcPriceHistory(
 ): Promise<BtcPriceHistoryResponse> {
   await delay(MOCK_LATENCY_MS)
 
-  const lookbackMs = Math.max(
-    RANGE_LOOKBACK_MS[params.range],
-    MIN_LOOKBACK_MS_BY_INTERVAL[params.interval],
-  )
+  const lookbackMs = TIME_RANGE_LOOKBACK_MS[params.range]
   const intervalMs = INTERVAL_DURATION_MS[params.interval]
   const startMs = endMs - lookbackMs
 

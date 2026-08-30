@@ -1,4 +1,4 @@
-import { buildMockBtcPriceSnapshot } from '@/api/btcPrice'
+import { buildMockBtcPriceSnapshot } from '@/api/btcPrice/btcPrice'
 import type { PriceSocketFactory } from '@/types/priceStream'
 
 /** How often the simulated gateway pushes a frame. */

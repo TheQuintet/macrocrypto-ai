@@ -1,1 +1,1 @@
-export type TimeRange = '24h' | '7d' | '30d' | '90d'
+export type TimeRange = '30d' | '90d' | '1y' | '5y'

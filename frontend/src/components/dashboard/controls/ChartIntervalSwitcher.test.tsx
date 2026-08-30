@@ -1,31 +1,53 @@
-import { cleanup } from '@testing-library/react'
+import { cleanup, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
+  expectCandleInterval,
+  expectIntervalNotSelected,
   expectIntervalSelected,
-  expectTouchFriendlyIntervalButtons,
+  getIntervalGroup,
   renderChartIntervalSwitcher,
   selectChartInterval,
 } from '@/components/dashboard/controls/ChartIntervalSwitcher.testHelpers'
+import { resetPreferencesStore } from '@/stores/preferencesStore.testHelpers'
 
 describe('ChartIntervalSwitcher', () => {
+  beforeEach(() => {
+    resetPreferencesStore()
+  })
+
   afterEach(() => {
     cleanup()
+    resetPreferencesStore()
   })
 
-  it('marks the chosen interval as selected', async () => {
-    const user = userEvent.setup()
-    const onChange = vi.fn()
-    renderChartIntervalSwitcher('1h', onChange)
-    expectIntervalSelected('1h')
-
-    await selectChartInterval(user, '1d')
-
-    expect(onChange).toHaveBeenCalledWith('1d')
-  })
-
-  it('uses full-width touch-friendly targets on small screens', () => {
+  it('opens on daily candles', () => {
     renderChartIntervalSwitcher()
-    expectTouchFriendlyIntervalButtons()
+
+    expectIntervalSelected('Daily')
+    expectIntervalNotSelected('Weekly')
+    expectCandleInterval('1d')
+  })
+
+  it('marks the chosen interval as selected and updates preferences', async () => {
+    const user = userEvent.setup()
+    renderChartIntervalSwitcher()
+
+    await selectChartInterval(user, 'Weekly')
+
+    expectIntervalSelected('Weekly')
+    expectIntervalNotSelected('Daily')
+    expectCandleInterval('1w')
+  })
+
+  it('offers only daily and weekly', () => {
+    renderChartIntervalSwitcher()
+
+    const group = getIntervalGroup()
+    expect(within(group).getAllByRole('button')).toHaveLength(2)
+    expect(within(group).getByRole('button', { name: 'Daily' })).toBeInTheDocument()
+    expect(
+      within(group).getByRole('button', { name: 'Weekly' }),
+    ).toBeInTheDocument()
   })
 })

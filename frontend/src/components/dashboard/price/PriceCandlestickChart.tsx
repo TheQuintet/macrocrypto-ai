@@ -12,6 +12,10 @@ type PriceCandlestickChartProps = {
   height: number
   yDomain: [number, number]
   compact?: boolean
+  hideXAxis?: boolean
+  syncId?: string
+  overlayTooltip?: boolean
+  onInspect?: (candle: ChartCandle) => void
 }
 
 /**
@@ -27,22 +31,35 @@ export function PriceCandlestickChart({
   height,
   yDomain,
   compact = false,
+  hideXAxis = false,
+  syncId,
+  overlayTooltip = true,
+  onInspect,
 }: PriceCandlestickChartProps) {
   const series = useMemo(
     () => data.map((candle) => ({ ...candle, range: [candle.low, candle.high] })),
     [data],
   )
+  const margin = chartPlotMargin(compact, hideXAxis)
 
   return (
     <BarChart
       width={width}
       height={height}
       data={series}
-      margin={chartPlotMargin(compact)}
+      margin={margin}
+      syncId={syncId}
+      onMouseMove={(state) => {
+        if (!state.isTooltipActive) return
+        const index = Number(state.activeIndex)
+        const candle = Number.isInteger(index) ? series[index] : undefined
+        if (candle) onInspect?.(candle)
+      }}
     >
       <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" />
       <XAxis
         dataKey="time"
+        hide={hideXAxis}
         tick={{
           fill: 'var(--muted-foreground)',
           fontSize: compact ? 10 : 11,
@@ -52,12 +69,13 @@ export function PriceCandlestickChart({
         minTickGap={compact ? 40 : 28}
         angle={compact ? 0 : -25}
         textAnchor={compact ? 'middle' : 'end'}
-        height={compact ? 32 : 56}
+        height={hideXAxis ? 1 : compact ? 32 : 56}
       />
       <YAxis domain={yDomain} hide width={0} />
       <Tooltip
-        content={<PriceCandleTooltip />}
+        content={overlayTooltip ? <PriceCandleTooltip /> : () => null}
         cursor={<PriceCandleHoverLine />}
+        wrapperStyle={overlayTooltip ? undefined : { display: 'none' }}
       />
       <Bar dataKey="range" shape={<PriceCandle />} isAnimationActive={false} />
     </BarChart>

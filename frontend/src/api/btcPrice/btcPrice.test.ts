@@ -6,7 +6,7 @@ import {
   mapBtcPriceSnapshot,
   mockBtcPriceAt,
   PRICE_SNAPSHOT_TICK_MS,
-} from '@/api/btcPrice'
+} from '@/api/btcPrice/btcPrice'
 
 const FIXED_NOW_MS = Date.UTC(2024, 5, 15, 12, 0, 0) // 2024-06-15T12:00:00.000Z
 

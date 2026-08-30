@@ -11,6 +11,7 @@ import type { ChartCandle } from '@/types/chart'
 function candle(overrides: Partial<ChartCandle> = {}): ChartCandle {
   return {
     time: 'Mar 5 14:00',
+    timeMs: 0,
     open: 120,
     high: 200,
     low: 100,

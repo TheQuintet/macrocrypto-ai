@@ -5,6 +5,7 @@ import {
   formatSignedPrice,
   formatUpdatedAt,
   formatVolume,
+  percentChange,
   priceDirection,
 } from '@/components/dashboard/lib/priceFormat'
 
@@ -73,6 +74,18 @@ describe('formatUpdatedAt', () => {
     expect(formatUpdatedAt(undefined)).toBe('--')
     expect(formatUpdatedAt('')).toBe('--')
     expect(formatUpdatedAt('not a date')).toBe('--')
+  })
+})
+
+describe('percentChange', () => {
+  it('measures the move from a base value', () => {
+    expect(percentChange(64_000, 64_400)).toBeCloseTo(0.625)
+    expect(percentChange(64_100.5, 63_900)).toBeCloseTo(-0.3126, 3)
+  })
+
+  it('is flat when the base cannot be used', () => {
+    expect(percentChange(0, 100)).toBe(0)
+    expect(percentChange(Number.NaN, 100)).toBe(0)
   })
 })
 

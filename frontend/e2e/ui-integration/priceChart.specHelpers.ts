@@ -2,32 +2,25 @@ import { expect, type Page } from '@playwright/test'
 
 const CANDLE_COLORS = ['var(--positive)', 'var(--negative)']
 
-export async function selectChartType(page: Page, label: 'Line' | 'Candles') {
-  await page
-    .getByRole('group', { name: 'Chart type' })
-    .getByRole('button', { name: label, exact: true })
-    .click()
-}
-
-export async function expectChartTypeSelected(page: Page, label: string) {
-  await expect(
-    page
-      .getByRole('group', { name: 'Chart type' })
-      .getByRole('button', { name: label, exact: true }),
-  ).toHaveAttribute('aria-pressed', 'true')
-}
-
 /** Measure the drawn candles straight off the SVG. */
 async function readCandles(page: Page) {
   return page.evaluate((colors) => {
     const surfaces = [...document.querySelectorAll('svg.recharts-surface')]
-    const plot = surfaces[surfaces.length - 1]
+    const isCandle = (value: string | null) =>
+      value !== null && colors.includes(value)
+    const plot =
+      surfaces.find((surface) => {
+        const wicks = [...surface.querySelectorAll('line')].some((line) =>
+          isCandle(line.getAttribute('stroke')),
+        )
+        const bodies = [...surface.querySelectorAll('rect')].some((rect) =>
+          isCandle(rect.getAttribute('fill')),
+        )
+        return wicks || bodies
+      }) ?? surfaces[surfaces.length - 1]
     if (!plot) {
       return null
     }
-
-    const isCandle = (value: string | null) =>
-      value !== null && colors.includes(value)
     const wicks = [...plot.querySelectorAll('line')].filter((line) =>
       isCandle(line.getAttribute('stroke')),
     )
@@ -92,17 +85,6 @@ export async function expectCandleShapesWellFormed(page: Page) {
   expect(candles?.centered).toBe(true)
 }
 
-export async function expectLineRendered(page: Page) {
-  await expect(
-    page.locator('svg.recharts-surface .recharts-line-curve').first(),
-  ).toBeVisible({ timeout: 15_000 })
-}
-
-export async function expectNoCandles(page: Page) {
-  const candles = await readCandles(page)
-  expect(candles?.count ?? 0).toBe(0)
-}
-
 /**
  * Hover a candle that is actually on screen.
  *
@@ -112,7 +94,12 @@ export async function expectNoCandles(page: Page) {
  */
 export async function hoverMiddleCandle(page: Page) {
   const point = await page.evaluate((colors) => {
-    const surface = [...document.querySelectorAll('svg.recharts-surface')].pop()
+    const surface = [...document.querySelectorAll('svg.recharts-surface')].find(
+      (plot) =>
+        [...plot.querySelectorAll('line')].some((line) =>
+          colors.includes(line.getAttribute('stroke') ?? ''),
+        ),
+    )
     if (!surface) {
       return null
     }
@@ -153,7 +140,12 @@ export async function expectCandleHoverLine(page: Page) {
   await expect(hoverLine(page)).toBeAttached({ timeout: 10_000 })
 
   const geometry = await page.evaluate((colors) => {
-    const surface = [...document.querySelectorAll('svg.recharts-surface')].pop()
+    const surface = [...document.querySelectorAll('svg.recharts-surface')].find(
+      (plot) =>
+        [...plot.querySelectorAll('line')].some((line) =>
+          colors.includes(line.getAttribute('stroke') ?? ''),
+        ),
+    )
     const line = surface?.querySelector('[data-slot="candle-hover-line"]')
     if (!surface || !line) {
       return null
@@ -199,4 +191,40 @@ export async function expectOhlcTooltip(page: Page) {
   for (const label of ['Open', 'High', 'Low', 'Close']) {
     await expect(tooltip).toContainText(label)
   }
+}
+
+export async function expectCandleReadoutHint(page: Page) {
+  await expect(page.getByRole('region', { name: 'Selected candle' })).toContainText(
+    /tap a candle/i,
+  )
+}
+
+export async function expectCandleReadout(page: Page) {
+  const readout = page.getByRole('region', { name: 'Selected candle' })
+  await expect(readout).toBeVisible()
+  for (const label of ['Open', 'High', 'Low', 'Close']) {
+    await expect(readout).toContainText(label)
+  }
+}
+
+function candleIntervalGroup(page: Page) {
+  return page.getByRole('group', { name: 'Chart interval' })
+}
+
+export async function selectCandleInterval(
+  page: Page,
+  label: 'Daily' | 'Weekly',
+) {
+  await candleIntervalGroup(page)
+    .getByRole('button', { name: label, exact: true })
+    .click()
+}
+
+export async function expectCandleIntervalSelected(
+  page: Page,
+  label: 'Daily' | 'Weekly',
+) {
+  await expect(
+    candleIntervalGroup(page).getByRole('button', { name: label, exact: true }),
+  ).toHaveAttribute('aria-pressed', 'true')
 }
