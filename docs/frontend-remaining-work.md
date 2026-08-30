@@ -1,6 +1,8 @@
 # Frontend remaining work
 
-Snapshot from backlog review of [open GitHub issues](https://github.com/TheQuintet/macrocrypto-ai/issues?q=sort%3Aupdated-desc+is%3Aissue+state%3Aopen+) on **20 August 2026**. Use this for planning, not as a substitute for the issue tracker.
+Snapshot from backlog review of [open GitHub issues](https://github.com/TheQuintet/macrocrypto-ai/issues?q=sort%3Aupdated-desc+is%3Aissue+state%3Aopen+) on **30 August 2026**. Use this for planning, not as a substitute for the issue tracker.
+
+S1.7–S1.9 (historical indicators, BTC-impact colors, mobile layout) are **done** on [`feature/s1.7-s1.9-macro-indicators`](https://github.com/TheQuintet/macrocrypto-ai/pull/560). Treat them as finished for planning even though that PR is not merged yet; close [#269](https://github.com/TheQuintet/macrocrypto-ai/issues/269), [#270](https://github.com/TheQuintet/macrocrypto-ai/issues/270), and [#271](https://github.com/TheQuintet/macrocrypto-ai/issues/271) when it lands.
 
 Related: [project scope](./project-scope.md), [user stories dependency map](./user-stories-dependency-map.md), frontend conventions in `AGENTS.md`.
 
@@ -16,7 +18,7 @@ The tracker is layered like this:
 3. **Tasks** — numbered children such as `T1.8`, `A3.11`, `S3.6`, tagged `[FRONTEND]` / `[BACKEND]` / `[TESTING]`.
 4. **Labels** — `frontend` plus persona (`btc trader`, `investment analyst`, `any user`), owning service (`ai-service`, `alerts-service`, `data-service`), and sprint (`sprint-5`).
 
-Sprint 5 tagged frontend is mostly **carryover**: S1.7–S1.9, A3.9–A3.14, A4.6. Most of the 83 frontend issues are **unscheduled**. The two concrete dashboard tickets (not generated story slices) are [#508](https://github.com/TheQuintet/macrocrypto-ai/issues/508) and [#510](https://github.com/TheQuintet/macrocrypto-ai/issues/510).
+Sprint 5 tagged frontend leftover is **A3.9–A3.14** and **A4.6** (S1.7–S1.9 are done, pending merge of [#560](https://github.com/TheQuintet/macrocrypto-ai/pull/560)). Most of the 83 frontend issues are **unscheduled**. The two concrete dashboard tickets (not generated story slices) are [#508](https://github.com/TheQuintet/macrocrypto-ai/issues/508) and [#510](https://github.com/TheQuintet/macrocrypto-ai/issues/510).
 
 ## Things to remember
 
@@ -24,8 +26,8 @@ Sprint 5 tagged frontend is mostly **carryover**: S1.7–S1.9, A3.9–A3.14, A4.
 - **Do not implement mobile-responsiveness or unit/UI tests as standalone work.** They are acceptance criteria on the real components below.
 - **24h and 7d prediction UI is one chart with a toggle**, not two stacks of components (T1.11 and T2.8 are the same control).
 - **T7.7 is duplicated** (`#152` and `#153`). Close one when implementing alert CRUD.
-- Color-coding for macro indicators (**S1.8**) is already in `MacroIndicators`. Do not rebuild it.
-- Price cards, live stream status, OHLC candlesticks, zoom/interval switchers, and the indicators **snapshot grid** are done. Do not rebuild those.
+- Macro indicators (**S1.7–S1.9**) are done: snapshot cards with BTC-impact colors, linked BTC + history chart/table, Daily/Weekly, series filter, simulated vs live. Do not rebuild `MacroIndicators`, `MacroIndicatorHistory`, or the mobile layout for that page.
+- Price cards, live stream status, OHLC candlesticks, zoom/interval switchers, and candle tooltips (High vs Open / Low vs Close, as-of prints) are done. Do not rebuild those.
 - Alerts **route exists** (`/alerts`) but is **not in the sidebar**. Local mock list only.
 - `/forecasts` is placeholders (`ChartPlaceholder` + skeletons). Dashboard “Macro regime” card is a skeleton.
 - Forecast on the dashboard (**#508**) needs a design choice: extend the price chart vs a separate card. Real history (**#507**, backend) matters if history and forecast must join on one axis.
@@ -37,7 +39,7 @@ Sprint 5 tagged frontend is mostly **carryover**: S1.7–S1.9, A3.9–A3.14, A4.
 
 | Scope | What you finish | Effort |
 |--------|-----------------|--------|
-| Sprint-shaped now | `#510`, `#508`, S1 leftover, A3 regimes | ~1.5–2.5 weeks |
+| Sprint-shaped now | `#510`, `#508`, A3 regimes | ~1–2 weeks |
 | Capstone-useful product | Above + real `/forecasts` + real alerts CRUD | ~4–6 weeks |
 | Close every FE ticket | Full trader + analyst surfaces | ~8–12 weeks (10–16 if closing tickets one-by-one) |
 
@@ -49,8 +51,8 @@ Vite + React + TypeScript under `frontend/`. Routes in `App.tsx`:
 
 | Route | Page | Status |
 |--------|------|--------|
-| `/` | `DashboardPage` | Live/spot price, change, OHLC chart, pan/zoom, time range, macro indicators. Regime + forecast not wired. |
-| `/macro` | `MacroPage` | Same indicators query. |
+| `/` | `DashboardPage` | Live/spot price, change, OHLC chart, pan/zoom, time range, indicator snapshot. Regime + forecast not wired. |
+| `/macro` | `MacroPage` | Indicator snapshot + BTC chart linked to history (chart + table). |
 | `/forecasts` | `ForecastsPage` | Placeholder chart/cards. |
 | `/alerts` | `AlertsPage` | Client-only draft list. |
 | *(none)* | Methodology | No page yet. |
@@ -72,9 +74,9 @@ Glance view: live price, chart, regime, indicators, optional forecast snippet.
 **Already there**
 
 - [x] `BtcPriceCard`, `PriceChangeCard`, day stats, stream status
-- [x] `PriceChart` (OHLC), zoom / interval switchers, pan viewport
+- [x] `PriceChart` (OHLC), zoom / interval switchers, pan viewport, candle tooltip
 - [x] `TimeRangePicker` (fetches history)
-- [x] `MacroIndicators` snapshot grid (including color-coding)
+- [x] `MacroIndicators` snapshot grid (BTC-impact color-coding)
 
 **Still missing**
 
@@ -84,15 +86,21 @@ Glance view: live price, chart, regime, indicators, optional forecast snippet.
 
 ### Macro — `/macro` (`MacroPage`)
 
-Deeper macro context. Today it is only the same indicator cards as the dashboard.
+Deeper macro context: latest prints plus history aligned to the BTC chart.
 
-**Already there**
+**Already there** (S1.7–S1.9 — [#560](https://github.com/TheQuintet/macrocrypto-ai/pull/560), not yet merged)
 
-- [x] `MacroIndicators` snapshot (same component as dashboard)
+- [x] `MacroIndicators` snapshot (same cards as dashboard; BTC-impact colors)
+- [x] Linked BTC candlesticks + indicator history for the shared time range (`#269`)
+- [x] History chart (rebased series) and history table
+- [x] Daily / Weekly interval (trader vs analyst candle size)
+- [x] Filter history to All / CPI / Fed funds / GDP
+- [x] Simulated vs live (`VITE_API_BASE_URL`); Simulated badge when mocks are on
+- [x] Candle tooltip: as-of indicator % (same colors as the table), High vs Open, Low vs Close
+- [x] Mobile-responsive cards, chart, and table (`#271`)
 
-**Still missing — indicators & regimes (Sprint 5 frontend)**
+**Still missing — regimes (Sprint 5 frontend leftover)**
 
-- [ ] `IndicatorHistory` — open an indicator → historical series (`#269`)
 - [ ] `RegimePerformance` (`#238`)
 - [ ] `RegimeTimeline` (`#239`)
 - [ ] `SimilarPeriods` (`#241`)
@@ -100,7 +108,7 @@ Deeper macro context. Today it is only the same indicator cards as the dashboard
 
 **Still missing — calendar, events, correlations, export (later; not Sprint 5 frontend)**
 
-Calendar (S3; backend `#294`–`#298` is in this sprint)
+Calendar (S3; backend `#294`–`#298` is merged)
 
 - [ ] `EconomicCalendar` — upcoming events (`S3.6`; can also cover T9.8)
 - [ ] `EventDetailsModal`
@@ -162,7 +170,7 @@ New route (e.g. `/methodology`) plus a sidebar item.
 ## Suggested build order (by page)
 
 1. **Dashboard** — range fit (`#510`), then forecast snippet (`#508`), then `RegimeCard`.
-2. **Macro** — `IndicatorHistory` + regime block (timeline / performance / similar).
+2. **Macro** — regime block (timeline / performance / similar). Indicator history is done.
 3. **Forecasts** — fill the placeholders.
 4. **Alerts** — real CRUD + sidebar.
 5. **Macro (later)** — calendar, event impact, correlations, export.
