@@ -5,6 +5,7 @@ for the API Gateway. It includes:
 - Authentication endpoints (auth)
 - Prediction endpoints (predictions)
 - Market data endpoints (market)
+- Recommendations endpoints (recommendations)
 - Alert endpoints (alerts)
 - Export endpoints (exports)
 """
@@ -14,7 +15,8 @@ from fastapi import APIRouter
 # Import all route modules
 from app.api.v1 import auth
 from app.api.v1 import predictions
-from app.api.v1 import market  # Added: Market data endpoints
+from app.api.v1 import market
+from app.api.v1 import recommendations  # Added: Recommendations endpoints
 # from app.api.v1 import alerts       # Will be added later
 # from app.api.v1 import exports      # Will be added later
 
@@ -42,6 +44,13 @@ router.include_router(
 router.include_router(
     market.router,
     tags=["Market Data"],
+)
+
+# Recommendations routes
+router.include_router(
+    recommendations.router,
+    prefix="/recommendations",
+    tags=["Recommendations"],
 )
 
 # Alert routes (to be added)
@@ -99,6 +108,9 @@ async def api_v1_root():
                 "indicators": "GET /api/v1/indicators",
                 "correlation": "GET /api/v1/correlation/btc?window=30d",
                 "regimes": "GET /api/v1/regimes/btc?timeframe=1w",
+            },
+            "recommendations": {
+                "btc": "GET /api/v1/recommendations/btc?timeframe=24h&risk_level=moderate",
             },
             "alerts": "Coming soon",
             "exports": "Coming soon",
