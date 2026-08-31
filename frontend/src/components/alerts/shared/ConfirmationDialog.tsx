@@ -23,6 +23,7 @@ interface ConfirmationDialogProps {
   variant?: 'default' | 'destructive';
   isLoading?: boolean;
   className?: string;
+  children?: React.ReactNode;
 }
 
 export const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
@@ -36,6 +37,7 @@ export const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
   variant = 'default',
   isLoading = false,
   className,
+  children,
 }) => {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -44,6 +46,7 @@ export const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
+        {children}
         <DialogFooter className="gap-2 sm:gap-0">
           <Button
             type="button"

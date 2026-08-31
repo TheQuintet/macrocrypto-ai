@@ -3,8 +3,8 @@ import { usePriceAlerts } from '@/hooks/alerts/usePriceAlerts';
 import { PriceAlertForm } from './price/PriceAlertForm';
 import { AlertsList } from './AlertsList';
 import { AlertsEmptyState } from './AlertsEmptyState';
+import { AlertDeleteConfirmation } from './AlertDeleteConfirmation';
 import { AlertStatusFilter } from './AlertStatusFilter';
-import { ConfirmationDialog } from './shared/ConfirmationDialog';
 import { showToast } from './shared/ToastNotification';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -196,15 +196,11 @@ export const AlertManagement: React.FC<AlertManagementProps> = ({ userId }) => {
         />
       )}
 
-      {/* Delete Confirmation */}
-      <ConfirmationDialog
-        open={!!deletingAlert}
+      <AlertDeleteConfirmation
+        alert={deletingAlert}
         onOpenChange={() => setDeletingAlert(null)}
         onConfirm={handleDelete}
-        title="Delete alert"
-        description={`Delete "${deletingAlert?.name || 'this alert'}"?`}
-        confirmText="Delete"
-        variant="destructive"
+        isLoading={isLoading}
       />
     </div>
   );
