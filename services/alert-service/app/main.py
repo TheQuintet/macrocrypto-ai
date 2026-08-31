@@ -110,7 +110,6 @@ app.include_router(router)                    # Price alerts (T7)
 app.include_router(prediction_router)         # Prediction alerts (T8)
 app.include_router(macro_router)              # Macro event alerts (T9)
 
-
 # ============================================
 # EVENT HANDLERS
 # ============================================

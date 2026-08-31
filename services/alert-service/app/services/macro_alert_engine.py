@@ -17,7 +17,9 @@ from app.models.macro_alert import (
     MacroEventSubscription,
 )
 from app.rabbitmq.producer import RabbitMQProducer
-from app.services.notification_service import NotificationService
+from app.models.alert import NotificationType
+from app.services.macro_notification_service import MacroNotificationService
+# from app.services.notification_service import NotificationService
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +39,7 @@ class MacroAlertEngine:
     ):
         self.db = db
         self.producer = producer
-        self.notification_service = NotificationService(db)
+        self.notification_service = MacroNotificationService(db)
 
     def check_upcoming_events(self) -> List[Dict[str, Any]]:
         """
@@ -477,12 +479,15 @@ class MacroAlertEngine:
             f"{event.description or 'Major economic event that may affect BTC'}"
         )
 
-        self.notification_service.create_notification(
+        self.notification_service.create_macro_notification(
             user_id=alert.user_id,
-            alert_id=None,
-            title=title,
-            message=message,
-            notification_type="macro_alert",
+            alert_id=alert.id,
+            event_name=event.event_name,
+            event_type=event_type_value,
+            event_date=scheduled_at,
+            timing=timing,
+            impact=impact_value,
+            description=event.description,
             data={
                 "alert_id": str(alert.id),
                 "event_name": event.event_name,
