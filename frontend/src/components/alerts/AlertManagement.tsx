@@ -17,6 +17,7 @@ import {
   type AlertListStatusFilter,
 } from './shared/alertStatus';
 import type { PriceAlert, CreatePriceAlertRequest, UpdatePriceAlertRequest } from '@/types/alerts/priceAlert';
+import { MacroAlertList } from './macro/MacroAlertList';
 
 interface AlertManagementProps {
   userId: string;
@@ -27,6 +28,7 @@ export const AlertManagement: React.FC<AlertManagementProps> = ({ userId }) => {
   const [editingAlert, setEditingAlert] = useState<PriceAlert | null>(null);
   const [deletingAlert, setDeletingAlert] = useState<PriceAlert | null>(null);
   const [statusFilter, setStatusFilter] = useState<AlertListStatusFilter>('all');
+  const [activeTab, setActiveTab] = useState<'price' | 'macro'>('price');
 
   const {
     alerts,
@@ -134,44 +136,87 @@ export const AlertManagement: React.FC<AlertManagementProps> = ({ userId }) => {
     );
   }
 
+  const priceAlertCount = alerts.length;
+
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        {alerts.length > 0 ? (
-          <AlertStatusFilter value={statusFilter} onChange={setStatusFilter} />
-        ) : null}
-        <div className="flex items-center gap-2 sm:ml-auto">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleRefresh}
-            disabled={isLoading}
-          >
-            <RefreshCw className={cn('w-4 h-4 mr-2', isLoading && 'animate-spin')} />
-            Refresh
-          </Button>
-          <Button onClick={() => setShowCreateModal(true)}>
-            <Plus className="w-4 h-4 mr-2" />
-            New Alert
-          </Button>
-        </div>
+      {/* Tabs */}
+      <div className="flex flex-wrap gap-2 border-b">
+        <button
+          className={cn(
+            'px-4 py-2 text-sm font-medium border-b-2 transition-colors',
+            activeTab === 'price'
+              ? 'border-primary text-primary'
+              : 'border-transparent text-muted-foreground hover:text-foreground'
+          )}
+          onClick={() => setActiveTab('price')}
+        >
+          Price Alerts ({priceAlertCount})
+        </button>
+        <button
+          className={cn(
+            'px-4 py-2 text-sm font-medium border-b-2 transition-colors',
+            activeTab === 'macro'
+              ? 'border-primary text-primary'
+              : 'border-transparent text-muted-foreground hover:text-foreground'
+          )}
+          onClick={() => setActiveTab('macro')}
+        >
+          Macro Events
+        </button>
       </div>
 
-      {/* Alert List */}
-      {alerts.length === 0 ? (
-        <AlertsEmptyState onCreateAlert={() => setShowCreateModal(true)} />
-      ) : visibleAlerts.length === 0 ? (
-        <p className="p-8 text-center text-muted-foreground">
-          {statusFilter === 'active' ? 'No active alerts' : 'No inactive alerts'}
-        </p>
-      ) : (
-        <AlertsList
-          alerts={visibleAlerts}
-          onDelete={setDeletingAlert}
-          onEdit={setEditingAlert}
-          onToggleStatus={handleToggleStatus}
-        />
+      {/* Price Alerts Tab */}
+      {activeTab === 'price' && (
+        <>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h2 className="text-2xl font-bold tracking-tight">Price Alerts</h2>
+              <p className="text-sm text-muted-foreground">
+                {alerts.length} {alerts.length === 1 ? 'alert' : 'alerts'} configured
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <AlertStatusFilter
+                value={statusFilter}
+                onChange={setStatusFilter}
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleRefresh}
+                disabled={isLoading}
+              >
+                <RefreshCw className={cn('w-4 h-4 mr-2', isLoading && 'animate-spin')} />
+                Refresh
+              </Button>
+              <Button onClick={() => setShowCreateModal(true)}>
+                <Plus className="w-4 h-4 mr-2" />
+                New Alert
+              </Button>
+            </div>
+          </div>
+
+          {alerts.length === 0 ? (
+            <AlertsEmptyState onCreateAlert={() => setShowCreateModal(true)} />
+          ) : (
+            <Card>
+              <CardContent className="pt-4">
+                <AlertsList
+                  alerts={visibleAlerts}
+                  onDelete={setDeletingAlert}
+                  onEdit={setEditingAlert}
+                  onToggleStatus={handleToggleStatus}
+                />
+              </CardContent>
+            </Card>
+          )}
+        </>
+      )}
+
+      {/* Macro Events Tab */}
+      {activeTab === 'macro' && (
+        <MacroAlertList userId={userId} />
       )}
 
       {/* Create Modal */}
@@ -196,11 +241,11 @@ export const AlertManagement: React.FC<AlertManagementProps> = ({ userId }) => {
         />
       )}
 
+      {/* Delete Confirmation */}
       <AlertDeleteConfirmation
         alert={deletingAlert}
         onOpenChange={() => setDeletingAlert(null)}
         onConfirm={handleDelete}
-        isLoading={isLoading}
       />
     </div>
   );
