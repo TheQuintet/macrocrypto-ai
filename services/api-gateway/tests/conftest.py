@@ -170,6 +170,74 @@ def pytest_configure(config):
     )
 
 
+# Add these imports at the top
+from app.models.user import User, UserStatus, UserRole
+
+# Add these fixtures after the existing ones
+
+@pytest.fixture
+def test_user(db_session):
+    """Create a test user (pending status)."""
+    user = User(
+        email="test@example.com",
+        username="testuser",
+        hashed_password="hashed_password",
+        full_name="Test User",
+        role=UserRole.USER,
+        status=UserStatus.PENDING,
+        is_email_verified=False,
+    )
+    db_session.add(user)
+    db_session.commit()
+    db_session.refresh(user)
+    return user
+
+
+@pytest.fixture
+def active_user(db_session):
+    """Create an active test user."""
+    from app.core.security import get_password_hash
+    user = User(
+        email="active@example.com",
+        username="activeuser",
+        hashed_password=get_password_hash("TestPass123"),
+        full_name="Active User",
+        role=UserRole.USER,
+        status=UserStatus.ACTIVE,
+        is_email_verified=True,
+    )
+    db_session.add(user)
+    db_session.commit()
+    db_session.refresh(user)
+    return user
+
+
+@pytest.fixture
+def active_user_token(client, active_user):
+    """Get an access token for the active user."""
+    response = client.post(
+        "/api/v1/auth/login",
+        json={
+            "username": "activeuser",
+            "password": "TestPass123"
+        }
+    )
+    return response.json()["access_token"]
+
+
+@pytest.fixture
+def active_user_refresh_token(client, active_user):
+    """Get a refresh token for the active user."""
+    response = client.post(
+        "/api/v1/auth/login",
+        json={
+            "username": "activeuser",
+            "password": "TestPass123"
+        }
+    )
+    return response.json()["refresh_token"]
+
+
 # ============================================
 # CLEANUP
 # ============================================
