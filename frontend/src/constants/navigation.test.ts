@@ -4,6 +4,7 @@ import {
   navItemFromPathname,
   pageCopy,
   routes,
+  sidebarNavItems,
 } from '@/constants/navigation'
 import type { NavItemId } from '@/types/navigation'
 
@@ -30,5 +31,16 @@ describe('navigation constants', () => {
     expect(isSidebarNavItemActive(routes.macro, '/macro')).toBe(true)
     expect(isSidebarNavItemActive(routes.macro, '/macro/cpi')).toBe(true)
     expect(isSidebarNavItemActive(routes.forecasts, '/macro')).toBe(false)
+    expect(isSidebarNavItemActive(routes.alerts, '/alerts')).toBe(true)
+    expect(isSidebarNavItemActive(routes.alerts, '/')).toBe(false)
+  })
+
+  it('lists Alerts in the sidebar next to the other pages', () => {
+    expect(sidebarNavItems.map((item) => item.id)).toEqual([
+      'dashboard',
+      'macro',
+      'forecasts',
+      'alerts',
+    ])
   })
 })

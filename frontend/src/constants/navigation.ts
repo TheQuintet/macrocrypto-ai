@@ -1,4 +1,5 @@
 import {
+  AlarmClock,
   ChartLine,
   LayoutDashboard,
   Landmark,
@@ -32,7 +33,6 @@ export const pageCopy: Record<NavItemId, PageCopy> = {
   },
   alerts: {
     title: 'Alerts',
-    body: 'Create rules to get notified when price or macro conditions cross your thresholds.',
   },
 }
 
@@ -54,6 +54,12 @@ export const sidebarNavItems: SidebarNavItem[] = [
     label: pageCopy.forecasts.title,
     path: routes.forecasts,
     icon: ChartLine,
+  },
+  {
+    id: 'alerts',
+    label: pageCopy.alerts.title,
+    path: routes.alerts,
+    icon: AlarmClock,
   },
 ]
 

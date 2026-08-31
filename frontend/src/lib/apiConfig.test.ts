@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { API_BASE_URL, apiUrl, isApiConfigured } from '@/lib/apiConfig'
+import {
+  ALERT_API_BASE_URL,
+  API_BASE_URL,
+  alertApiUrl,
+  apiUrl,
+  isAlertApiConfigured,
+  isApiConfigured,
+} from '@/lib/apiConfig'
 
 describe('apiConfig', () => {
   it('reports no backend in a frontend-only run', () => {
@@ -8,5 +15,8 @@ describe('apiConfig', () => {
     expect(API_BASE_URL).toBeFalsy()
     expect(isApiConfigured()).toBe(false)
     expect(apiUrl('/api/v1/btc/price')).toBeNull()
+    expect(ALERT_API_BASE_URL).toBeFalsy()
+    expect(isAlertApiConfigured()).toBe(false)
+    expect(alertApiUrl('/api/v1/alerts/price')).toBeNull()
   })
 })

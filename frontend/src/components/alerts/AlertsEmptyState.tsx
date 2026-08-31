@@ -3,7 +3,6 @@ import { Button } from '@/components/ui/button'
 import {
   Empty,
   EmptyContent,
-  EmptyDescription,
   EmptyHeader,
   EmptyMedia,
   EmptyTitle,
@@ -13,7 +12,6 @@ type AlertsEmptyStateProps = {
   onCreateAlert: () => void
 }
 
-/** Empty alerts placeholder with a create CTA. */
 export function AlertsEmptyState({ onCreateAlert }: AlertsEmptyStateProps) {
   return (
     <Empty className="min-h-[240px] border sm:min-h-[320px]">
@@ -22,10 +20,6 @@ export function AlertsEmptyState({ onCreateAlert }: AlertsEmptyStateProps) {
           <BellPlus />
         </EmptyMedia>
         <EmptyTitle>No alerts yet</EmptyTitle>
-        <EmptyDescription>
-          You haven&apos;t created any alert rules. Add one to start tracking
-          price moves and macro shifts.
-        </EmptyDescription>
       </EmptyHeader>
       <EmptyContent>
         <Button
@@ -35,7 +29,7 @@ export function AlertsEmptyState({ onCreateAlert }: AlertsEmptyStateProps) {
           onClick={onCreateAlert}
         >
           <Plus data-icon="inline-start" />
-          Create your first alert
+          New alert
         </Button>
       </EmptyContent>
     </Empty>

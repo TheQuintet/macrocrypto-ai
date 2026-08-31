@@ -5,8 +5,22 @@ export async function goToRoute(page: Page, id: NavItemId) {
   await page.goto(routes[id])
 }
 
-export async function clickSidebarNav(page: Page, id: Exclude<NavItemId, 'alerts'>) {
+export async function clickSidebarNav(page: Page, id: NavItemId) {
   await page.getByRole('link', { name: pageCopy[id].title }).click()
+}
+
+export async function openNotifications(page: Page) {
+  await page.getByRole('button', { name: 'Notifications' }).click()
+}
+
+export async function clickManageAlerts(page: Page) {
+  await page.getByRole('link', { name: 'Manage alerts' }).click()
+}
+
+export async function expectNotificationsOpen(page: Page) {
+  await expect(
+    page.getByRole('heading', { name: 'Notifications' }),
+  ).toBeVisible()
 }
 
 export async function selectTimeRange(page: Page, range: string) {
