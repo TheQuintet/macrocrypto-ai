@@ -6,6 +6,7 @@ based on BTC predictions with different horizons and risk levels.
 
 import httpx
 import logging
+import json
 from typing import Optional, List, Dict, Any
 from datetime import datetime, timezone
 
@@ -16,6 +17,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.security import get_current_active_user
+from app.cache.service import cache_service
 from app.services.prediction_service import prediction_service
 from app.models.user import User
 
@@ -115,18 +117,14 @@ async def get_btc_recommendations(
     Raises:
         HTTPException: If the AI Service is unavailable or returns an error.
     """
-    # Get cache key
-    cache_key = f"recommendations_btc_{timeframe}_{risk_level}"
-
-    # Try to get from cache
-    from app.core.redis import redis_client
-    cached_data = await redis_client.get(cache_key)
+    # Try to get from cache using cache service
+    cached_data = await cache_service.get_recommendations(timeframe, risk_level)
     if cached_data:
         import json
-        logger.info(f"Cache hit for {cache_key}")
-        response_data = json.loads(cached_data)
-        response_data["cached"] = True
-        return response_data
+        logger.info(f"Cache hit for recommendations_btc_{timeframe}_{risk_level}")
+        if isinstance(cached_data, dict):
+            cached_data["cached"] = True
+        return cached_data
 
     try:
         # First, get predictions from AI Service
@@ -153,14 +151,9 @@ async def get_btc_recommendations(
             "cached": False,
         }
 
-        # Cache the response (1 hour TTL)
-        import json
-        await redis_client.set(
-            cache_key,
-            json.dumps(response_data),
-            expire=3600  # 1 hour
-        )
-        logger.info(f"Cached recommendations for {cache_key}")
+        # Cache the response using cache service
+        await cache_service.set_recommendations(timeframe, risk_level, response_data)
+        logger.info(f"Cached recommendations for BTC_{timeframe}_{risk_level}")
 
         return response_data
 

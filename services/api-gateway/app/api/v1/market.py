@@ -8,6 +8,7 @@ This module provides REST API endpoints for fetching:
 """
 
 import logging
+import json
 from typing import Optional, List, Dict, Any
 from datetime import datetime, timezone
 
@@ -18,6 +19,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.security import get_current_active_user, get_optional_user
+from app.cache.service import cache_service
 from app.services.market_service import market_service
 from app.models.user import User
 
@@ -173,18 +175,14 @@ async def get_btc_prices(
     Raises:
         HTTPException: If the Data Service is unavailable or returns an error.
     """
-    # Generate cache key
-    cache_key = f"prices_btc_{start_date}_{end_date}_{limit}_{offset}"
-    from app.core.redis import redis_client
-
-    # Try to get from cache
-    cached_data = await redis_client.get(cache_key)
+    # Try to get from cache using cache service
+    cached_data = await cache_service.get_prices("BTC", start_date or "", end_date or "", limit, offset)
     if cached_data:
         import json
-        logger.info(f"Cache hit for {cache_key}")
-        response_data = json.loads(cached_data)
-        response_data["cached"] = True
-        return response_data
+        logger.info(f"Cache hit for prices_btc_{start_date}_{end_date}_{limit}_{offset}")
+        if isinstance(cached_data, dict):
+            cached_data["cached"] = True
+        return cached_data
 
     try:
         # Fetch prices from Data Service
@@ -196,14 +194,9 @@ async def get_btc_prices(
             offset=offset,
         )
 
-        # Cache the response (1 hour TTL)
-        import json
-        await redis_client.set(
-            cache_key,
-            json.dumps(prices),
-            expire=3600  # 1 hour
-        )
-        logger.info(f"Cached prices for {cache_key}")
+        # Cache the response using cache service
+        await cache_service.set_prices("BTC", start_date or "", end_date or "", limit, offset, prices)
+        logger.info(f"Cached prices for BTC_{start_date}_{end_date}_{limit}_{offset}")
 
         return prices
 
@@ -266,18 +259,15 @@ async def get_indicators(
     if indicators:
         indicator_list = [i.strip() for i in indicators.split(",") if i.strip()]
 
-    # Generate cache key
-    cache_key = f"indicators_{indicators or 'all'}"
-    from app.core.redis import redis_client
-
-    # Try to get from cache
-    cached_data = await redis_client.get(cache_key)
+    # Try to get from cache using cache service
+    indicators_key = indicators or "all"
+    cached_data = await cache_service.get_indicators(indicators_key)
     if cached_data:
         import json
-        logger.info(f"Cache hit for {cache_key}")
-        response_data = json.loads(cached_data)
-        response_data["cached"] = True
-        return response_data
+        logger.info(f"Cache hit for indicators_{indicators_key}")
+        if isinstance(cached_data, dict):
+            cached_data["cached"] = True
+        return cached_data
 
     try:
         # Fetch indicators from Data Service
@@ -285,14 +275,9 @@ async def get_indicators(
             indicators=indicator_list,
         )
 
-        # Cache the response (1 hour TTL)
-        import json
-        await redis_client.set(
-            cache_key,
-            json.dumps(indicators_data),
-            expire=3600  # 1 hour
-        )
-        logger.info(f"Cached indicators for {cache_key}")
+        # Cache the response using cache service
+        await cache_service.set_indicators(indicators_key, indicators_data)
+        logger.info(f"Cached indicators for {indicators_key}")
 
         return indicators_data
 
@@ -358,18 +343,14 @@ async def get_correlation(
             detail="Window must be one of: '30d', '90d', '1y'"
         )
 
-    # Generate cache key
-    cache_key = f"correlation_btc_{window}"
-    from app.core.redis import redis_client
-
-    # Try to get from cache
-    cached_data = await redis_client.get(cache_key)
+    # Try to get from cache using cache service
+    cached_data = await cache_service.get_correlation("BTC", window)
     if cached_data:
         import json
-        logger.info(f"Cache hit for {cache_key}")
-        response_data = json.loads(cached_data)
-        response_data["cached"] = True
-        return response_data
+        logger.info(f"Cache hit for correlation_BTC_{window}")
+        if isinstance(cached_data, dict):
+            cached_data["cached"] = True
+        return cached_data
 
     try:
         # Fetch correlation from Data Service
@@ -378,14 +359,9 @@ async def get_correlation(
             window=window,
         )
 
-        # Cache the response (1 hour TTL)
-        import json
-        await redis_client.set(
-            cache_key,
-            json.dumps(correlation_data),
-            expire=3600  # 1 hour
-        )
-        logger.info(f"Cached correlation for {cache_key}")
+        # Cache the response using cache service
+        await cache_service.set_correlation("BTC", window, correlation_data)
+        logger.info(f"Cached correlation for BTC_{window}")
 
         return correlation_data
 
@@ -451,18 +427,14 @@ async def get_regimes(
             detail="Timeframe must be one of: '1w', '1m', '3m'"
         )
 
-    # Generate cache key
-    cache_key = f"regimes_btc_{timeframe}"
-    from app.core.redis import redis_client
-
-    # Try to get from cache
-    cached_data = await redis_client.get(cache_key)
+    # Try to get from cache using cache service
+    cached_data = await cache_service.get_regimes("BTC", timeframe)
     if cached_data:
         import json
-        logger.info(f"Cache hit for {cache_key}")
-        response_data = json.loads(cached_data)
-        response_data["cached"] = True
-        return response_data
+        logger.info(f"Cache hit for regimes_BTC_{timeframe}")
+        if isinstance(cached_data, dict):
+            cached_data["cached"] = True
+        return cached_data
 
     try:
         # Fetch regimes from Data Service
@@ -471,14 +443,9 @@ async def get_regimes(
             timeframe=timeframe,
         )
 
-        # Cache the response (1 hour TTL)
-        import json
-        await redis_client.set(
-            cache_key,
-            json.dumps(regimes_data),
-            expire=3600  # 1 hour
-        )
-        logger.info(f"Cached regimes for {cache_key}")
+        # Cache the response using cache service
+        await cache_service.set_regimes("BTC", timeframe, regimes_data)
+        logger.info(f"Cached regimes for BTC_{timeframe}")
 
         return regimes_data
 
