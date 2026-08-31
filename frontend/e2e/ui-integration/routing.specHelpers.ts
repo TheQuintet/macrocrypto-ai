@@ -19,7 +19,7 @@ export async function clickManageAlerts(page: Page) {
 
 export async function expectNotificationsOpen(page: Page) {
   await expect(
-    page.getByRole('heading', { name: 'Notifications' }),
+    page.getByRole('heading', { name: /Notifications/ }),
   ).toBeVisible()
 }
 

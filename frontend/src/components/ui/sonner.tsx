@@ -7,6 +7,7 @@ import {
   TriangleAlertIcon,
 } from 'lucide-react'
 import { Toaster as Sonner, type ToasterProps } from 'sonner'
+import { listenForToastClosePointer } from '@/lib/toastClosePointer'
 
 function useDocumentTheme(): NonNullable<ToasterProps['theme']> {
   const [theme, setTheme] = useState<'light' | 'dark'>('light')
@@ -31,6 +32,8 @@ function useDocumentTheme(): NonNullable<ToasterProps['theme']> {
 
 const Toaster = ({ ...props }: ToasterProps) => {
   const theme = useDocumentTheme()
+
+  useEffect(() => listenForToastClosePointer(), [])
 
   return (
     <Sonner
@@ -61,12 +64,17 @@ const Toaster = ({ ...props }: ToasterProps) => {
           '--info-bg': 'var(--toast-info-bg)',
           '--info-text': 'var(--toast-info-text)',
           '--info-border': 'var(--toast-info-bg)',
+          '--toast-close-button-start': 'unset',
+          '--toast-close-button-end': '0',
+          '--toast-close-button-transform': 'translate(35%, -35%)',
         } as CSSProperties
       }
       toastOptions={{
         classNames: {
           toast:
-            'cn-toast !shadow-lg !border-transparent [&_[data-title]]:!font-semibold [&_[data-description]]:!opacity-95',
+            'cn-toast relative !shadow-lg !border-transparent [&_[data-title]]:!font-semibold [&_[data-description]]:!opacity-95 [&_[data-description]]:whitespace-pre-line',
+          closeButton:
+            '!z-50 !size-6 !pointer-events-auto !bg-background !text-foreground !border-border hover:!bg-muted [&_svg]:pointer-events-none',
           success:
             '!bg-[var(--toast-success-bg)] !text-[var(--toast-success-text)] [&_[data-icon]]:!text-[var(--toast-success-text)]',
           error:

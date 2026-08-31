@@ -1,16 +1,16 @@
-import { isAlertApiConfigured } from '@/lib/apiConfig'
+import { isNotificationApiConfigured } from '@/lib/apiConfig'
 
 /**
- * Frontend-only (no `VITE_ALERT_API_BASE_URL`) uses simulated notifications.
- * When an alert backend *is* configured but the notification HTTP API is
- * missing, we still simulate so the inbox can be used. Price-alert CRUD does
- * not use this — live failures there propagate like prices.
+ * Notification REST follows `VITE_NOTIFICATION_STREAM_URL`, not the alert
+ * CRUD host. Unset → simulated inbox, no HTTP. Set → try live, and if that
+ * request fails (routes still missing) fall back so the bell still works.
+ * Price-alert CRUD does not use this.
  */
 export async function withSimulatedFallback<T>(
   live: () => Promise<T>,
   simulate: () => Promise<T>,
 ): Promise<T> {
-  if (!isAlertApiConfigured()) {
+  if (!isNotificationApiConfigured()) {
     return simulate()
   }
 

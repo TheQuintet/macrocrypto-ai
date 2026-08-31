@@ -1,47 +1,15 @@
-import { render, screen } from '@testing-library/react'
+import { screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import type { UserEvent } from '@testing-library/user-event'
-import { expect, vi } from 'vitest'
+import { expect } from 'vitest'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { ALERTS_USER_ID } from '@/constants/alerts'
 import { routes } from '@/constants/navigation'
+import { renderWithQuery } from '@/test/renderWithQuery'
 import { NotificationBell } from './NotificationBell'
-import { useNotificationStore } from '@/stores/alerts/notificationStore'
-import type { InAppNotification } from '@/types/alerts/priceAlert'
-
-const snapshotStore = vi.mocked(useNotificationStore)
-
-type StoreSnapshot = {
-  notifications?: InAppNotification[]
-  unreadCount?: number
-  isLoading?: boolean
-  error?: string | null
-}
-
-export function mockNotificationStore(overrides: StoreSnapshot = {}) {
-  const fetchNotifications = vi.fn()
-  const fetchUnreadCount = vi.fn()
-  const markAsRead = vi.fn()
-  const markAllAsRead = vi.fn()
-  const clearError = vi.fn()
-
-  snapshotStore.mockReturnValue({
-    notifications: overrides.notifications ?? [],
-    unreadCount: overrides.unreadCount ?? 0,
-    isLoading: overrides.isLoading ?? false,
-    error: overrides.error ?? null,
-    fetchNotifications,
-    fetchUnreadCount,
-    markAsRead,
-    markAllAsRead,
-    clearError,
-  })
-
-  return { fetchNotifications, fetchUnreadCount }
-}
 
 export function renderNotificationBell() {
-  return render(
+  return renderWithQuery(
     <MemoryRouter>
       <TooltipProvider>
         <NotificationBell userId={ALERTS_USER_ID} />
@@ -67,6 +35,21 @@ export function expectManageAlertsLink() {
 
 export function expectUnreadBadge(count: string) {
   expect(screen.getByText(count)).toBeInTheDocument()
+}
+
+export function expectUnreadBell() {
+  const button = getNotificationsButton()
+  expect(button.querySelector('svg')).toHaveClass(
+    'text-green-600',
+    'dark:text-green-500',
+  )
+  expect(button.querySelector('[data-slot="badge"]')).toHaveClass('bg-green-600')
+}
+
+export function expectReadBell() {
+  expect(getNotificationsButton().querySelector('svg')).not.toHaveClass(
+    'text-green-600',
+  )
 }
 
 export function expectNoUnreadBadge() {

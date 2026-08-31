@@ -1,85 +1,74 @@
-// src/components/alerts/notifications/NotificationItem.tsx
+import { useNavigate } from 'react-router-dom'
+import { NotificationTypeIcon } from '@/components/alerts/notifications/NotificationTypeIcon'
+import { showToast } from '@/components/alerts/shared/ToastNotification'
+import { useMarkNotificationReadMutation } from '@/hooks/alerts/useMarkNotificationReadMutation'
+import { formatNotificationCopy } from '@/lib/alerts/formatNotificationToast'
+import { notificationActionPath } from '@/lib/alerts/notificationActionPath'
+import { cn } from '@/lib/utils'
+import type { InAppNotification } from '@/types/alerts/notifications'
 
-import React from 'react';
-import type { InAppNotification } from '@/types/alerts/priceAlert';
-import { useNotificationStore } from '@/stores/alerts/notificationStore';
-import { cn } from '@/lib/utils';
-import { Bell, TrendingUp, Calendar, AlertCircle } from 'lucide-react';
-
-interface NotificationItemProps {
-  notification: InAppNotification;
+type NotificationItemProps = {
+  notification: InAppNotification
+  userId: string
+  onNavigate?: () => void
 }
 
-const getIcon = (type: string) => {
-  switch (type) {
-    case 'price_alert':
-      return <Bell className="h-4 w-4" />;
-    case 'prediction_alert':
-      return <TrendingUp className="h-4 w-4" />;
-    case 'macro_alert':
-      return <Calendar className="h-4 w-4" />;
-    default:
-      return <AlertCircle className="h-4 w-4" />;
-  }
-};
-
-const getColor = (type: string) => {
-  switch (type) {
-    case 'price_alert':
-      return 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400';
-    case 'prediction_alert':
-      return 'bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400';
-    case 'macro_alert':
-      return 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400';
-    default:
-      return 'bg-gray-100 text-gray-600 dark:bg-gray-800/50 dark:text-gray-400';
-  }
-};
-
-export const NotificationItem: React.FC<NotificationItemProps> = ({
+export function NotificationItem({
   notification,
-}) => {
-  const { markAsRead } = useNotificationStore();
+  userId,
+  onNavigate,
+}: NotificationItemProps) {
+  const navigate = useNavigate()
+  const markAsRead = useMarkNotificationReadMutation(userId)
+  const copy = formatNotificationCopy(notification)
+  const payloadLines = copy.payload?.split('\n').filter(Boolean) ?? []
 
   const handleClick = () => {
+    showToast.dismiss(notification.id)
     if (!notification.read) {
-      markAsRead(notification.id);
+      markAsRead.mutate(notification.id)
     }
-    // Navigate to action_url if present
-    if (notification.action_url) {
-      window.location.href = notification.action_url;
-    }
-  };
+    onNavigate?.()
+    navigate(notificationActionPath(notification))
+  }
 
   return (
-    <div
+    <button
+      type="button"
       className={cn(
-        'flex gap-3 p-3 rounded-lg cursor-pointer transition-colors hover:bg-muted/50',
+        'flex w-full gap-3 rounded-lg p-3 text-left transition-colors hover:bg-muted/50',
         !notification.read ? 'bg-muted/30' : '',
-        notification.is_archived && 'opacity-50'
+        notification.is_archived && 'opacity-50',
       )}
+      aria-label={
+        notification.read
+          ? notification.title
+          : `${notification.title} (unread)`
+      }
       onClick={handleClick}
     >
-      <div
-        className={cn(
-          'flex h-8 w-8 shrink-0 items-center justify-center rounded-full',
-          getColor(notification.notification_type)
-        )}
-      >
-        {getIcon(notification.notification_type)}
+      <NotificationTypeIcon type={notification.notification_type} />
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-medium">{copy.title}</p>
+        <p className="text-xs font-medium text-muted-foreground">{copy.typeLabel}</p>
+        {payloadLines.map((line) => (
+          <p
+            key={line}
+            className="mt-1 text-sm text-muted-foreground"
+          >
+            {line}
+          </p>
+        ))}
+        {copy.message ? (
+          <p className="mt-1 text-sm text-muted-foreground">{copy.message}</p>
+        ) : null}
+        {copy.timestamp ? (
+          <p className="mt-1 text-xs text-muted-foreground">{copy.timestamp}</p>
+        ) : null}
       </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium">{notification.title}</p>
-        <p className="text-sm text-muted-foreground line-clamp-2">
-          {notification.message}
-        </p>
-        <p className="text-xs text-muted-foreground mt-1">
-          {new Date(notification.created_at).toLocaleString()}
-        </p>
-      </div>
-      {!notification.read && (
-        <span className="h-2 w-2 shrink-0 mt-2 rounded-full bg-blue-500" />
-      )}
-    </div>
-  );
-};
+      {!notification.read ? (
+        <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-blue-500" />
+      ) : null}
+    </button>
+  )
+}

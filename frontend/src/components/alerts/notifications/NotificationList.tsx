@@ -1,33 +1,28 @@
-// src/components/alerts/notifications/NotificationList.tsx
+import { BellOff } from 'lucide-react'
+import { NotificationItem } from '@/components/alerts/notifications/NotificationItem'
+import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
+import { useMarkAllNotificationsReadMutation } from '@/hooks/alerts/useMarkAllNotificationsReadMutation'
+import { useNotificationsQuery } from '@/hooks/alerts/useNotificationsQuery'
+import { useUnreadNotificationCountQuery } from '@/hooks/alerts/useUnreadNotificationCountQuery'
+import { sortNotificationsByDateNewestFirst } from '@/lib/alerts/sortNotifications'
 
-import React, { useEffect } from 'react';
-import { useNotificationStore } from '@/stores/alerts/notificationStore';
-import { NotificationItem } from './NotificationItem';
-import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
-import { BellOff } from 'lucide-react';
-
-interface NotificationListProps {
-  userId: string;
+type NotificationListProps = {
+  userId: string
+  onNavigate?: () => void
 }
 
-export const NotificationList: React.FC<NotificationListProps> = ({ userId }) => {
-  const {
-    notifications,
-    isLoading,
-    error,
-    fetchNotifications,
-    markAllAsRead,
-    unreadCount,
-  } = useNotificationStore();
+export function NotificationList({ userId, onNavigate }: NotificationListProps) {
+  const { data, isPending, isError, refetch } = useNotificationsQuery(userId)
+  const { data: unread } = useUnreadNotificationCountQuery(userId)
+  const markAllAsRead = useMarkAllNotificationsReadMutation(userId)
 
-  useEffect(() => {
-    if (userId) {
-      fetchNotifications(userId);
-    }
-  }, [userId, fetchNotifications]);
+  const notifications = sortNotificationsByDateNewestFirst(
+    data?.notifications ?? [],
+  )
+  const unreadCount = unread?.count ?? 0
 
-  if (isLoading) {
+  if (isPending) {
     return (
       <div className="space-y-4">
         {[1, 2, 3].map((i) => (
@@ -40,58 +35,63 @@ export const NotificationList: React.FC<NotificationListProps> = ({ userId }) =>
           </div>
         ))}
       </div>
-    );
+    )
   }
 
-  if (error) {
+  if (isError) {
     return (
       <div className="py-8 text-center text-muted-foreground">
         <p>Failed to load notifications</p>
         <Button
           variant="link"
           className="mt-2"
-          onClick={() => fetchNotifications(userId)}
+          onClick={() => {
+            void refetch()
+          }}
         >
           Retry
         </Button>
       </div>
-    );
+    )
   }
 
   if (notifications.length === 0) {
     return (
       <div className="py-12 text-center">
-        <BellOff className="h-12 w-12 mx-auto text-muted-foreground" />
+        <BellOff className="mx-auto h-12 w-12 text-muted-foreground" />
         <p className="mt-4 text-muted-foreground">No notifications</p>
         <p className="text-sm text-muted-foreground">
           Fired alerts will show up here.
         </p>
       </div>
-    );
+    )
   }
 
   return (
     <div className="space-y-4">
-      {unreadCount > 0 && (
+      {unreadCount > 0 ? (
         <div className="flex justify-end">
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => markAllAsRead(userId)}
             className="text-xs"
+            onClick={() => markAllAsRead.mutate()}
           >
             Mark all as read
           </Button>
         </div>
-      )}
-      <div className="space-y-2">
+      ) : null}
+      <div className="space-y-2" role="list">
         {notifications.map((notification) => (
-          <NotificationItem
-            key={notification.id}
-            notification={notification}
-          />
+          <div key={notification.id} role="listitem">
+            <NotificationItem
+              notification={notification}
+              userId={userId}
+              onNavigate={onNavigate}
+            />
+          </div>
         ))}
       </div>
     </div>
-  );
-};
+  )
+}

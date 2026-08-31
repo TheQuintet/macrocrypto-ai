@@ -1,9 +1,13 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { notificationApi } from '@/api/alerts/notifications'
+import {
+  fetchNotifications,
+  fetchUnreadNotificationCount,
+} from '@/api/alerts/notifications'
 import { PRICE_ALERTS_PATH, priceAlertApi } from '@/api/alerts/priceAlerts'
 import { resetSimulatedNotifications } from '@/api/alerts/simulatedNotifications'
 import { resetSimulatedPriceAlerts } from '@/api/alerts/simulatedPriceAlerts'
 import { ALERTS_USER_ID } from '@/constants/alerts'
+import { routes } from '@/constants/navigation'
 
 afterEach(() => {
   resetSimulatedPriceAlerts()
@@ -24,11 +28,12 @@ describe('alert APIs without a backend', () => {
 
   it('lists simulated notifications and an unread count', async () => {
     const [list, unread] = await Promise.all([
-      notificationApi.getNotifications(ALERTS_USER_ID),
-      notificationApi.getUnreadCount(ALERTS_USER_ID),
+      fetchNotifications(ALERTS_USER_ID),
+      fetchUnreadNotificationCount(ALERTS_USER_ID),
     ])
 
     expect(list.notifications.length).toBeGreaterThan(0)
+    expect(list.notifications[0]?.action_url).toBe(routes.dashboard)
     expect(unread.count).toBeGreaterThan(0)
   })
 })

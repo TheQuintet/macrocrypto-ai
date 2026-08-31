@@ -1,3 +1,4 @@
+import { NOTIFICATION_TOAST_DURATION_MS } from '@/components/alerts/shared/ToastNotification'
 import { useSidebar } from '@/components/ui/sidebar'
 import { Toaster } from '@/components/ui/sonner'
 
@@ -7,6 +8,9 @@ export function AppToaster() {
 
   return (
     <Toaster
+      closeButton
+      visibleToasts={8}
+      duration={NOTIFICATION_TOAST_DURATION_MS}
       position="bottom-left"
       offset={{
         bottom: '1rem',

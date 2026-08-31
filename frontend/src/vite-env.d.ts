@@ -8,6 +8,8 @@ interface ImportMetaEnv {
   readonly VITE_ALERT_API_BASE_URL?: string
   /** Gateway price stream URL, e.g. `ws://localhost:8001/api/v1/btc/price/stream`. */
   readonly VITE_PRICE_WS_URL?: string
+  /** Alert-service notification SSE or WebSocket URL. Unset → simulated inbox, no notification HTTP. */
+  readonly VITE_NOTIFICATION_STREAM_URL?: string
 }
 
 interface ImportMeta {

@@ -34,6 +34,7 @@ export default defineConfig({
       VITE_API_BASE_URL: '',
       VITE_ALERT_API_BASE_URL: '',
       VITE_PRICE_WS_URL: '',
+      VITE_NOTIFICATION_STREAM_URL: '',
     },
     exclude: [
       '**/node_modules/**',
