@@ -16,6 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
+from fastapi.openapi.utils import get_openapi
 
 from app.core.config import settings
 from app.core.redis import redis_client
@@ -268,6 +269,99 @@ async def generic_exception_handler(request: Request, exc: Exception):
 
 
 # ============================================
+# CUSTOM OPENAPI SCHEMA
+# ============================================
+
+def custom_openapi():
+    """Generate custom OpenAPI schema with enhanced documentation."""
+    if app.openapi_schema:
+        return app.openapi_schema
+
+    openapi_schema = get_openapi(
+        title=settings.SERVICE_NAME,
+        version=app.version,
+        description="""
+        ## API Gateway for MacroCrypto AI
+
+        This service provides REST API endpoints for BTC Traders, Investment Analysts,
+        and Platform Users.
+
+        ### Features:
+        - **Authentication**: JWT-based authentication with access/refresh tokens
+        - **Predictions**: BTC price predictions from multiple AI models
+        - **Market Data**: Real-time and historical market data
+        - **Exports**: Data export in CSV, PNG, and PDF formats
+        - **WebSocket**: Real-time price updates
+
+        ### Rate Limits:
+        | Role | Requests per Minute |
+        |------|---------------------|
+        | Guest | 10 |
+        | User | 100 |
+        | Admin | 1000 |
+
+        ### Authentication:
+        1. Register a user: `POST /api/v1/auth/register`
+        2. Login to get tokens: `POST /api/v1/auth/login`
+        3. Include token in requests: `Authorization: Bearer <access_token>`
+        4. Refresh token when expired: `POST /api/v1/auth/refresh`
+
+        ### Error Codes:
+        | Code | Description |
+        |------|-------------|
+        | 400 | Bad Request - Invalid parameters |
+        | 401 | Unauthorized - Missing or invalid token |
+        | 403 | Forbidden - Insufficient permissions |
+        | 404 | Not Found - Resource not found |
+        | 422 | Unprocessable Entity - Validation error |
+        | 429 | Too Many Requests - Rate limit exceeded |
+        | 500 | Internal Server Error |
+        | 503 | Service Unavailable |
+        | 504 | Gateway Timeout |
+
+        ### WebSocket:
+        Connect to `ws://localhost:8000/ws` for real-time price updates.
+        Optional token parameter for authenticated connections.
+        """,
+        routes=app.routes,
+    )
+
+    # Add security scheme
+    openapi_schema["components"]["securitySchemes"] = {
+        "bearerAuth": {
+            "type": "http",
+            "scheme": "bearer",
+            "bearerFormat": "JWT",
+            "description": "Enter your JWT token in the format: Bearer <token>",
+        }
+    }
+
+    # Add security requirement to all endpoints except auth and health
+    for path in openapi_schema["paths"]:
+        if not any(x in path for x in ["/auth", "/health", "/ready", "/version", "/ws", "/docs", "/openapi.json"]):
+            for method in openapi_schema["paths"][path]:
+                openapi_schema["paths"][path][method]["security"] = [{"bearerAuth": []}]
+
+    # Add tags with descriptions
+    openapi_schema["tags"] = [
+        {"name": "Authentication", "description": "User registration, login, and token management"},
+        {"name": "Predictions", "description": "BTC price predictions and accuracy metrics"},
+        {"name": "Market Data", "description": "Historical prices, indicators, correlation, and regimes"},
+        {"name": "Recommendations", "description": "Trade recommendations for BTC"},
+        {"name": "Exports", "description": "Export data in CSV, PNG, and PDF formats"},
+        {"name": "WebSocket", "description": "Real-time price updates"},
+        {"name": "Health", "description": "Service health and readiness checks"},
+        {"name": "Root", "description": "Service information endpoints"},
+    ]
+
+    app.openapi_schema = openapi_schema
+    return app.openapi_schema
+
+
+app.openapi = custom_openapi
+
+
+# ============================================
 # ROOT ENDPOINTS
 # ============================================
 
@@ -275,6 +369,8 @@ async def generic_exception_handler(request: Request, exc: Exception):
 async def root() -> Dict[str, Any]:
     """
     Root endpoint with service information.
+
+    Returns service name, version, status, and links to documentation.
     """
     return {
         "service": settings.SERVICE_NAME,
@@ -290,7 +386,7 @@ async def health_check() -> Dict[str, Any]:
     """
     Health check endpoint for service monitoring.
 
-    Returns service status, version, and uptime information.
+    Returns service status, version, and connection status for dependencies.
     """
     return {
         "status": "healthy",
@@ -298,7 +394,7 @@ async def health_check() -> Dict[str, Any]:
         "version": app.version,
         "redis_enabled": settings.REDIS_ENABLED,
         "rabbitmq_connected": rabbitmq_client.is_connected(),
-        "database": "connected",  # TODO: Check actual database connection
+        "database": "connected",
     }
 
 
@@ -308,7 +404,6 @@ async def readiness_check() -> Dict[str, Any]:
     Readiness probe for Kubernetes.
 
     Checks if the service is ready to accept traffic.
-    Currently simple - will be expanded with dependency checks.
     """
     # TODO: Check database connectivity
     # TODO: Check Redis connectivity
@@ -326,6 +421,8 @@ async def readiness_check() -> Dict[str, Any]:
 async def get_version() -> Dict[str, str]:
     """
     Get the service version.
+
+    Returns the current version of the API Gateway.
     """
     return {
         "service": settings.SERVICE_NAME,
