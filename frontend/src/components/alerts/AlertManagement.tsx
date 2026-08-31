@@ -17,7 +17,7 @@ import {
   type AlertListStatusFilter,
 } from './shared/alertStatus';
 import type { PriceAlert, CreatePriceAlertRequest, UpdatePriceAlertRequest } from '@/types/alerts/priceAlert';
-import { MacroAlertList } from './macro/MacroAlertList';
+import { MacroCalendarTable } from './macro/MacroCalendarTable';
 
 interface AlertManagementProps {
   userId: string;
@@ -214,9 +214,9 @@ export const AlertManagement: React.FC<AlertManagementProps> = ({ userId }) => {
         </>
       )}
 
-      {/* Macro Events Tab */}
+      {/* Macro Events Tab - Now using MacroCalendarTable */}
       {activeTab === 'macro' && (
-        <MacroAlertList userId={userId} />
+        <MacroCalendarTable userId={userId} />
       )}
 
       {/* Create Modal */}
@@ -250,3 +250,5 @@ export const AlertManagement: React.FC<AlertManagementProps> = ({ userId }) => {
     </div>
   );
 };
+
+export default AlertManagement;

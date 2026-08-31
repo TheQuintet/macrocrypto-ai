@@ -6,22 +6,37 @@ import type {
 } from '@/types/alerts/macroAlert';
 
 const EVENT_TYPES: EventType[] = ['FED', 'CPI', 'GDP', 'EMPLOYMENT'];
-const IMPACTS: EventImpact[] = ['HIGH', 'MEDIUM', 'LOW'];
+
+// Make subscriptions deterministic so they don't change on every refresh
+let mockSubscriptions: MacroSubscription[] | null = null;
+let mockEvents: MacroEvent[] | null = null;
 
 export const generateMockMacroSubscriptions = (): MacroSubscription[] => {
-  return EVENT_TYPES.map((type) => ({
-    id: crypto.randomUUID(),
-    user_id: crypto.randomUUID(),
-    event_type: type,
-    subscribed: Math.random() > 0.5,
-    impact_filter: Math.random() > 0.7 ? 'HIGH' : null,
-    timing: ['1D', '12H', '1H'][Math.floor(Math.random() * 3)] as '1D' | '12H' | '1H',
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  }));
+  if (mockSubscriptions) return mockSubscriptions;
+
+  mockSubscriptions = EVENT_TYPES.map((type) => {
+    const isSubscribed = ['FED', 'CPI'].includes(type);
+    const impact = type === 'FED' || type === 'CPI' ? 'HIGH' : 'MEDIUM';
+
+    return {
+      id: crypto.randomUUID(),
+      user_id: 'test-user',
+      event_type: type,
+      subscribed: isSubscribed,
+      impact_filter: impact as EventImpact,
+      timing: '1D',
+      one_time: true,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+  });
+
+  return mockSubscriptions;
 };
 
 export const generateMockMacroEvents = (): MacroEvent[] => {
+  if (mockEvents) return mockEvents;
+
   const eventNames: Record<EventType, string> = {
     FED: 'Federal Reserve Meeting',
     CPI: 'CPI Release',
@@ -36,11 +51,13 @@ export const generateMockMacroEvents = (): MacroEvent[] => {
     EMPLOYMENT: 'Non-farm payroll employment data',
   };
 
-  return EVENT_TYPES.map((type) => {
-    const days = Math.floor(Math.random() * 14) + 1;
+  mockEvents = EVENT_TYPES.map((type) => {
+    const days = type === 'FED' ? 3 : type === 'CPI' ? 7 : type === 'GDP' ? 10 : 14;
     const date = new Date();
     date.setDate(date.getDate() + days);
     date.setHours(8 + Math.floor(Math.random() * 8), 0, 0, 0);
+
+    const impact = type === 'FED' || type === 'CPI' ? 'HIGH' : 'MEDIUM';
 
     return {
       id: crypto.randomUUID(),
@@ -50,9 +67,11 @@ export const generateMockMacroEvents = (): MacroEvent[] => {
       description: descriptions[type],
       scheduled_at: date.toISOString(),
       timezone: 'UTC',
-      impact: IMPACTS[Math.floor(Math.random() * IMPACTS.length)],
-      subscribed: Math.random() > 0.5,
+      impact: impact as EventImpact,
+      subscribed: ['FED', 'CPI'].includes(type),
       notified: false,
     };
   });
+
+  return mockEvents;
 };

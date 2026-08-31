@@ -1,5 +1,3 @@
-// src/types/alerts/macroAlert.ts
-
 export type EventType = 'FED' | 'CPI' | 'GDP' | 'EMPLOYMENT';
 export type EventImpact = 'HIGH' | 'MEDIUM' | 'LOW';
 export type EventTiming = '1D' | '12H' | '1H';
@@ -10,6 +8,8 @@ export interface MacroSubscription {
   event_type: EventType;
   subscribed: boolean;
   impact_filter: EventImpact | null;
+  timing: EventTiming;
+  one_time: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -51,7 +51,7 @@ export const EVENT_IMPACT_COLORS: Record<EventImpact, string> = {
 };
 
 export const EVENT_IMPACT_LABELS: Record<EventImpact, string> = {
-  HIGH: 'High',
-  MEDIUM: 'Medium',
-  LOW: 'Low',
+  HIGH: 'High Impact',
+  MEDIUM: 'Medium Impact',
+  LOW: 'Low Impact',
 };

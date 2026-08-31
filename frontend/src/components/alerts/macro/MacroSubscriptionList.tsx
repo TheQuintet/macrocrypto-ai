@@ -90,38 +90,32 @@ export const MacroSubscriptionList: React.FC<MacroSubscriptionListProps> = ({ us
     return subscriptions.filter((s) => s.impact_filter === 'HIGH');
   }, [subscriptions, highImpactOnly]);
 
-  const loadSubscriptions = useCallback(async () => {
+  const fetchSubscriptions = useCallback(async () => {
     if (!isMounted.current || hasLoaded.current) return;
     hasLoaded.current = true;
     setIsLoading(true);
     setError(null);
     try {
-      const data = await macroAlertApi.getSubscriptions(userId);
-      if (isMounted.current) {
-        setSubscriptions(data);
-        setIsAllSubscribed(data.every((s) => s.subscribed));
-      }
+      const data = await macroAlertApi.getSubscriptions(); // ✅ No userId
+      setSubscriptions(data);
+      setIsAllSubscribed(data.every((s) => s.subscribed));
     } catch {
-      if (isMounted.current) {
-        setError('Failed to load subscriptions');
-      }
+      setError('Failed to load subscriptions');
     } finally {
-      if (isMounted.current) {
-        setIsLoading(false);
-      }
+      setIsLoading(false);
     }
-  }, [userId]);
+  }, []);
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      loadSubscriptions();
+      fetchSubscriptions();
     }, 0);
 
     return () => {
       clearTimeout(timer);
       isMounted.current = false;
     };
-  }, [loadSubscriptions]);
+  }, [fetchSubscriptions]);
 
   const handleToggle = async (eventType: EventType, subscribed: boolean) => {
     try {
@@ -197,7 +191,7 @@ export const MacroSubscriptionList: React.FC<MacroSubscriptionListProps> = ({ us
         <CardContent className="p-8 text-center">
           <AlertCircle className="h-8 w-8 mx-auto text-red-500 mb-2" />
           <p className="text-red-500">{error}</p>
-          <Button variant="outline" className="mt-4" onClick={loadSubscriptions}>
+          <Button variant="outline" className="mt-4" onClick={fetchSubscriptions}>
             Retry
           </Button>
         </CardContent>
