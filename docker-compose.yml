@@ -177,42 +177,42 @@ services:
       - macro-network
     restart: unless-stopped
 
-  # api-gateway:
-  #   build:
-  #     context: ./services/api-gateway
-  #     dockerfile: Dockerfile
-  #   container_name: macro-api-gateway
-  #   ports:
-  #     - "8000:8000"
-  #   dns:
-  #     - 8.8.8.8
-  #     - 1.1.1.1
-  #   environment:
-  #     - REDIS_HOST=redis
-  #     - DATABASE_URL=postgresql://macro:crypto@postgres:5432/macrocrypto
-  #     - RABBITMQ_HOST=rabbitmq
-  #     - PYTHONUNBUFFERED=1
-  #   volumes:
-  #     - ./services/api-gateway/app:/app/app
-  #     - ./shared:/app/shared
-  #   env_file:
-  #     - ./services/api-gateway/.env
-  #   depends_on:
-  #     postgres:
-  #       condition: service_healthy
-  #     redis:
-  #       condition: service_healthy
-  #     rabbitmq:
-  #       condition: service_healthy
-  #     data-service:
-  #       condition: service_started
-  #     ai-service:
-  #       condition: service_started
-  #     alert-service:
-  #       condition: service_started
-  #   networks:
-  #     - macro-network
-  #   restart: unless-stopped
+  api-gateway:
+    build:
+      context: ./services/api-gateway
+      dockerfile: Dockerfile
+    container_name: macro-api-gateway
+    ports:
+      - "8000:8000"
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    environment:
+      - REDIS_HOST=redis
+      - DATABASE_URL=postgresql://macro:crypto@postgres:5432/macrocrypto
+      - RABBITMQ_HOST=rabbitmq
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./services/api-gateway/app:/app/app
+      - ./shared:/app/shared
+    env_file:
+      - ./services/api-gateway/.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      data-service:
+        condition: service_started
+      ai-service:
+        condition: service_started
+      alert-service:
+        condition: service_started
+    networks:
+      - macro-network
+    restart: unless-stopped
 
   # ============================================
   # FRONTEND

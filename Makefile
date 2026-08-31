@@ -64,6 +64,25 @@ help:
 	@echo "  $(GREEN)make alert-lint$(RESET)     - Lint alert-service code"
 	@echo "  $(GREEN)make alert-format$(RESET)   - Format alert-service code"
 	@echo ""
+	@echo "$(YELLOW)API-Gateway Commands:$(RESET)"
+	@echo "  $(GREEN)make api-up$(RESET)          - Start API Gateway (rebuilds if needed)"
+	@echo "  $(GREEN)make api-down$(RESET)        - Stop API Gateway"
+	@echo "  $(GREEN)make api-logs$(RESET)        - Show API Gateway logs"
+	@echo "  $(GREEN)make api-restart$(RESET)     - Restart API Gateway"
+	@echo "  $(GREEN)make api-shell$(RESET)       - Open shell in API Gateway"
+	@echo "  $(GREEN)make api-health$(RESET)      - Check API Gateway health"
+	@echo "  $(GREEN)make api-ready$(RESET)       - Check API Gateway readiness"
+	@echo "  $(GREEN)make api-test$(RESET)        - Run API Gateway tests"
+	@echo "  $(GREEN)make api-test-unit$(RESET)   - Run unit tests only"
+	@echo "  $(GREEN)make api-test-int$(RESET)    - Run integration tests only"
+	@echo "  $(GREEN)make api-test-e2e$(RESET)    - Run e2e tests only"
+	@echo "  $(GREEN)make api-test-cov$(RESET)    - Run tests with coverage"
+	@echo "  $(GREEN)make api-lint$(RESET)        - Lint API Gateway code"
+	@echo "  $(GREEN)make api-format$(RESET)      - Format API Gateway code"
+	@echo "  $(GREEN)make api-run$(RESET)         - Run API Gateway locally"
+	@echo "  $(GREEN)make api-venv$(RESET)        - Create virtual environment"
+	@echo "  $(GREEN)make api-install$(RESET)     - Install dependencies"
+	@echo ""
 	@echo "$(YELLOW)Infrastructure Commands:$(RESET)"
 	@echo "  $(GREEN)make redis-cli$(RESET)      - Open Redis CLI"
 	@echo "  $(GREEN)make postgres-cli$(RESET)   - Open PostgreSQL CLI"
@@ -244,6 +263,123 @@ alert-lint:
 
 alert-format:
 	docker compose exec alert-service black app/ --line-length=120
+
+# ============================================
+# API-GATEWAY COMMANDS
+# ============================================
+
+api-up:
+	docker compose up -d --build api-gateway
+	@echo "✅ API Gateway started. View logs with: make api-logs"
+
+api-down:
+	docker compose stop api-gateway
+	docker compose rm -f api-gateway
+	@echo "✅ API Gateway stopped"
+
+api-logs:
+	docker compose logs -f api-gateway
+
+api-restart:
+	docker compose restart api-gateway
+	@echo "✅ API Gateway restarted"
+
+api-shell:
+	docker compose exec api-gateway /bin/sh
+
+api-health:
+	@echo "🏥 Checking API Gateway health..."
+	@curl -s http://localhost:8000/health | jq || echo "❌ API Gateway not running or jq not installed"
+
+api-ready:
+	@echo "🔄 Checking API Gateway readiness..."
+	@curl -s http://localhost:8000/ready | jq || echo "❌ API Gateway not ready or jq not installed"
+
+# ============================================
+# API-GATEWAY TEST COMMANDS
+# ============================================
+
+api-test:
+	@echo "🧪 Running all tests..."
+	docker compose exec api-gateway pytest tests/ -v
+
+api-test-unit:
+	@echo "🧪 Running unit tests..."
+	docker compose exec api-gateway pytest tests/unit/ -v
+
+api-test-int:
+	@echo "🧪 Running integration tests..."
+	docker compose exec api-gateway pytest tests/integration/ -v
+
+api-test-e2e:
+	@echo "🧪 Running e2e tests..."
+	docker compose exec api-gateway pytest tests/e2e/ -v
+
+api-test-cov:
+	@echo "🧪 Running tests with coverage..."
+	docker compose exec api-gateway pytest tests/ --cov=app --cov-report=term --cov-report=html
+	@echo "📊 Coverage report: services/api-gateway/htmlcov/index.html"
+
+api-test-file:
+	@echo "🧪 Running test file: $(FILE)"
+	docker compose exec api-gateway pytest $(FILE) -v
+
+api-test-verbose:
+	@echo "🧪 Running tests with verbose output..."
+	docker compose exec api-gateway pytest tests/ -v -s --tb=long
+
+api-test-quick:
+	@echo "🧪 Running tests (skip slow)..."
+	docker compose exec api-gateway pytest tests/ -v -k "not slow"
+
+# ============================================
+# API-GATEWAY LINTING & FORMATTING
+# ============================================
+
+api-lint:
+	docker compose exec api-gateway ruff check app/ || echo "⚠️  Lint issues found"
+
+api-format:
+	docker compose exec api-gateway black app/ --line-length=120
+
+# ============================================
+# API-GATEWAY DEVELOPMENT COMMANDS
+# ============================================
+
+api-run:
+	@echo "🚀 Running API Gateway locally..."
+	cd services/api-gateway && . venv/bin/activate && python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+
+api-venv:
+	@echo "🔧 Creating virtual environment for API Gateway..."
+	cd services/api-gateway && python3 -m venv venv
+	@echo "✅ Virtual environment created"
+
+api-install:
+	@echo "📦 Installing API Gateway dependencies..."
+	cd services/api-gateway && source venv/bin/activate && pip install -r requirements-dev.txt
+	@echo "✅ Dependencies installed"
+
+# ============================================
+# API-GATEWAY TEST COMMANDS (LOCAL)
+# ============================================
+
+api-test-local:
+	@echo "🧪 Running all tests locally..."
+	cd services/api-gateway && . venv/bin/activate && TESTING=true pytest tests/ -v
+
+api-test-local-unit:
+	@echo "🧪 Running unit tests locally..."
+	cd services/api-gateway && . venv/bin/activate && TESTING=true pytest tests/ -m unit -v
+
+api-test-local-cov:
+	@echo "🧪 Running tests with coverage locally..."
+	cd services/api-gateway && . venv/bin/activate && TESTING=true pytest tests/ --cov=app --cov-report=term --cov-report=html
+	@echo "📊 Coverage report: services/api-gateway/htmlcov/index.html"
+
+api-test-local-file:
+	@echo "🧪 Running test file locally: $(FILE)"
+	cd services/api-gateway && . venv/bin/activate && TESTING=true pytest $(FILE) -v
 
 # ============================================
 # LINTING & FORMATTING (Data Service)
