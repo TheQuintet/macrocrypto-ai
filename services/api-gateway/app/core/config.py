@@ -52,6 +52,7 @@ class Settings(BaseSettings):
     REDIS_DB: int = 0
     REDIS_CACHE_TTL: int = 300  # 5 minutes default
     REDIS_SESSION_TTL: int = 3600  # 1 hour
+    REDIS_RATE_LIMIT_TTL: int = 60  # 1 minute for rate limiting
 
     @property
     def REDIS_URL(self) -> str:
