@@ -1,19 +1,19 @@
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
-export type PriceAlertFormTab = 'alert' | 'advanced'
+export type AlertFormTab = 'alert' | 'advanced'
 
-type PriceAlertFormTabsProps = {
-  value: PriceAlertFormTab
-  onChange: (tab: PriceAlertFormTab) => void
+type AlertFormTabsProps = {
+  value: AlertFormTab
+  onChange: (tab: AlertFormTab) => void
 }
 
-const TABS: Array<{ value: PriceAlertFormTab; label: string }> = [
+const TABS: Array<{ value: AlertFormTab; label: string }> = [
   { value: 'alert', label: 'Alert' },
   { value: 'advanced', label: 'Advanced' },
 ]
 
-export function PriceAlertFormTabs({ value, onChange }: PriceAlertFormTabsProps) {
+export function AlertFormTabs({ value, onChange }: AlertFormTabsProps) {
   return (
     <div
       role="tablist"

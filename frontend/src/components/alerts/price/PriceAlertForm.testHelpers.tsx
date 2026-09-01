@@ -86,6 +86,14 @@ export async function submitCreateForm(user: UserEvent) {
   await user.click(getCreateButton())
 }
 
+export async function pressEscape(user: UserEvent) {
+  await user.keyboard('{Escape}')
+}
+
+export async function clickOutsideDialog(user: UserEvent) {
+  await user.click(screen.getByTestId('dialog-overlay'))
+}
+
 export async function openAdvancedTab(user: UserEvent) {
   await user.click(screen.getByRole('tab', { name: 'Advanced' }))
 }

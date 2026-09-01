@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   LAST_RECEIVED_PRICE,
+  clickOutsideDialog,
   expectRuleSummary,
   expectValidationError,
   fillPrice,
@@ -10,6 +11,7 @@ import {
   getPriceInput,
   getSaveButton,
   openAdvancedTab,
+  pressEscape,
   renderCreateForm,
   renderEditForm,
   selectAlertCondition,
@@ -61,6 +63,24 @@ describe('PriceAlertForm', () => {
     expect(screen.getByRole('switch', { name: 'Email' })).toBeInTheDocument()
     expect(screen.queryByLabelText(/^Price/)).not.toBeInTheDocument()
     expect(screen.queryByRole('switch', { name: 'One-time' })).not.toBeInTheDocument()
+  })
+
+  it('closes on Escape', async () => {
+    const user = userEvent.setup()
+    const { onOpenChange } = renderCreateForm()
+
+    await pressEscape(user)
+
+    expect(onOpenChange).toHaveBeenCalledWith(false)
+  })
+
+  it('closes when clicking outside the dialog', async () => {
+    const user = userEvent.setup()
+    const { onOpenChange } = renderCreateForm()
+
+    await clickOutsideDialog(user)
+
+    expect(onOpenChange).toHaveBeenCalledWith(false)
   })
 
   it('fills the edit form and shows the current status', () => {

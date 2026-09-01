@@ -33,11 +33,32 @@ interface DialogFooterProps {
 }
 
 export const Dialog: React.FC<DialogProps> = ({ children, open, onOpenChange }) => {
+  React.useEffect(() => {
+    if (!open) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onOpenChange?.(false);
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [open, onOpenChange]);
+
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="fixed inset-0 bg-black/50" onClick={() => onOpenChange?.(false)} />
-      <div className="relative z-50 bg-white dark:bg-gray-800 rounded-lg shadow-lg max-w-lg w-full mx-4 p-6">
+      <div
+        className="fixed inset-0 bg-black/50"
+        data-testid="dialog-overlay"
+        onClick={() => onOpenChange?.(false)}
+      />
+      <div
+        role="dialog"
+        aria-modal="true"
+        className="relative z-50 bg-white dark:bg-gray-800 rounded-lg shadow-lg max-w-lg w-full mx-4 p-6"
+      >
         {children}
       </div>
     </div>

@@ -1,9 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { showToast } from '../shared/ToastNotification';
 import { ConfirmationDialog } from '../shared/ConfirmationDialog';
 import {
   Calendar,
@@ -13,9 +12,17 @@ import {
   Repeat1,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { macroAlertApi } from '@/api/alerts/macroAlerts';
-import type { MacroEvent, EventType, EventImpact } from '@/types/alerts/macroAlert';
-import { MacroAlertForm } from './MacroAlertForm';
+import type { MacroEventSubscription } from '@/hooks/alerts/useMacroEvents';
+import type {
+  MacroEvent,
+  EventImpact,
+  EventType,
+  MacroSubscriptionListFilter,
+} from '@/types/alerts/macroAlert';
+import {
+  MACRO_EVENT_ICONS,
+  MACRO_TIMING_LABELS,
+} from './macroEventCopy';
 import {
   Select,
   SelectContent,
@@ -23,32 +30,10 @@ import {
   SelectTrigger,
 } from '@/components/ui/select';
 
-type FilterType = 'all' | 'subscribed' | 'unsubscribed';
-
 const impactBadgeColors: Record<EventImpact, string> = {
   HIGH: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
   MEDIUM: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
   LOW: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
-};
-
-const eventIcons: Record<EventType, string> = {
-  FED: '🏛️',
-  CPI: '📊',
-  GDP: '📈',
-  EMPLOYMENT: '👔',
-};
-
-const eventNames: Record<EventType, string> = {
-  FED: 'Federal Reserve Meeting',
-  CPI: 'CPI Release',
-  GDP: 'GDP Release',
-  EMPLOYMENT: 'Employment Report',
-};
-
-const timingLabels: Record<string, string> = {
-  '1D': '1 day before',
-  '12H': '12 hours before',
-  '1H': '1 hour before',
 };
 
 const impactFilterLabels: Record<string, string> = {
@@ -59,44 +44,27 @@ const impactFilterLabels: Record<string, string> = {
 };
 
 interface MacroCalendarTableProps {
-  userId: string;
+  events: MacroEvent[];
+  subscriptions: Map<EventType, MacroEventSubscription>;
+  isLoading: boolean;
+  error: string | null;
+  /** Subscription filter, driven by the toolbar above the table. */
+  filter: MacroSubscriptionListFilter;
+  onSubscribeChange: (eventId: string, subscribed: boolean) => void;
+  onRetry: () => void;
 }
 
-export const MacroCalendarTable: React.FC<MacroCalendarTableProps> = ({ userId }) => {
-  const [events, setEvents] = useState<MacroEvent[]>([]);
-  const [subscriptions, setSubscriptions] = useState<Map<string, { timing: string; oneTime: boolean }>>(new Map());
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [filter, setFilter] = useState<FilterType>('all');
-  const [showCreateModal, setShowCreateModal] = useState(false);
+export const MacroCalendarTable: React.FC<MacroCalendarTableProps> = ({
+  events,
+  subscriptions,
+  isLoading,
+  error,
+  filter,
+  onSubscribeChange,
+  onRetry,
+}) => {
   const [deletingEvent, setDeletingEvent] = useState<{ eventId: string; name: string } | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
   const [impactFilter, setImpactFilter] = useState<EventImpact | 'all'>('all');
-
-  useEffect(() => {
-    const loadEvents = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const data = await macroAlertApi.getUpcomingEvents();
-        setEvents(data);
-        const subs = await macroAlertApi.getSubscriptions();
-        const timingMap = new Map<string, { timing: string; oneTime: boolean }>();
-        subs.forEach((sub) => {
-          timingMap.set(sub.event_type, {
-            timing: sub.timing || '1D',
-            oneTime: sub.one_time !== undefined ? sub.one_time : true,
-          });
-        });
-        setSubscriptions(timingMap);
-      } catch {
-        setError('Failed to load events');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    loadEvents();
-  }, []);
 
   const filteredEvents = events.filter((event) => {
     if (filter === 'subscribed' && !event.subscribed) return false;
@@ -105,66 +73,10 @@ export const MacroCalendarTable: React.FC<MacroCalendarTableProps> = ({ userId }
     return true;
   });
 
-  const handleSubscribe = async (eventId: string, subscribe: boolean) => {
-    try {
-      const event = events.find((e) => e.id === eventId);
-      if (!event) return;
-
-      await macroAlertApi.updateSubscription(userId, event.event_type, subscribe);
-      setEvents((prev) =>
-        prev.map((e) =>
-          e.id === eventId ? { ...e, subscribed: subscribe } : e
-        )
-      );
-      showToast.success(subscribe ? 'Subscribed to event' : 'Unsubscribed from event');
-    } catch {
-      showToast.error('Failed to update subscription');
-    }
-  };
-
-  const handleDelete = async () => {
+  const handleDelete = () => {
     if (!deletingEvent) return;
-    setIsDeleting(true);
-    try {
-      const event = events.find((e) => e.id === deletingEvent.eventId);
-      if (event) {
-        await macroAlertApi.updateSubscription(userId, event.event_type, false);
-        setEvents((prev) =>
-          prev.map((e) =>
-            e.id === deletingEvent.eventId ? { ...e, subscribed: false } : e
-          )
-        );
-        showToast.success(`${deletingEvent.name} unsubscribed`);
-      }
-      setDeletingEvent(null);
-    } catch {
-      showToast.error('Failed to unsubscribe');
-    } finally {
-      setIsDeleting(false);
-    }
-  };
-
-  const handleCreateAlert = (
-    eventType: EventType,
-    timing: string,
-    notifyInApp: boolean,
-    notifyEmail: boolean,
-    oneTime: boolean
-  ) => {
-    const event = events.find((e) => e.event_type === eventType);
-    if (event) {
-      setSubscriptions((prev) =>
-        new Map(prev).set(eventType, { timing, oneTime })
-      );
-      handleSubscribe(event.id, true);
-      showToast.success(
-        `Alert set for ${eventNames[eventType]} (${timingLabels[timing]})${oneTime ? '' : ' (recurring)'}`
-      );
-      // TODO: Store notifyInApp and notifyEmail preferences
-      if (notifyInApp) console.log('In-app notifications enabled');
-      if (notifyEmail) console.log('Email notifications enabled');
-    }
-    setShowCreateModal(false);
+    onSubscribeChange(deletingEvent.eventId, false);
+    setDeletingEvent(null);
   };
 
   const formatDate = (dateString: string) => {
@@ -182,25 +94,15 @@ export const MacroCalendarTable: React.FC<MacroCalendarTableProps> = ({ userId }
     }
   };
 
-  const totalEvents = events.length;
-  const subscribedCount = events.filter((e) => e.subscribed).length;
-  const unsubscribedCount = events.filter((e) => !e.subscribed).length;
-
   if (isLoading) {
     return (
-      <div className="space-y-4">
-        <div className="flex justify-between items-center">
-          <Skeleton className="h-8 w-48" />
-          <Skeleton className="h-10 w-32" />
-        </div>
-        <Card>
-          <CardContent className="p-0">
-            {[1, 2, 3, 4].map((i) => (
-              <Skeleton key={i} className="h-16 w-full border-b last:border-0" />
-            ))}
-          </CardContent>
-        </Card>
-      </div>
+      <Card>
+        <CardContent className="p-0">
+          {[1, 2, 3, 4].map((i) => (
+            <Skeleton key={i} className="h-16 w-full border-b last:border-0" />
+          ))}
+        </CardContent>
+      </Card>
     );
   }
 
@@ -209,7 +111,7 @@ export const MacroCalendarTable: React.FC<MacroCalendarTableProps> = ({ userId }
       <Card>
         <CardContent className="p-8 text-center">
           <p className="text-red-500">{error}</p>
-          <Button variant="outline" className="mt-4" onClick={() => window.location.reload()}>
+          <Button variant="outline" className="mt-4" onClick={onRetry}>
             Retry
           </Button>
         </CardContent>
@@ -218,50 +120,7 @@ export const MacroCalendarTable: React.FC<MacroCalendarTableProps> = ({ userId }
   }
 
   return (
-    <div className="space-y-4">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <h3 className="text-lg font-semibold">Upcoming Events</h3>
-          <Badge variant="secondary" className="text-xs">
-            {filteredEvents.length} events
-          </Badge>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center gap-1 p-1 rounded-lg bg-muted/50">
-            <Button
-              variant={filter === 'all' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setFilter('all')}
-              className="h-7 text-xs"
-            >
-              All ({totalEvents})
-            </Button>
-            <Button
-              variant={filter === 'subscribed' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setFilter('subscribed')}
-              className="h-7 text-xs text-green-600"
-            >
-              🔔 Subscribed ({subscribedCount})
-            </Button>
-            <Button
-              variant={filter === 'unsubscribed' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setFilter('unsubscribed')}
-              className="h-7 text-xs text-muted-foreground"
-            >
-              🔕 Unsubscribed ({unsubscribedCount})
-            </Button>
-          </div>
-          <Button size="sm" onClick={() => setShowCreateModal(true)}>
-            <Calendar className="h-4 w-4 mr-2" />
-            New Alert
-          </Button>
-        </div>
-      </div>
-
-      {/* Events Table */}
+    <>
       <Card>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
@@ -348,7 +207,7 @@ export const MacroCalendarTable: React.FC<MacroCalendarTableProps> = ({ userId }
                             <div className="flex flex-col items-center gap-0.5">
                               <Badge variant="secondary" className="text-xs gap-1">
                                 <Clock className="h-3 w-3" />
-                                {timingLabels[eventTiming] || '1 day before'}
+                                {MACRO_TIMING_LABELS[eventTiming]}
                               </Badge>
                               <span className="text-[10px] text-muted-foreground flex items-center gap-1">
                                 {isOneTime ? (
@@ -370,7 +229,7 @@ export const MacroCalendarTable: React.FC<MacroCalendarTableProps> = ({ userId }
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2">
-                            <span className="text-lg">{eventIcons[event.event_type]}</span>
+                            <span className="text-lg">{MACRO_EVENT_ICONS[event.event_type]}</span>
                             <div>
                               <p className="text-sm font-medium">{event.event_name}</p>
                               <p className="text-xs text-muted-foreground">
@@ -403,7 +262,7 @@ export const MacroCalendarTable: React.FC<MacroCalendarTableProps> = ({ userId }
                             <Button
                               variant={isSubscribed ? 'default' : 'outline'}
                               size="sm"
-                              onClick={() => handleSubscribe(event.id, !isSubscribed)}
+                              onClick={() => onSubscribeChange(event.id, !isSubscribed)}
                               className="h-7 text-xs"
                             >
                               {isSubscribed ? 'Unsubscribe' : 'Subscribe'}
@@ -436,15 +295,6 @@ export const MacroCalendarTable: React.FC<MacroCalendarTableProps> = ({ userId }
         </CardContent>
       </Card>
 
-      {/* Create Alert Modal */}
-      <MacroAlertForm
-        open={showCreateModal}
-        onOpenChange={setShowCreateModal}
-        userId={userId}
-        events={events}
-        onSubmit={handleCreateAlert}
-      />
-
       {/* Delete Confirmation */}
       <ConfirmationDialog
         open={!!deletingEvent}
@@ -454,8 +304,7 @@ export const MacroCalendarTable: React.FC<MacroCalendarTableProps> = ({ userId }
         description={`Are you sure you want to unsubscribe from "${deletingEvent?.name}"?`}
         confirmText="Unsubscribe"
         variant="destructive"
-        isLoading={isDeleting}
       />
-    </div>
+    </>
   );
 };

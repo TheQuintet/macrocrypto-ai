@@ -27,6 +27,18 @@ export interface MacroEvent {
   notified: boolean;
 }
 
+/** Subscription filter applied to the macro event list. */
+export type MacroSubscriptionListFilter = 'all' | 'subscribed' | 'unsubscribed';
+
+/** Values captured by the macro alert form before a subscription is saved. */
+export interface MacroAlertDraft {
+  event_type: EventType;
+  timing: EventTiming;
+  one_time: boolean;
+  notify_in_app: boolean;
+  notify_email: boolean;
+}
+
 export interface MacroAlertHistory {
   id: string;
   event_name: string;

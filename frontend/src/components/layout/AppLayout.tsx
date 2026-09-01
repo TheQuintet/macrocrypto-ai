@@ -1,6 +1,7 @@
 import { Outlet, useNavigate } from 'react-router-dom';
 import { Moon, Sun } from 'lucide-react';
 import { NotificationBell } from '@/components/alerts/notifications/NotificationBell';
+import { AppBreadcrumb } from '@/components/layout/AppBreadcrumb';
 import { AppSidebar } from '@/components/layout/AppSidebar';
 import { AppToaster } from '@/components/layout/AppToaster';
 import { Button } from '@/components/ui/button';
@@ -45,9 +46,7 @@ function AppLayoutContent() {
             orientation="vertical"
             className="mr-1 hidden data-[orientation=vertical]:h-5 sm:block"
           />
-          <span className="min-w-0 truncate font-mono text-sm font-medium tracking-tight">
-            MacroCrypto&nbsp;AI
-          </span>
+          <AppBreadcrumb />
 
           <div className="ml-auto flex shrink-0 items-center gap-1">
             <NotificationBell userId={ALERTS_USER_ID} />

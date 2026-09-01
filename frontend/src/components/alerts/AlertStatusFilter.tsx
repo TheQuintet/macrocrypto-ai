@@ -1,41 +1,28 @@
-import { Button } from '@/components/ui/button'
-import { cn } from '@/lib/utils'
+import { Bell, BellOff, List } from 'lucide-react'
+import { AlertFilterGroup, type AlertFilterOption } from './shared/AlertFilterGroup'
 import type { AlertListStatusFilter } from './shared/alertStatus'
+
+export type AlertStatusCounts = Record<AlertListStatusFilter, number>
 
 type AlertStatusFilterProps = {
   value: AlertListStatusFilter
   onChange: (value: AlertListStatusFilter) => void
+  counts: AlertStatusCounts
 }
 
-const OPTIONS: Array<{ value: AlertListStatusFilter; label: string }> = [
-  { value: 'all', label: 'All' },
-  { value: 'active', label: 'Active' },
-  { value: 'inactive', label: 'Inactive' },
-]
+export function AlertStatusFilter({ value, onChange, counts }: AlertStatusFilterProps) {
+  const options: Array<AlertFilterOption<AlertListStatusFilter>> = [
+    { value: 'all', label: 'All', icon: List, count: counts.all },
+    { value: 'active', label: 'Active', icon: Bell, count: counts.active },
+    { value: 'inactive', label: 'Inactive', icon: BellOff, count: counts.inactive },
+  ]
 
-export function AlertStatusFilter({ value, onChange }: AlertStatusFilterProps) {
   return (
-    <div
-      className="flex w-full min-w-0 items-center gap-1 rounded-lg bg-muted p-1 sm:w-auto"
-      role="group"
-      aria-label="Filter alerts"
-    >
-      {OPTIONS.map((option) => (
-        <Button
-          key={option.value}
-          type="button"
-          size="sm"
-          variant={value === option.value ? 'default' : 'ghost'}
-          aria-pressed={value === option.value}
-          className={cn(
-            'min-h-11 min-w-10 flex-1 touch-manipulation sm:min-h-8 sm:flex-none',
-            value !== option.value && 'text-muted-foreground',
-          )}
-          onClick={() => onChange(option.value)}
-        >
-          {option.label}
-        </Button>
-      ))}
-    </div>
+    <AlertFilterGroup
+      value={value}
+      onChange={onChange}
+      options={options}
+      label="Filter alerts"
+    />
   )
 }

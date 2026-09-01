@@ -1,12 +1,4 @@
-import { useState, type ChangeEvent, type FormEvent } from 'react'
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
+import { useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
@@ -18,6 +10,10 @@ import {
   SelectTrigger,
 } from '@/components/ui/select'
 import { AlertStatusBadge } from '@/components/alerts/shared/AlertStatusBadge'
+import { AlertFormDialog } from '@/components/alerts/shared/AlertFormDialog'
+import { AlertNotificationFields } from '@/components/alerts/shared/AlertNotificationFields'
+import { AlertOneTimeField } from '@/components/alerts/shared/AlertOneTimeField'
+import type { AlertFormTab } from '@/components/alerts/shared/AlertFormTabs'
 import { isAlertEnabled, resolveAlertStatus } from '@/components/alerts/shared/alertStatus'
 import { AlertCircle } from 'lucide-react'
 import { useBtcPriceSnapshotQuery } from '@/hooks/useBtcPriceSnapshotQuery'
@@ -40,7 +36,6 @@ import {
   proposedAlertThreshold,
   resolveAlertThresholdPrice,
 } from './priceAlertRule'
-import { PriceAlertFormTabs, type PriceAlertFormTab } from './PriceAlertFormTabs'
 
 interface PriceAlertFormProps {
   open: boolean
@@ -49,6 +44,8 @@ interface PriceAlertFormProps {
   editingAlert?: PriceAlert | null
   onSubmit: (data: CreatePriceAlertRequest | UpdatePriceAlertRequest) => Promise<void>
   isLoading?: boolean
+  /** Alert-kind switch, supplied while creating so the kind can be corrected. */
+  typeSwitcher?: ReactNode
 }
 
 const getInitialFormData = (
@@ -93,6 +90,7 @@ export function PriceAlertForm({
   editingAlert,
   onSubmit,
   isLoading = false,
+  typeSwitcher,
 }: PriceAlertFormProps) {
   const isEditing = !!editingAlert
   const { data: snapshot } = useBtcPriceSnapshotQuery()
@@ -104,7 +102,7 @@ export function PriceAlertForm({
     resolveAlertStatus(editingAlert?.status) ?? 'active',
   )
   const [errors, setErrors] = useState<Record<string, string>>({})
-  const [tab, setTab] = useState<PriceAlertFormTab>('alert')
+  const [tab, setTab] = useState<AlertFormTab>('alert')
   const [priceText, setPriceText] = useState(getInitialPriceText(editingAlert))
   const [priceTouched, setPriceTouched] = useState(false)
   const [sessionOpen, setSessionOpen] = useState(open)
@@ -209,229 +207,191 @@ export function PriceAlertForm({
   const hasPrice = thresholdPrice > 0
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-[520px] max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <div className="flex items-center justify-between gap-3">
-            <DialogTitle>{isEditing ? 'Edit alert' : 'New alert'}</DialogTitle>
-            {isEditing ? <AlertStatusBadge status={alertStatus} size="sm" /> : null}
+    <AlertFormDialog
+      open={open}
+      onOpenChange={handleOpenChange}
+      title={isEditing ? 'Edit alert' : 'New alert'}
+      titleAccessory={isEditing ? <AlertStatusBadge status={alertStatus} size="sm" /> : null}
+      toolbar={
+        isEditing ? (
+          <div className="flex justify-end">
+            <Switch
+              size="sm"
+              checked={isAlertEnabled(alertStatus)}
+              onCheckedChange={(checked) =>
+                setAlertStatus(checked ? 'active' : 'disabled')
+              }
+              aria-label={isAlertEnabled(alertStatus) ? 'Deactivate alert' : 'Activate alert'}
+              disabled={isLoading}
+            />
           </div>
-        </DialogHeader>
-
-        <form onSubmit={handleSubmit} className="space-y-4 py-1">
-          {isEditing ? (
-            <div className="flex justify-end">
-              <Switch
-                size="sm"
-                checked={isAlertEnabled(alertStatus)}
-                onCheckedChange={(checked) =>
-                  setAlertStatus(checked ? 'active' : 'disabled')
-                }
-                aria-label={isAlertEnabled(alertStatus) ? 'Deactivate alert' : 'Activate alert'}
-                disabled={isLoading}
-              />
+        ) : null
+      }
+      typeSwitcher={isEditing ? null : typeSwitcher}
+      tab={tab}
+      onTabChange={setTab}
+      onSubmit={handleSubmit}
+      submitLabel={isEditing ? 'Save changes' : 'Create alert'}
+      isLoading={isLoading}
+      alertTab={
+        <>
+          <fieldset className="space-y-3 rounded-lg border border-border bg-muted/30 p-3">
+            <div className="flex items-center gap-2">
+              <span className="inline-flex min-h-11 items-center rounded-md border border-border bg-background px-2.5 text-sm font-medium sm:min-h-9">
+                {formData.asset ?? PRICE_ALERT_ASSET}
+              </span>
             </div>
-          ) : null}
 
-          <PriceAlertFormTabs value={tab} onChange={setTab} />
-
-          {tab === 'alert' ? (
-            <>
-              <fieldset className="space-y-3 rounded-lg border border-border bg-muted/30 p-3">
-                <div className="flex items-center gap-2">
-                  <span className="inline-flex min-h-11 items-center rounded-md border border-border bg-background px-2.5 text-sm font-medium sm:min-h-9">
-                    {formData.asset ?? PRICE_ALERT_ASSET}
-                  </span>
-                </div>
-
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label id="alert-type-label">Condition</Label>
-                    <Select
-                      value={formData.alert_type}
-                      onValueChange={(value: string) =>
-                        setFormData({ ...formData, alert_type: value as AlertType })
-                      }
-                    >
-                      <SelectTrigger
-                        aria-labelledby="alert-type-label"
-                        className={cn('min-h-11 sm:min-h-9', errors.alert_type && 'border-destructive')}
-                      >
-                        {selectedType.label}
-                      </SelectTrigger>
-                      <SelectContent>
-                        {ALERT_TYPE_OPTIONS.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {errors.alert_type ? (
-                      <p className="flex items-center gap-1 text-sm text-destructive">
-                        <AlertCircle className="h-3 w-3" />
-                        {errors.alert_type}
-                      </p>
-                    ) : null}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="threshold_price">
-                      Price <span className="text-destructive">*</span>
-                    </Label>
-                    <div className="relative">
-                      <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                        $
-                      </span>
-                      <Input
-                        id="threshold_price"
-                        type="text"
-                        inputMode="decimal"
-                        placeholder={
-                          formatAlertPriceInput(
-                            proposedAlertThreshold(lastReceivedPrice),
-                          ) || '85,000.00'
-                        }
-                        aria-invalid={Boolean(errors.threshold_price)}
-                        aria-describedby={
-                          errors.threshold_price
-                            ? 'threshold-price-error'
-                            : hasPrice
-                              ? 'price-alert-rule'
-                              : undefined
-                        }
-                        className={cn(
-                          'min-h-11 pl-7 sm:min-h-9',
-                          errors.threshold_price && 'border-destructive',
-                        )}
-                        value={displayedPriceText}
-                        onChange={(e: ChangeEvent<HTMLInputElement>) => {
-                          const next = e.target.value
-                          if (!isAlertPriceInputValue(next)) return
-                          setPriceTouched(true)
-                          setPriceText(next)
-                          setFormData({
-                            ...formData,
-                            threshold_price: parseAlertPriceInput(next),
-                          })
-                        }}
-                        onBlur={() => {
-                          setPriceText(formatAlertPriceInput(formData.threshold_price))
-                        }}
-                        disabled={isLoading}
-                      />
-                    </div>
-                    {errors.threshold_price ? (
-                      <p
-                        id="threshold-price-error"
-                        className="flex items-center gap-1 text-sm text-destructive"
-                      >
-                        <AlertCircle className="h-3 w-3" />
-                        {errors.threshold_price}
-                      </p>
-                    ) : null}
-                  </div>
-                </div>
-
-                {hasPrice ? (
-                  <p
-                    id="price-alert-rule"
-                    role="status"
-                    aria-live="polite"
-                    className="rounded-md bg-primary/5 px-3 py-2 text-sm"
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label id="alert-type-label">Condition</Label>
+                <Select
+                  value={formData.alert_type}
+                  onValueChange={(value: string) =>
+                    setFormData({ ...formData, alert_type: value as AlertType })
+                  }
+                >
+                  <SelectTrigger
+                    aria-labelledby="alert-type-label"
+                    className={cn('min-h-11 sm:min-h-9', errors.alert_type && 'border-destructive')}
                   >
-                    {ruleSummary}
+                    {selectedType.label}
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ALERT_TYPE_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {errors.alert_type ? (
+                  <p className="flex items-center gap-1 text-sm text-destructive">
+                    <AlertCircle className="h-3 w-3" />
+                    {errors.alert_type}
                   </p>
                 ) : null}
-              </fieldset>
+              </div>
 
-              <div className="flex items-center justify-between gap-3">
-                <Label htmlFor="one_time">One-time</Label>
-                <Switch
-                  id="one_time"
-                  checked={formData.one_time}
-                  onCheckedChange={(checked: boolean) =>
-                    setFormData({ ...formData, one_time: checked })
-                  }
-                  disabled={isLoading}
-                />
-              </div>
-            </>
-          ) : (
-            <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="name">Name</Label>
-                <Input
-                  id="name"
-                  placeholder="BTC breakout"
-                  className="min-h-11 sm:min-h-9"
-                  value={formData.name || ''}
-                  onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                    setFormData({ ...formData, name: e.target.value })
-                  }
-                  disabled={isLoading}
-                />
+                <Label htmlFor="threshold_price">
+                  Price <span className="text-destructive">*</span>
+                </Label>
+                <div className="relative">
+                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                    $
+                  </span>
+                  <Input
+                    id="threshold_price"
+                    type="text"
+                    inputMode="decimal"
+                    placeholder={
+                      formatAlertPriceInput(
+                        proposedAlertThreshold(lastReceivedPrice),
+                      ) || '85,000.00'
+                    }
+                    aria-invalid={Boolean(errors.threshold_price)}
+                    aria-describedby={
+                      errors.threshold_price
+                        ? 'threshold-price-error'
+                        : hasPrice
+                          ? 'price-alert-rule'
+                          : undefined
+                    }
+                    className={cn(
+                      'min-h-11 pl-7 sm:min-h-9',
+                      errors.threshold_price && 'border-destructive',
+                    )}
+                    value={displayedPriceText}
+                    onChange={(e: ChangeEvent<HTMLInputElement>) => {
+                      const next = e.target.value
+                      if (!isAlertPriceInputValue(next)) return
+                      setPriceTouched(true)
+                      setPriceText(next)
+                      setFormData({
+                        ...formData,
+                        threshold_price: parseAlertPriceInput(next),
+                      })
+                    }}
+                    onBlur={() => {
+                      setPriceText(formatAlertPriceInput(formData.threshold_price))
+                    }}
+                    disabled={isLoading}
+                  />
+                </div>
+                {errors.threshold_price ? (
+                  <p
+                    id="threshold-price-error"
+                    className="flex items-center gap-1 text-sm text-destructive"
+                  >
+                    <AlertCircle className="h-3 w-3" />
+                    {errors.threshold_price}
+                  </p>
+                ) : null}
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="description">Note</Label>
-                <Textarea
-                  id="description"
-                  placeholder="Optional"
-                  value={formData.description || ''}
-                  onChange={(e: ChangeEvent<HTMLTextAreaElement>) =>
-                    setFormData({ ...formData, description: e.target.value })
-                  }
-                  disabled={isLoading}
-                  rows={2}
-                />
-              </div>
-              <div className="flex items-center justify-between gap-3">
-                <Label htmlFor="notify_in_app">In the app</Label>
-                <Switch
-                  id="notify_in_app"
-                  checked={formData.notify_in_app}
-                  onCheckedChange={(checked: boolean) =>
-                    setFormData({ ...formData, notify_in_app: checked })
-                  }
-                  disabled={isLoading}
-                />
-              </div>
-              <div className="flex items-center justify-between gap-3">
-                <Label htmlFor="notify_email">Email</Label>
-                <Switch
-                  id="notify_email"
-                  checked={formData.notify_email}
-                  onCheckedChange={(checked: boolean) =>
-                    setFormData({ ...formData, notify_email: checked })
-                  }
-                  disabled={isLoading}
-                />
-              </div>
-              {errors.notify ? (
-                <p className="flex items-center gap-1 text-sm text-destructive">
-                  <AlertCircle className="h-3 w-3" />
-                  {errors.notify}
-                </p>
-              ) : null}
             </div>
-          )}
 
-          <DialogFooter className="gap-2">
-            <Button
-              type="button"
-              variant="outline"
+            {hasPrice ? (
+              <p
+                id="price-alert-rule"
+                role="status"
+                aria-live="polite"
+                className="rounded-md bg-primary/5 px-3 py-2 text-sm"
+              >
+                {ruleSummary}
+              </p>
+            ) : null}
+          </fieldset>
+
+          <AlertOneTimeField
+            checked={formData.one_time ?? false}
+            onChange={(checked) => setFormData({ ...formData, one_time: checked })}
+            disabled={isLoading}
+          />
+        </>
+      }
+      advancedTab={
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="name">Name</Label>
+            <Input
+              id="name"
+              placeholder="BTC breakout"
               className="min-h-11 sm:min-h-9"
-              onClick={() => handleOpenChange(false)}
+              value={formData.name || ''}
+              onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                setFormData({ ...formData, name: e.target.value })
+              }
               disabled={isLoading}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" className="min-h-11 sm:min-h-9" disabled={isLoading}>
-              {isLoading ? 'Saving...' : isEditing ? 'Save changes' : 'Create alert'}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="description">Note</Label>
+            <Textarea
+              id="description"
+              placeholder="Optional"
+              value={formData.description || ''}
+              onChange={(e: ChangeEvent<HTMLTextAreaElement>) =>
+                setFormData({ ...formData, description: e.target.value })
+              }
+              disabled={isLoading}
+              rows={2}
+            />
+          </div>
+          <AlertNotificationFields
+            notifyInApp={formData.notify_in_app ?? false}
+            notifyEmail={formData.notify_email ?? false}
+            onNotifyInAppChange={(checked) =>
+              setFormData({ ...formData, notify_in_app: checked })
+            }
+            onNotifyEmailChange={(checked) =>
+              setFormData({ ...formData, notify_email: checked })
+            }
+            error={errors.notify}
+            disabled={isLoading}
+          />
+        </div>
+      }
+    />
   )
 }
