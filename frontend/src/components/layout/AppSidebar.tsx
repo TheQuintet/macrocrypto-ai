@@ -1,5 +1,5 @@
-import { Link } from 'react-router-dom'
-import { AppSidebarNavItems } from '@/components/layout/AppSidebarNavItems'
+import { Link } from 'react-router-dom';
+import { AppSidebarNavItems } from '@/components/layout/AppSidebarNavItems';
 import {
   Sidebar,
   SidebarContent,
@@ -12,17 +12,28 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
-} from '@/components/ui/sidebar'
-import { routes } from '@/constants/navigation'
+} from '@/components/ui/sidebar';
+import { routes } from '@/constants/navigation';
 
-export function AppSidebar() {
+interface AppSidebarProps {
+  onNavigate?: (path: string) => void;
+}
+
+export function AppSidebar({ onNavigate }: AppSidebarProps) {
+  console.log('[AppSidebar] Received onNavigate:', !!onNavigate);
+
+  const handleLogoClick = () => {
+    console.log('[AppSidebar] Logo clicked');
+    onNavigate?.(routes.dashboard);
+  };
+
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild>
-              <Link to={routes.dashboard}>
+              <Link to={routes.dashboard} onClick={handleLogoClick}>
                 <span className="flex aspect-square size-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
                   <span className="font-mono text-sm font-semibold">MAI</span>
                 </span>
@@ -41,7 +52,7 @@ export function AppSidebar() {
         <SidebarGroup>
           <SidebarGroupLabel>Navigation</SidebarGroupLabel>
           <SidebarGroupContent>
-            <AppSidebarNavItems />
+            <AppSidebarNavItems onNavigate={onNavigate} />
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
@@ -50,5 +61,5 @@ export function AppSidebar() {
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>
-  )
+  );
 }
