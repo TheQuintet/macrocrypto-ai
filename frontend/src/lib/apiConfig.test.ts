@@ -2,10 +2,12 @@ import { describe, expect, it } from 'vitest'
 import {
   ALERT_API_BASE_URL,
   API_BASE_URL,
+  NOTIFICATION_STREAM_URL,
   alertApiUrl,
   apiUrl,
   isAlertApiConfigured,
   isApiConfigured,
+  isNotificationApiConfigured,
 } from '@/lib/apiConfig'
 
 describe('apiConfig', () => {
@@ -18,5 +20,7 @@ describe('apiConfig', () => {
     expect(ALERT_API_BASE_URL).toBeFalsy()
     expect(isAlertApiConfigured()).toBe(false)
     expect(alertApiUrl('/api/v1/alerts/price')).toBeNull()
+    expect(NOTIFICATION_STREAM_URL).toBeFalsy()
+    expect(isNotificationApiConfigured()).toBe(false)
   })
 })

@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const isAlertApiConfigured = vi.fn()
+const isNotificationApiConfigured = vi.fn()
 
 vi.mock('@/lib/apiConfig', () => ({
-  isAlertApiConfigured: () => isAlertApiConfigured(),
+  isNotificationApiConfigured: () => isNotificationApiConfigured(),
 }))
 
 beforeEach(() => {
@@ -11,22 +11,24 @@ beforeEach(() => {
 })
 
 afterEach(() => {
-  isAlertApiConfigured.mockReset()
+  isNotificationApiConfigured.mockReset()
 })
 
 describe('withSimulatedFallback', () => {
-  it('uses simulated data when no backend is configured', async () => {
-    isAlertApiConfigured.mockReturnValue(false)
+  it('uses simulated data when the notification env var is unset', async () => {
+    isNotificationApiConfigured.mockReturnValue(false)
     const { withSimulatedFallback } = await import('./withSimulatedFallback')
     const live = vi.fn()
     const simulate = vi.fn().mockResolvedValue('simulated')
 
-    await expect(withSimulatedFallback(live, simulate)).resolves.toBe('simulated')
+    await expect(withSimulatedFallback(live, simulate)).resolves.toBe(
+      'simulated',
+    )
     expect(live).not.toHaveBeenCalled()
   })
 
-  it('uses the live response when the backend answers', async () => {
-    isAlertApiConfigured.mockReturnValue(true)
+  it('uses the live response when the notification backend answers', async () => {
+    isNotificationApiConfigured.mockReturnValue(true)
     const { withSimulatedFallback } = await import('./withSimulatedFallback')
     const live = vi.fn().mockResolvedValue('live')
     const simulate = vi.fn()
@@ -36,7 +38,7 @@ describe('withSimulatedFallback', () => {
   })
 
   it('falls back to simulated data when the live request fails', async () => {
-    isAlertApiConfigured.mockReturnValue(true)
+    isNotificationApiConfigured.mockReturnValue(true)
     const { withSimulatedFallback } = await import('./withSimulatedFallback')
     const live = vi.fn().mockRejectedValue(new Error('offline'))
     const simulate = vi.fn().mockResolvedValue('simulated')

@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Bell } from 'lucide-react'
 import { NotificationList } from '@/components/alerts/notifications/NotificationList'
+import { showToast } from '@/components/alerts/shared/ToastNotification'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -18,8 +19,13 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { routes } from '@/constants/navigation'
+import { useNotificationStream } from '@/hooks/alerts/useNotificationStream'
+import { useNotificationsQuery } from '@/hooks/alerts/useNotificationsQuery'
+import { useToastUnreadNotifications } from '@/hooks/alerts/useToastUnreadNotifications'
+import { useUnreadNotificationCountQuery } from '@/hooks/alerts/useUnreadNotificationCountQuery'
+import { formatUnreadBadgeCount } from '@/lib/alerts/formatUnreadBadgeCount'
 import { cn } from '@/lib/utils'
-import { useNotificationStore } from '@/stores/alerts/notificationStore'
+import { useNotificationStreamStore } from '@/stores/notificationStreamStore'
 
 type NotificationBellProps = {
   userId: string
@@ -28,28 +34,37 @@ type NotificationBellProps = {
 
 export function NotificationBell({ userId, className }: NotificationBellProps) {
   const [isOpen, setIsOpen] = useState(false)
-  const { unreadCount, fetchNotifications, fetchUnreadCount } =
-    useNotificationStore()
+  const { data, isSuccess } = useUnreadNotificationCountQuery(userId)
+  useNotificationsQuery(userId)
+  useToastUnreadNotifications(userId)
+  const unreadCount = data?.count ?? 0
+  const unreadLabel = formatUnreadBadgeCount(unreadCount)
+  const isStreamConnected = useNotificationStreamStore(
+    (state) => state.status === 'connected',
+  )
+  const previousUnread = useRef<number | null>(null)
 
-  const handleOpenChange = (open: boolean) => {
-    setIsOpen(open)
-    if (open) {
-      fetchNotifications(userId)
-    }
-  }
+  useNotificationStream(userId)
 
   useEffect(() => {
-    if (!userId) return
+    if (!isSuccess || data === undefined) return
 
-    fetchUnreadCount(userId)
-    const interval = setInterval(() => {
-      fetchUnreadCount(userId)
-    }, 30_000)
-    return () => clearInterval(interval)
-  }, [userId, fetchUnreadCount])
+    if (previousUnread.current === null) {
+      previousUnread.current = data.count
+      return
+    }
+
+    if (!isStreamConnected && data.count > previousUnread.current) {
+      showToast.info(
+        'New alert',
+        'Open notifications to see the latest alert.',
+      )
+    }
+    previousUnread.current = data.count
+  }, [data, isStreamConnected, isSuccess])
 
   return (
-    <Sheet open={isOpen} onOpenChange={handleOpenChange}>
+    <Sheet open={isOpen} onOpenChange={setIsOpen}>
       <Tooltip>
         <TooltipTrigger asChild>
           <SheetTrigger asChild>
@@ -60,13 +75,16 @@ export function NotificationBell({ userId, className }: NotificationBellProps) {
               className={cn('relative', className)}
               aria-label="Notifications"
             >
-              <Bell />
-              {unreadCount > 0 ? (
+              <Bell
+                className={cn(
+                  unreadCount > 0 && 'text-green-600 dark:text-green-500',
+                )}
+              />
+              {unreadLabel ? (
                 <Badge
-                  variant="destructive"
-                  className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center p-0 text-xs"
+                  className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center border-transparent bg-green-600 p-0 text-xs text-white dark:bg-green-500 dark:text-green-950"
                 >
-                  {unreadCount > 99 ? '99+' : unreadCount}
+                  {unreadLabel}
                 </Badge>
               ) : null}
             </Button>
@@ -74,9 +92,9 @@ export function NotificationBell({ userId, className }: NotificationBellProps) {
         </TooltipTrigger>
         <TooltipContent>Notifications</TooltipContent>
       </Tooltip>
-      <SheetContent side="right" className="flex w-full flex-col sm:max-w-md">
-        <SheetHeader>
-          <SheetTitle className="flex items-center justify-between gap-2">
+      <SheetContent side="right" className="flex w-full flex-col sm:max-w-lg">
+        <SheetHeader className="pr-12">
+          <SheetTitle className="flex w-fit max-w-full items-center gap-2">
             <span>Notifications</span>
             {unreadCount > 0 ? (
               <span className="text-sm font-normal text-muted-foreground">
@@ -86,7 +104,10 @@ export function NotificationBell({ userId, className }: NotificationBellProps) {
           </SheetTitle>
         </SheetHeader>
         <div className="min-h-0 flex-1 overflow-y-auto px-4">
-          <NotificationList userId={userId} />
+          <NotificationList
+            userId={userId}
+            onNavigate={() => setIsOpen(false)}
+          />
         </div>
         <SheetFooter>
           <Button variant="outline" className="w-full" asChild>
