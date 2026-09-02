@@ -3,9 +3,10 @@ import { usePriceAlerts } from '@/hooks/alerts/usePriceAlerts';
 import { useMacroEvents } from '@/hooks/alerts/useMacroEvents';
 import { PriceAlertForm } from './price/PriceAlertForm';
 import { MacroAlertForm } from './macro/MacroAlertForm';
-import { MacroSubscriptionFilter } from './macro/MacroSubscriptionFilter';
+import { MacroEventStatusFilter } from './macro/MacroEventStatusFilter';
+import { MacroImpactFilter, type ImpactFilterValue } from './macro/MacroImpactFilter';
 import { AlertListToolbar } from './shared/AlertListToolbar';
-import { AlertsList } from './AlertsList';
+import { PriceAlertTable } from './price/PriceAlertTable';
 import { AlertsEmptyState } from './AlertsEmptyState';
 import { AlertDeleteConfirmation } from './AlertDeleteConfirmation';
 import { AlertStatusFilter } from './AlertStatusFilter';
@@ -21,7 +22,11 @@ import {
   type AlertListStatusFilter,
 } from './shared/alertStatus';
 import type { PriceAlert, CreatePriceAlertRequest, UpdatePriceAlertRequest } from '@/types/alerts/priceAlert';
-import type { MacroAlertDraft, MacroSubscriptionListFilter } from '@/types/alerts/macroAlert';
+import type {
+  MacroAlertDraft,
+  MacroEvent,
+  MacroEventStatusFilter as MacroEventStatusFilterValue,
+} from '@/types/alerts/macroAlert';
 import type { NewAlertType } from '@/types/alerts';
 import { MacroCalendarTable } from './macro/MacroCalendarTable';
 import { AlertTypeSelector } from './shared/AlertTypeSelector';
@@ -35,9 +40,11 @@ export const AlertManagement: React.FC<AlertManagementProps> = ({ userId }) => {
   const [creatingType, setCreatingType] = useState<NewAlertType | null>(null);
   const [showTypeSelector, setShowTypeSelector] = useState(false);
   const [editingAlert, setEditingAlert] = useState<PriceAlert | null>(null);
+  const [editingEvent, setEditingEvent] = useState<MacroEvent | null>(null);
   const [deletingAlert, setDeletingAlert] = useState<PriceAlert | null>(null);
   const [statusFilter, setStatusFilter] = useState<AlertListStatusFilter>('all');
-  const [eventFilter, setEventFilter] = useState<MacroSubscriptionListFilter>('all');
+  const [eventFilter, setEventFilter] = useState<MacroEventStatusFilterValue>('all');
+  const [impactFilter, setImpactFilter] = useState<ImpactFilterValue>('all');
   const [activeTab, setActiveTab] = useState<'price' | 'macro'>('price');
 
   const {
@@ -78,8 +85,8 @@ export const AlertManagement: React.FC<AlertManagementProps> = ({ userId }) => {
   const eventCounts = useMemo(
     () => ({
       all: events.length,
-      subscribed: events.filter((event) => event.subscribed).length,
-      unsubscribed: events.filter((event) => !event.subscribed).length,
+      active: events.filter((event) => event.subscribed).length,
+      inactive: events.filter((event) => !event.subscribed).length,
     }),
     [events],
   );
@@ -102,19 +109,40 @@ export const AlertManagement: React.FC<AlertManagementProps> = ({ userId }) => {
   const handleSubscribeChange = async (eventId: string, subscribed: boolean) => {
     try {
       await subscribeToEvent(eventId, subscribed);
-      showToast.success(subscribed ? 'Subscribed to event' : 'Unsubscribed from event');
+      showToast.success(subscribed ? 'Alert activated' : 'Alert paused');
     } catch {
       showToast.error('Failed to update subscription');
     }
   };
 
-  const handleCreateMacroAlert = async (draft: MacroAlertDraft) => {
+  const handleDeleteMacroAlert = async (eventId: string) => {
+    try {
+      await subscribeToEvent(eventId, false);
+      showToast.success('Alert deleted');
+    } catch {
+      showToast.error('Failed to delete alert');
+    }
+  };
+
+  const editingEventDraft: MacroAlertDraft | null = editingEvent
+    ? {
+        event_type: editingEvent.event_type,
+        timing: subscriptions.get(editingEvent.event_type)?.timing ?? '1D',
+        one_time: subscriptions.get(editingEvent.event_type)?.oneTime ?? true,
+        notify_in_app: true,
+        notify_email: false,
+      }
+    : null;
+
+  const handleSubmitMacroAlert = async (draft: MacroAlertDraft) => {
+    const wasEditing = Boolean(editingEvent);
     try {
       await applyMacroDraft(draft);
       closeCreateForm();
-      showToast.success('Macro event alert created');
+      setEditingEvent(null);
+      showToast.success(wasEditing ? 'Alert updated' : 'Macro event alert created');
     } catch {
-      showToast.error('Failed to create alert');
+      showToast.error(wasEditing ? 'Failed to update alert' : 'Failed to create alert');
     }
   };
 
@@ -258,16 +286,12 @@ export const AlertManagement: React.FC<AlertManagementProps> = ({ userId }) => {
           {alerts.length === 0 ? (
             <AlertsEmptyState />
           ) : (
-            <Card>
-              <CardContent className="pt-4">
-                <AlertsList
-                  alerts={visibleAlerts}
-                  onDelete={setDeletingAlert}
-                  onEdit={setEditingAlert}
-                  onToggleStatus={handleToggleStatus}
-                />
-              </CardContent>
-            </Card>
+            <PriceAlertTable
+              alerts={visibleAlerts}
+              onDelete={setDeletingAlert}
+              onEdit={setEditingAlert}
+              onToggleStatus={handleToggleStatus}
+            />
           )}
         </>
       )}
@@ -278,11 +302,12 @@ export const AlertManagement: React.FC<AlertManagementProps> = ({ userId }) => {
           <AlertListToolbar
             summary={`${events.length} ${events.length === 1 ? 'event' : 'events'} configured`}
           >
-            <MacroSubscriptionFilter
+            <MacroEventStatusFilter
               value={eventFilter}
               onChange={setEventFilter}
               counts={eventCounts}
             />
+            <MacroImpactFilter value={impactFilter} onChange={setImpactFilter} />
           </AlertListToolbar>
 
           <MacroCalendarTable
@@ -291,7 +316,10 @@ export const AlertManagement: React.FC<AlertManagementProps> = ({ userId }) => {
             isLoading={isLoadingEvents}
             error={eventsError}
             filter={eventFilter}
+            impactFilter={impactFilter}
             onSubscribeChange={handleSubscribeChange}
+            onDelete={handleDeleteMacroAlert}
+            onEdit={setEditingEvent}
             onRetry={fetchEvents}
           />
         </>
@@ -316,12 +344,17 @@ export const AlertManagement: React.FC<AlertManagementProps> = ({ userId }) => {
       />
 
       <MacroAlertForm
-        open={creatingType === 'macro'}
-        onOpenChange={(open) => (open ? setCreatingType('macro') : closeCreateForm())}
+        open={creatingType === 'macro' || Boolean(editingEvent)}
+        onOpenChange={(open) => {
+          if (open) return;
+          closeCreateForm();
+          setEditingEvent(null);
+        }}
         events={events}
-        onSubmit={handleCreateMacroAlert}
+        editingDraft={editingEventDraft}
+        onSubmit={handleSubmitMacroAlert}
         isLoading={isLoadingEvents}
-        typeSwitcher={typeSwitcher}
+        typeSwitcher={editingEvent ? undefined : typeSwitcher}
       />
 
       {/* Edit Modal */}

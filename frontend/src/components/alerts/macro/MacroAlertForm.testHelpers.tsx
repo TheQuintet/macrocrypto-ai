@@ -70,8 +70,20 @@ export async function selectNotifyBy(user: UserEvent, label: string) {
   await user.click(screen.getByRole('button', { name: label }))
 }
 
-export async function openAdvancedTab(user: UserEvent) {
-  await user.click(screen.getByRole('tab', { name: 'Advanced' }))
+export function getRequiredSection() {
+  return screen.getByRole('region', { name: 'Required' })
+}
+
+export function getAdvancedToggle() {
+  return screen.getByRole('button', { name: 'Advanced' })
+}
+
+export async function openAdvanced(user: UserEvent) {
+  await user.click(getAdvancedToggle())
+}
+
+export function expectAdvancedOpen() {
+  expect(getAdvancedToggle()).toHaveAttribute('aria-expanded', 'true')
 }
 
 export async function toggleNamedSwitch(user: UserEvent, name: string) {

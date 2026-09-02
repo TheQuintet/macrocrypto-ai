@@ -77,8 +77,12 @@ export async function fillPrice(user: UserEvent, value: string) {
   await user.tab()
 }
 
+export function getConditionSelect() {
+  return screen.getByRole('button', { name: /condition$/i })
+}
+
 export async function selectAlertCondition(user: UserEvent, label: string) {
-  await user.click(screen.getByRole('button', { name: 'Condition' }))
+  await user.click(getConditionSelect())
   await user.click(screen.getByRole('button', { name: label }))
 }
 
@@ -94,20 +98,24 @@ export async function clickOutsideDialog(user: UserEvent) {
   await user.click(screen.getByTestId('dialog-overlay'))
 }
 
-export async function openAdvancedTab(user: UserEvent) {
-  await user.click(screen.getByRole('tab', { name: 'Advanced' }))
+export function getRequiredSection() {
+  return screen.getByRole('region', { name: 'Required' })
 }
 
-export async function openAlertTab(user: UserEvent) {
-  await user.click(screen.getByRole('tab', { name: 'Alert' }))
+export function getAdvancedToggle() {
+  return screen.getByRole('button', { name: 'Advanced' })
+}
+
+export async function openAdvanced(user: UserEvent) {
+  await user.click(getAdvancedToggle())
+}
+
+export function expectAdvancedOpen() {
+  expect(getAdvancedToggle()).toHaveAttribute('aria-expanded', 'true')
 }
 
 export async function toggleNamedSwitch(user: UserEvent, name: string) {
   await user.click(screen.getByRole('switch', { name }))
-}
-
-export function expectRuleSummary(text: string) {
-  expect(screen.getByRole('status')).toHaveTextContent(text)
 }
 
 export function expectValidationError(text: string) {

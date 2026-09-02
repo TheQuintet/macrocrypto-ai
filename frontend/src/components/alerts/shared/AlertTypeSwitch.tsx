@@ -1,3 +1,5 @@
+import { Bell, Calendar } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import type { NewAlertType } from '@/types/alerts'
@@ -8,35 +10,40 @@ type AlertTypeSwitchProps = {
   disabled?: boolean
 }
 
-const TYPES: Array<{ value: NewAlertType; label: string }> = [
-  { value: 'price', label: 'Price' },
-  { value: 'macro', label: 'Macro event' },
+const TYPES: Array<{ value: NewAlertType; label: string; icon: LucideIcon }> = [
+  { value: 'price', label: 'Price alert', icon: Bell },
+  { value: 'macro', label: 'Macro event alert', icon: Calendar },
 ]
 
-/** Lets a half-filled create form change its mind about the alert kind. */
+/** Two icons — the whole alert-kind choice, without taking a row of its own. */
 export function AlertTypeSwitch({ value, onChange, disabled = false }: AlertTypeSwitchProps) {
   return (
-    <div role="group" aria-label="Alert type" className="flex items-center gap-2">
-      <span className="text-sm text-muted-foreground">Alert for</span>
-      <div className="flex flex-1 gap-1 rounded-lg border border-border p-1">
-        {TYPES.map((type) => (
+    <div
+      role="group"
+      aria-label="Alert type"
+      className="flex shrink-0 items-center gap-0.5 rounded-lg bg-muted p-0.5"
+    >
+      {TYPES.map((type) => {
+        const Icon = type.icon
+        const isSelected = value === type.value
+
+        return (
           <Button
             key={type.value}
             type="button"
-            size="sm"
-            variant={value === type.value ? 'secondary' : 'ghost'}
-            aria-pressed={value === type.value}
+            size="icon"
+            variant={isSelected ? 'default' : 'ghost'}
+            aria-label={type.label}
+            aria-pressed={isSelected}
+            title={type.label}
             disabled={disabled}
-            className={cn(
-              'min-h-11 flex-1 touch-manipulation sm:min-h-8',
-              value !== type.value && 'text-muted-foreground',
-            )}
+            className={cn('h-8 w-8', !isSelected && 'text-muted-foreground')}
             onClick={() => onChange(type.value)}
           >
-            {type.label}
+            <Icon className="h-4 w-4" />
           </Button>
-        ))}
-      </div>
+        )
+      })}
     </div>
   )
 }

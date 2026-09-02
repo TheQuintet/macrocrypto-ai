@@ -22,7 +22,7 @@ export function AlertNotificationFields({
 }: AlertNotificationFieldsProps) {
   return (
     <>
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex items-center justify-between gap-3 py-0.5">
         <Label htmlFor="notify_in_app">In the app</Label>
         <Switch
           id="notify_in_app"
@@ -31,7 +31,7 @@ export function AlertNotificationFields({
           disabled={disabled}
         />
       </div>
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex items-center justify-between gap-3 py-0.5">
         <Label htmlFor="notify_email">Email</Label>
         <Switch
           id="notify_email"

@@ -1,40 +1,44 @@
 import { render, screen } from '@testing-library/react'
 import type { UserEvent } from '@testing-library/user-event'
 import { expect, vi } from 'vitest'
-import { AlertListItem } from './AlertListItem'
-import { mockAlert } from './price/__tests__/testHelpers'
+import { PriceAlertRow } from './PriceAlertRow'
+import { mockAlert } from './__tests__/testHelpers'
 import type { PriceAlert } from '@/types/alerts/priceAlert'
 
-type ListItemProps = {
+type RowProps = {
   alert?: PriceAlert
   onDelete?: (alert: PriceAlert) => void
   onEdit?: (alert: PriceAlert) => void
   onToggleStatus?: (alert: PriceAlert) => void
 }
 
-export function renderAlertListItem(overrides: ListItemProps = {}) {
+export function renderPriceAlertRow(overrides: RowProps = {}) {
   const onDelete = overrides.onDelete ?? vi.fn()
   const onEdit = overrides.onEdit ?? vi.fn()
   const onToggleStatus = overrides.onToggleStatus ?? vi.fn()
 
   const view = render(
-    <AlertListItem
-      alert={overrides.alert ?? mockAlert}
-      onDelete={onDelete}
-      onEdit={onEdit}
-      onToggleStatus={onToggleStatus}
-    />,
+    <table>
+      <tbody>
+        <PriceAlertRow
+          alert={overrides.alert ?? mockAlert}
+          onDelete={onDelete}
+          onEdit={onEdit}
+          onToggleStatus={onToggleStatus}
+        />
+      </tbody>
+    </table>,
   )
 
   return { ...view, onDelete, onEdit, onToggleStatus }
 }
 
-export function getEditRow() {
+export function getEditControl() {
   return screen.getByRole('button', { name: 'Edit alert' })
 }
 
-export async function clickEditRow(user: UserEvent) {
-  await user.click(getEditRow())
+export async function clickEdit(user: UserEvent) {
+  await user.click(getEditControl())
 }
 
 export function getDeleteButton() {

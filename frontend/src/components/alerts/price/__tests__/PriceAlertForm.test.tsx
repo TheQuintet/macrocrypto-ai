@@ -1,16 +1,18 @@
-import { cleanup, screen } from '@testing-library/react'
+import { cleanup, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   LAST_RECEIVED_PRICE,
   clickOutsideDialog,
-  expectRuleSummary,
+  getConditionSelect,
   expectValidationError,
   fillPrice,
   getCreateButton,
   getPriceInput,
   getSaveButton,
-  openAdvancedTab,
+  expectAdvancedOpen,
+  getRequiredSection,
+  openAdvanced,
   pressEscape,
   renderCreateForm,
   renderEditForm,
@@ -34,35 +36,37 @@ describe('PriceAlertForm', () => {
     renderCreateForm()
 
     expect(getPriceInput()).toHaveValue(formatAlertPriceInput(LAST_RECEIVED_PRICE))
-    expectRuleSummary(`BTC/USD hits $64,213.50`)
   })
 
   it('leads with the price rule', () => {
     renderCreateForm()
 
-    expect(screen.getByText('New alert')).toBeInTheDocument()
-    expect(screen.getByText('BTC/USD')).toBeInTheDocument()
+    expect(screen.getByText('New price alert')).toBeInTheDocument()
+    expect(getConditionSelect()).toHaveAccessibleName('BTC/USD condition')
     expect(getPriceInput()).toBeInTheDocument()
     expect(getCreateButton()).toBeInTheDocument()
-    expect(screen.getByRole('tab', { name: 'Alert' })).toHaveAttribute('aria-selected', 'true')
-    expect(screen.queryByLabelText('Name')).not.toBeInTheDocument()
-    expect(screen.getByRole('switch', { name: 'One-time' })).toBeChecked()
-    expect(screen.queryByRole('switch', { name: 'In the app' })).not.toBeInTheDocument()
+    const required = within(getRequiredSection())
+    expect(required.getByRole('switch', { name: 'One-time' })).toBeChecked()
+    expect(
+      required.getByText('You are notified for the next occurrence only.'),
+    ).toBeInTheDocument()
   })
 
-  it('keeps name, note, and notify on the Advanced tab', async () => {
+  it('folds the optional settings behind Advanced', async () => {
     const user = userEvent.setup()
     renderCreateForm()
 
-    await openAdvancedTab(user)
+    const required = within(getRequiredSection())
+    expect(required.getByRole('textbox', { name: /^Price/ })).toBeInTheDocument()
+    expect(required.getByRole('switch', { name: 'One-time' })).toBeInTheDocument()
+    expect(screen.queryByRole('textbox', { name: 'Name' })).not.toBeInTheDocument()
 
-    expect(screen.getByRole('tab', { name: 'Advanced' })).toHaveAttribute('aria-selected', 'true')
-    expect(screen.getByLabelText('Name')).toBeInTheDocument()
-    expect(screen.getByLabelText('Note')).toBeInTheDocument()
-    expect(screen.getByRole('switch', { name: 'In the app' })).toBeInTheDocument()
-    expect(screen.getByRole('switch', { name: 'Email' })).toBeInTheDocument()
-    expect(screen.queryByLabelText(/^Price/)).not.toBeInTheDocument()
-    expect(screen.queryByRole('switch', { name: 'One-time' })).not.toBeInTheDocument()
+    await openAdvanced(user)
+
+    expect(screen.getByRole('textbox', { name: 'Name' })).toBeVisible()
+    expect(screen.getByRole('textbox', { name: 'Note' })).toBeVisible()
+    expect(screen.getByRole('switch', { name: 'In the app' })).toBeVisible()
+    expect(screen.getByRole('switch', { name: 'Email' })).toBeVisible()
   })
 
   it('closes on Escape', async () => {
@@ -90,7 +94,7 @@ describe('PriceAlertForm', () => {
     expect(screen.getByText('Active')).toBeInTheDocument()
     expect(screen.getByRole('switch', { name: 'Deactivate alert' })).toBeChecked()
     expect(getPriceInput()).toHaveValue('85,000.00')
-    expectRuleSummary('BTC/USD goes above $85,000.00')
+    expect(getConditionSelect()).toHaveTextContent('Goes above')
     expect(getSaveButton()).toBeInTheDocument()
   })
 
@@ -119,16 +123,17 @@ describe('PriceAlertForm', () => {
     })
   })
 
-  it('updates the summary as the price and condition change', async () => {
+  it('keeps the typed price when the condition changes', async () => {
     const user = userEvent.setup()
     renderCreateForm()
 
     await fillPrice(user, '85000')
     expect(getPriceInput()).toHaveValue('85,000.00')
-    expectRuleSummary('BTC/USD hits $85,000.00')
 
     await selectAlertCondition(user, 'Goes below')
-    expectRuleSummary('BTC/USD goes below $85,000.00')
+
+    expect(getConditionSelect()).toHaveTextContent('Goes below')
+    expect(getPriceInput()).toHaveValue('85,000.00')
   })
 
   it('shows a validation error when the price is missing', async () => {
@@ -144,12 +149,12 @@ describe('PriceAlertForm', () => {
     renderCreateForm()
 
     await fillPrice(user, '85000')
-    await openAdvancedTab(user)
+    await openAdvanced(user)
     await toggleNamedSwitch(user, 'In the app')
     await submitCreateForm(user)
 
     expectValidationError('Choose a notification.')
-    expect(screen.getByRole('switch', { name: 'Email' })).toBeInTheDocument()
+    expectAdvancedOpen()
   })
 
   it('submits the filled create form', async () => {

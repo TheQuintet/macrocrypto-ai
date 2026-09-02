@@ -4,17 +4,19 @@ import { Switch } from '@/components/ui/switch'
 type AlertOneTimeFieldProps = {
   checked: boolean
   onChange: (checked: boolean) => void
-  hint?: string
   disabled?: boolean
 }
 
-/** One-time toggle — the only repeat control, and it lives on the Alert tab. */
+/** One repeat control, one explanation — the same on every alert form. */
 export function AlertOneTimeField({
   checked,
   onChange,
-  hint,
   disabled = false,
 }: AlertOneTimeFieldProps) {
+  const hint = checked
+    ? 'You are notified for the next occurrence only.'
+    : 'You are notified every time this event occurs.'
+
   return (
     <div className="space-y-1">
       <div className="flex items-center justify-between gap-3">
@@ -26,7 +28,7 @@ export function AlertOneTimeField({
           disabled={disabled}
         />
       </div>
-      {hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
+      <p className="text-xs text-muted-foreground">{hint}</p>
     </div>
   )
 }

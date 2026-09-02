@@ -27,8 +27,8 @@ export interface MacroEvent {
   notified: boolean;
 }
 
-/** Subscription filter applied to the macro event list. */
-export type MacroSubscriptionListFilter = 'all' | 'subscribed' | 'unsubscribed';
+/** Status filter applied to the macro event list, mirroring price alerts. */
+export type MacroEventStatusFilter = 'all' | 'active' | 'inactive';
 
 /** Values captured by the macro alert form before a subscription is saved. */
 export interface MacroAlertDraft {

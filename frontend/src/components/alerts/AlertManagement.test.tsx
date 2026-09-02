@@ -53,8 +53,22 @@ describe('AlertManagement', () => {
 
     expect(screen.getByText('2 events configured')).toBeInTheDocument()
     expectFilterCount('All', 2)
-    expectFilterCount('Subscribed', 0)
-    expectFilterCount('Unsubscribed', 2)
+    expectFilterCount('Active', 0)
+    expectFilterCount('Inactive', 2)
+  })
+
+  it('opens the macro edit dialog from a row click', async () => {
+    const user = userEvent.setup()
+    renderAlertManagement()
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Macro Events (2)' })).toBeInTheDocument()
+    })
+    await openTab(user, /^Macro Events/)
+    await user.click(screen.getByText('FOMC Rate Decision'))
+
+    expect(screen.getByText('Edit macro event alert')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Save changes' })).toBeInTheDocument()
   })
 
   it('offers both alert types from the plus button', async () => {
@@ -74,14 +88,14 @@ describe('AlertManagement', () => {
 
     await clickNewAlert(user)
     await chooseAlertType(user, /Price alert/)
-    expect(screen.getByText('New alert')).toBeInTheDocument()
+    expect(screen.getByText('New price alert')).toBeInTheDocument()
 
-    await switchAlertTypeTo(user, 'Macro event')
+    await switchAlertTypeTo(user, 'Macro event alert')
 
     await waitFor(() => {
       expect(screen.getByText('New macro event alert')).toBeInTheDocument()
     })
-    expect(screen.queryByText('New alert')).not.toBeInTheDocument()
+    expect(screen.queryByText('New price alert')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: /^Event/ })).toBeInTheDocument()
   })
 
@@ -95,9 +109,9 @@ describe('AlertManagement', () => {
       expect(screen.getByText('New macro event alert')).toBeInTheDocument()
     })
 
-    await switchAlertTypeTo(user, 'Price')
+    await switchAlertTypeTo(user, 'Price alert')
 
-    expect(screen.getByText('New alert')).toBeInTheDocument()
+    expect(screen.getByText('New price alert')).toBeInTheDocument()
     expect(screen.queryByText('Choose alert type')).not.toBeInTheDocument()
   })
 })
