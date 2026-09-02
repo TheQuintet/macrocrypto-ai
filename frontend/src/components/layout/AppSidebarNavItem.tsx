@@ -1,7 +1,9 @@
 import { Link, useLocation } from 'react-router-dom'
+import { AppSidebarNavSubItem } from '@/components/layout/AppSidebarNavSubItem'
 import {
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
 } from '@/components/ui/sidebar'
 import { isSidebarNavItemActive } from '@/constants/navigation'
 import type { SidebarNavItem } from '@/types/navigation'
@@ -23,6 +25,14 @@ export function AppSidebarNavItem({ item }: AppSidebarNavItemProps) {
           <span>{item.label}</span>
         </Link>
       </SidebarMenuButton>
+
+      {item.children?.length ? (
+        <SidebarMenuSub>
+          {item.children.map((child) => (
+            <AppSidebarNavSubItem key={child.id} item={child} />
+          ))}
+        </SidebarMenuSub>
+      ) : null}
     </SidebarMenuItem>
   )
 }
