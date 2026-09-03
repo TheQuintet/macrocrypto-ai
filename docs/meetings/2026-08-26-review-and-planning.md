@@ -262,4 +262,4 @@ Options included Vercel and the Amazon account with available credit. Amazon is 
 
 ## Next meeting
 
-See [recurring sync schedule](../team-roles.md#recurring-meetings-through-14-oct-2026) — next sync **Wed 2 Sep 2026, Slot B**.
+See [recurring sync schedule](../team-roles.md#recurring-meetings-through-14-oct-2026) — session write-up: [2 Sep 2026 Review, Refinement & Planning](./2026-09-02-review-and-planning.md).
