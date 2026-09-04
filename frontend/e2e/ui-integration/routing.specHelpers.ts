@@ -39,9 +39,12 @@ export async function expectRoute(page: Page, id: NavItemId) {
   await expect(page).toHaveURL(pattern)
 }
 
-export async function expectPageHeading(page: Page, id: NavItemId) {
+/** The breadcrumb names the open page, so pages need no repeated heading. */
+export async function expectCurrentPage(page: Page, id: NavItemId) {
   await expect(
-    page.getByRole('heading', { name: pageCopy[id].title, exact: true }),
+    page
+      .getByRole('navigation', { name: 'Breadcrumb' })
+      .getByText(pageCopy[id].title, { exact: true }),
   ).toBeVisible()
 }
 

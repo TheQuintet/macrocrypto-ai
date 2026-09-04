@@ -7,7 +7,7 @@ import {
   clickManageAlerts,
   clickSidebarNav,
   expectNotificationsOpen,
-  expectPageHeading,
+  expectCurrentPage,
   expectRoute,
   expectTimeRangeSelected,
   goToRoute,
@@ -21,15 +21,15 @@ test.describe('client routing UI integration', () => {
 
     await clickSidebarNav(page, 'macro')
     await expectRoute(page, 'macro')
-    await expectPageHeading(page, 'macro')
+    await expectCurrentPage(page, 'macro')
 
     await clickSidebarNav(page, 'forecasts')
     await expectRoute(page, 'forecasts')
-    await expectPageHeading(page, 'forecasts')
+    await expectCurrentPage(page, 'forecasts')
 
     await clickSidebarNav(page, 'alerts')
     await expectRoute(page, 'alerts')
-    await expectPageHeading(page, 'alerts')
+    await expectCurrentPage(page, 'alerts')
   })
 
   test('header bell opens notifications and can reach alert settings', async ({
@@ -43,14 +43,14 @@ test.describe('client routing UI integration', () => {
 
     await clickManageAlerts(page)
     await expectRoute(page, 'alerts')
-    await expectPageHeading(page, 'alerts')
+    await expectCurrentPage(page, 'alerts')
   })
 
   test('deep links open the matching page', async ({ page }) => {
     await goToRoute(page, 'alerts')
 
     await expectRoute(page, 'alerts')
-    await expectPageHeading(page, 'alerts')
+    await expectCurrentPage(page, 'alerts')
   })
 
   test('time range selection on dashboard is shown on macro indicators', async ({

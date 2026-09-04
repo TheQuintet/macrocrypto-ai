@@ -1,5 +1,5 @@
 import { ChartPlaceholder } from '@/components/charts/ChartPlaceholder'
-import { PageHeader } from '@/components/layout/PageHeader'
+import { PageIntro } from '@/components/layout/PageIntro'
 import { TimeRangeBadge } from '@/components/timeRange/TimeRangeBadge'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -18,9 +18,9 @@ export function ForecastsPage() {
 
   return (
     <div className="flex min-w-0 flex-col gap-4 sm:gap-6">
-      <PageHeader title={page.title} description={page.body}>
+      <PageIntro description={page.body}>
         <TimeRangeBadge />
-      </PageHeader>
+      </PageIntro>
 
       <div className="grid grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-3">
         <Card className="min-w-0 lg:col-span-2">
