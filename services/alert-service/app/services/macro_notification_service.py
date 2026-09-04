@@ -1,7 +1,7 @@
 """Macro event notification service"""
 
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, Optional
 from uuid import UUID
 
@@ -10,6 +10,7 @@ from sqlalchemy import desc
 
 from app.models.macro_alert import MacroEventNotification
 from app.services.notification_service import NotificationService
+from app.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -138,4 +139,94 @@ class MacroNotificationService:
 
         self.db.commit()
         logger.debug(f"📱 Archived {count} macro notifications")
+        return count
+
+    # ============================================
+    # GLOBAL NOTIFICATION MANAGEMENT
+    # ============================================
+
+    def get_all_notifications(
+        self,
+        unread_only: bool = False,
+        limit: int = 50,
+        offset: int = 0
+    ) -> tuple:
+        """
+        Get notifications without filtering by user_id.
+
+        Only non-archived notifications within the configured
+        history_notification_days period are returned.
+
+        This method is intentionally separate from get_macro_notifications()
+        so the existing user-scoped behavior remains unchanged.
+        """
+        # Calculate the oldest notification date that should be included.
+        # The number of days is controlled through application configuration.
+        cutoff_date = datetime.utcnow() - timedelta(
+            days=settings.HISTORY_NOTIFICATION_DAYS
+        )
+
+        # Start with all non-archived notifications within the
+        # configured notification history period.
+        query = self.db.query(MacroEventNotification).filter(
+            MacroEventNotification.is_archived == False,
+            MacroEventNotification.sent_at >= cutoff_date
+        )
+
+        # When requested, restrict the result to unread notifications.
+        if unread_only:
+            query = query.filter(
+                MacroEventNotification.read == False
+            )
+
+        # Count the complete filtered result before applying pagination.
+        total = query.count()
+
+        # Return the newest notifications first and apply pagination.
+        notifications = query.order_by(
+            desc(MacroEventNotification.sent_at)
+        ).offset(offset).limit(limit).all()
+
+        return total, notifications
+
+    def mark_all_notifications_as_read(self) -> int:
+        """
+        Mark all notifications as read without filtering by user_id.
+
+        Only unread, non-archived notifications within the configured
+        history_notification_days period are updated.
+
+        Returns:
+            int: Number of notifications that were marked as read.
+        """
+        # Calculate the beginning of the configured notification history.
+        cutoff_date = datetime.utcnow() - timedelta(
+            days=settings.HISTORY_NOTIFICATION_DAYS
+        )
+
+        # Retrieve all unread and non-archived notifications that are
+        # still inside the configured notification history period.
+        notifications = self.db.query(MacroEventNotification).filter(
+            MacroEventNotification.read == False,
+            MacroEventNotification.is_archived == False,
+            MacroEventNotification.sent_at >= cutoff_date
+        ).all()
+
+        count = 0
+        read_at = datetime.utcnow()
+
+        # Mark each matching notification as read and record when
+        # the notification was read.
+        for notification in notifications:
+            notification.read = True
+            notification.read_at = read_at
+            count += 1
+
+        # Persist all notification updates in a single transaction.
+        self.db.commit()
+
+        logger.debug(
+            f"📱 Marked {count} notifications as read"
+        )
+
         return count

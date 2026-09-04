@@ -131,7 +131,7 @@ def _fetch_economic_calendar_events() -> list:
                 "FOMC interest rate decision and economic projections"
             ),
             "scheduled_at": (
-                now + timedelta(days=2)
+                now + timedelta(hours=24)
             ).isoformat(),
             "timezone": "UTC",
             "impact": "high",

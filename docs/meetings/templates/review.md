@@ -102,4 +102,38 @@ Sprint review notes: demo completed work, gather feedback, review progress.
 
 ---
 
+### Review (combined with refinement and planning) — 2 Sep 2026
+
+| | |
+|---|---|
+| **Date** | Wed 2 Sep 2026 |
+| **Attendees** | Sid Ahmed Mahieddine, Loredana Lungu, Kingson Emma-Ochu, Mael Taye Deneke, Richard Owusu |
+| **Sprint** | Current sprint — alerts, API Gateway, AI / prediction (T8) |
+| **Full notes** | [2026-09-02 Review, Refinement & Planning](../2026-09-02-review-and-planning.md) |
+
+**Progress by area**
+
+| Area | Owner | Status |
+|------|-------|--------|
+| Alerts (S1) | Richard / Loredana | Closed — price alerts, notifications, create/manage UI |
+| Receive alerts from BTC (T7) | Loredana | In progress — due Friday |
+| Macro events UI | Loredana | Breadcrumb and pop-up consistency; notifications planned |
+| Economic calendar | Kingson | Demoed; place under Macro Indicators |
+| API Gateway | Mael | 34 endpoints; two PRs awaiting merge |
+| AI / prediction (T8) | Sid | Prophet model; sub-issues moving to sprint |
+
+**Feedback**
+
+- Prioritize BTC trader persona for Capstone submission
+- Future PRs should include testing and mobile responsiveness together
+- Keep implementations simple; document extras for later
+
+**Next sprint preview**
+
+- Finish T7 by Friday; merge API Gateway PRs
+- T8 prediction work and Dr. Robert AI meeting prep
+- Kingson: calendar navigation and macro notifications
+
+---
+
 _Add dated review notes below as sprints progress._
