@@ -26,17 +26,21 @@ The team evaluated its Bitcoin price-forecasting MVP and capstone strategy.
 
 ## Action Items
 
-- Meeting participant will research current Bitcoin forecasting literature and identify relevant ML model alternatives to Prophet.
-- Meeting participant will compare fresh-from-scratch training with continued training using the project’s historical data if a thorough evaluation is desired.
-- Meeting participant will review published research to validate and refine the selected Bitcoin price-prediction features.
-- Sid Ahmed will present the team’s implementation progress in a subsequent meeting.
-- The team will compare its model’s performance with relevant alternatives and explain how the selected approach ranks.
-- The team will document how the model was evaluated, why the chosen methods were used, and why the resulting system is considered good.
-- The team will conduct additional research on existing market players and competing solutions.
-- Meeting participant will develop the project to a strong capstone standard.
-- Meeting participant will improve the model’s predictive performance as much as possible.
-- Meeting participant will describe an ML-based implementation as an ML service rather than an AI service.
-- Meeting participant will continue developing the Bitcoin price-prediction project.
+Track progress by checking items off in GitHub or locally as they are completed.
+
+| Done | Owner | Action |
+|:----:|-------|--------|
+| [ ] | Richard | Research current Bitcoin forecasting literature and identify relevant ML model alternatives to Prophet. |
+| [ ] | Richard | Compare fresh-from-scratch training with continued training using the project’s historical data if a thorough evaluation is desired. |
+| [ ] | Richard | Review published research to validate and refine the selected Bitcoin price-prediction features. |
+| [ ] | Sid Ahmed | Present the team’s implementation progress in a subsequent meeting. |
+| [ ] | Team | Compare the model’s performance with relevant alternatives and explain how the selected approach ranks. |
+| [ ] | Team | Document how the model was evaluated, why the chosen methods were used, and why the resulting system is considered good. |
+| [ ] | Team | Conduct additional research on existing market players and competing solutions. |
+| [ ] | Team | Develop the project to a strong capstone standard. |
+| [ ] | Richard | Improve the model’s predictive performance as much as possible. |
+| [ ] | Team | Describe the ML-based implementation as an ML service rather than an AI service. |
+| [ ] | Team | Continue developing the Bitcoin price-prediction project. |
 
 ---
 
