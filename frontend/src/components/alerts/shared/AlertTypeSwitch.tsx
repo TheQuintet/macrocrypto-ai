@@ -1,4 +1,6 @@
-import { Bell, Calendar } from 'lucide-react'
+// src/components/alerts/shared/AlertTypeSwitch.tsx (UPDATED)
+
+import { Bell, Calendar, TrendingUp } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -13,9 +15,10 @@ type AlertTypeSwitchProps = {
 const TYPES: Array<{ value: NewAlertType; label: string; icon: LucideIcon }> = [
   { value: 'price', label: 'Price alert', icon: Bell },
   { value: 'macro', label: 'Macro event alert', icon: Calendar },
+  { value: 'prediction', label: 'Prediction alert', icon: TrendingUp },
 ]
 
-/** Two icons — the whole alert-kind choice, without taking a row of its own. */
+/** Three icons — the whole alert-kind choice, without taking a row of its own. */
 export function AlertTypeSwitch({ value, onChange, disabled = false }: AlertTypeSwitchProps) {
   return (
     <div

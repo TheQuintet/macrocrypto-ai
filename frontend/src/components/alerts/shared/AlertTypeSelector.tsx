@@ -4,34 +4,34 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog'
-import { Bell, Calendar } from 'lucide-react'
-import { AlertTypeCard } from './AlertTypeCard'
-import type { NewAlertType } from '@/types/alerts'
+} from '@/components/ui/dialog';
+import { Bell, Calendar, TrendingUp } from 'lucide-react';
+import { AlertTypeCard } from './AlertTypeCard';
+import type { NewAlertType } from '@/types/alerts';
 
 type AlertTypeSelectorProps = {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  onSelect: (type: NewAlertType) => void
-}
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSelect: (type: NewAlertType) => void;
+};
 
-/** Step one of creating an alert: pick price or macro event. */
+/** Step one of creating an alert: pick price, macro event, or prediction. */
 export function AlertTypeSelector({ open, onOpenChange, onSelect }: AlertTypeSelectorProps) {
   const handleSelect = (type: NewAlertType) => {
-    onOpenChange(false)
-    onSelect(type)
-  }
+    onOpenChange(false);
+    onSelect(type);
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[520px]">
+      <DialogContent className="sm:max-w-[640px]">
         <DialogHeader>
           <DialogTitle>Choose alert type</DialogTitle>
           <DialogDescription>
             Pick what you want to be alerted about.
           </DialogDescription>
         </DialogHeader>
-        <div className="grid grid-cols-1 gap-4 py-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 py-4 sm:grid-cols-3">
           <AlertTypeCard
             icon={<Bell className="h-6 w-6" />}
             title="Price alert"
@@ -44,8 +44,14 @@ export function AlertTypeSelector({ open, onOpenChange, onSelect }: AlertTypeSel
             description="Get notified before major economic events"
             onClick={() => handleSelect('macro')}
           />
+          <AlertTypeCard
+            icon={<TrendingUp className="h-6 w-6" />}
+            title="Prediction alert"
+            description="Get notified when predictions change significantly"
+            onClick={() => handleSelect('prediction')}
+          />
         </div>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

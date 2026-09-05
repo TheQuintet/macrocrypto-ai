@@ -1,8 +1,12 @@
 import React, { useMemo, useState } from 'react';
 import { usePriceAlerts } from '@/hooks/alerts/usePriceAlerts';
 import { useMacroEvents } from '@/hooks/alerts/useMacroEvents';
+import { usePredictionAlerts } from '@/hooks/alerts/usePredictionAlerts';
 import { PriceAlertForm } from './price/PriceAlertForm';
 import { MacroAlertForm } from './macro/MacroAlertForm';
+import { PredictionAlertForm } from './prediction/PredictionAlertForm';
+import { PredictionAlertTable } from './prediction/PredictionAlertTable';
+import { PredictionHistory } from './prediction/PredictionHistory';
 import { MacroEventStatusFilter } from './macro/MacroEventStatusFilter';
 import { MacroImpactFilter, type ImpactFilterValue } from './macro/MacroImpactFilter';
 import { AlertListToolbar } from './shared/AlertListToolbar';
@@ -28,9 +32,16 @@ import type {
   MacroEventStatusFilter as MacroEventStatusFilterValue,
 } from '@/types/alerts/macroAlert';
 import type { NewAlertType } from '@/types/alerts';
+import type { PredictionAlert } from '@/types/alerts/predictionAlert';
+import type {
+  CreatePredictionAlertRequest,
+  UpdatePredictionAlertRequest as UpdatePredictionAlertRequestType,
+} from '@/types/alerts/predictionAlert';
 import { MacroCalendarTable } from './macro/MacroCalendarTable';
 import { AlertTypeSelector } from './shared/AlertTypeSelector';
 import { AlertTypeSwitch } from './shared/AlertTypeSwitch';
+
+type AlertTab = 'price' | 'macro' | 'prediction';
 
 interface AlertManagementProps {
   userId: string;
@@ -41,11 +52,12 @@ export const AlertManagement: React.FC<AlertManagementProps> = ({ userId }) => {
   const [showTypeSelector, setShowTypeSelector] = useState(false);
   const [editingAlert, setEditingAlert] = useState<PriceAlert | null>(null);
   const [editingEvent, setEditingEvent] = useState<MacroEvent | null>(null);
+  const [editingPredictionAlert, setEditingPredictionAlert] = useState<PredictionAlert | null>(null);
   const [deletingAlert, setDeletingAlert] = useState<PriceAlert | null>(null);
   const [statusFilter, setStatusFilter] = useState<AlertListStatusFilter>('all');
   const [eventFilter, setEventFilter] = useState<MacroEventStatusFilterValue>('all');
   const [impactFilter, setImpactFilter] = useState<ImpactFilterValue>('all');
-  const [activeTab, setActiveTab] = useState<'price' | 'macro'>('price');
+  const [activeTab, setActiveTab] = useState<AlertTab>('price');
 
   const {
     alerts,
@@ -66,6 +78,17 @@ export const AlertManagement: React.FC<AlertManagementProps> = ({ userId }) => {
     subscribe: subscribeToEvent,
     applyDraft: applyMacroDraft,
   } = useMacroEvents(userId);
+
+  const {
+    alerts: predictionAlerts,
+    isLoading: isLoadingPrediction,
+    error: predictionError,
+    fetchAlerts: fetchPredictionAlerts,
+    createAlert: createPredictionAlert,
+    updateAlert: updatePredictionAlert,
+    deleteAlert: deletePredictionAlert,
+    toggleStatus: togglePredictionStatus,
+  } = usePredictionAlerts(userId);
 
   const visibleAlerts = useMemo(
     () => alerts.filter((alert) => matchesAlertStatusFilter(alert.status, statusFilter)),
@@ -91,8 +114,36 @@ export const AlertManagement: React.FC<AlertManagementProps> = ({ userId }) => {
     [events],
   );
 
+  // Prediction alert counts
+  const predictionCounts = useMemo(
+    () => ({
+      all: predictionAlerts.length,
+      active: predictionAlerts.filter((a) => a.status === 'active' || a.status === 'triggered').length,
+      inactive: predictionAlerts.filter((a) => a.status === 'disabled' || a.status === 'expired').length,
+    }),
+    [predictionAlerts],
+  );
+
+  const visiblePredictionAlerts = useMemo(
+    () => predictionAlerts.filter((alert) => {
+      if (statusFilter === 'all') return true;
+      const isActive = alert.status === 'active' || alert.status === 'triggered';
+      return statusFilter === 'active' ? isActive : !isActive;
+    }),
+    [predictionAlerts, statusFilter],
+  );
+
+  // Handle all three alert types correctly
   const handleSelectAlertType = (type: NewAlertType) => {
-    setActiveTab(type);
+    // Set the active tab based on the selected type
+    if (type === 'price') {
+      setActiveTab('price');
+    } else if (type === 'macro') {
+      setActiveTab('macro');
+    } else if (type === 'prediction') {
+      setActiveTab('prediction');
+    }
+    // Set the creating type to open the right form
     setCreatingType(type);
   };
 
@@ -146,7 +197,7 @@ export const AlertManagement: React.FC<AlertManagementProps> = ({ userId }) => {
     }
   };
 
-  const handleCreate = async (data: CreatePriceAlertRequest | UpdatePriceAlertRequest) => {
+  const handleCreatePriceAlert = async (data: CreatePriceAlertRequest | UpdatePriceAlertRequest) => {
     try {
       await createAlert(data as CreatePriceAlertRequest);
       closeCreateForm();
@@ -156,7 +207,7 @@ export const AlertManagement: React.FC<AlertManagementProps> = ({ userId }) => {
     }
   };
 
-  const handleUpdate = async (data: CreatePriceAlertRequest | UpdatePriceAlertRequest) => {
+  const handleUpdatePriceAlert = async (data: CreatePriceAlertRequest | UpdatePriceAlertRequest) => {
     if (!editingAlert) return;
     try {
       await updateAlert(editingAlert.id, data as UpdatePriceAlertRequest);
@@ -167,7 +218,7 @@ export const AlertManagement: React.FC<AlertManagementProps> = ({ userId }) => {
     }
   };
 
-  const handleToggleStatus = async (alert: PriceAlert) => {
+  const handleTogglePriceStatus = async (alert: PriceAlert) => {
     const nextStatus = toggledAlertStatus(alert.status);
     try {
       await updateAlert(alert.id, { status: nextStatus });
@@ -177,7 +228,7 @@ export const AlertManagement: React.FC<AlertManagementProps> = ({ userId }) => {
     }
   };
 
-  const handleDelete = async () => {
+  const handleDeletePriceAlert = async () => {
     if (!deletingAlert) return;
     try {
       await deleteAlert(deletingAlert.id);
@@ -188,8 +239,57 @@ export const AlertManagement: React.FC<AlertManagementProps> = ({ userId }) => {
     }
   };
 
+  // Prediction alert handlers
+  const handleCreatePredictionAlert = async (
+    data: CreatePredictionAlertRequest | UpdatePredictionAlertRequestType
+  ) => {
+    try {
+      // Ensure we have user_id for create
+      const createData = data as CreatePredictionAlertRequest;
+      await createPredictionAlert({ ...createData, user_id: userId });
+      setCreatingType(null);
+      showToast.success('Prediction alert created');
+    } catch {
+      showToast.error('Failed to create prediction alert');
+    }
+  };
+
+  const handleUpdatePredictionAlert = async (data: UpdatePredictionAlertRequestType) => {
+    if (!editingPredictionAlert) return;
+    try {
+      await updatePredictionAlert(editingPredictionAlert.id, data);
+      setEditingPredictionAlert(null);
+      showToast.success('Prediction alert updated');
+    } catch {
+      showToast.error('Failed to update prediction alert');
+    }
+  };
+
+  const handleDeletePredictionAlert = async (alert: PredictionAlert) => {
+    try {
+      await deletePredictionAlert(alert.id);
+      showToast.success('Prediction alert deleted');
+    } catch {
+      showToast.error('Failed to delete prediction alert');
+    }
+  };
+
+  const handleTogglePredictionStatus = async (alert: PredictionAlert) => {
+    try {
+      await togglePredictionStatus(alert.id);
+      showToast.success(
+        alert.status === 'active' || alert.status === 'triggered'
+          ? 'Alert paused'
+          : 'Alert activated'
+      );
+    } catch {
+      showToast.error('Failed to update alert');
+    }
+  };
+
   // Loading state
-  if (isLoading && alerts.length === 0) {
+  const isAnyLoading = isLoading || isLoadingEvents || isLoadingPrediction;
+  if (isAnyLoading && alerts.length === 0 && events.length === 0 && predictionAlerts.length === 0) {
     return (
       <div className="space-y-4">
         <div className="flex justify-between items-center">
@@ -217,13 +317,17 @@ export const AlertManagement: React.FC<AlertManagementProps> = ({ userId }) => {
   }
 
   // Error state
-  if (error) {
+  if (error || eventsError || predictionError) {
     return (
       <Card>
         <CardContent className="p-8 text-center">
           <p className="text-red-500 mb-2">Failed to load alerts</p>
-          <p className="text-sm text-muted-foreground">{error}</p>
-          <Button variant="outline" className="mt-4" onClick={fetchAlerts}>
+          <p className="text-sm text-muted-foreground">{error || eventsError || predictionError}</p>
+          <Button variant="outline" className="mt-4" onClick={() => {
+            fetchAlerts();
+            fetchEvents();
+            fetchPredictionAlerts();
+          }}>
             <RefreshCw className="w-4 h-4 mr-2" />
             Retry
           </Button>
@@ -233,6 +337,8 @@ export const AlertManagement: React.FC<AlertManagementProps> = ({ userId }) => {
   }
 
   const priceAlertCount = alerts.length;
+  const macroEventCount = events.length;
+  const predictionCount = predictionAlerts.length;
 
   return (
     <div className="space-y-6">
@@ -266,7 +372,18 @@ export const AlertManagement: React.FC<AlertManagementProps> = ({ userId }) => {
           )}
           onClick={() => setActiveTab('macro')}
         >
-          Macro Events ({eventCounts.all})
+          Macro Events ({macroEventCount})
+        </button>
+        <button
+          className={cn(
+            'px-4 py-2 text-sm font-medium border-b-2 transition-colors',
+            activeTab === 'prediction'
+              ? 'border-primary text-primary'
+              : 'border-transparent text-muted-foreground hover:text-foreground'
+          )}
+          onClick={() => setActiveTab('prediction')}
+        >
+          Prediction Alerts ({predictionCount})
         </button>
       </div>
 
@@ -290,7 +407,7 @@ export const AlertManagement: React.FC<AlertManagementProps> = ({ userId }) => {
               alerts={visibleAlerts}
               onDelete={setDeletingAlert}
               onEdit={setEditingAlert}
-              onToggleStatus={handleToggleStatus}
+              onToggleStatus={handleTogglePriceStatus}
             />
           )}
         </>
@@ -325,55 +442,116 @@ export const AlertManagement: React.FC<AlertManagementProps> = ({ userId }) => {
         </>
       )}
 
-      {/* Alert Type Selection */}
+      {/* Prediction Alerts Tab */}
+      {activeTab === 'prediction' && (
+        <div className="space-y-6">
+          <AlertListToolbar
+            summary={`${predictionAlerts.length} ${predictionAlerts.length === 1 ? 'alert' : 'alerts'} configured`}
+          >
+            <AlertStatusFilter
+              value={statusFilter}
+              onChange={setStatusFilter}
+              counts={predictionCounts}
+            />
+          </AlertListToolbar>
+
+          {predictionAlerts.length === 0 ? (
+            <AlertsEmptyState />
+          ) : (
+            <PredictionAlertTable
+              alerts={visiblePredictionAlerts}
+              onDelete={handleDeletePredictionAlert}
+              onEdit={setEditingPredictionAlert}
+              onToggleStatus={handleTogglePredictionStatus}
+            />
+          )}
+
+          {/* History section */}
+          <div className="pt-4 border-t">
+            <PredictionHistory userId={userId} />
+          </div>
+        </div>
+      )}
+
+      {/* Alert Type Selection - Show all three types */}
       <AlertTypeSelector
         open={showTypeSelector}
         onOpenChange={setShowTypeSelector}
         onSelect={handleSelectAlertType}
       />
 
-      {/* Create Modal */}
-      <PriceAlertForm
-        open={creatingType === 'price'}
-        onOpenChange={(open) => (open ? setCreatingType('price') : closeCreateForm())}
-        userId={userId}
-        editingAlert={null}
-        onSubmit={handleCreate}
-        isLoading={isLoading}
-        typeSwitcher={typeSwitcher}
-      />
+      {/* Create Price Alert Modal - only show when price is selected */}
+      {creatingType === 'price' && (
+        <PriceAlertForm
+          open={creatingType === 'price'}
+          onOpenChange={(open) => (open ? setCreatingType('price') : closeCreateForm())}
+          userId={userId}
+          editingAlert={null}
+          onSubmit={handleCreatePriceAlert}
+          isLoading={isLoading}
+          typeSwitcher={typeSwitcher}
+        />
+      )}
 
-      <MacroAlertForm
-        open={creatingType === 'macro' || Boolean(editingEvent)}
-        onOpenChange={(open) => {
-          if (open) return;
-          closeCreateForm();
-          setEditingEvent(null);
-        }}
-        events={events}
-        editingDraft={editingEventDraft}
-        onSubmit={handleSubmitMacroAlert}
-        isLoading={isLoadingEvents}
-        typeSwitcher={editingEvent ? undefined : typeSwitcher}
-      />
+      {/* Create Macro Alert Modal - only show when macro is selected */}
+      {creatingType === 'macro' && (
+        <MacroAlertForm
+          open={creatingType === 'macro' || Boolean(editingEvent)}
+          onOpenChange={(open) => {
+            if (open) return;
+            closeCreateForm();
+            setEditingEvent(null);
+          }}
+          events={events}
+          editingDraft={editingEventDraft}
+          onSubmit={handleSubmitMacroAlert}
+          isLoading={isLoadingEvents}
+          typeSwitcher={typeSwitcher}
+        />
+      )}
 
-      {/* Edit Modal */}
+      {/* Create Prediction Alert Modal - only show when prediction is selected */}
+      {creatingType === 'prediction' && (
+        <PredictionAlertForm
+          open={creatingType === 'prediction'}
+          onOpenChange={(open) => (open ? setCreatingType('prediction') : closeCreateForm())}
+          userId={userId}
+          editingAlert={null}
+          onSubmit={handleCreatePredictionAlert}
+          isLoading={isLoadingPrediction}
+          typeSwitcher={typeSwitcher}
+        />
+      )}
+
+      {/* Edit Price Alert Modal */}
       {editingAlert && (
         <PriceAlertForm
           open={!!editingAlert}
           onOpenChange={() => setEditingAlert(null)}
           userId={userId}
           editingAlert={editingAlert}
-          onSubmit={handleUpdate}
+          onSubmit={handleUpdatePriceAlert}
           isLoading={isLoading}
         />
       )}
 
-      {/* Delete Confirmation */}
+      {/* Edit Prediction Alert Modal */}
+      {editingPredictionAlert && (
+        <PredictionAlertForm
+          open={!!editingPredictionAlert}
+          onOpenChange={() => setEditingPredictionAlert(null)}
+          userId={userId}
+          editingAlert={editingPredictionAlert}
+          onSubmit={handleUpdatePredictionAlert}
+          isLoading={isLoadingPrediction}
+        />
+      )}
+
+      {/* Delete Confirmation for Price Alerts */}
       <AlertDeleteConfirmation
         alert={deletingAlert}
         onOpenChange={() => setDeletingAlert(null)}
-        onConfirm={handleDelete}
+        onConfirm={handleDeletePriceAlert}
       />
     </div>
   );

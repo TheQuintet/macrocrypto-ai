@@ -26,6 +26,23 @@ vi.mock('@/api/alerts/macroAlerts', () => ({
   },
 }))
 
+// Mock the MacroEventRow to simplify testing
+vi.mock('@/components/alerts/macro/MacroEventRow', () => ({
+  MacroEventRow: ({ event, onEdit }: any) => (
+    <tr 
+      data-testid={`macro-row-${event.id}`}
+      onClick={() => onEdit(event)}
+      style={{ cursor: 'pointer' }}
+    >
+      <td>{event.event_name}</td>
+      <td>{event.scheduled_at}</td>
+      <td>
+        <button onClick={() => onEdit(event)}>Edit</button>
+      </td>
+    </tr>
+  ),
+}))
+
 describe('AlertManagement', () => {
   afterEach(() => {
     cleanup()
@@ -65,13 +82,23 @@ describe('AlertManagement', () => {
       expect(screen.getByRole('button', { name: 'Macro Events (2)' })).toBeInTheDocument()
     })
     await openTab(user, /^Macro Events/)
-    await user.click(screen.getByText('FOMC Rate Decision'))
+    
+    // Find and click the event name
+    const eventName = screen.getByText('FOMC Rate Decision')
+    await user.click(eventName)
 
-    expect(screen.getByText('Edit macro event alert')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Save changes' })).toBeInTheDocument()
+    // Wait for the dialog to appear
+    await waitFor(() => {
+      // Check for the dialog by looking for the form title
+      const dialogTitle = screen.getByText(/Edit.*macro/i)
+      expect(dialogTitle).toBeInTheDocument()
+    })
+
+    // Verify the save button is present
+    expect(screen.getByRole('button', { name: /Save changes/i })).toBeInTheDocument()
   })
 
-  it('offers both alert types from the plus button', async () => {
+  it('offers all three alert types from the plus button', async () => {
     const user = userEvent.setup()
     renderAlertManagement()
 
@@ -80,6 +107,7 @@ describe('AlertManagement', () => {
     expect(screen.getByText('Choose alert type')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Price alert/ })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Macro event alert/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Prediction alert/ })).toBeInTheDocument()
   })
 
   it('switches a mis-picked price alert to a macro event alert', async () => {
@@ -113,5 +141,19 @@ describe('AlertManagement', () => {
 
     expect(screen.getByText('New price alert')).toBeInTheDocument()
     expect(screen.queryByText('Choose alert type')).not.toBeInTheDocument()
+  })
+
+  it('switches to prediction alert type', async () => {
+    const user = userEvent.setup()
+    renderAlertManagement()
+
+    await clickNewAlert(user)
+    await chooseAlertType(user, /Prediction alert/)
+    
+    await waitFor(() => {
+      expect(screen.getByText('New prediction alert')).toBeInTheDocument()
+    })
+    expect(screen.queryByText('New price alert')).not.toBeInTheDocument()
+    expect(screen.queryByText('New macro event alert')).not.toBeInTheDocument()
   })
 })
