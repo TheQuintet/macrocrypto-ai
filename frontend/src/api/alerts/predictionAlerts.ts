@@ -11,13 +11,82 @@ const API_BASE = '/api/alerts/prediction';
 // Flag to use mock data when backend is not ready
 const USE_MOCK = true; // Set to false when backend is ready
 
-// Mock data
+// Mock data - with proper user_id matching your test user
+const MOCK_USER_ID = 'b5e2102c-c4ac-46f9-95c3-2a3c389399a9';
+
 let mockAlerts: PredictionAlert[] = [
-  // ... keep your mock data
+  {
+    id: '1',
+    user_id: MOCK_USER_ID,
+    threshold: 5,
+    horizon: '24h',
+    confidence_change: 5,
+    status: 'active',
+    one_time: false,
+    name: 'Bullish Breakout Alert',
+    description: 'Get notified when prediction shows strong upward movement',
+    notify_in_app: true,
+    notify_email: false,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: '2',
+    user_id: MOCK_USER_ID,
+    threshold: 10,
+    horizon: '7d',
+    confidence_change: 8,
+    status: 'active',
+    one_time: true,
+    name: 'Major Trend Change',
+    description: 'Alert for significant 7-day prediction changes',
+    notify_in_app: true,
+    notify_email: true,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: '3',
+    user_id: MOCK_USER_ID,
+    threshold: 2,
+    horizon: '24h',
+    confidence_change: 3,
+    status: 'disabled',
+    one_time: false,
+    name: 'Minor Shifts',
+    description: 'Get notified about small but frequent changes',
+    notify_in_app: true,
+    notify_email: false,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
 ];
 
 const mockHistory: PredictionAlertHistory[] = [
-  // ... keep your mock data
+  {
+    id: 'h1',
+    alert_id: '1',
+    previous_prediction: 68234.50,
+    new_prediction: 70123.75,
+    change_percentage: 2.77,
+    horizon: '24h',
+    threshold: 5,
+    triggered_at: new Date(Date.now() - 3600000).toISOString(),
+    recommendation: 'Bullish shift - consider increasing exposure',
+    read: false,
+  },
+  {
+    id: 'h2',
+    alert_id: '2',
+    previous_prediction: 71500.00,
+    new_prediction: 68900.00,
+    change_percentage: -3.64,
+    horizon: '7d',
+    threshold: 10,
+    triggered_at: new Date(Date.now() - 7200000).toISOString(),
+    recommendation: 'Bearish shift - consider adjusting position',
+    read: true,
+  },
 ];
 
 // Helper to simulate API delay
@@ -28,7 +97,10 @@ export const predictionAlertApi = {
   getAlerts: async (userId: string): Promise<PredictionAlert[]> => {
     if (USE_MOCK) {
       await delay(500);
-      return mockAlerts.filter(a => a.user_id === userId);
+      console.log('📊 Mock: Getting prediction alerts for user:', userId);
+      const filtered = mockAlerts.filter(a => a.user_id === userId);
+      console.log('📊 Mock: Found', filtered.length, 'alerts');
+      return filtered;
     }
     const response = await axios.get(`${API_BASE}?userId=${userId}`);
     return response.data;
@@ -46,6 +118,7 @@ export const predictionAlertApi = {
         updated_at: new Date().toISOString(),
       };
       mockAlerts.push(newAlert);
+      console.log('📊 Mock: Created prediction alert:', newAlert);
       return newAlert;
     }
     const response = await axios.post(API_BASE, data);
@@ -62,6 +135,7 @@ export const predictionAlertApi = {
       const index = mockAlerts.findIndex(a => a.id === alertId);
       if (index === -1) throw new Error('Alert not found');
       mockAlerts[index] = { ...mockAlerts[index], ...data, updated_at: new Date().toISOString() };
+      console.log('📊 Mock: Updated prediction alert:', mockAlerts[index]);
       return mockAlerts[index];
     }
     const response = await axios.patch(`${API_BASE}/${alertId}`, data);
@@ -73,6 +147,7 @@ export const predictionAlertApi = {
     if (USE_MOCK) {
       await delay(500);
       mockAlerts = mockAlerts.filter(a => a.id !== alertId);
+      console.log('📊 Mock: Deleted prediction alert:', alertId);
       return;
     }
     await axios.delete(`${API_BASE}/${alertId}`);
@@ -197,6 +272,7 @@ export const predictionAlertApi = {
       if (index === -1) throw new Error('Alert not found');
       const newStatus = mockAlerts[index].status === 'active' ? 'disabled' : 'active';
       mockAlerts[index] = { ...mockAlerts[index], status: newStatus };
+      console.log('📊 Mock: Toggled prediction alert:', mockAlerts[index]);
       return mockAlerts[index];
     }
     const response = await axios.patch(`${API_BASE}/${alertId}/toggle`);

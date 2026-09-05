@@ -1,3 +1,5 @@
+// frontend/src/components/alerts/AlertManagement.test.tsx
+
 import { cleanup, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -24,23 +26,6 @@ vi.mock('@/api/alerts/macroAlerts', () => ({
     getSubscriptions: vi.fn(),
     updateSubscription: vi.fn(),
   },
-}))
-
-// Mock the MacroEventRow to simplify testing
-vi.mock('@/components/alerts/macro/MacroEventRow', () => ({
-  MacroEventRow: ({ event, onEdit }: any) => (
-    <tr 
-      data-testid={`macro-row-${event.id}`}
-      onClick={() => onEdit(event)}
-      style={{ cursor: 'pointer' }}
-    >
-      <td>{event.event_name}</td>
-      <td>{event.scheduled_at}</td>
-      <td>
-        <button onClick={() => onEdit(event)}>Edit</button>
-      </td>
-    </tr>
-  ),
 }))
 
 describe('AlertManagement', () => {
