@@ -1,122 +1,36 @@
 """API v1 router for the API Gateway service.
 
-This module aggregates all v1 API routes and provides the main router
-for the API Gateway. It includes:
-- Authentication endpoints (auth)
-- Prediction endpoints (predictions)
-- Market data endpoints (market)
-- Recommendations endpoints (recommendations)
-- Alert endpoints (alerts)
-- Export endpoints (exports)
+This module aggregates the API Gateway v1 routes.
+
+The API Gateway exposes the existing downstream services through thin
+proxy routes. Business logic remains inside the respective services.
 """
 
 from fastapi import APIRouter
 
-# Import all route modules
 from app.api.v1 import auth
-from app.api.v1 import predictions
-from app.api.v1 import market
-from app.api.v1 import recommendations
-from app.api.v1 import exports  # Added: Export endpoints
-# from app.api.v1 import alerts       # Will be added later
+from app.api.v1 import service_proxy
 
-# ============================================
-# MAIN ROUTER
-# ============================================
 
-router = APIRouter(prefix="/api/v1", tags=["API v1"])
+# ============================================================================
+# MAIN V1 ROUTER
+# ============================================================================
 
-# ============================================
-# INCLUDE ROUTES
-# ============================================
+router = APIRouter(
+    prefix="/api/v1",
+)
 
-# Authentication routes (auth.router already has prefix="/auth")
+
+# ============================================================================
+# AUTHENTICATION
+# ============================================================================
+
+# auth.router already defines its own /auth prefix.
 router.include_router(auth.router)
 
-# Prediction routes
-router.include_router(
-    predictions.router,
-    prefix="/predict",
-    tags=["Predictions"],
-)
 
-# Market data routes
-router.include_router(
-    market.router,
-    tags=["Market Data"],
-)
+# ============================================================================
+# DATA SERVICE + ALERT SERVICE PROXY
+# ============================================================================
 
-# Recommendations routes
-router.include_router(
-    recommendations.router,
-    prefix="/recommendations",
-    tags=["Recommendations"],
-)
-
-# Export routes
-router.include_router(
-    exports.router,
-    prefix="/export",
-    tags=["Exports"],
-)
-
-# Alert routes (to be added)
-# router.include_router(
-#     alerts.router,
-#     prefix="/alerts",
-#     tags=["Alerts"],
-# )
-
-# ============================================
-# HEALTH CHECK ENDPOINTS (via main app)
-# ============================================
-
-# Health check endpoints are defined in app/main.py
-# No need to duplicate them here
-
-
-# ============================================
-# ROOT ENDPOINT (for v1)
-# ============================================
-
-@router.get("", tags=["Root"])
-async def api_v1_root():
-    """
-    API v1 root endpoint with service information.
-    """
-    return {
-        "version": "v1",
-        "service": "api-gateway",
-        "docs": "/docs",
-        "health": "/health",
-        "endpoints": {
-            "auth": {
-                "register": "POST /api/v1/auth/register",
-                "login": "POST /api/v1/auth/login",
-                "refresh": "POST /api/v1/auth/refresh",
-                "me": "GET /api/v1/auth/me",
-                "logout": "POST /api/v1/auth/logout",
-                "change_password": "POST /api/v1/auth/change-password",
-                "verify": "GET /api/v1/auth/verify",
-            },
-            "predictions": {
-                "btc": "GET /api/v1/predict/btc?horizon=24h&model_type=ensemble",
-                "accuracy": "GET /api/v1/predict/btc/accuracy?days=30",
-            },
-            "market_data": {
-                "prices": "GET /api/v1/btc/prices?limit=100&offset=0",
-                "indicators": "GET /api/v1/indicators",
-                "correlation": "GET /api/v1/correlation/btc?window=30d",
-                "regimes": "GET /api/v1/regimes/btc?timeframe=1w",
-            },
-            "recommendations": {
-                "btc": "GET /api/v1/recommendations/btc?timeframe=24h&risk_level=moderate",
-            },
-            "exports": {
-                "data": "GET /api/v1/export?export_type=predictions&format=csv",
-                "history": "GET /api/v1/export/history",
-                "download": "GET /api/v1/export/{id}/download",
-            },
-            "alerts": "Coming soon",
-        },
-    }
+router.include_router(service_proxy.router)
