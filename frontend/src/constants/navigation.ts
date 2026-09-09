@@ -1,5 +1,6 @@
 import {
   AlarmClock,
+  CalendarDays,
   ChartLine,
   LayoutDashboard,
   Landmark,
@@ -14,6 +15,7 @@ import type {
 export const routes = {
   dashboard: '/',
   macro: '/macro',
+  calendar: '/macro/calendar',
   forecasts: '/forecasts',
   alerts: '/alerts',
 } as const satisfies Record<NavItemId, string>
@@ -26,6 +28,10 @@ export const pageCopy: Record<NavItemId, PageCopy> = {
   macro: {
     title: 'Macro indicators',
     body: 'The macroeconomic backdrop behind Bitcoin — inflation, policy rates, and growth in one view.',
+  },
+  calendar: {
+    title: 'Economic calendar',
+    body: 'Scheduled macro releases and the alerts you have on them — Fed decisions, CPI, jobs, and GDP.',
   },
   forecasts: {
     title: 'Forecasts',
@@ -48,6 +54,14 @@ export const sidebarNavItems: SidebarNavItem[] = [
     label: pageCopy.macro.title,
     path: routes.macro,
     icon: Landmark,
+    children: [
+      {
+        id: 'calendar',
+        label: pageCopy.calendar.title,
+        path: routes.calendar,
+        icon: CalendarDays,
+      },
+    ],
   },
   {
     id: 'forecasts',
@@ -65,11 +79,18 @@ export const sidebarNavItems: SidebarNavItem[] = [
 
 /** Resolve the active nav item from the current pathname. */
 export function navItemFromPathname(pathname: string): NavItemId {
-  const match = (Object.keys(routes) as NavItemId[]).find((id) => {
+  const matches = (Object.keys(routes) as NavItemId[]).filter((id) => {
     if (id === 'dashboard') return false
     const path = routes[id]
     return pathname === path || pathname.startsWith(`${path}/`)
   })
+
+  // `/macro/calendar` matches both `macro` and `calendar` — the deeper route
+  // is the one the reader is actually on.
+  const match = matches.sort(
+    (a, b) => routes[b].length - routes[a].length,
+  )[0]
+
   return match ?? 'dashboard'
 }
 

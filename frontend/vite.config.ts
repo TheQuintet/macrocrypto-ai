@@ -27,6 +27,12 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
     css: false,
+    // The Recharts-backed chart tests render a full SVG in jsdom, which takes
+    // well over the 5s default on a slower machine and fails the pre-commit
+    // hook for reasons that have nothing to do with the code under test. A
+    // higher ceiling costs a fast test nothing — it only stops a slow one
+    // being reported as broken.
+    testTimeout: 20000,
     // Vitest loads .env files through Vite, so a developer's local backend
     // config would otherwise leak in and change what the app fetches under
     // test. Pin these empty; tests that need them stub explicitly.
