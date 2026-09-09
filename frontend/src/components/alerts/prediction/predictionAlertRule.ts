@@ -34,16 +34,27 @@ export function getRecommendation(
 ): string {
   const diff = newPrediction - previousPrediction;
   const absDiff = Math.abs(diff);
-
-  if (absDiff < 0.5) return 'Minor change detected';
-  if (absDiff < 2) return 'Consider monitoring';
-
-  if (diff > 0) {
-    return 'Bullish shift - consider increasing exposure';
+  
+  // Handle very small or zero differences
+  if (absDiff < 0.01) {
+    return 'Minor change detected';
   }
-  return 'Bearish shift - consider adjusting position';
+  
+  // Calculate percentage change
+  const percentChange = (absDiff / Math.abs(previousPrediction)) * 100;
+  
+  // Return recommendation based on percentage change
+  if (percentChange < 0.5) {
+    return 'Minor change detected';
+  } else if (percentChange < 2) {
+    return 'Consider monitoring';
+  } else if (diff > 0) {
+    return 'Bullish shift - consider increasing exposure';
+  } else {
+    return 'Bearish shift - consider adjusting position';
+  }
 }
 
 export function formatConfidenceDisplay(confidence: number): string {
-  return `${confidence.toFixed(0)}%`;
+  return `${Math.round(confidence)}%`;
 }
