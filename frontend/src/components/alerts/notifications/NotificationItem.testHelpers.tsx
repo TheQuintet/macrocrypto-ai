@@ -4,7 +4,6 @@ import { createMemoryRouter, RouterProvider } from 'react-router-dom'
 import type { UserEvent } from '@testing-library/user-event'
 import { expect } from 'vitest'
 import { NotificationItem } from '@/components/alerts/notifications/NotificationItem'
-import { ALERTS_USER_ID } from '@/constants/alerts'
 import { createTestQueryClient } from '@/test/renderWithQuery'
 import type { InAppNotification } from '@/types/alerts/notifications'
 
@@ -24,7 +23,7 @@ export function renderNotificationItem(
         element: (
           <NotificationItem
             notification={notification}
-            userId={ALERTS_USER_ID}
+            onNavigate={() => {}}
           />
         ),
       },
