@@ -4,6 +4,7 @@ FRED economic calendar collector.
 Collects economic release dates for:
 - Federal Reserve / FOMC
 - Consumer Price Index (CPI)
+- VIX (Volatility Index)
 - Employment Situation
 - Gross Domestic Product (GDP)
 
@@ -203,6 +204,7 @@ class EconomicCalendarCollector:
         Supported event types:
         - fed
         - cpi
+        - vix
         - employment
         - gdp
         """
@@ -261,6 +263,17 @@ class EconomicCalendarCollector:
                     "expectations and pressure Bitcoin, while "
                     "lower inflation can support risk assets "
                     "and Bitcoin."
+                ),
+            },
+            "vix": {
+                "event_name": "VIX (CBOE Volatility Index)",
+                "impact_level": "high",
+                "description": (
+                    "The VIX tracks expected US equity-market "
+                    "volatility and often moves inversely with "
+                    "risk appetite. Sharp VIX spikes can signal "
+                    "stress and may influence Bitcoin volatility "
+                    "and market sentiment."
                 ),
             },
             "employment": {

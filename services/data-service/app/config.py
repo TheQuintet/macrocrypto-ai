@@ -238,7 +238,7 @@ class Settings(BaseSettings):
 
     # Development/testing only.
     # Set to a value > 0 to run every N minutes instead of once per day.
-    MACRO_UPDATE_INTERVAL_MINUTES: int = 1
+    MACRO_UPDATE_INTERVAL_MINUTES: int = 0
 
     # ============================================
     # RATE LIMITING

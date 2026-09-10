@@ -33,6 +33,7 @@ router = APIRouter(
 VALID_EVENT_TYPES = {
     "fed",
     "cpi",
+    "vix",
     "employment",
     "gdp",
 }
@@ -76,6 +77,7 @@ async def get_economic_calendar(
     Supported event types:
         - fed
         - cpi
+        - vix
         - employment
         - gdp
 
