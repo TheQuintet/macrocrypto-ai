@@ -110,40 +110,62 @@ class PriceHistoryService:
             MIN_LOOKBACK_MS[interval],
         )
 
+    # def choose_binance_interval(
+    #     self,
+    #     interval: ChartInterval,
+    #     lookback_ms: int,
+    # ) -> str:
+    #     """
+    #     Pick a Binance kline interval.
+
+    #     Never finer than the requested chart interval. Coarsen when the
+    #     window would exceed Binance's 1000-candle page size.
+    #     """
+
+    #     if interval == "1y":
+    #         requested_ms = YEAR_MS
+    #         native = "1M"
+    #     else:
+    #         requested_ms = INTERVAL_MS[interval]
+    #         native = interval
+
+    #     estimated = lookback_ms / requested_ms + 1
+
+    #     if estimated <= BINANCE_MAX_LIMIT and interval != "1y":
+    #         return native
+
+    #     min_step_ms = max(
+    #         requested_ms,
+    #         lookback_ms / BINANCE_MAX_LIMIT,
+    #     )
+
+    #     for name, step_ms in BINANCE_INTERVALS:
+    #         if step_ms >= min_step_ms:
+    #             return name
+
+    #     return "1M"
+
+
     def choose_binance_interval(
         self,
         interval: ChartInterval,
         lookback_ms: int,
     ) -> str:
         """
-        Pick a Binance kline interval.
+        Pick the Binance kline interval.
 
-        Never finer than the requested chart interval. Coarsen when the
-        window would exceed Binance's 1000-candle page size.
+        BinanceCollector handles pagination when the requested time window
+        contains more than 1000 candles, so the requested chart interval
+        can be preserved.
+
+        The 1y chart interval is represented using monthly Binance candles
+        and later aggregated into calendar-year candles.
         """
 
         if interval == "1y":
-            requested_ms = YEAR_MS
-            native = "1M"
-        else:
-            requested_ms = INTERVAL_MS[interval]
-            native = interval
+            return "1M"
 
-        estimated = lookback_ms / requested_ms + 1
-
-        if estimated <= BINANCE_MAX_LIMIT and interval != "1y":
-            return native
-
-        min_step_ms = max(
-            requested_ms,
-            lookback_ms / BINANCE_MAX_LIMIT,
-        )
-
-        for name, step_ms in BINANCE_INTERVALS:
-            if step_ms >= min_step_ms:
-                return name
-
-        return "1M"
+        return interval
 
     def cap_candles(
         self,
@@ -207,6 +229,7 @@ class PriceHistoryService:
         range_value: str,
         interval: str,
         end_ms: int | None = None,
+        max_points: int | None = None,
     ) -> BtcPriceHistoryResponse:
         chart_range = self._parse_range(range_value)
         chart_interval = self._parse_interval(interval)
@@ -253,10 +276,15 @@ class PriceHistoryService:
         if chart_interval == "1y":
             candles = self.aggregate_yearly(candles)
 
-        candles = self.cap_candles(
-            candles,
-            settings.PRICE_HISTORY_MAX_POINTS,
-        )
+        # candles = self.cap_candles(
+        #     candles,
+        #     settings.PRICE_HISTORY_MAX_POINTS,
+        # )
+        if max_points is None:
+            max_points = settings.PRICE_HISTORY_MAX_POINTS
+
+        if max_points > 0:
+            candles = self.cap_candles(candles, max_points)
 
         return BtcPriceHistoryResponse(
             range=chart_range,

@@ -77,7 +77,7 @@ services:
     ports:
       - "8001:8001"
       # only for local debugging and wouldn't be used in production
-      # - "5678:5678"
+      - "5678:5678"
     # # ✅ ADD DNS CONFIGURATION
     # dns:
     #   - 8.8.8.8
@@ -114,36 +114,37 @@ services:
       - macro-network
     restart: unless-stopped
 
-  # ai-service:
-  #   build:
-  #     context: ./services/ai-service
-  #     dockerfile: Dockerfile
-  #   container_name: macro-ai-service
-  #   ports:
-  #     - "8002:8002"
-  #   dns:
-  #     - 8.8.8.8
-  #     - 1.1.1.1
-  #   environment:
-  #     - REDIS_HOST=redis
-  #     - DATABASE_URL=postgresql://macro:crypto@postgres:5432/macrocrypto
-  #     - RABBITMQ_HOST=rabbitmq
-  #     - PYTHONUNBUFFERED=1
-  #   volumes:
-  #     - ./services/ai-service/app:/app/app
-  #     - ./shared:/app/shared
-  #   env_file:
-  #     - ./services/ai-service/.env
-  #   depends_on:
-  #     postgres:
-  #       condition: service_healthy
-  #     redis:
-  #       condition: service_healthy
-  #     rabbitmq:
-  #       condition: service_healthy
-  #   networks:
-  #     - macro-network
-  #   restart: unless-stopped
+  ai-service:
+    build:
+      context: ./services/ai-service
+      dockerfile: Dockerfile
+    container_name: macro-ai-service
+    ports:
+      - "8002:8002"
+      - "5681:5681" # For local debugging and wouldn't be used in production
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    environment:
+      - REDIS_HOST=redis
+      - DATABASE_URL=postgresql://macro:crypto@postgres:5432/macrocrypto
+      - RABBITMQ_HOST=rabbitmq
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./services/ai-service/app:/app/app
+      - ./shared:/app/shared
+    env_file:
+      - ./services/ai-service/.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - macro-network
+    restart: unless-stopped
 
   alert-service:
     build:
@@ -207,8 +208,8 @@ services:
         condition: service_healthy
       data-service:
         condition: service_started
-      # ai-service:
-      #   condition: service_started
+      ai-service:
+        condition: service_started
       alert-service:
         condition: service_started
     networks:

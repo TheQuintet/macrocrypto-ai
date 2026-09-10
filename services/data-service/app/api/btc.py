@@ -130,6 +130,7 @@ async def get_btc_history(
     response: Response,
     range: str = "7d",
     interval: str = "1h",
+    max_points: int | None = None,
     _: str | None = Depends(jwt_auth),
 ):
     """
@@ -141,10 +142,12 @@ async def get_btc_history(
     Query parameters:
     - range: 24h, 7d, 30d, or 90d (default 7d)
     - interval: 1m, 5m, 1h, 1d, 1w, or 1y (default 1h)
+    - max_points: maximum number of returned points; 0 means unlimited
     """
 
     cache_client = request.app.state.cache_client
-    cache_key = f"btc_price_history:{range}:{interval}"
+    # cache_key = f"btc_price_history:{range}:{interval}"
+    cache_key = f"btc_price_history:{range}:{interval}:{max_points}"
 
     if cache_client and cache_client.is_connected:
         try:
@@ -161,6 +164,7 @@ async def get_btc_history(
         response = await service.get_history(
             range_value=range,
             interval=interval,
+            max_points=max_points,
         )
     except PriceHistoryValidationError as error:
         raise HTTPException(

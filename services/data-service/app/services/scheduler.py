@@ -33,6 +33,7 @@ from datetime import datetime, timedelta, timezone
 from app.config import settings
 from app.database.session import SessionLocal
 from app.services.economic_calendar_service import EconomicCalendarService
+from app.services.indicator_service import IndicatorService
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -79,135 +80,32 @@ async def wait_until_next_run(
 # ============================================================
 # MACRO / FRED SCHEDULER
 # ============================================================
-async def periodic_macro_collection():
-    """
-    Scheduled macro/FRED data collection.
-
-    QA/development:
-        MACRO_UPDATE_INTERVAL_MINUTES > 0
-        runs every N minutes.
-
-    Production:
-        MACRO_UPDATE_INTERVAL_MINUTES = 0
-        runs once daily at the configured UTC time.
-
-    Responsibilities:
-        - Wait for the configured schedule.
-        - Run the existing macro/FRED collection workflow.
-        - Handle scheduler errors without stopping the loop.
-    """
-
-    logger.info(
-        "📊 Macro/FRED scheduler started"
-    )
-
-    if settings.MACRO_UPDATE_INTERVAL_MINUTES > 0:
-
-        logger.info(
-            "Macro QA interval mode enabled: "
-            "running every %s minute(s)",
-            settings.MACRO_UPDATE_INTERVAL_MINUTES,
-        )
-
-    else:
-
-        logger.info(
-            "Macro production schedule mode enabled: "
-            "running daily at %02d:%02d UTC",
-            settings.MACRO_UPDATE_HOUR_UTC,
-            settings.MACRO_UPDATE_MINUTE_UTC,
-        )
-
-    while True:
-
-        try:
-
-            # ==================================================
-            # WAIT FOR NEXT MACRO EXECUTION
-            # ==================================================
-
-            if settings.MACRO_UPDATE_INTERVAL_MINUTES > 0:
-
-                await asyncio.sleep(
-                    settings.MACRO_UPDATE_INTERVAL_MINUTES
-                    * 60
-                )
-
-            else:
-
-                await wait_until_next_run(
-                    settings.MACRO_UPDATE_HOUR_UTC,
-                    settings.MACRO_UPDATE_MINUTE_UTC,
-                    "macro/FRED update",
-                )
-
-            logger.info(
-                "📊 Macro/FRED scheduler woke up"
-            )
-
-            # ==================================================
-            # MACRO/FRED COLLECTION
-            # ==================================================
-            #
-            # Keep the existing macro/FRED indicator workflow
-            # here when it is connected to this scheduler.
-            #
-            # Economic calendar collection is intentionally NOT
-            # handled here. It has its own scheduler:
-            #
-            # periodic_economic_calendar_collection()
-            #
-
-            logger.info(
-                "📊 Macro/FRED scheduled job completed"
-            )
-
-        except asyncio.CancelledError:
-
-            logger.info(
-                "Macro/FRED scheduler cancelled"
-            )
-
-            raise
-
-        except Exception:
-
-            logger.exception(
-                "🔥 Macro/FRED scheduler failed"
-            )
-# ============================================================
-# ECONOMIC CALENDAR SCHEDULER
-# ============================================================
-
-
-# async def periodic_economic_calendar_collection():
+# async def periodic_macro_collection():
 #     """
-#     Scheduled economic calendar data collection.
+#     Scheduled macro/FRED data collection.
+
+#     QA/development:
+#         MACRO_UPDATE_INTERVAL_MINUTES > 0
+#         runs every N minutes.
 
 #     Production:
-#         Runs once per day using the configured macro UTC schedule.
+#         MACRO_UPDATE_INTERVAL_MINUTES = 0
+#         runs once daily at the configured UTC time.
 
-#     Development/QA:
-#         When MACRO_UPDATE_INTERVAL_MINUTES > 0, runs at the
-#         configured interval.
-
-#     Workflow:
-#         1. Wait for the next scheduled execution.
-#         2. Create a database session.
-#         3. Collect economic calendar events from FRED.
-#         4. Persist only new events.
-#         5. Close the collector and database session.
-#         6. Continue until cancelled.
+#     Responsibilities:
+#         - Wait for the configured schedule.
+#         - Run the existing macro/FRED collection workflow.
+#         - Handle scheduler errors without stopping the loop.
 #     """
 
 #     logger.info(
-#         "📅 Economic calendar scheduler started"
+#         "📊 Macro/FRED scheduler started"
 #     )
 
 #     if settings.MACRO_UPDATE_INTERVAL_MINUTES > 0:
 
 #         logger.info(
-#             "Economic calendar QA interval mode enabled: "
+#             "Macro QA interval mode enabled: "
 #             "running every %s minute(s)",
 #             settings.MACRO_UPDATE_INTERVAL_MINUTES,
 #         )
@@ -215,7 +113,7 @@ async def periodic_macro_collection():
 #     else:
 
 #         logger.info(
-#             "Economic calendar production schedule enabled: "
+#             "Macro production schedule mode enabled: "
 #             "running daily at %02d:%02d UTC",
 #             settings.MACRO_UPDATE_HOUR_UTC,
 #             settings.MACRO_UPDATE_MINUTE_UTC,
@@ -226,13 +124,14 @@ async def periodic_macro_collection():
 #         try:
 
 #             # ==================================================
-#             # WAIT FOR NEXT EXECUTION
+#             # WAIT FOR NEXT MACRO EXECUTION
 #             # ==================================================
 
 #             if settings.MACRO_UPDATE_INTERVAL_MINUTES > 0:
 
 #                 await asyncio.sleep(
-#                     settings.MACRO_UPDATE_INTERVAL_MINUTES * 60
+#                     settings.MACRO_UPDATE_INTERVAL_MINUTES
+#                     * 60
 #                 )
 
 #             else:
@@ -240,76 +139,34 @@ async def periodic_macro_collection():
 #                 await wait_until_next_run(
 #                     settings.MACRO_UPDATE_HOUR_UTC,
 #                     settings.MACRO_UPDATE_MINUTE_UTC,
-#                     "economic calendar update",
+#                     "macro/FRED update",
 #                 )
 
 #             logger.info(
-#                 "📅 Economic calendar scheduler woke up"
+#                 "📊 Macro/FRED scheduler woke up"
 #             )
 
 #             # ==================================================
-#             # DATABASE SESSION
+#             # MACRO/FRED COLLECTION
 #             # ==================================================
-
-#             db = SessionLocal()
-#             service = None
-
-#             try:
-
-#                 service = EconomicCalendarService(db)
-
-#                 logger.info(
-#                     "📅 Starting scheduled economic calendar "
-#                     "collection (lookback=%s days)",
-#                     settings.FRED_CALENDAR_LOOKBACK_DAYS,
-#                 )
-
-#                 events = await service.collect_events(
-#                     days=settings.FRED_CALENDAR_LOOKBACK_DAYS
-#                 )
-
-#                 logger.info(
-#                     "📅 Economic calendar update completed: "
-#                     "%d new events stored",
-#                     len(events),
-#                 )
-
-#             except Exception:
-
-#                 logger.exception(
-#                     "🔥 Economic calendar scheduled collection failed"
-#                 )
-
-#             finally:
-
-#                 if service:
-
-#                     try:
-#                         await service.close()
-
-#                     except Exception:
-
-#                         logger.exception(
-#                             "⚠️ Failed to close economic calendar service"
-#                         )
-
-#                 try:
-#                     db.close()
-
-#                 except Exception:
-
-#                     logger.exception(
-#                         "⚠️ Failed to close economic calendar database session"
-#                     )
+#             #
+#             # Keep the existing macro/FRED indicator workflow
+#             # here when it is connected to this scheduler.
+#             #
+#             # Economic calendar collection is intentionally NOT
+#             # handled here. It has its own scheduler:
+#             #
+#             # periodic_economic_calendar_collection()
+#             #
 
 #             logger.info(
-#                 "📅 Economic calendar scheduled job completed"
+#                 "📊 Macro/FRED scheduled job completed"
 #             )
 
 #         except asyncio.CancelledError:
 
 #             logger.info(
-#                 "Economic calendar scheduler cancelled"
+#                 "Macro/FRED scheduler cancelled"
 #             )
 
 #             raise
@@ -317,8 +174,70 @@ async def periodic_macro_collection():
 #         except Exception:
 
 #             logger.exception(
-#                 "🔥 Economic calendar scheduler failed"
+#                 "🔥 Macro/FRED scheduler failed"
 #             )
+
+
+async def periodic_macro_collection(cache_client=None):
+    logger.info("📊 Macro/FRED scheduler started")
+
+    if settings.MACRO_UPDATE_INTERVAL_MINUTES > 0:
+        logger.info(
+            "Macro QA interval mode enabled: running every %s minute(s)",
+            settings.MACRO_UPDATE_INTERVAL_MINUTES,
+        )
+    else:
+        logger.info(
+            "Macro production schedule mode enabled: running daily at %02d:%02d UTC",
+            settings.MACRO_UPDATE_HOUR_UTC,
+            settings.MACRO_UPDATE_MINUTE_UTC,
+        )
+
+    while True:
+        try:
+            if settings.MACRO_UPDATE_INTERVAL_MINUTES > 0:
+                await asyncio.sleep(
+                    settings.MACRO_UPDATE_INTERVAL_MINUTES * 60
+                )
+            else:
+                await wait_until_next_run(
+                    settings.MACRO_UPDATE_HOUR_UTC,
+                    settings.MACRO_UPDATE_MINUTE_UTC,
+                    "macro/FRED update",
+                )
+
+            logger.info("📊 Macro/FRED scheduler woke up")
+
+            db = SessionLocal()
+
+            try:
+                service = IndicatorService(
+                    db,
+                    cache_client=cache_client,
+                )
+
+                result = await service.update_all_indicators()
+
+                logger.info(
+                    "📊 Macro/FRED collection result: %s",
+                    result,
+                )
+
+            finally:
+                db.close()
+
+            logger.info("📊 Macro/FRED scheduled job completed")
+
+        except asyncio.CancelledError:
+            logger.info("Macro/FRED scheduler cancelled")
+            raise
+
+        except Exception:
+            logger.exception("🔥 Macro/FRED scheduler failed")
+# ============================================================
+# ECONOMIC CALENDAR SCHEDULER
+# ============================================================
+
 
 async def periodic_economic_calendar_collection():
     """
