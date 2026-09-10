@@ -7,9 +7,9 @@ The routes are intentionally thin forwarding routes. They contain no
 business logic and delegate all downstream communication to ServiceProxy.
 
 Source of truth:
-    - 10 Data Service endpoints
+    - 11 Data Service endpoints
     - 24 Alert Service endpoints
-    - 34 proxy endpoints total
+    - 35 proxy endpoints total
 """
 
 from __future__ import annotations
@@ -132,11 +132,11 @@ async def alert_proxy(
 
 
 # ============================================================================
-# DATA SERVICE — 10 ENDPOINTS
+# DATA SERVICE — 11 ENDPOINTS
 # ============================================================================
 
 # ----------------------------------------------------------------------------
-# Bitcoin — 3
+# Bitcoin — 4
 # ----------------------------------------------------------------------------
 
 router.add_api_route(
@@ -154,6 +154,16 @@ router.add_api_route(
     partial(
         data_proxy,
         upstream_path="/api/v1/btc/price/history",
+    ),
+    methods=["GET"],
+    tags=["Data Service"],
+)
+
+router.add_api_route(
+    "/btc/dominance",
+    partial(
+        data_proxy,
+        upstream_path="/api/v1/btc/dominance",
     ),
     methods=["GET"],
     tags=["Data Service"],

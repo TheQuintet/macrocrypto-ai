@@ -38,6 +38,79 @@ class CoinGeckoCollector:
             f"CoinGeckoCollector initialized with endpoint: {self.base_url}"
         )
 
+    async def get_btc_dominance(self) -> Dict[str, Any]:
+        """
+        Fetch current Bitcoin market dominance from CoinGecko.
+
+        Returns:
+            {
+                "btc_dominance": float,
+                "source": "coingecko"
+            }
+        """
+
+        endpoint = f"{self.base_url}/global"
+
+        try:
+            logger.debug("Fetching BTC dominance from CoinGecko")
+
+            response = await self.client.get(endpoint)
+            response.raise_for_status()
+
+            data = response.json()
+
+            dominance = (
+                data
+                .get("data", {})
+                .get("market_cap_percentage", {})
+                .get("btc")
+            )
+
+            if dominance is None:
+                logger.warning(
+                    "BTC dominance missing from CoinGecko response"
+                )
+                return self._empty_dominance_response()
+
+            return {
+                "btc_dominance": float(dominance),
+                "source": "coingecko",
+            }
+
+        except httpx.TimeoutException:
+            logger.error(
+                "Timeout fetching BTC dominance from CoinGecko"
+            )
+            return self._empty_dominance_response()
+
+        except httpx.HTTPStatusError as error:
+            logger.error(
+                f"CoinGecko HTTP error: {error.response.status_code}"
+            )
+            return self._empty_dominance_response()
+
+        except (TypeError, ValueError) as error:
+            logger.error(
+                f"Invalid BTC dominance response: {error}"
+            )
+            return self._empty_dominance_response()
+
+        except Exception as error:
+            logger.error(
+                f"CoinGecko dominance collector error: {error}"
+            )
+            return self._empty_dominance_response()
+
+
+    def _empty_dominance_response(self) -> Dict[str, Any]:
+        """
+        Return safe fallback response for BTC dominance.
+        """
+        return {
+            "btc_dominance": 0.0,
+            "source": "coingecko",
+        }
+
     async def get_btc_market_cap(self) -> Dict[str, Any]:
         """
         Fetch current Bitcoin market capitalization.

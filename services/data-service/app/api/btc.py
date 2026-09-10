@@ -3,7 +3,7 @@
 import logging
 from fastapi import APIRouter, Request, Depends, HTTPException, Response
 from typing import Optional
-
+from sqlalchemy.orm import Session
 from app.api.dependencies import jwt_auth
 from app.api.schemas.price_response import (
     BtcPriceHistoryResponse,
@@ -15,6 +15,9 @@ from app.services.price_history_service import (
     PriceHistoryService,
     PriceHistoryValidationError,
 )
+from app.services.btc_dominance_service import BTCDominanceService
+from app.api.schemas.btc_dominance_response import BTCDominanceResponse
+from app.database.session import SessionLocal
 
 # Setup logging
 logger = logging.getLogger(__name__)
@@ -23,6 +26,13 @@ router = APIRouter(
     prefix="/api/v1/btc",
     tags=["Bitcoin"]
 )
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 
 @router.get(
@@ -69,7 +79,7 @@ async def get_btc_price(
                 logger.info("✅ Returning BTC price from Redis cache")
                 return PriceResponse(**cached_snapshot)
         except Exception as error:
-            logger.warning(f"⚠️ Cache read failed: {error}")
+            logger.warning(f"⚠ Cache read failed: {error}")
 
     # --------------------------------------------
     # 2. Cache miss - fetch from data processor
@@ -114,7 +124,7 @@ async def get_btc_price(
             await cache_client.set(cache_key, cache_data, ttl=5)
             logger.info("💾 BTC price cached in Redis")
         except Exception as error:
-            logger.warning(f"⚠️ Cache write failed: {error}")
+            logger.warning(f"⚠ Cache write failed: {error}")
 
     return response
 
@@ -156,7 +166,7 @@ async def get_btc_history(
                 logger.info("✅ Returning BTC history from Redis cache")
                 return BtcPriceHistoryResponse(**cached)
         except Exception as error:
-            logger.warning(f"⚠️ History cache read failed: {error}")
+            logger.warning(f"⚠ History cache read failed: {error}")
 
     service = PriceHistoryService()
 
@@ -194,9 +204,46 @@ async def get_btc_history(
             )
             logger.info("💾 BTC history cached in Redis")
         except Exception as error:
-            logger.warning(f"⚠️ History cache write failed: {error}")
+            logger.warning(f"⚠ History cache write failed: {error}")
 
     return response
+
+
+@router.get(
+    "/dominance",
+    response_model=BTCDominanceResponse,
+    summary="Get Bitcoin market dominance",
+    description=(
+        "Returns the latest Bitcoin market dominance percentage "
+        "from CoinGecko."
+    ),
+)
+@limiter.limit(f"{settings.RATE_LIMIT_REQUESTS}/minute")
+async def get_btc_dominance(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    service = BTCDominanceService(
+        db=db,
+        cache_client=request.app.state.cache_client,
+    )
+
+    try:
+        result = await service.get_dominance()
+
+        if result is None:
+            raise HTTPException(
+                status_code=404,
+                detail="BTC dominance data is not available",
+            )
+
+        return result
+
+    finally:
+        await service.close()
+
+
+
 
 @router.get(
     "/status",

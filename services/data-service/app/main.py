@@ -17,12 +17,13 @@ from app.core.rate_limit import limiter, rate_limit_exceeded_handler
 from slowapi import _rate_limit_exceeded_handler
 
 from app.config import settings
-from app.database.session import init_db, engine
+from app.database.session import init_db, engine, SessionLocal
 from sqlalchemy import text
 from app.cache.client import CacheClient
 from app.rabbitmq.producer import RabbitMQProducer
 from app.collectors.binance import BinanceCollector
 from app.services.market_cap_service import MarketCapService
+from app.services.btc_dominance_service import BTCDominanceService
 # from app.collectors.fred import FREDCollector
 from app.api.routes import router as api_router
 
@@ -60,7 +61,7 @@ data_processor: Optional[DataProcessor] = None
 cache_client: Optional[CacheClient] = None
 rabbitmq_producer: Optional[RabbitMQProducer] = None
 market_cap_service: Optional[MarketCapService] = None
-
+btc_dominance_service: Optional[BTCDominanceService] = None
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -442,15 +443,34 @@ async def periodic_price_collection(symbol: str = "BTCUSDT", interval: int = 60)
         await collector.close()
 
 
+# async def run_market_cap_collection(
+#     market_cap_service: MarketCapService
+# ):
+#     """
+#     Periodically update BTC market cap from CoinGecko.
+
+#     Runs independently from WebSocket stream.
+#     """
+
+#     while True:
+#         try:
+#             updated = await market_cap_service.update_market_cap()
+
+#             if updated:
+#                 logger.info("✅ BTC market cap updated")
+
+#             else:
+#                 logger.warning("⚠️ BTC market cap update failed")
+
+#         except Exception as error:
+#             logger.error(f"⚠️ Market cap collection error: {error}")
+
+#         # CoinGecko does not need second-by-second updates
+#         await asyncio.sleep(900)
+
 async def run_market_cap_collection(
-    market_cap_service: MarketCapService
+    market_cap_service: MarketCapService,
 ):
-    """
-    Periodically update BTC market cap from CoinGecko.
-
-    Runs independently from WebSocket stream.
-    """
-
     while True:
         try:
             updated = await market_cap_service.update_market_cap()
@@ -458,16 +478,36 @@ async def run_market_cap_collection(
             if updated:
                 logger.info("✅ BTC market cap updated")
 
-            else:
-                logger.warning("⚠️ BTC market cap update failed")
+            db = SessionLocal()
+
+            try:
+                dominance_service = BTCDominanceService(
+                    db=db,
+                    cache_client=cache_client,
+                )
+
+                dominance_updated = (
+                    await dominance_service.update_dominance()
+                )
+
+                if dominance_updated:
+                    logger.info(
+                        "✅ BTC dominance updated"
+                    )
+
+                await dominance_service.close()
+
+            finally:
+                db.close()
 
         except Exception as error:
-            logger.error(f"⚠️ Market cap collection error: {error}")
+            logger.error(
+                f"⚠️ Market data collection error: {error}"
+            )
 
-        # CoinGecko does not need second-by-second updates
         await asyncio.sleep(900)
 
-
+        
 # async def periodic_economic_collection():
 #     """
 #     Periodically collect macroeconomic indicators from FRED
