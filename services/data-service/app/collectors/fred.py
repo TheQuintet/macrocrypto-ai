@@ -6,6 +6,7 @@ Collects:
 - Federal Funds Rate
 - M2 Money Supply
 - US Dollar Index (DXY)
+- Volatility Index (VIX)
 - 10-Year Treasury Yield
 - GDP
 - Unemployment Rate
@@ -167,6 +168,13 @@ class FREDCollector:
             settings.FRED_DXY_SERIES
         )
 
+    async def get_vix(self) -> Dict[str, Any]:
+        """
+        Get Volatility Index (VIX) data.
+        """
+
+        return await self._get_series(settings.FRED_VIX_SERIES)
+
     async def get_ten_year_treasury(self) -> Dict[str, Any]:
         """
         Get 10-Year Treasury Yield data.
@@ -215,6 +223,8 @@ class FREDCollector:
             ),
 
             "dxy": await self.get_dxy(),
+
+            "vix": await self.get_vix(),
 
             "ten_year_treasury": (
                 await self.get_ten_year_treasury()

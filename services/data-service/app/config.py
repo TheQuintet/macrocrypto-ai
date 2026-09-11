@@ -132,6 +132,9 @@ class Settings(BaseSettings):
     # Series: DTWEXBGS
     FRED_DXY_SERIES: str = "DTWEXBGS"
 
+    # Volatility Index (VIX)
+    # Series: VIXCLS
+    FRED_VIX_SERIES: str = "VIXCLS"
 
     # 10-Year Treasury Yield
     # Series: DGS10
@@ -161,6 +164,7 @@ class Settings(BaseSettings):
         "cpi": 10,
         "employment": 50,
         "gdp": 53,
+        "vix": 54,
     }
 
     FRED_CALENDAR_LOOKBACK_DAYS: int = 365 
@@ -234,7 +238,7 @@ class Settings(BaseSettings):
 
     # Development/testing only.
     # Set to a value > 0 to run every N minutes instead of once per day.
-    MACRO_UPDATE_INTERVAL_MINUTES: int = 1
+    MACRO_UPDATE_INTERVAL_MINUTES: int = 0
 
     # ============================================
     # RATE LIMITING

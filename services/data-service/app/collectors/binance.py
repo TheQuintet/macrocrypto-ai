@@ -108,6 +108,68 @@ class BinanceCollector:
             logger.error(f"Error fetching current price: {e}")
             return {"symbol": symbol, "price": 0.0, "source": "binance_rest"}
     
+    # async def get_klines(
+    #     self,
+    #     symbol: str = "BTCUSDT",
+    #     interval: str = "1d",
+    #     limit: int = 100,
+    #     start_time: Optional[int] = None,
+    #     end_time: Optional[int] = None,
+    # ) -> List[Dict[str, Any]]:
+    #     """
+    #     Get OHLCV (K-line) data from Binance REST API.
+        
+    #     Args:
+    #         symbol: Trading pair (default: BTCUSDT)
+    #         interval: Time interval (1m, 5m, 15m, 1h, 4h, 1d, 1w, 1M)
+    #         limit: Number of candles (max 1000)
+    #         start_time: Optional window start in Unix milliseconds
+    #         end_time: Optional window end in Unix milliseconds
+        
+    #     Returns:
+    #         List of OHLCV data points
+    #     """
+    #     endpoint = f"{self.base_url}/klines"
+    #     params = {
+    #         "symbol": symbol,
+    #         "interval": interval,
+    #         "limit": min(limit, 1000),
+    #     }
+
+    #     if start_time is not None:
+    #         params["startTime"] = start_time
+
+    #     if end_time is not None:
+    #         params["endTime"] = end_time
+        
+    #     try:
+    #         response = await self.client.get(endpoint, params=params)
+    #         response.raise_for_status()
+    #         data = response.json()
+            
+    #         result = []
+    #         for candle in data:
+    #             result.append({
+    #                 "open_time": candle[0],
+    #                 "open": float(candle[1]),
+    #                 "high": float(candle[2]),
+    #                 "low": float(candle[3]),
+    #                 "close": float(candle[4]),
+    #                 "volume": float(candle[5]),
+    #                 "close_time": candle[6],
+    #                 "quote_volume": float(candle[7]),
+    #                 "trades": candle[8],
+    #                 "taker_buy_volume": float(candle[9]),
+    #                 "taker_buy_quote_volume": float(candle[10])
+    #             })
+            
+    #         logger.info(f"Retrieved {len(result)} klines for {symbol} ({interval})")
+    #         return result
+            
+    #     except Exception as e:
+    #         logger.error(f"Error fetching klines: {e}")
+    #         return []
+    
     async def get_klines(
         self,
         symbol: str = "BTCUSDT",
@@ -118,58 +180,123 @@ class BinanceCollector:
     ) -> List[Dict[str, Any]]:
         """
         Get OHLCV (K-line) data from Binance REST API.
-        
+
+        Binance allows a maximum of 1000 candles per request. When a
+        larger time window is requested, this method automatically
+        paginates through multiple requests and combines the results.
+
         Args:
             symbol: Trading pair (default: BTCUSDT)
             interval: Time interval (1m, 5m, 15m, 1h, 4h, 1d, 1w, 1M)
-            limit: Number of candles (max 1000)
+            limit: Number of candles per request (max 1000)
             start_time: Optional window start in Unix milliseconds
             end_time: Optional window end in Unix milliseconds
-        
+
         Returns:
-            List of OHLCV data points
+            List of OHLCV data points in chronological order.
         """
         endpoint = f"{self.base_url}/klines"
-        params = {
-            "symbol": symbol,
-            "interval": interval,
-            "limit": min(limit, 1000),
-        }
 
-        if start_time is not None:
-            params["startTime"] = start_time
+        page_limit = min(limit, 1000)
+        current_start_time = start_time
+        all_candles: list[dict[str, Any]] = []
 
-        if end_time is not None:
-            params["endTime"] = end_time
-        
         try:
-            response = await self.client.get(endpoint, params=params)
-            response.raise_for_status()
-            data = response.json()
-            
-            result = []
-            for candle in data:
-                result.append({
-                    "open_time": candle[0],
-                    "open": float(candle[1]),
-                    "high": float(candle[2]),
-                    "low": float(candle[3]),
-                    "close": float(candle[4]),
-                    "volume": float(candle[5]),
-                    "close_time": candle[6],
-                    "quote_volume": float(candle[7]),
-                    "trades": candle[8],
-                    "taker_buy_volume": float(candle[9]),
-                    "taker_buy_quote_volume": float(candle[10])
-                })
-            
-            logger.info(f"Retrieved {len(result)} klines for {symbol} ({interval})")
+            while True:
+                params = {
+                    "symbol": symbol,
+                    "interval": interval,
+                    "limit": page_limit,
+                }
+
+                if current_start_time is not None:
+                    params["startTime"] = current_start_time
+
+                if end_time is not None:
+                    params["endTime"] = end_time
+
+                response = await self.client.get(
+                    endpoint,
+                    params=params,
+                )
+                response.raise_for_status()
+
+                data = response.json()
+
+                if not data:
+                    break
+
+                for candle in data:
+                    all_candles.append(
+                        {
+                            "open_time": candle[0],
+                            "open": float(candle[1]),
+                            "high": float(candle[2]),
+                            "low": float(candle[3]),
+                            "close": float(candle[4]),
+                            "volume": float(candle[5]),
+                            "close_time": candle[6],
+                            "quote_volume": float(candle[7]),
+                            "trades": candle[8],
+                            "taker_buy_volume": float(candle[9]),
+                            "taker_buy_quote_volume": float(candle[10]),
+                        }
+                    )
+
+                # Stop when Binance returned fewer candles than requested.
+                if len(data) < page_limit:
+                    break
+
+                # Advance to the candle after the last returned candle.
+                last_open_time = data[-1][0]
+                next_start_time = last_open_time + 1
+
+                # Safety check to prevent an accidental infinite loop.
+                if (
+                    current_start_time is not None
+                    and next_start_time <= current_start_time
+                ):
+                    logger.warning(
+                        "Binance kline pagination did not advance. "
+                        "Stopping pagination."
+                    )
+                    break
+
+                current_start_time = next_start_time
+
+                # If we have reached the requested end time, stop.
+                if end_time is not None and current_start_time > end_time:
+                    break
+
+            # Remove duplicate candles by open_time.
+            unique_candles = {
+                candle["open_time"]: candle
+                for candle in all_candles
+            }
+
+            result = [
+                unique_candles[open_time]
+                for open_time in sorted(unique_candles)
+            ]
+
+            logger.info(
+                "Retrieved %s klines for %s (%s) using pagination",
+                len(result),
+                symbol,
+                interval,
+            )
+
             return result
-            
+
         except Exception as e:
-            logger.error(f"Error fetching klines: {e}")
+            logger.error(
+                "Error fetching klines for %s (%s): %s",
+                symbol,
+                interval,
+                e,
+            )
             return []
-    
+
     def _get_dummy_ticker(self, symbol: str) -> Dict[str, Any]:
         """
         Return dummy ticker data when API fails.

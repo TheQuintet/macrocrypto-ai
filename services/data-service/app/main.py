@@ -200,8 +200,13 @@ async def lifespan(app: FastAPI):
             f"(every {settings.PRICE_COLLECTION_INTERVAL}s)"
         )
 
+        # macro_task = asyncio.create_task(
+        #     periodic_macro_collection()
+        # )
         macro_task = asyncio.create_task(
-            periodic_macro_collection()
+            periodic_macro_collection(
+                cache_client=cache_client
+            )
         )
 
         logger.info(

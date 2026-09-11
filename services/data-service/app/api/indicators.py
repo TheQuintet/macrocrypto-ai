@@ -73,6 +73,7 @@ async def get_indicators(
 
         - ten_year_treasury
         - dxy
+        - vix
         - unemployment
         - federal_funds_rate
         - m2_money_supply

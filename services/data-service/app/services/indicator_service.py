@@ -267,6 +267,7 @@ class IndicatorService:
             "m2_money_supply":
                 collector.get_m2_money_supply,
             "dxy": collector.get_dxy,
+            "vix": collector.get_vix,
             "ten_year_treasury":
                 collector.get_ten_year_treasury,
             "gdp": collector.get_gdp,
