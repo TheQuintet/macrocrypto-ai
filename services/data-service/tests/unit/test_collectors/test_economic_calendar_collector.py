@@ -183,6 +183,12 @@ async def test_get_all_events_returns_all_macro_events():
             ],
             [
                 {
+                    "event_type": "vix",
+                    "event_date": test_date,
+                }
+            ],
+            [
+                {
                     "event_type": "gdp",
                     "event_date": test_date,
                 }
@@ -200,7 +206,7 @@ async def test_get_all_events_returns_all_macro_events():
         days=365
     )
 
-    assert len(events) == 4
+    assert len(events) == 5
 
     event_types = {
         event["event_type"]
@@ -210,6 +216,7 @@ async def test_get_all_events_returns_all_macro_events():
     assert event_types == {
         "fed",
         "cpi",
+        "vix",
         "gdp",
         "employment",
     }

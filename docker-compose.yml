@@ -76,13 +76,10 @@ services:
     container_name: macro-data-service
     ports:
       - "8001:8001"
-      # only for local debugging and wouldn't be used in production
-      - "5678:5678"
-    # # ✅ ADD DNS CONFIGURATION
-    # dns:
-    #   - 8.8.8.8
-    #   - 1.1.1.1
-    #   - 8.8.4.4
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+      - 8.8.4.4
     environment:
       # Override Redis host to use Docker service name
       - REDIS_HOST=redis
@@ -121,7 +118,6 @@ services:
     container_name: macro-ai-service
     ports:
       - "8002:8002"
-      - "5681:5681" # For local debugging and wouldn't be used in production
     dns:
       - 8.8.8.8
       - 1.1.1.1
@@ -153,10 +149,9 @@ services:
     container_name: macro-alert-service
     ports:
       - "8003:8003"
-      - "5679:5679"
-    # dns:
-    #   - 8.8.8.8
-    #   - 1.1.1.1
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
     environment:
       - REDIS_HOST=redis
       - DATABASE_URL=postgresql://macro:crypto@postgres:5432/macrocrypto
@@ -185,7 +180,6 @@ services:
     container_name: macro-api-gateway
     ports:
       - "8000:8000"
-      - "5680:5680"
     dns:
       - 8.8.8.8
       - 1.1.1.1
