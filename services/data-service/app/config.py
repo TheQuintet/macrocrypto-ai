@@ -103,6 +103,10 @@ class Settings(BaseSettings):
     MARKET_CAP_CACHE_TTL: int = 900  # 15 minutes
 
 
+    # BTC Dominance Cache TTL (seconds)
+    BTC_DOMINANCE_CACHE_TTL: int = 900
+
+
     # ============================================
     # FRED API (Economic Indicators)
     # ============================================
