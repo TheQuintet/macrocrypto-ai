@@ -155,7 +155,9 @@ async def test_get_series_unexpected_exception(
         "get_dxy",
         "get_ten_year_treasury",
         "get_gdp",
-        "get_unemployment",
+        "get_unemployment",       
+        "get_high_yield_spread",
+        "get_nasdaq_composite",
     ],
 )
 async def test_indicator_methods(
@@ -226,11 +228,14 @@ async def test_get_all_indicators(
         return_value={}
     )
 
+    fred_collector.get_nasdaq_composite = AsyncMock(
+        return_value={}
+    )
 
     result = await fred_collector.get_all_indicators()
 
 
-    assert len(result) == 8
+    assert len(result) == 10
 
     assert "cpi" in result
     assert "federal_funds_rate" in result
@@ -239,7 +244,9 @@ async def test_get_all_indicators(
     assert "vix" in result
     assert "ten_year_treasury" in result
     assert "gdp" in result
-    assert "unemployment" in result
+    assert "unemployment" in result    
+    assert "high_yield_spread" in result
+    assert "nasdaq_composite" in result
 
 
 

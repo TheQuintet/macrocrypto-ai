@@ -154,6 +154,22 @@ class Settings(BaseSettings):
     # Series: UNRATE
     FRED_UNEMPLOYMENT_SERIES: str = "UNRATE"
 
+    # Gold Spot Price
+    # Series: GOLDAMGBD228NLBM
+    # FRED_GOLD_SPOT_SERIES: str = "GOLDPRICE"
+    # Active Addresses (Bitcoin)
+    # Series: BTCAND
+    # FRED_ACTIVE_ADDRESSES_SERIES: str = "BTCAND"
+    # High Yield Corporate Bond Spread
+    # Series: BAMLH0A0M2EY
+    # FRED_HIGH_YIELD_SPREAD_SERIES: str = "BAMLH0A0M2EY"
+    # Series: BAMLH0A0HYM2
+    FRED_HIGH_YIELD_SPREAD_SERIES: str = "BAMLH0A0HYM2"
+
+    # NASDAQ Composite Index
+    # Series: NASDAQCOM
+    FRED_NASDAQ_COMPOSITE_SERIES: str = "NASDAQCOM"
+
 
     # FRED API rate limiting delay
     # Prevent excessive requests
@@ -168,7 +184,12 @@ class Settings(BaseSettings):
         "cpi": 10,
         "employment": 50,
         "gdp": 53,
-        "vix": 54,
+        "vix": 200,
+        "m2_money_supply": 21,
+        "dxy": 13,
+        "nasdaq": 328,
+        "high_yield_spread": 209,
+        "ten_year_treasury": 18,
     }
 
     FRED_CALENDAR_LOOKBACK_DAYS: int = 365 
@@ -219,7 +240,7 @@ class Settings(BaseSettings):
 
     # Development/testing only.
     # Set > 0 to run current-regime processing every N minutes.
-    CURRENT_REGIME_UPDATE_INTERVAL_MINUTES: int = 1
+    CURRENT_REGIME_UPDATE_INTERVAL_MINUTES: int = 0
 
     # Development/testing only.
     REGIME_PERFORMANCE_QA_MODE: bool = True
@@ -242,7 +263,7 @@ class Settings(BaseSettings):
 
     # Development/testing only.
     # Set to a value > 0 to run every N minutes instead of once per day.
-    MACRO_UPDATE_INTERVAL_MINUTES: int = 0
+    MACRO_UPDATE_INTERVAL_MINUTES: int = 1
 
     # ============================================
     # RATE LIMITING

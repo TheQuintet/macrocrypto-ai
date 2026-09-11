@@ -7,6 +7,11 @@ Collects economic release dates for:
 - VIX (Volatility Index)
 - Employment Situation
 - Gross Domestic Product (GDP)
+- M2 Money Supply
+- US Dollar Index (DXY)
+- Nasdaq Composite Index
+- High Yield Corporate Bond Spread
+- 10-Year Treasury Yield
 
 This collector is responsible only for fetching and normalizing
 calendar data. Database persistence is handled separately.
@@ -207,6 +212,11 @@ class EconomicCalendarCollector:
         - vix
         - employment
         - gdp
+        - m2_money_supply
+        - dxy
+        - nasdaq
+        - high_yield_spread
+        - ten_year_treasury
         """
 
         release_id = settings.FRED_CALENDAR_RELEASES.get(
@@ -295,6 +305,58 @@ class EconomicCalendarCollector:
                     "expectations, risk sentiment, and Bitcoin."
                 ),
             },
+            "m2_money_supply": {
+                "event_name": "M2 Money Supply",
+                "impact_level": "medium",
+                "description": (
+                    "M2 measures the US money supply. Rapid "
+                    "growth can signal inflationary pressures, "
+                    "while contraction may indicate tighter "
+                    "monetary conditions, both of which can "
+                    "influence Bitcoin."
+                ),
+            },
+            "dxy": {
+                "event_name": "US Dollar Index (DXY)",
+                "impact_level": "medium",
+                "description": (
+                    "The DXY tracks the US dollar against a "
+                    "basket of currencies. Dollar strength or "
+                    "weakness can influence risk appetite, "
+                    "commodity prices, and Bitcoin."
+                ),
+            },
+            "nasdaq": {
+                "event_name": "Nasdaq Composite Index",
+                "impact_level": "medium",
+                "description": (
+                    "The Nasdaq tracks US technology stocks. "
+                    "Tech-sector performance can influence risk "
+                    "sentiment and Bitcoin."
+                ),
+            },
+            "high_yield_spread": {
+                "event_name": "High Yield Corporate Bond Spread",
+                "impact_level": "medium",
+                "description": (
+                    "The high-yield spread measures the yield "
+                    "difference between junk bonds and Treasuries. "
+                    "Widening spreads can signal credit stress, "
+                    "while narrowing spreads may indicate risk-on "
+                    "sentiment, both of which can influence Bitcoin."
+                ),
+            },
+            "ten_year_treasury": {
+                "event_name": "10-Year Treasury Yield",
+                "impact_level": "medium",
+                "description": (
+                    "The 10-year Treasury yield reflects US "
+                    "interest-rate expectations. Rising yields "
+                    "can pressure risk assets and Bitcoin, while "
+                    "falling yields may support them."
+                ),
+            },
+            
         }
 
         metadata = event_metadata.get(

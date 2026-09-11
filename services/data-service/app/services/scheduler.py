@@ -34,6 +34,8 @@ from app.config import settings
 from app.database.session import SessionLocal
 from app.services.economic_calendar_service import EconomicCalendarService
 from app.services.indicator_service import IndicatorService
+from app.services.equity_corr_service import EquityCorrService
+from app.services.active_addresses_service import ActiveAddressesService
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -77,106 +79,6 @@ async def wait_until_next_run(
     await asyncio.sleep(wait_seconds)
 
 
-# ============================================================
-# MACRO / FRED SCHEDULER
-# ============================================================
-# async def periodic_macro_collection():
-#     """
-#     Scheduled macro/FRED data collection.
-
-#     QA/development:
-#         MACRO_UPDATE_INTERVAL_MINUTES > 0
-#         runs every N minutes.
-
-#     Production:
-#         MACRO_UPDATE_INTERVAL_MINUTES = 0
-#         runs once daily at the configured UTC time.
-
-#     Responsibilities:
-#         - Wait for the configured schedule.
-#         - Run the existing macro/FRED collection workflow.
-#         - Handle scheduler errors without stopping the loop.
-#     """
-
-#     logger.info(
-#         "📊 Macro/FRED scheduler started"
-#     )
-
-#     if settings.MACRO_UPDATE_INTERVAL_MINUTES > 0:
-
-#         logger.info(
-#             "Macro QA interval mode enabled: "
-#             "running every %s minute(s)",
-#             settings.MACRO_UPDATE_INTERVAL_MINUTES,
-#         )
-
-#     else:
-
-#         logger.info(
-#             "Macro production schedule mode enabled: "
-#             "running daily at %02d:%02d UTC",
-#             settings.MACRO_UPDATE_HOUR_UTC,
-#             settings.MACRO_UPDATE_MINUTE_UTC,
-#         )
-
-#     while True:
-
-#         try:
-
-#             # ==================================================
-#             # WAIT FOR NEXT MACRO EXECUTION
-#             # ==================================================
-
-#             if settings.MACRO_UPDATE_INTERVAL_MINUTES > 0:
-
-#                 await asyncio.sleep(
-#                     settings.MACRO_UPDATE_INTERVAL_MINUTES
-#                     * 60
-#                 )
-
-#             else:
-
-#                 await wait_until_next_run(
-#                     settings.MACRO_UPDATE_HOUR_UTC,
-#                     settings.MACRO_UPDATE_MINUTE_UTC,
-#                     "macro/FRED update",
-#                 )
-
-#             logger.info(
-#                 "📊 Macro/FRED scheduler woke up"
-#             )
-
-#             # ==================================================
-#             # MACRO/FRED COLLECTION
-#             # ==================================================
-#             #
-#             # Keep the existing macro/FRED indicator workflow
-#             # here when it is connected to this scheduler.
-#             #
-#             # Economic calendar collection is intentionally NOT
-#             # handled here. It has its own scheduler:
-#             #
-#             # periodic_economic_calendar_collection()
-#             #
-
-#             logger.info(
-#                 "📊 Macro/FRED scheduled job completed"
-#             )
-
-#         except asyncio.CancelledError:
-
-#             logger.info(
-#                 "Macro/FRED scheduler cancelled"
-#             )
-
-#             raise
-
-#         except Exception:
-
-#             logger.exception(
-#                 "🔥 Macro/FRED scheduler failed"
-#             )
-
 
 async def periodic_macro_collection(cache_client=None):
     logger.info("📊 Macro/FRED scheduler started")
@@ -209,6 +111,8 @@ async def periodic_macro_collection(cache_client=None):
             logger.info("📊 Macro/FRED scheduler woke up")
 
             db = SessionLocal()
+            equity_corr_service = None
+            active_addresses_service = None
 
             try:
                 service = IndicatorService(
@@ -223,7 +127,57 @@ async def periodic_macro_collection(cache_client=None):
                     result,
                 )
 
+                # ==================================================
+                # DERIVED EQUITY CORRELATION
+                # ==================================================
+
+                equity_corr_service = EquityCorrService(db)
+
+                equity_corr_records = (
+                    await equity_corr_service.calculate()
+                )
+
+                if equity_corr_records:
+                    equity_corr_service.repository.create_many(
+                        equity_corr_records
+                    )
+
+                    logger.info(
+                        "📈 equity_corr calculation completed: "
+                        "%d records persisted",
+                        len(equity_corr_records),
+                    )
+
+                # Active address from blockchain.com is a derived feature that is not part of the FRED collection.
+                active_addresses_service = ActiveAddressesService(db)
+
+                active_addresses_records = (
+                    await active_addresses_service.calculate()
+                )
+
+                if active_addresses_records:
+                    active_addresses_service.repository.create_many(
+                        active_addresses_records
+                    )
+
+                    logger.info(
+                        "Persisted %d active_addresses records",
+                        len(active_addresses_records),
+                    )
+
+                else:
+                    logger.warning(
+                        "📈 equity_corr calculation produced no records"
+                    )
+
+                
+
             finally:
+                if equity_corr_service:
+                    await equity_corr_service.close()
+                if active_addresses_service:
+                    await active_addresses_service.close()
+
                 db.close()
 
             logger.info("📊 Macro/FRED scheduled job completed")
