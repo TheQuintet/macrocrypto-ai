@@ -635,26 +635,26 @@ def test_alert_service_proxy_error_returns_502(
 # ============================================================================
 
 
-def test_all_34_proxy_routes_are_registered():
-    """Exactly 34 proxy route definitions are registered."""
+def test_all_35_proxy_routes_are_registered():
+    """Exactly 35 proxy route definitions are registered."""
     routes = [
         route
         for route in service_proxy.router.routes
         if hasattr(route, "methods")
     ]
 
-    assert len(routes) == 34
+    assert len(routes) == 35
 
 
 def test_data_service_route_count():
-    """Exactly 10 Data Service routes are registered."""
+    """Exactly 11 Data Service routes are registered."""
     data_routes = [
         route
         for route in service_proxy.router.routes
         if "Data Service" in getattr(route, "tags", [])
     ]
 
-    assert len(data_routes) == 10
+    assert len(data_routes) == 11
 
 
 def test_alert_service_route_count():
