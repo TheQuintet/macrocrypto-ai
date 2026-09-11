@@ -235,8 +235,8 @@ async def test_get_all_indicators(
     result = await fred_collector.get_all_indicators()
 
 
-    assert len(result) == 10
 
+    assert len(result) == 10
     assert "cpi" in result
     assert "federal_funds_rate" in result
     assert "m2_money_supply" in result
