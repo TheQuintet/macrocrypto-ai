@@ -272,7 +272,9 @@ class IndicatorService:
                 collector.get_ten_year_treasury,
             "gdp": collector.get_gdp,
             "unemployment":
-                collector.get_unemployment,
+                collector.get_unemployment,            
+            "high_yield_spread": self.collector.get_high_yield_spread,    
+            "nasdaq_composite": self.collector.get_nasdaq_composite,
         }
 
         results = {}

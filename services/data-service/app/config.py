@@ -132,7 +132,7 @@ class Settings(BaseSettings):
     FRED_M2_SERIES: str = "M2SL"
 
 
-    # US Dollar Index
+    # US Dollar Index for ML, Daily
     # Series: DTWEXBGS
     FRED_DXY_SERIES: str = "DTWEXBGS"
 
@@ -154,6 +154,14 @@ class Settings(BaseSettings):
     # Series: UNRATE
     FRED_UNEMPLOYMENT_SERIES: str = "UNRATE"
 
+    # High Yield Corporate Bond Spread
+    # Series: BAMLH0A0HYM2
+    FRED_HIGH_YIELD_SPREAD_SERIES: str = "BAMLH0A0HYM2"
+
+    # NASDAQ Composite Index
+    # Series: NASDAQCOM
+    FRED_NASDAQ_COMPOSITE_SERIES: str = "NASDAQCOM"
+
 
     # FRED API rate limiting delay
     # Prevent excessive requests
@@ -162,13 +170,18 @@ class Settings(BaseSettings):
     # ============================================
     # FRED ECONOMIC CALENDAR
     # ============================================
-
+    # FRED calendar releases mapping for monthly economic events. The keys are event types, and the values are FRED release IDs.
     FRED_CALENDAR_RELEASES: dict = {
         "fed": 101,
         "cpi": 10,
         "employment": 50,
         "gdp": 53,
-        "vix": 54,
+        "vix": 200,
+        "m2_money_supply": 21,
+        "dxy": 245, 
+        "nasdaq": 328,
+        "high_yield_spread": 209,
+        "ten_year_treasury": 18,
     }
 
     FRED_CALENDAR_LOOKBACK_DAYS: int = 365 
@@ -219,7 +232,7 @@ class Settings(BaseSettings):
 
     # Development/testing only.
     # Set > 0 to run current-regime processing every N minutes.
-    CURRENT_REGIME_UPDATE_INTERVAL_MINUTES: int = 1
+    CURRENT_REGIME_UPDATE_INTERVAL_MINUTES: int = 0
 
     # Development/testing only.
     REGIME_PERFORMANCE_QA_MODE: bool = True
