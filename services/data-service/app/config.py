@@ -132,7 +132,7 @@ class Settings(BaseSettings):
     FRED_M2_SERIES: str = "M2SL"
 
 
-    # US Dollar Index
+    # US Dollar Index for ML, Daily
     # Series: DTWEXBGS
     FRED_DXY_SERIES: str = "DTWEXBGS"
 
@@ -154,15 +154,7 @@ class Settings(BaseSettings):
     # Series: UNRATE
     FRED_UNEMPLOYMENT_SERIES: str = "UNRATE"
 
-    # Gold Spot Price
-    # Series: GOLDAMGBD228NLBM
-    # FRED_GOLD_SPOT_SERIES: str = "GOLDPRICE"
-    # Active Addresses (Bitcoin)
-    # Series: BTCAND
-    # FRED_ACTIVE_ADDRESSES_SERIES: str = "BTCAND"
     # High Yield Corporate Bond Spread
-    # Series: BAMLH0A0M2EY
-    # FRED_HIGH_YIELD_SPREAD_SERIES: str = "BAMLH0A0M2EY"
     # Series: BAMLH0A0HYM2
     FRED_HIGH_YIELD_SPREAD_SERIES: str = "BAMLH0A0HYM2"
 
@@ -178,7 +170,7 @@ class Settings(BaseSettings):
     # ============================================
     # FRED ECONOMIC CALENDAR
     # ============================================
-
+    # FRED calendar releases mapping for monthly economic events. The keys are event types, and the values are FRED release IDs.
     FRED_CALENDAR_RELEASES: dict = {
         "fed": 101,
         "cpi": 10,
@@ -186,7 +178,7 @@ class Settings(BaseSettings):
         "gdp": 53,
         "vix": 200,
         "m2_money_supply": 21,
-        "dxy": 13,
+        "dxy": 245, 
         "nasdaq": 328,
         "high_yield_spread": 209,
         "ten_year_treasury": 18,
@@ -263,7 +255,7 @@ class Settings(BaseSettings):
 
     # Development/testing only.
     # Set to a value > 0 to run every N minutes instead of once per day.
-    MACRO_UPDATE_INTERVAL_MINUTES: int = 1
+    MACRO_UPDATE_INTERVAL_MINUTES: int = 0
 
     # ============================================
     # RATE LIMITING

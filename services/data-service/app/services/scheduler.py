@@ -147,6 +147,10 @@ async def periodic_macro_collection(cache_client=None):
                         "%d records persisted",
                         len(equity_corr_records),
                     )
+                else:
+                    logger.warning(
+                        "📈 equity_corr calculation produced no records"
+                    )    
 
                 # Active address from blockchain.com is a derived feature that is not part of the FRED collection.
                 active_addresses_service = ActiveAddressesService(db)
@@ -161,13 +165,14 @@ async def periodic_macro_collection(cache_client=None):
                     )
 
                     logger.info(
-                        "Persisted %d active_addresses records",
+                        "📈 Active addresses calculation completed: " \
+                        "📈 Persisted %d active_addresses records",
                         len(active_addresses_records),
                     )
 
                 else:
                     logger.warning(
-                        "📈 equity_corr calculation produced no records"
+                        "📈 Active addresses calculation produced no records"
                     )
 
                 
