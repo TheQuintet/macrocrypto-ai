@@ -36,6 +36,7 @@ from app.services.economic_calendar_service import EconomicCalendarService
 from app.services.indicator_service import IndicatorService
 from app.services.equity_corr_service import EquityCorrService
 from app.services.active_addresses_service import ActiveAddressesService
+from app.services.gold_spot_service import GoldSpotService
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -113,6 +114,7 @@ async def periodic_macro_collection(cache_client=None):
             db = SessionLocal()
             equity_corr_service = None
             active_addresses_service = None
+            gold_spot_service = None
 
             try:
                 service = IndicatorService(
@@ -175,13 +177,36 @@ async def periodic_macro_collection(cache_client=None):
                         "📈 Active addresses calculation produced no records"
                     )
 
-                
+                # Gold spot from Yahoo Finance
+                gold_spot_service = GoldSpotService(db)
+
+                gold_spot_records = (
+                    await gold_spot_service.collect()
+                )
+
+                if gold_spot_records:
+                    gold_spot_service.repository.create_many(
+                        gold_spot_records
+                    )
+
+                    logger.info(
+                        "🪙 Gold spot data acquisition completed: "
+                        "Persisted %d gold_spot records",
+                        len(gold_spot_records),
+                    )
+
+                else:
+                    logger.warning(
+                        "🪙 Gold spot data acquisition produced no records"
+                    )   
 
             finally:
                 if equity_corr_service:
                     await equity_corr_service.close()
                 if active_addresses_service:
                     await active_addresses_service.close()
+                if gold_spot_service:
+                    await gold_spot_service.close()
 
                 db.close()
 
