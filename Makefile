@@ -50,6 +50,25 @@ help:
 	@echo "  $(GREEN)make data-lint$(RESET)      - Lint data-service code"
 	@echo "  $(GREEN)make data-format$(RESET)    - Format data-service code"
 	@echo ""
+	@echo "$(YELLOW)AI-Service Commands:$(RESET)"
+	@echo "  $(GREEN)make ai-up$(RESET)          - Start ai-service (rebuilds if needed)"
+	@echo "  $(GREEN)make ai-down$(RESET)        - Stop ai-service"
+	@echo "  $(GREEN)make ai-logs$(RESET)        - Show ai-service logs"
+	@echo "  $(GREEN)make ai-restart$(RESET)     - Restart ai-service"
+	@echo "  $(GREEN)make ai-shell$(RESET)       - Open shell in ai-service"
+	@echo "  $(GREEN)make ai-test$(RESET)        - Run ai-service tests"
+	@echo "  $(GREEN)make ai-test-unit$(RESET)   - Run unit tests only"
+	@echo "  $(GREEN)make ai-test-int$(RESET)    - Run integration tests only"
+	@echo "  $(GREEN)make ai-test-e2e$(RESET)    - Run e2e tests only"
+	@echo "  $(GREEN)make ai-test-cov$(RESET)    - Run tests with coverage"
+	@echo "  $(GREEN)make ai-health$(RESET)      - Check ai-service health"
+	@echo "  $(GREEN)make ai-ready$(RESET)       - Check ai-service readiness"
+	@echo "  $(GREEN)make ai-lint$(RESET)        - Lint ai-service code"
+	@echo "  $(GREEN)make ai-format$(RESET)      - Format ai-service code"
+	@echo "  $(GREEN)make ai-run$(RESET)         - Run ai-service locally"
+	@echo "  $(GREEN)make ai-venv$(RESET)        - Create virtual environment"
+	@echo "  $(GREEN)make ai-install$(RESET)     - Install dependencies"
+	@echo ""
 	@echo "$(YELLOW)Alert-Service Commands:$(RESET)"
 	@echo "  $(GREEN)make alert-up$(RESET)       - Start alert-service (rebuilds if needed)"
 	@echo "  $(GREEN)make alert-down$(RESET)     - Stop alert-service"
@@ -87,6 +106,7 @@ help:
 	@echo "  $(GREEN)make redis-cli$(RESET)      - Open Redis CLI"
 	@echo "  $(GREEN)make postgres-cli$(RESET)   - Open PostgreSQL CLI"
 	@echo "  $(GREEN)make rabbitmq-ui$(RESET)    - Open RabbitMQ Management UI"
+	@echo "  $(GREEN)make mlflow-ui$(RESET)      - Open MLflow UI"
 	@echo ""
 	@echo "$(YELLOW)Development Commands:$(RESET)"
 	@echo "  $(GREEN)make setup$(RESET)          - Setup development environment"
@@ -185,6 +205,127 @@ data-test-verbose:
 data-test-quick:
 	@echo "🧪 Running tests (skip slow)..."
 	docker compose exec data-service pytest tests/ -v -k "not slow"
+
+# ============================================
+# AI-SERVICE COMMANDS
+# ============================================
+
+ai-up:
+	docker compose up -d --build ai-service
+	@echo "✅ AI-service started. View logs with: make ai-logs"
+
+ai-down:
+	docker compose stop ai-service
+	docker compose rm -f ai-service
+	@echo "✅ AI-service stopped"
+
+ai-logs:
+	docker compose logs -f ai-service
+
+ai-restart:
+	docker compose restart ai-service
+	@echo "✅ AI-service restarted"
+
+ai-shell:
+	docker compose exec ai-service /bin/bash
+
+# ============================================
+# AI-SERVICE TEST COMMANDS
+# ============================================
+
+ai-test:
+	@echo "🧪 Running all tests..."
+	docker compose exec ai-service pytest tests/ -v
+
+ai-test-unit:
+	@echo "🧪 Running unit tests..."
+	docker compose exec ai-service pytest tests/unit/ -v
+
+ai-test-int:
+	@echo "🧪 Running integration tests..."
+	docker compose exec ai-service pytest tests/integration/ -v
+
+ai-test-e2e:
+	@echo "🧪 Running e2e tests..."
+	docker compose exec ai-service pytest tests/e2e/ -v
+
+ai-test-cov:
+	@echo "🧪 Running tests with coverage..."
+	docker compose exec ai-service pytest tests/ --cov=app --cov-report=term --cov-report=html
+	@echo "📊 Coverage report: services/ai-service/htmlcov/index.html"
+
+ai-test-file:
+	@echo "🧪 Running test file: $(FILE)"
+	docker compose exec ai-service pytest $(FILE) -v
+
+ai-test-verbose:
+	@echo "🧪 Running tests with verbose output..."
+	docker compose exec ai-service pytest tests/ -v -s --tb=long
+
+ai-test-quick:
+	@echo "🧪 Running tests (skip slow)..."
+	docker compose exec ai-service pytest tests/ -v -k "not slow"
+
+# ============================================
+# AI-SERVICE HEALTH CHECK
+# ============================================
+
+ai-health:
+	@echo "🏥 Checking ai-service health..."
+	@curl -s http://localhost:8002/health | jq || echo "❌ AI service not running or jq not installed"
+
+ai-ready:
+	@echo "🔄 Checking ai-service readiness..."
+	@curl -s http://localhost:8002/ready | jq || echo "❌ AI service not ready or jq not installed"
+
+# ============================================
+# AI-SERVICE LINTING & FORMATTING
+# ============================================
+
+ai-lint:
+	docker compose exec ai-service ruff check app/ || echo "⚠️  Lint issues found"
+
+ai-format:
+	docker compose exec ai-service black app/ --line-length=120
+
+# ============================================
+# AI-SERVICE DEVELOPMENT COMMANDS
+# ============================================
+
+ai-run:
+	@echo "🚀 Running AI Service locally..."
+	cd services/ai-service && . venv/bin/activate && python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8002
+
+ai-venv:
+	@echo "🔧 Creating virtual environment for AI Service..."
+	cd services/ai-service && python3 -m venv venv
+	@echo "✅ Virtual environment created"
+
+ai-install:
+	@echo "📦 Installing AI Service dependencies..."
+	cd services/ai-service && source venv/bin/activate && pip install -r requirements-dev.txt
+	@echo "✅ Dependencies installed"
+
+# ============================================
+# AI-SERVICE TEST COMMANDS (LOCAL)
+# ============================================
+
+ai-test-local:
+	@echo "🧪 Running all tests locally..."
+	cd services/ai-service && . venv/bin/activate && TESTING=true pytest tests/ -v
+
+ai-test-local-unit:
+	@echo "🧪 Running unit tests locally..."
+	cd services/ai-service && . venv/bin/activate && TESTING=true pytest tests/ -m unit -v
+
+ai-test-local-cov:
+	@echo "🧪 Running tests with coverage locally..."
+	cd services/ai-service && . venv/bin/activate && TESTING=true pytest tests/ --cov=app --cov-report=term --cov-report=html
+	@echo "📊 Coverage report: services/ai-service/htmlcov/index.html"
+
+ai-test-local-file:
+	@echo "🧪 Running test file locally: $(FILE)"
+	cd services/ai-service && . venv/bin/activate && TESTING=true pytest $(FILE) -v
 
 # ============================================
 # ALERT-SERVICE COMMANDS
@@ -407,6 +548,11 @@ rabbitmq-ui:
 	@echo "   Username: guest"
 	@echo "   Password: guest"
 	@xdg-open http://localhost:15672 2>/dev/null || open http://localhost:15672 2>/dev/null || echo "Open http://localhost:15672 in your browser"
+
+mlflow-ui:
+	@echo "🌐 Opening MLflow UI..."
+	@echo "   URL: http://localhost:5000"
+	@xdg-open http://localhost:5000 2>/dev/null || open http://localhost:5000 2>/dev/null || echo "Open http://localhost:5000 in your browser"
 
 # ============================================
 # DEVELOPMENT SETUP COMMANDS
