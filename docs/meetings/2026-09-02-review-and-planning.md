@@ -170,4 +170,4 @@ Completion estimates ranged from 20% to 60% depending on what is counted. Richar
 
 ## Next meeting
 
-See [recurring sync schedule](../team-roles.md#recurring-meetings-through-14-oct-2026) — next sync **Wed 9 Sep 2026, Slot B**.
+See [recurring sync schedule](../team-roles.md#recurring-meetings-through-14-oct-2026) — session write-up: [9 Sep 2026 Review, Refinement & Planning](./2026-09-09-review-and-planning.md).

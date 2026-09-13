@@ -31,6 +31,7 @@ Long-form project documentation. How to clone and run the app is in the [root RE
 - [**5 Aug 2026 — Retrospective, review, refinement, and planning**](./meetings/2026-08-05-retrospective.md)
 - [**26 Aug 2026 — Review, refinement, and planning**](./meetings/2026-08-26-review-and-planning.md)
 - [**2 Sep 2026 — Review, refinement, and planning**](./meetings/2026-09-02-review-and-planning.md)
+- [**9 Sep 2026 — Review, refinement, and planning**](./meetings/2026-09-09-review-and-planning.md)
 - [**GitHub Flow**](../GITHUB_FLOW.md) — branching, PRs, deployment
 - [**Contributing**](../CONTRIBUTING.md) — contribution guidelines
 

@@ -28,6 +28,33 @@ Sprint planning notes: select stories, estimate, assign owners.
 
 ## Sessions
 
+### Next sprint — Planning (combined with review and refinement) — 9 Sep 2026
+
+| | |
+|---|---|
+| **Date** | Wed 9 Sep 2026 |
+| **Attendees** | Sid Ahmed Mahieddine, Loredana Lungu, Kingson Emma-Ochu, Mael Taye Deneke, Owusu Richard |
+| **Sprint goal** | Close out S3 calendar and T9 alert history; A3 frontend; unblock AI via Gateway merge and documented ML model choice |
+| **Full notes** | [2026-09-09 Review, Refinement & Planning](../2026-09-09-review-and-planning.md) |
+
+**Stories / focus selected**
+
+| Story / focus | Owner | Notes |
+|---------------|-------|-------|
+| A3 — frontend stories | Sid adds to sprint; Kingson / team | Historical BTC patterns across macro regimes |
+| S3 — economic calendar cleanup | Kingson | Verify AC, close done tickets; history/table view if needed |
+| T9 — Alert history (#172) | Kingson | Current sprint |
+| T8 — Prediction alerts UI | Richard / Loredana | Review PR; notifications optional follow-up |
+| API Gateway merge | Loredana | Unblock Mael |
+| AI service / ML model | Sid / Mael / Richard | Justification doc; Prophet dual-retrain or multi-model if time |
+
+**Notes**
+
+- Alert preview (#189) deferred to backlog
+- ML decision requires shared simulation code on real pre-processed data
+
+---
+
 ### Current sprint — Planning (combined with review and refinement) — 26 Aug 2026
 
 | | |

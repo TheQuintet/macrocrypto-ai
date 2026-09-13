@@ -16,7 +16,7 @@ PLAN → ASSIGN → WORK → REVIEW → TRACK → CLOSE → RETROSPECT
 
 Sprint **review** and **retrospective** are different ceremonies. We do not run a formal live review — there is not enough overlapping time — so review is **offline**. Retrospective stays on the weekly sync when scheduled.
 
-Write-ups: [29 Jul refinement and planning](./meetings/2026-07-29-refinement-and-planning.md) · [5 Aug retrospective, review, refinement, and planning](./meetings/2026-08-05-retrospective.md) · [26 Aug review, refinement, and planning](./meetings/2026-08-26-review-and-planning.md) · [2 Sep review, refinement, and planning](./meetings/2026-09-02-review-and-planning.md). Blank formats: [meetings/templates/](./meetings/templates/).
+Write-ups: [29 Jul refinement and planning](./meetings/2026-07-29-refinement-and-planning.md) · [5 Aug retrospective, review, refinement, and planning](./meetings/2026-08-05-retrospective.md) · [26 Aug review, refinement, and planning](./meetings/2026-08-26-review-and-planning.md) · [2 Sep review, refinement, and planning](./meetings/2026-09-02-review-and-planning.md) · [9 Sep review, refinement, and planning](./meetings/2026-09-09-review-and-planning.md). Blank formats: [meetings/templates/](./meetings/templates/).
 
 ### Sprint planning
 
@@ -238,7 +238,7 @@ Code changes follow [GitHub Flow](../GITHUB_FLOW.md). See also [Contributing](..
 | **Dates** | Started Wed 5 Aug 2026 (1-week cadence) |
 | **Status** | **In progress** — 2 Sep session: S1 closed, T7/T8 in focus (see below) |
 | **Sprint goal** | API Gateway and Alert Service |
-| **Actual focus** | Finish the Sprint 2 carryover before adding new scope — [5 Aug planning notes](./meetings/2026-08-05-retrospective.md). **26 Aug:** alerts and frontend alert issues; ML / AI deferred to September — [26 Aug notes](./meetings/2026-08-26-review-and-planning.md). **2 Sep:** S1 closed; T7 (receive alerts from BTC) due Friday; T8 prediction and Prophet AI work in sprint; API Gateway at 34 endpoints — [2 Sep notes](./meetings/2026-09-02-review-and-planning.md) |
+| **Actual focus** | Finish the Sprint 2 carryover before adding new scope — [5 Aug planning notes](./meetings/2026-08-05-retrospective.md). **26 Aug:** alerts and frontend alert issues; ML / AI deferred to September — [26 Aug notes](./meetings/2026-08-26-review-and-planning.md). **2 Sep:** S1 closed; T7 (receive alerts from BTC) due Friday; T8 prediction and Prophet AI work in sprint; API Gateway at 34 endpoints — [2 Sep notes](./meetings/2026-09-02-review-and-planning.md). **9 Sep:** macro subscription UI closed; economic calendar merged; T8 UI PR + ML model debate (Prophet vs LightGBM/XGBoost); next FE focus A3/S3; AI backend blocked on model/naming and Gateway review — [9 Sep notes](./meetings/2026-09-09-review-and-planning.md) |
 | **Product Owner** | Sid Ahmed Mahieddine |
 | **Scrum Master** | Loredana Lungu |
 
@@ -305,6 +305,7 @@ Acceptance criteria:
 | 1.5 | 2026-08-26 | Link 26 Aug review / refinement / planning notes; record current-sprint focus (alerts + frontend) and September deferrals |
 | 1.6 | 2026-08-30 | Richard Owusu: developer (frontend and ML), not Follow-up & QA — see [team-roles.md](./team-roles.md) |
 | 1.7 | 2026-09-02 | Link 2 Sep review / refinement / planning notes; S1 closed; T7/T8 and AI (Prophet) sprint focus |
+| 1.8 | 2026-09-09 | Link 9 Sep review / refinement / planning notes; A3/S3 FE focus; ML model justification and Gateway merge as blockers |
 
 ---
 
@@ -319,6 +320,7 @@ Acceptance criteria:
 - [5 Aug 2026 Retrospective, Review, Refinement & Planning](./meetings/2026-08-05-retrospective.md)
 - [26 Aug 2026 Review, Refinement & Planning](./meetings/2026-08-26-review-and-planning.md)
 - [2 Sep 2026 Review, Refinement & Planning](./meetings/2026-09-02-review-and-planning.md)
+- [9 Sep 2026 Review, Refinement & Planning](./meetings/2026-09-09-review-and-planning.md)
 - [Team](./team-roles.md)
 - [Deliverables](./quantic/deliverables.md)
 - [GitHub Flow](../GITHUB_FLOW.md)
