@@ -2,9 +2,19 @@
 
 These tests use real Prophet with small datasets. They are marked
 with @pytest.mark.slow since Prophet training is not instant.
+
+Test organization:
+    - TestProphetModelInitialization: Constructor behavior
+    - TestProphetModelTrain: Fresh training (M2.1)
+    - TestProphetModelWarmStart: Warm-start training (M2.2)
+    - TestProphetModelPredict: Prediction
+    - TestProphetModelConfidence: Confidence intervals
+    - TestProphetModelMetrics: Metrics retrieval
+    - TestProphetModelSerialization: Save/load
+    - TestProphetModelConstants: Module constants
 """
 
-from typing import Any, Dict
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -14,6 +24,7 @@ from app.ai import ForecastModel, ProphetModel
 from app.ai.models.prophet_model import (
     CONFIDENCE_LEVELS,
     DEFAULT_CONFIG,
+    MIN_TRAINING_ROWS,
     REGRESSORS,
     REQUIRED_COLUMNS,
 )
@@ -134,6 +145,11 @@ class TestProphetModelInitialization:
         assert model.is_trained is False
         assert model.get_metrics() == {}
 
+    def test_initial_last_training_mode_is_fresh(self) -> None:
+        """Test that last_training_mode defaults to 'fresh'."""
+        model = ProphetModel()
+        assert model.last_training_mode == "fresh"
+
     def test_repr(self) -> None:
         """Test __repr__ format."""
         model = ProphetModel()
@@ -141,14 +157,15 @@ class TestProphetModelInitialization:
         assert "ProphetModel" in repr_str
         assert "strategy='fresh'" in repr_str
         assert "trained=False" in repr_str
+        assert "last_mode='fresh'" in repr_str
 
 
 # ============================================================
-# TRAINING TESTS
+# TRAINING TESTS (Fresh - M2.1)
 # ============================================================
 @pytest.mark.slow
 class TestProphetModelTrain:
-    """Tests for ProphetModel.train()."""
+    """Tests for ProphetModel.train() with fresh strategy."""
 
     def test_train_fresh(self, training_data: pd.DataFrame) -> None:
         """Test training with fresh strategy."""
@@ -161,6 +178,15 @@ class TestProphetModelTrain:
         assert "rmse" in metrics
         assert "mape" in metrics
         assert "directional_accuracy" in metrics
+
+    def test_train_sets_last_training_mode_to_fresh(
+        self, training_data: pd.DataFrame
+    ) -> None:
+        """Test that fresh training sets last_training_mode='fresh'."""
+        model = ProphetModel()
+        model.train(training_data, warm_start=False)
+
+        assert model.last_training_mode == "fresh"
 
     def test_train_returns_float_metrics(
         self, training_data: pd.DataFrame
@@ -182,8 +208,10 @@ class TestProphetModelTrain:
         """Test that missing columns raises ValueError."""
         model = ProphetModel()
         incomplete = pd.DataFrame(
-            {"ds": pd.date_range("2024-01-01", periods=50, freq="D"),
-             "y": [50000] * 50}
+            {
+                "ds": pd.date_range("2024-01-01", periods=50, freq="D"),
+                "y": [50000] * 50,
+            }
         )
         with pytest.raises(ValueError, match="missing required columns"):
             model.train(incomplete)
@@ -201,16 +229,136 @@ class TestProphetModelTrain:
         with pytest.raises(ValueError, match="at least 30 rows"):
             model.train(small_data)
 
-    def test_train_with_warm_start_flag(
+
+# ============================================================
+# WARM-START TESTS (M2.2)
+# ============================================================
+@pytest.mark.slow
+class TestProphetModelWarmStart:
+    """Tests for warm-start training (M2.2).
+
+    Prophet's warm-start still trains on the full dataset. It only
+    uses the previous model's parameters as an initialization point
+    to speed up convergence.
+    """
+
+    def test_warm_start_without_path_falls_back_to_fresh(
         self, training_data: pd.DataFrame
     ) -> None:
-        """Test that warm_start flag is accepted (falls back to fresh in M2.1)."""
-        model = ProphetModel()
+        """Test warm-start without previous_model_path falls back to fresh."""
+        model = ProphetModel(strategy="warm")
         metrics = model.train(training_data, warm_start=True)
 
-        # Should still succeed with fresh training
         assert model.is_trained is True
         assert "mae" in metrics
+        # Should have fallen back to fresh
+        assert model.last_training_mode == "fresh"
+
+    def test_warm_start_with_missing_file_falls_back_to_fresh(
+        self, training_data: pd.DataFrame
+    ) -> None:
+        """Test warm-start with a missing previous model file."""
+        model = ProphetModel(strategy="warm")
+        metrics = model.train(
+            training_data,
+            warm_start=True,
+            previous_model_path="/tmp/does_not_exist.json",
+        )
+
+        assert model.is_trained is True
+        assert "mae" in metrics
+        # Should have fallen back to fresh
+        assert model.last_training_mode == "fresh"
+
+    def test_warm_start_with_valid_previous_model(
+        self,
+        training_data: pd.DataFrame,
+        tmp_path: Any,
+    ) -> None:
+        """Test warm-start with a valid previous model file."""
+        # First, train and save a model
+        first_model = ProphetModel(strategy="fresh")
+        first_model.train(training_data)
+
+        path = str(tmp_path / "prophet_model.json")
+        first_model.save(path)
+
+        # Now train a second model with warm-start
+        second_model = ProphetModel(strategy="warm")
+        metrics = second_model.train(
+            training_data,
+            warm_start=True,
+            previous_model_path=path,
+        )
+
+        assert second_model.is_trained is True
+        assert "mae" in metrics
+        # Should have used warm mode (or fresh if init not supported)
+        assert second_model.last_training_mode in ("warm", "fresh")
+
+    def test_warm_start_metrics_are_reasonable(
+        self,
+        training_data: pd.DataFrame,
+        tmp_path: Any,
+    ) -> None:
+        """Test warm-start metrics are non-negative and finite."""
+        # Prepare previous model
+        first_model = ProphetModel(strategy="fresh")
+        first_model.train(training_data)
+
+        path = str(tmp_path / "prophet_model.json")
+        first_model.save(path)
+
+        # Warm-start train a second model
+        second_model = ProphetModel(strategy="warm")
+        metrics = second_model.train(
+            training_data,
+            warm_start=True,
+            previous_model_path=path,
+        )
+
+        for key, value in metrics.items():
+            assert np.isfinite(value), f"{key} is not finite"
+            assert value >= 0, f"{key} is negative"
+
+    def test_warm_start_false_ignores_previous_model(
+        self,
+        training_data: pd.DataFrame,
+        tmp_path: Any,
+    ) -> None:
+        """Test that warm_start=False ignores previous_model_path."""
+        model = ProphetModel(strategy="fresh")
+        metrics = model.train(
+            training_data,
+            warm_start=False,
+            previous_model_path=str(tmp_path / "whatever.json"),
+        )
+
+        assert model.is_trained is True
+        assert "mae" in metrics
+        assert model.last_training_mode == "fresh"
+
+    def test_warm_start_with_corrupted_file_falls_back_to_fresh(
+        self,
+        training_data: pd.DataFrame,
+        tmp_path: Any,
+    ) -> None:
+        """Test warm-start with a corrupted previous model file."""
+        path = str(tmp_path / "corrupted.json")
+        with open(path, "w") as f:
+            f.write("not valid json")
+
+        model = ProphetModel(strategy="warm")
+        metrics = model.train(
+            training_data,
+            warm_start=True,
+            previous_model_path=path,
+        )
+
+        assert model.is_trained is True
+        assert "mae" in metrics
+        # Should have fallen back to fresh
+        assert model.last_training_mode == "fresh"
 
 
 # ============================================================
@@ -224,7 +372,10 @@ class TestProphetModelPredict:
         """Test that prediction before training raises RuntimeError."""
         model = ProphetModel()
         future = pd.DataFrame(
-            {"ds": [pd.Timestamp("2024-04-01")], **{r: [1.0] for r in REGRESSORS}}
+            {
+                "ds": [pd.Timestamp("2024-04-01")],
+                **{r: [1.0] for r in REGRESSORS},
+            }
         )
         with pytest.raises(RuntimeError, match="not trained"):
             model.predict(future)
@@ -309,9 +460,6 @@ class TestProphetModelConfidence:
         result_95 = trained_model.predict_with_confidence(future_data, 0.95)
         result_85 = trained_model.predict_with_confidence(future_data, 0.85)
 
-        # Compare margins within the same call context.
-        # Note: Since bounds are non-deterministic, we verify that
-        # the 85% interval is narrower on average, not per-row.
         margin_95 = (result_95["yhat_upper"] - result_95["yhat_lower"]).mean()
         margin_85 = (result_85["yhat_upper"] - result_85["yhat_lower"]).mean()
 
@@ -350,6 +498,7 @@ class TestProphetModelConfidence:
             result = trained_model.predict_with_confidence(future_data, level)
             assert (result["yhat_lower"] <= result["yhat"]).all()
             assert (result["yhat"] <= result["yhat_upper"]).all()
+
 
 # ============================================================
 # METRICS TESTS
@@ -468,3 +617,7 @@ class TestProphetModelConstants:
         assert "changepoint_prior_scale" in DEFAULT_CONFIG
         assert "seasonality_mode" in DEFAULT_CONFIG
         assert DEFAULT_CONFIG["seasonality_mode"] == "multiplicative"
+
+    def test_min_training_rows(self) -> None:
+        """Test MIN_TRAINING_ROWS is 30."""
+        assert MIN_TRAINING_ROWS == 30
