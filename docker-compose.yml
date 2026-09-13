@@ -65,6 +65,27 @@ services:
     networks:
       - macro-network
 
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v2.18.0
+    container_name: macro-mlflow
+    ports:
+      - "5000:5000"
+    command: >
+      mlflow server
+      --host 0.0.0.0
+      --port 5000
+      --backend-store-uri sqlite:///mlflow.db
+      --default-artifact-root /mlflow/artifacts
+    volumes:
+      - mlflow_data:/mlflow
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - macro-network
+
   # ============================================
   # MICROSERVICES
   # ============================================
@@ -125,10 +146,17 @@ services:
       - REDIS_HOST=redis
       - DATABASE_URL=postgresql://macro:crypto@postgres:5432/macrocrypto
       - RABBITMQ_HOST=rabbitmq
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
       - PYTHONUNBUFFERED=1
     volumes:
       - ./services/ai-service/app:/app/app
+      - ./services/ai-service/tests:/app/tests
       - ./shared:/app/shared
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     env_file:
       - ./services/ai-service/.env
     depends_on:
@@ -137,6 +165,8 @@ services:
       redis:
         condition: service_healthy
       rabbitmq:
+        condition: service_healthy
+      mlflow:
         condition: service_healthy
     networks:
       - macro-network
@@ -260,6 +290,7 @@ volumes:
   postgres_data:
   redis_data:
   rabbitmq_data:
+  mlflow_data:
 
 # ============================================
 # NETWORKS
