@@ -7,6 +7,7 @@ Each job is a self-contained async function that:
 
 Jobs currently registered:
     - hourly_prediction_job: generate 24h BTC predictions once per hour
+    - daily_7d_prediction_job: generate 7d BTC predictions daily at 6:30 AM UTC
 
 Design:
     - Each job opens its own DB session via session_scope(); the
@@ -36,10 +37,11 @@ logger = logging.getLogger(__name__)
 # JOB NAME CONSTANTS
 # ============================================================
 JOB_HOURLY_PREDICTION = "hourly_prediction"
+JOB_DAILY_7D_PREDICTION = "daily_7d_prediction"
 
 
 # ============================================================
-# HOURLY PREDICTION JOB
+# HOURLY 24H PREDICTION JOB
 # ============================================================
 async def hourly_prediction_job() -> Dict[str, Any]:
     """Generate 24h BTC predictions for the current hour.
@@ -112,6 +114,89 @@ async def hourly_prediction_job() -> Dict[str, Any]:
 
     logger.info(
         f"hourly_prediction_job completed: "
+        f"{result.rows_saved} rows saved in {result.elapsed_seconds:.3f}s"
+    )
+
+    return summary
+
+
+# ============================================================
+# DAILY 7D PREDICTION JOB
+# ============================================================
+async def daily_7d_prediction_job() -> Dict[str, Any]:
+    """Generate 7d BTC predictions once per day.
+
+    Runs daily at 6:30 AM UTC (configured in SchedulerManager),
+    shortly after the daily model retrain (T2.5).
+
+    Steps:
+        1. Load the trained 7d Prophet model from disk.
+        2. Open a DB session.
+        3. Build a PredictionGenerator (7d horizon, 0.85 confidence).
+        4. Run generate().
+        5. Return a structured result.
+
+    The job does NOT catch its own exceptions — it raises so the
+    SchedulerManager can record the failure, apply retries, and
+    update job state.
+
+    Returns:
+        Dict with keys: horizon, model_name, rows_generated,
+        rows_saved, elapsed_seconds, prediction_time, succeeded.
+
+    Raises:
+        FileNotFoundError: If the trained model is missing.
+        RuntimeError: If generation fails for any other reason.
+    """
+    logger.info("Running daily_7d_prediction_job")
+
+    # ---- 1. Load the trained model ----
+    model_path = settings.prophet_7d_model_path
+    logger.debug(f"Loading Prophet model from '{model_path}'")
+
+    model = ProphetModel(strategy="fresh")
+    model.load(model_path)
+
+    if not model.is_model_trained():
+        raise RuntimeError(
+            f"Loaded model from '{model_path}' is not marked as trained"
+        )
+
+    # ---- 2. Run generation in a fresh session ----
+    async with session_scope() as session:
+        repository = PredictionRepository(session)
+
+        generator = PredictionGenerator(
+            model=model,
+            repository=repository,
+            horizon="7d",
+            horizon_hours=168,  # 7 * 24
+            confidence=0.85,
+            history_hours=2160,  # 90 days of history
+        )
+
+        result = await generator.generate()
+
+    # ---- 3. Evaluate the outcome ----
+    if not result.succeeded:
+        # Generation returned a structured error — surface it as an
+        # exception so the scheduler records a failure and can retry
+        raise RuntimeError(
+            f"Prediction generation failed: {result.error}"
+        )
+
+    summary = {
+        "horizon": result.horizon,
+        "model_name": result.model_name,
+        "prediction_time": result.prediction_time.isoformat(),
+        "rows_generated": result.rows_generated,
+        "rows_saved": result.rows_saved,
+        "elapsed_seconds": result.elapsed_seconds,
+        "succeeded": result.succeeded,
+    }
+
+    logger.info(
+        f"daily_7d_prediction_job completed: "
         f"{result.rows_saved} rows saved in {result.elapsed_seconds:.3f}s"
     )
 
