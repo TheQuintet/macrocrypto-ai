@@ -11,6 +11,7 @@ from app.api.v1 import predict_router
 from app.cache.redis_client import close_redis, ping_redis
 from app.config import settings
 from app.health import router as health_router
+from app.scheduler.manager import scheduler_manager
 
 
 # ============================================================
@@ -36,8 +37,9 @@ async def lifespan(app: FastAPI):
     # ============================================================
     # STARTUP
     # ============================================================
-    # Verify Redis connectivity. Caching is best-effort, so a
-    # failed ping is logged but does not prevent startup.
+    # ---- Redis ----
+    # Caching is best-effort; a failed ping logs a warning but
+    # does not prevent startup.
     if await ping_redis():
         logger.info("Redis connection verified")
     else:
@@ -46,15 +48,21 @@ async def lifespan(app: FastAPI):
             "Caching will be degraded until Redis recovers."
         )
 
-    # Remaining startup steps (RabbitMQ, TimescaleDB, MLflow,
-    # model load, RabbitMQ consumer, scheduler) will be added in
-    # subsequent branches.
+    # ---- Scheduler ----
+    # Registers and starts background jobs (hourly prediction).
+    # Honors settings.scheduler_enabled — a no-op in tests.
+    scheduler_manager.setup()
+    scheduler_manager.start()
+
+    # Remaining startup steps (RabbitMQ consumer, MLflow,
+    # model load) will be added in subsequent branches.
 
     yield
 
     # ============================================================
     # SHUTDOWN
     # ============================================================
+    scheduler_manager.shutdown()
     await close_redis()
     logger.info(f"Stopping {__service_name__}")
 
