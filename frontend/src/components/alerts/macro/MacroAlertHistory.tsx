@@ -131,7 +131,7 @@ export function MacroAlertHistory({ userId }: MacroAlertHistoryProps) {
   return (
     <Card>
       <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <CardTitle>Macro alert history ({visibleEntries.length})</CardTitle>
+        <CardTitle>Macro alert history</CardTitle>
         <Button
           variant="outline"
           size="sm"
@@ -161,6 +161,14 @@ export function MacroAlertHistory({ userId }: MacroAlertHistoryProps) {
             resetPage();
           }}
         />
+
+        <p className="text-xs text-muted-foreground">
+          {visibleEntries.length}{' '}
+          {visibleEntries.length === 1 ? 'alert' : 'alerts'}
+          {visibleEntries.length === entries.length
+            ? ''
+            : ` of ${entries.length}`}
+        </p>
 
         {isCapped ? (
           <p className="text-xs text-muted-foreground">

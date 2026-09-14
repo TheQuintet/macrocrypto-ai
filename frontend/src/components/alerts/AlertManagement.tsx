@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { usePriceAlerts } from '@/hooks/alerts/usePriceAlerts';
 import { useMacroEvents } from '@/hooks/alerts/useMacroEvents';
+import { useMacroAlertHistoryQuery } from '@/hooks/alerts/useMacroAlertHistoryQuery';
 import { PriceAlertForm } from './price/PriceAlertForm';
 import { MacroAlertForm } from './macro/MacroAlertForm';
 import { MacroEventStatusFilter } from './macro/MacroEventStatusFilter';
@@ -67,6 +68,11 @@ export const AlertManagement: React.FC<AlertManagementProps> = ({ userId }) => {
     subscribe: subscribeToEvent,
     applyDraft: applyMacroDraft,
   } = useMacroEvents(userId);
+
+  // Shares the query cache with the history tab, so this costs no extra request.
+  const historyQuery = useMacroAlertHistoryQuery(userId);
+  const historyCount =
+    historyQuery.data?.total ?? historyQuery.data?.notifications.length ?? 0;
 
   const visibleAlerts = useMemo(
     () => alerts.filter((alert) => matchesAlertStatusFilter(alert.status, statusFilter)),
@@ -278,7 +284,7 @@ export const AlertManagement: React.FC<AlertManagementProps> = ({ userId }) => {
           )}
           onClick={() => setActiveTab('history')}
         >
-          History
+          History ({historyCount})
         </button>
       </div>
 

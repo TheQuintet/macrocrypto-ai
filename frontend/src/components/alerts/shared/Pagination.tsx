@@ -1,6 +1,7 @@
 // src/components/alerts/shared/Pagination.tsx
 
 import React from 'react';
+import { cn } from '@/lib/utils';
 import {
   Pagination as ShadPagination,
   PaginationContent,
@@ -17,6 +18,16 @@ interface PaginationProps {
   onPageChange: (page: number) => void;
   className?: string;
 }
+
+/**
+ * `PaginationLink` sizes every item as a 40px square, which leaves the
+ * Previous and Next labels no room. Let those two size to their text instead,
+ * and give the page numbers a border so the row reads as separate controls
+ * rather than one block.
+ */
+const STEP_BUTTON_CLASSES = 'h-9 w-auto px-3';
+const PAGE_BUTTON_CLASSES =
+  'h-9 w-9 border border-border aria-[current=page]:border-transparent';
 
 export const Pagination: React.FC<PaginationProps> = ({
   currentPage,
@@ -49,11 +60,14 @@ export const Pagination: React.FC<PaginationProps> = ({
 
   return (
     <ShadPagination className={className}>
-      <PaginationContent>
+      <PaginationContent className="gap-2">
         <PaginationItem>
           <PaginationPrevious
             onClick={() => currentPage > 1 && onPageChange(currentPage - 1)}
-            className={currentPage <= 1 ? 'pointer-events-none opacity-50' : ''}
+            className={cn(
+              STEP_BUTTON_CLASSES,
+              currentPage <= 1 && 'pointer-events-none opacity-50',
+            )}
           />
         </PaginationItem>
 
@@ -65,6 +79,7 @@ export const Pagination: React.FC<PaginationProps> = ({
               <PaginationLink
                 onClick={() => onPageChange(page)}
                 isActive={page === currentPage}
+                className={PAGE_BUTTON_CLASSES}
               >
                 {page}
               </PaginationLink>
@@ -75,7 +90,10 @@ export const Pagination: React.FC<PaginationProps> = ({
         <PaginationItem>
           <PaginationNext
             onClick={() => currentPage < totalPages && onPageChange(currentPage + 1)}
-            className={currentPage >= totalPages ? 'pointer-events-none opacity-50' : ''}
+            className={cn(
+              STEP_BUTTON_CLASSES,
+              currentPage >= totalPages && 'pointer-events-none opacity-50',
+            )}
           />
         </PaginationItem>
       </PaginationContent>
