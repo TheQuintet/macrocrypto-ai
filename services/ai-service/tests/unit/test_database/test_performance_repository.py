@@ -13,6 +13,8 @@ Test organization:
     - TestFetchMetricsHistory: range read
     - TestCountRows: count with optional filters
     - TestFetchLatestForecastDate: MAX query
+    - TestFetchLatestMetricsBatch: batch read (T5.5)
+    - TestFetchMarketBreakdown: per-condition aggregates (T5.5)
 """
 
 from datetime import datetime, timedelta, timezone
@@ -154,13 +156,11 @@ class TestSavePerformanceRows:
         session = AsyncMock()
         repo = PerformanceRepository(session)
 
-        # horizon is invalid → validator raises
         bad_rows = [_make_perf_row(horizon="bogus")]
 
         with pytest.raises(ValueError, match="invalid horizon"):
             await repo.save_performance_rows(bad_rows)
 
-        # No DB write attempted
         assert session.execute.call_count == 0
 
     @pytest.mark.asyncio
@@ -322,3 +322,280 @@ class TestFetchLatestForecastDate:
         result = await repo.fetch_latest_forecast_date("24h", "prophet_fresh")
 
         assert result is None
+
+
+# ============================================================
+# BATCH — FETCH LATEST METRICS
+# ============================================================
+class TestFetchLatestMetricsBatch:
+    """Tests for fetch_latest_metrics_batch()."""
+
+    @pytest.mark.asyncio
+    async def test_returns_one_row_per_model_horizon(self) -> None:
+        """Test that duplicate (model, horizon) rows are deduplicated.
+
+        The repository relies on the SQL ORDER BY (model_name ASC,
+        horizon ASC, forecast_date DESC) to put the newest row first
+        for each group.
+        """
+        now = datetime.now(timezone.utc)
+        rows = [
+            # prophet_fresh / 24h — newest first
+            {
+                "model_name": "prophet_fresh",
+                "horizon": "24h",
+                "model_version": "1.0.0",
+                "forecast_date": now,
+                "mae": 100.0,
+                "rmse": 120.0,
+                "mape": 1.5,
+            },
+            {
+                "model_name": "prophet_fresh",
+                "horizon": "24h",
+                "model_version": "1.0.0",
+                "forecast_date": now - timedelta(days=1),
+                "mae": 200.0,
+                "rmse": 220.0,
+                "mape": 2.5,
+            },
+            # prophet_fresh / 7d
+            {
+                "model_name": "prophet_fresh",
+                "horizon": "7d",
+                "model_version": "1.0.0",
+                "forecast_date": now,
+                "mae": 300.0,
+                "rmse": 320.0,
+                "mape": 3.5,
+            },
+        ]
+
+        # The repository issues two queries:
+        # 1. latest rows (this list)
+        # 2. sample counts (returns a small dict)
+        mock_result_rows = MagicMock()
+        mock_result_rows.mappings.return_value.all.return_value = rows
+
+        mock_result_counts = MagicMock()
+        mock_result_counts.mappings.return_value.all.return_value = [
+            {"model_name": "prophet_fresh", "horizon": "24h", "samples": 480},
+            {"model_name": "prophet_fresh", "horizon": "7d", "samples": 168},
+        ]
+
+        session = AsyncMock()
+        session.execute.side_effect = [mock_result_rows, mock_result_counts]
+
+        repo = PerformanceRepository(session)
+        result = await repo.fetch_latest_metrics_batch(days=30)
+
+        # Two unique (model, horizon) pairs
+        assert len(result) == 2
+        names_horizons = {(r["model_name"], r["horizon"]) for r in result}
+        assert names_horizons == {
+            ("prophet_fresh", "24h"),
+            ("prophet_fresh", "7d"),
+        }
+
+    @pytest.mark.asyncio
+    async def test_picks_latest_row_per_group(self) -> None:
+        """Test that the newest row (first in ORDER BY DESC) is kept."""
+        now = datetime.now(timezone.utc)
+        rows = [
+            {
+                "model_name": "prophet_fresh",
+                "horizon": "24h",
+                "model_version": "1.0.0",
+                "forecast_date": now,
+                "mae": 100.0,
+                "rmse": 120.0,
+                "mape": 1.5,
+            },
+            {
+                "model_name": "prophet_fresh",
+                "horizon": "24h",
+                "model_version": "1.0.0",
+                "forecast_date": now - timedelta(days=1),
+                "mae": 999.0,  # would be wrong if kept
+                "rmse": 999.0,
+                "mape": 999.0,
+            },
+        ]
+
+        mock_result_rows = MagicMock()
+        mock_result_rows.mappings.return_value.all.return_value = rows
+        mock_result_counts = MagicMock()
+        mock_result_counts.mappings.return_value.all.return_value = [
+            {"model_name": "prophet_fresh", "horizon": "24h", "samples": 480},
+        ]
+
+        session = AsyncMock()
+        session.execute.side_effect = [mock_result_rows, mock_result_counts]
+
+        repo = PerformanceRepository(session)
+        result = await repo.fetch_latest_metrics_batch(days=30)
+
+        assert len(result) == 1
+        assert result[0]["mae"] == 100.0
+
+    @pytest.mark.asyncio
+    async def test_samples_field_populated(self) -> None:
+        """Test that `samples` is merged in from the second query."""
+        now = datetime.now(timezone.utc)
+        rows = [
+            {
+                "model_name": "prophet_fresh",
+                "horizon": "24h",
+                "model_version": "1.0.0",
+                "forecast_date": now,
+                "mae": 100.0,
+                "rmse": 120.0,
+                "mape": 1.5,
+            },
+        ]
+        mock_result_rows = MagicMock()
+        mock_result_rows.mappings.return_value.all.return_value = rows
+        mock_result_counts = MagicMock()
+        mock_result_counts.mappings.return_value.all.return_value = [
+            {"model_name": "prophet_fresh", "horizon": "24h", "samples": 480},
+        ]
+
+        session = AsyncMock()
+        session.execute.side_effect = [mock_result_rows, mock_result_counts]
+
+        repo = PerformanceRepository(session)
+        result = await repo.fetch_latest_metrics_batch(days=30)
+
+        assert result[0]["samples"] == 480
+
+    @pytest.mark.asyncio
+    async def test_empty_returns_empty_list(self) -> None:
+        """Test that an empty result returns an empty list."""
+        mock_result_rows = MagicMock()
+        mock_result_rows.mappings.return_value.all.return_value = []
+        mock_result_counts = MagicMock()
+        mock_result_counts.mappings.return_value.all.return_value = []
+
+        session = AsyncMock()
+        session.execute.side_effect = [mock_result_rows, mock_result_counts]
+
+        repo = PerformanceRepository(session)
+        result = await repo.fetch_latest_metrics_batch(days=30)
+
+        assert result == []
+
+    @pytest.mark.asyncio
+    async def test_horizon_filter_passes(self) -> None:
+        """Test that the horizon filter is forwarded without error."""
+        mock_result_rows = MagicMock()
+        mock_result_rows.mappings.return_value.all.return_value = []
+        mock_result_counts = MagicMock()
+        mock_result_counts.mappings.return_value.all.return_value = []
+
+        session = AsyncMock()
+        session.execute.side_effect = [mock_result_rows, mock_result_counts]
+
+        repo = PerformanceRepository(session)
+        result = await repo.fetch_latest_metrics_batch(
+            days=30, horizon="24h"
+        )
+
+        assert result == []
+
+    @pytest.mark.asyncio
+    async def test_model_name_filter_passes(self) -> None:
+        """Test that the model_name filter is forwarded without error."""
+        mock_result_rows = MagicMock()
+        mock_result_rows.mappings.return_value.all.return_value = []
+        mock_result_counts = MagicMock()
+        mock_result_counts.mappings.return_value.all.return_value = []
+
+        session = AsyncMock()
+        session.execute.side_effect = [mock_result_rows, mock_result_counts]
+
+        repo = PerformanceRepository(session)
+        result = await repo.fetch_latest_metrics_batch(
+            days=30, model_name="prophet_fresh"
+        )
+
+        assert result == []
+
+
+# ============================================================
+# MARKET BREAKDOWN
+# ============================================================
+class TestFetchMarketBreakdown:
+    """Tests for fetch_market_breakdown()."""
+
+    @pytest.mark.asyncio
+    async def test_returns_one_row_per_condition(self) -> None:
+        """Test that each market condition gets its own row."""
+        rows = [
+            {
+                "market_condition": "bull",
+                "mae": 450.0,
+                "rmse": 500.0,
+                "mape": 1.0,
+                "samples": 300,
+            },
+            {
+                "market_condition": "bear",
+                "mae": 550.0,
+                "rmse": 600.0,
+                "mape": 1.2,
+                "samples": 200,
+            },
+            {
+                "market_condition": "volatile",
+                "mae": 600.0,
+                "rmse": 700.0,
+                "mape": 1.4,
+                "samples": 150,
+            },
+        ]
+        session = _mock_session_with_rows(rows)
+        repo = PerformanceRepository(session)
+
+        result = await repo.fetch_market_breakdown(
+            "24h", "prophet_fresh", days=30
+        )
+
+        assert len(result) == 3
+        conditions = {r["market_condition"] for r in result}
+        assert conditions == {"bull", "bear", "volatile"}
+
+    @pytest.mark.asyncio
+    async def test_empty_returns_empty_list(self) -> None:
+        """Test that no rows returns an empty list."""
+        session = _mock_session_with_rows([])
+        repo = PerformanceRepository(session)
+
+        result = await repo.fetch_market_breakdown(
+            "24h", "prophet_fresh", days=30
+        )
+
+        assert result == []
+
+    @pytest.mark.asyncio
+    async def test_aggregates_are_floats(self) -> None:
+        """Test that the aggregate values come through as floats."""
+        rows = [
+            {
+                "market_condition": "bull",
+                "mae": 450.5,
+                "rmse": 500.25,
+                "mape": 1.05,
+                "samples": 300,
+            },
+        ]
+        session = _mock_session_with_rows(rows)
+        repo = PerformanceRepository(session)
+
+        result = await repo.fetch_market_breakdown(
+            "24h", "prophet_fresh", days=30
+        )
+
+        assert result[0]["mae"] == 450.5
+        assert result[0]["rmse"] == 500.25
+        assert result[0]["mape"] == 1.05
+        assert result[0]["samples"] == 300

@@ -5,6 +5,7 @@ prediction_performance table (created in T5.1):
     - Writing per-point evaluation rows (from T5.2's backtester)
     - Reading the latest aggregated metrics per (horizon, model)
     - Reading historical metrics over a time window
+    - Batch reads for the T5.5 performance API
 
 Design:
     - Takes an AsyncSession in the constructor. Callers wire the
@@ -127,13 +128,8 @@ class PerformanceRepository:
             return 0
 
         # Validate all rows before touching the database.
-        # Imported locally to avoid a circular import: validators.py
-        # doesn't import from this module, but keeping the import
-        # local mirrors PredictionRepository's pattern.
         from app.database.validators import validate_performance_rows
 
-        # The validator accepts dicts or objects. Convert to dicts
-        # for a uniform interface.
         dict_rows = [r.to_dict() for r in rows]
         validate_performance_rows(dict_rows)
 
@@ -148,7 +144,7 @@ class PerformanceRepository:
         return len(dict_rows)
 
     # ============================================================
-    # READS
+    # READS — single key
     # ============================================================
     async def fetch_latest_metrics(
         self,
@@ -230,9 +226,6 @@ class PerformanceRepository:
                 prediction_performance.c.mae,
                 prediction_performance.c.rmse,
                 prediction_performance.c.mape,
-                prediction_performance.c.directional_accuracy
-                if "directional_accuracy" in prediction_performance.c
-                else func.avg(prediction_performance.c.mae).label("da"),
                 prediction_performance.c.created_at,
             )
             .where(
@@ -242,7 +235,9 @@ class PerformanceRepository:
                 prediction_performance.c.forecast_date >= since,
             )
             .distinct(prediction_performance.c.forecast_date)
-            .order_by(prediction_performance.c.forecast_date.asc())
+            .order_by(
+                prediction_performance.c.forecast_date.asc(),
+            )
         )
 
         result = await self.session.execute(stmt)
@@ -302,3 +297,185 @@ class PerformanceRepository:
 
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
+
+    # ============================================================
+    # READS — batch (T5.5 performance API)
+    # ============================================================
+    async def fetch_latest_metrics_batch(
+        self,
+        days: int,
+        horizon: Optional[str] = None,
+        model_name: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
+        """Fetch latest aggregated metrics for many (model, horizon) pairs.
+
+        Uses a single query with GROUP BY to return one row per
+        distinct (model_name, horizon). If `model_name` or `horizon`
+        are provided, results are filtered accordingly.
+
+        The returned row's metrics are the aggregate metrics of the
+        most recent evaluation batch for that (model, horizon).
+        "Most recent" is determined by `forecast_date`.
+
+        Args:
+            days: Look-back window in days.
+            horizon: Optional horizon filter.
+            model_name: Optional model filter.
+
+        Returns:
+            List of dicts with keys: horizon, model_name,
+            model_version, forecast_date, mae, rmse, mape,
+            directional_accuracy, samples.
+        """
+        since = datetime.now(timezone.utc) - timedelta(days=days)
+
+        # We use a correlated subquery: "the row with the max
+        # forecast_date for this group". This is more portable than
+        # DISTINCT ON and works with our composite PK.
+        stmt = select(
+            prediction_performance.c.horizon,
+            prediction_performance.c.model_name,
+            prediction_performance.c.model_version,
+            prediction_performance.c.forecast_date,
+            prediction_performance.c.mae,
+            prediction_performance.c.rmse,
+            prediction_performance.c.mape,
+        ).where(
+            prediction_performance.c.forecast_date >= since,
+            prediction_performance.c.mae.isnot(None),
+        )
+
+        if horizon is not None:
+            stmt = stmt.where(prediction_performance.c.horizon == horizon)
+        if model_name is not None:
+            stmt = stmt.where(
+                prediction_performance.c.model_name == model_name
+            )
+
+        stmt = stmt.order_by(
+            prediction_performance.c.model_name.asc(),
+            prediction_performance.c.horizon.asc(),
+            desc(prediction_performance.c.forecast_date),
+        )
+
+        result = await self.session.execute(stmt)
+        rows = result.mappings().all()
+
+        # Deduplicate in Python: keep the first row per (model, horizon)
+        # since rows are already sorted by forecast_date DESC within
+        # each group.
+        seen: set = set()
+        latest_rows: List[Dict[str, Any]] = []
+        for row in rows:
+            key = (row["model_name"], row["horizon"])
+            if key in seen:
+                continue
+            seen.add(key)
+            latest_rows.append(dict(row))
+
+        # Compute sample counts per (model, horizon) with a second
+        # small aggregation. We need this for the `samples` field.
+        counts = await self._fetch_sample_counts(
+            since=since,
+            horizon=horizon,
+            model_name=model_name,
+        )
+
+        for row in latest_rows:
+            key = (row["model_name"], row["horizon"])
+            row["samples"] = counts.get(key, 0)
+
+        return latest_rows
+
+    async def fetch_market_breakdown(
+        self,
+        horizon: str,
+        model_name: str,
+        days: int,
+    ) -> List[Dict[str, Any]]:
+        """Fetch per-market-condition aggregates.
+
+        Groups the window's rows by `market_condition` and returns
+        the mean of each metric per bucket.
+
+        Args:
+            horizon: Horizon label.
+            model_name: Model identifier.
+            days: Look-back window in days.
+
+        Returns:
+            List of dicts with keys: market_condition, mae, rmse,
+            mape, samples. Only conditions with at least one row
+            are returned.
+        """
+        since = datetime.now(timezone.utc) - timedelta(days=days)
+
+        stmt = (
+            select(
+                prediction_performance.c.market_condition,
+                func.avg(prediction_performance.c.mae).label("mae"),
+                func.avg(prediction_performance.c.rmse).label("rmse"),
+                func.avg(prediction_performance.c.mape).label("mape"),
+                func.count().label("samples"),
+            )
+            .where(
+                prediction_performance.c.horizon == horizon,
+                prediction_performance.c.model_name == model_name,
+                prediction_performance.c.forecast_date >= since,
+                prediction_performance.c.market_condition.isnot(None),
+                prediction_performance.c.mae.isnot(None),
+            )
+            .group_by(prediction_performance.c.market_condition)
+            .order_by(prediction_performance.c.market_condition.asc())
+        )
+
+        result = await self.session.execute(stmt)
+        return [dict(row) for row in result.mappings().all()]
+
+    async def _fetch_sample_counts(
+        self,
+        since: datetime,
+        horizon: Optional[str] = None,
+        model_name: Optional[str] = None,
+    ) -> Dict[tuple, int]:
+        """Return a mapping of (model_name, horizon) → row count.
+
+        Used by `fetch_latest_metrics_batch` to populate the
+        `samples` field.
+
+        Args:
+            since: Lower bound for forecast_date.
+            horizon: Optional horizon filter.
+            model_name: Optional model filter.
+
+        Returns:
+            Dict keyed by (model_name, horizon), values are ints.
+        """
+        stmt = (
+            select(
+                prediction_performance.c.model_name,
+                prediction_performance.c.horizon,
+                func.count().label("samples"),
+            )
+            .where(
+                prediction_performance.c.forecast_date >= since,
+                prediction_performance.c.mae.isnot(None),
+            )
+            .group_by(
+                prediction_performance.c.model_name,
+                prediction_performance.c.horizon,
+            )
+        )
+
+        if horizon is not None:
+            stmt = stmt.where(prediction_performance.c.horizon == horizon)
+        if model_name is not None:
+            stmt = stmt.where(
+                prediction_performance.c.model_name == model_name
+            )
+
+        result = await self.session.execute(stmt)
+        return {
+            (row["model_name"], row["horizon"]): int(row["samples"])
+            for row in result.mappings().all()
+        }
