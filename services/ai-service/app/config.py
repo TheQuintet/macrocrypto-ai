@@ -131,6 +131,27 @@ class Settings(BaseSettings):
     prediction_7d_hour: int = Field(default=6)
     prediction_7d_minute: int = Field(default=30)
 
+    # Backtest job schedule (daily at 6:45 AM UTC, after 7d prediction)
+    backtest_hour: int = Field(default=6)
+    backtest_minute: int = Field(default=45)
+
+    # ============================================================
+    # BACKTEST PARAMETERS
+    # ============================================================
+    # Number of walk-forward iterations (days) for the backtest
+    backtest_iterations: int = Field(default=30)
+
+    # Number of hours of history to fetch for backtesting
+    # (must be >= backtest_iterations * 24 + max lag)
+    backtest_history_hours: int = Field(default=2880)  # 120 days
+
+    # If True, evaluate the full forecast trajectory (24 or 168 points
+    # per iteration). If False, evaluate only the endpoint.
+    backtest_full_trajectory: bool = Field(default=True)
+
+    # Temporary directory for chained warm-start models between iterations
+    backtest_model_dir: str = Field(default="models/backtest")
+
     # ============================================================
     # PROPERTIES
     # ============================================================

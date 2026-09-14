@@ -130,7 +130,9 @@ def validate_performance_row(
     decoupled from the repository's concrete row type.
 
     Checks:
-        - prediction_id is a positive integer
+        - prediction_id is None or a positive integer (backtest
+          rows have NULL; production evaluations reference a real
+          prediction)
         - horizon is one of '24h', '7d'
         - model_name and model_version are non-empty
         - forecast_date is present
@@ -152,18 +154,19 @@ def validate_performance_row(
             return row.get(name)
         return getattr(row, name, None)
 
-    # ---- 1. prediction_id ----
+    # ---- 1. prediction_id: nullable, but must be a positive int when set ----
     prediction_id = _get("prediction_id")
-    if prediction_id is None or not isinstance(prediction_id, int):
-        raise ValueError(
-            f"Row {index}: prediction_id must be an integer, "
-            f"got {prediction_id!r}"
-        )
-    if prediction_id <= 0:
-        raise ValueError(
-            f"Row {index}: prediction_id must be positive, "
-            f"got {prediction_id}"
-        )
+    if prediction_id is not None:
+        if not isinstance(prediction_id, int) or isinstance(prediction_id, bool):
+            raise ValueError(
+                f"Row {index}: prediction_id must be an integer or None, "
+                f"got {prediction_id!r}"
+            )
+        if prediction_id <= 0:
+            raise ValueError(
+                f"Row {index}: prediction_id must be positive, "
+                f"got {prediction_id}"
+            )
 
     # ---- 2. horizon ----
     horizon = _get("horizon")

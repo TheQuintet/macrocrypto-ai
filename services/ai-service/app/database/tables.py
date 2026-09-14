@@ -131,13 +131,17 @@ btc_predictions = Table(
 # Rolling metrics (mae, rmse, mape) are nullable and populated by
 # T5.2's backtesting pipeline. `market_condition` is populated by
 # T5.3's classification logic.
+#
+# `prediction_id` was made nullable in migration 005 so backtest
+# rows (which have no corresponding btc_predictions row) can be
+# stored alongside production evaluation rows.
 prediction_performance = Table(
     "prediction_performance",
     metadata,
     # Surrogate primary key
     Column("id", BigInteger, primary_key=True),
-    # FK to btc_predictions.id
-    Column("prediction_id", BigInteger, nullable=False),
+    # FK to btc_predictions.id (NULL for backtest rows)
+    Column("prediction_id", BigInteger, nullable=True),
     # Denormalized from btc_predictions for query performance
     Column("horizon", String(8), nullable=False),
     Column("model_name", String(64), nullable=False),

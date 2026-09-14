@@ -8,7 +8,7 @@ migration 003) match their intended shape:
     - The FK to btc_predictions.id is declared in the SQL
     - CHECK constraints enforce the enum + non-negativity rules
     - Indexes cover the common read patterns
-    - The migration runner discovers both new files
+    - The migration runner discovers the new files in order
     - The Core Table's column set matches the migration SQL
 
 These are NOT integration tests — no live Postgres is required.
@@ -18,7 +18,8 @@ Test organization:
     - TestBtcPredictionsIdColumn: btc_predictions.id
     - TestPerformanceMigrationSql: raw SQL content of migration 004
     - TestBtcPredictionsIdMigrationSql: raw SQL content of migration 003
-    - TestMigrationDiscovery: runner sees both new files
+    - TestPredictionIdNullableMigration: migration 005 (T5.2)
+    - TestMigrationDiscovery: runner sees all new files
 """
 
 from pathlib import Path
@@ -89,9 +90,9 @@ class TestPerformanceTableStructure:
         pk_columns = [col.name for col in prediction_performance.primary_key]
         assert pk_columns == ["id"]
 
-    def test_prediction_id_is_not_nullable(self) -> None:
-        """Test that prediction_id is NOT NULL."""
-        assert prediction_performance.c.prediction_id.nullable is False
+    def test_prediction_id_is_nullable(self) -> None:
+        """Test that prediction_id is nullable (backtest rows have NULL)."""
+        assert prediction_performance.c.prediction_id.nullable is True
 
     def test_horizon_is_not_nullable(self) -> None:
         """Test that horizon is NOT NULL."""
@@ -262,13 +263,42 @@ class TestBtcPredictionsIdMigrationSql:
 
 
 # ============================================================
+# MIGRATION 005 — prediction_id NULLABLE
+# ============================================================
+class TestPredictionIdNullableMigration:
+    """Verify migration 005 relaxes prediction_id's NOT NULL."""
+
+    def test_migration_file_exists(self, migrations_dir: Path) -> None:
+        """Test that the file is present."""
+        assert (
+            migrations_dir / "005_make_prediction_id_nullable.sql"
+        ).exists()
+
+    def test_drops_not_null(self, migrations_dir: Path) -> None:
+        """Test that the migration drops NOT NULL on prediction_id."""
+        sql = (
+            migrations_dir / "005_make_prediction_id_nullable.sql"
+        ).read_text()
+        assert "ALTER COLUMN prediction_id DROP NOT NULL" in sql
+
+    def test_runner_finds_it(self) -> None:
+        """Test that the migration runner discovers migration 005."""
+        from app.database.migrations_runner import discover_migrations
+
+        service_root = Path(__file__).resolve().parents[3]
+        migrations_dir = service_root / "migrations"
+        names = [f.name for f in discover_migrations(migrations_dir)]
+        assert "005_make_prediction_id_nullable.sql" in names
+
+
+# ============================================================
 # MIGRATION DISCOVERY
 # ============================================================
 class TestMigrationDiscovery:
     """Verify the migration runner discovers the new files."""
 
     def test_runner_finds_both_new_migrations(self) -> None:
-        """Test that discover_migrations finds 003 and 004."""
+        """Test that discover_migrations finds 003, 004, and 005."""
         from app.database.migrations_runner import discover_migrations
 
         # Build the path relative to this test file
@@ -280,6 +310,7 @@ class TestMigrationDiscovery:
 
         assert "003_add_btc_predictions_id.sql" in names
         assert "004_create_prediction_performance.sql" in names
+        assert "005_make_prediction_id_nullable.sql" in names
 
     def test_runner_sorts_correctly(self) -> None:
         """Test that migrations appear in lexicographic order."""
@@ -291,7 +322,10 @@ class TestMigrationDiscovery:
         files = discover_migrations(migrations_dir)
         names = [f.name for f in files]
 
-        # 003 must come before 004
+        # 003 must come before 004, 004 before 005
         assert names.index("003_add_btc_predictions_id.sql") < names.index(
             "004_create_prediction_performance.sql"
+        )
+        assert names.index("004_create_prediction_performance.sql") < names.index(
+            "005_make_prediction_id_nullable.sql"
         )

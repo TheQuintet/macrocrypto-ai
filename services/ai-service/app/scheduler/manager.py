@@ -2,7 +2,7 @@
 
 Wraps APScheduler's AsyncIOScheduler with:
     - Job registration (daily retrain, hourly 24h prediction,
-      daily 7d prediction)
+      daily 7d prediction, daily backtest)
     - Lifecycle (start, shutdown) tied to FastAPI's lifespan
     - Failure handling (retries per settings.scheduler_max_retries)
     - Run history in SchedulerState
@@ -28,9 +28,11 @@ from apscheduler.triggers.cron import CronTrigger
 from app.config import settings
 from app.scheduler.jobs import (
     JOB_DAILY_7D_PREDICTION,
+    JOB_DAILY_BACKTEST,
     JOB_DAILY_RETRAIN,
     JOB_HOURLY_PREDICTION,
     daily_7d_prediction_job,
+    daily_backtest_job,
     daily_retrain_job,
     hourly_prediction_job,
 )
@@ -49,6 +51,7 @@ logger = logging.getLogger(__name__)
 JOB_ID_DAILY_RETRAIN = "daily_retrain"
 JOB_ID_HOURLY_PREDICTION = "hourly_prediction"
 JOB_ID_DAILY_7D_PREDICTION = "daily_7d_prediction"
+JOB_ID_DAILY_BACKTEST = "daily_backtest"
 
 
 # ============================================================
@@ -116,6 +119,7 @@ class SchedulerManager:
         self._register_daily_retrain_job()
         self._register_hourly_prediction_job()
         self._register_daily_7d_prediction_job()
+        self._register_daily_backtest_job()
 
         logger.info("Scheduler setup complete")
 
@@ -247,6 +251,37 @@ class SchedulerManager:
             f"Registered job '{JOB_ID_DAILY_7D_PREDICTION}' "
             f"(trigger: hour={settings.prediction_7d_hour} "
             f"minute={settings.prediction_7d_minute} "
+            f"tz={settings.retrain_timezone})"
+        )
+
+    def _register_daily_backtest_job(self) -> None:
+        """Register the daily backtest job (6:45 AM UTC)."""
+        if self._scheduler is None:
+            raise RuntimeError("Scheduler not set up")
+
+        trigger = CronTrigger(
+            hour=settings.backtest_hour,
+            minute=settings.backtest_minute,
+            timezone=settings.retrain_timezone,
+        )
+
+        self._scheduler.add_job(
+            func=self._wrap_job(
+                JOB_DAILY_BACKTEST, daily_backtest_job
+            ),
+            trigger=trigger,
+            id=JOB_ID_DAILY_BACKTEST,
+            name="Daily walk-forward backtesting",
+            replace_existing=True,
+            max_instances=1,
+            coalesce=True,
+            misfire_grace_time=1800,  # 30 min grace — backtest is heavy
+        )
+
+        logger.info(
+            f"Registered job '{JOB_ID_DAILY_BACKTEST}' "
+            f"(trigger: hour={settings.backtest_hour} "
+            f"minute={settings.backtest_minute} "
             f"tz={settings.retrain_timezone})"
         )
 

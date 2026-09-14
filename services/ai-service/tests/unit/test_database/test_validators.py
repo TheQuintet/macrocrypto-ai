@@ -221,10 +221,14 @@ class TestValidatePerformanceRow:
 
     # ---- prediction_id ----
 
-    def test_none_prediction_id_fails(self) -> None:
-        """Test that a None prediction_id fails."""
-        with pytest.raises(ValueError, match="prediction_id"):
-            validate_performance_row(_make_perf_dict(prediction_id=None))
+    def test_none_prediction_id_passes(self) -> None:
+        """Test that a None prediction_id passes (backtest rows).
+
+        Migration 005 made prediction_id nullable so walk-forward
+        backtest rows (which have no corresponding btc_predictions
+        entry) can be stored. The validator must accept None.
+        """
+        validate_performance_row(_make_perf_dict(prediction_id=None))
 
     def test_non_integer_prediction_id_fails(self) -> None:
         """Test that a non-integer prediction_id fails."""

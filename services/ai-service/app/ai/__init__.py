@@ -5,6 +5,7 @@ This package contains:
     - RetrainingOrchestrator: Shared retraining logic for all models
     - ModelComparisonEngine: Runs multiple models and compares them
     - build_default_engine: Factory for all 6 default model variants
+    - WalkForwardBacktester: Walk-forward backtesting engine
     - Model implementations: ProphetModel, XGBoostModel, LightGBMModel
     - Configurations: Per-model, per-horizon config dataclasses
     - Feature engineering utilities — later branches
@@ -18,6 +19,11 @@ from app.ai.comparison import (
     ComparisonResult,
     ModelPrediction,
     build_default_engine,
+)
+from app.ai.backtest import (
+    BacktestResult,
+    IterationResult,
+    WalkForwardBacktester,
 )
 from app.ai.models import ProphetModel, XGBoostModel, LightGBMModel
 from app.ai.configs import (
@@ -38,6 +44,9 @@ __all__ = [
     "ComparisonResult",
     "ModelPrediction",
     "build_default_engine",
+    "BacktestResult",
+    "IterationResult",
+    "WalkForwardBacktester",
     "ProphetModel",
     "XGBoostModel",
     "LightGBMModel",
