@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app import __version__, __service_name__
+from app.api.v1 import predict_router
 from app.config import settings
 from app.health import router as health_router
 
@@ -78,6 +79,7 @@ app.add_middleware(
 
 # Register routes
 app.include_router(health_router, tags=["health"])
+app.include_router(predict_router)
 
 
 @app.get("/")
