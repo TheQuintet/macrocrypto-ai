@@ -42,6 +42,7 @@ from app.database.repositories.prediction_repository import (
     PredictionRepository,
 )
 from app.prediction.generator import PredictionGenerator
+from app.prediction.market import classify_market_condition_safe
 
 logger = logging.getLogger(__name__)
 
@@ -438,6 +439,12 @@ def _result_to_rows(result: BacktestResult) -> List[PerformanceRow]:
     row per point. The iteration's aggregate metrics (mae/rmse/mape)
     are repeated on every row of that iteration.
 
+    Market condition classification (T5.3):
+        Each iteration's actuals are classified into one of
+        'bull', 'bear', 'volatile', or 'neutral' based on the
+        price trajectory during that iteration's forecast window.
+        The label is repeated on every row of the iteration.
+
     Design note — why we repeat the aggregate metrics:
         The prediction_performance table is read by T5.5's endpoint
         with queries like "give me the latest 7d Prophet MAE". If
@@ -471,6 +478,15 @@ def _result_to_rows(result: BacktestResult) -> List[PerformanceRow]:
         if it.error is not None:
             continue
 
+        # Classify this iteration's market condition based on the
+        # actuals observed during the forecast window. The label is
+        # applied to every row of this iteration.
+        #
+        # We extract actuals in time order (they're already ordered
+        # in matched_data) and pass them to the classifier.
+        actuals = [actual for _, _, actual in it.matched_data]
+        market_condition = classify_market_condition_safe(actuals)
+
         # Each entry in matched_data is
         # (forecast_timestamp, predicted_price, actual_price).
         for forecast_ts, predicted, actual in it.matched_data:
@@ -490,10 +506,11 @@ def _result_to_rows(result: BacktestResult) -> List[PerformanceRow]:
                     mae=it.mae,
                     rmse=it.rmse,
                     mape=it.mape,
-                    # Both populated by later tickets:
-                    #   - market_condition → T5.3
-                    #   - prediction_id    → production evaluations
-                    market_condition=None,
+                    # Market condition for the iteration (may be
+                    # None if the classifier couldn't decide).
+                    market_condition=market_condition,
+                    # Backtest rows have no corresponding
+                    # btc_predictions entry — see design note above.
                     prediction_id=None,
                 )
             )
