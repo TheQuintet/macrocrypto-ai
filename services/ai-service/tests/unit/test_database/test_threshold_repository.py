@@ -1,24 +1,32 @@
-"""Unit tests for the ThresholdRepository.
+"""Unit tests for ThresholdRepository.
 
-These tests mock the SQLAlchemy AsyncSession so no live database
-is required. They verify:
-    - Correct SQL statements are issued
-    - Result rows are correctly mapped
-    - Bulk insert payload construction
+Strategy:
+    These are *unit* tests — no database is involved. The
+    AsyncSession is replaced with AsyncMock/MagicMock, and we
+    assert on:
+        - The shape of the values returned (which we control)
+        - The SQLAlchemy statement(s) passed to session.execute()
+        - The parameters bound to raw SQL (for the DISTINCT ON path)
+        - Short-circuit behavior (empty inputs never touch the DB)
 
-Test organization:
-    - TestThresholdBreachRow: dataclass behavior
-    - TestSaveBreaches: bulk insert
-    - TestFetchRecentBreaches: range read
-    - TestFetchLatestBreach: single-row read
-    - TestCountBreaches: count with filters
+    Integration tests against a real Postgres live in
+    tests/integration/ and are out of scope for T5.6.
+
+Covers:
+    - ThresholdBreachRow dataclass
+    - save_breaches()
+    - fetch_recent_breaches()
+    - fetch_latest_breach()
+    - fetch_latest_breaches_batch() (T5.6)
+    - count_breaches()
 """
 
 from datetime import datetime, timedelta, timezone
-from typing import Any, List
+from typing import Any, Dict, List, Optional
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from sqlalchemy.sql import Select
 
 from app.database.repositories.threshold_repository import (
     ThresholdBreachRow,
@@ -27,75 +35,102 @@ from app.database.repositories.threshold_repository import (
 
 
 # ============================================================
-# HELPERS
+# Mock helpers
 # ============================================================
-def _make_breach_row(**overrides) -> ThresholdBreachRow:
-    """Build a valid ThresholdBreachRow."""
-    defaults = dict(
-        horizon="24h",
-        model_name="prophet_fresh",
-        metric="mae_pct",
-        metric_unit="percent",
-        value=12.5,
-        threshold=10.0,
-        breach_direction="above",
-        consecutive_days=1,
-        model_version="1.0.0",
-        notes=None,
-    )
-    defaults.update(overrides)
-    return ThresholdBreachRow(**defaults)
-
-
-def _mock_session_with_rows(rows: List[dict]) -> AsyncMock:
-    """Build an AsyncMock whose execute() returns the given rows."""
-    mock_result = MagicMock()
-    mock_result.mappings.return_value.all.return_value = rows
-    mock_result.mappings.return_value.first.return_value = (
-        rows[0] if rows else None
-    )
-    mock_result.scalar_one.return_value = 42
-    mock_result.scalar_one_or_none.return_value = (
-        rows[0].get("max") if rows else None
-    )
-
-    session = AsyncMock()
-    session.execute.return_value = mock_result
+def _mock_session() -> MagicMock:
+    """Build a mocked AsyncSession with async execute()/flush()."""
+    session = MagicMock()
+    session.execute = AsyncMock()
     session.flush = AsyncMock()
     return session
 
 
+def _mock_execute_returning_rows(rows: List[Dict[str, Any]]) -> MagicMock:
+    """Build a return value whose .mappings().all() yields `rows`.
+
+    Matches the calling convention used by fetch_recent_breaches and
+    fetch_latest_breaches_batch:
+
+        result = await session.execute(stmt)
+        result.mappings().all()  # -> list of dicts
+    """
+    result = MagicMock()
+    mappings = MagicMock()
+    mappings.all = MagicMock(return_value=list(rows))
+    result.mappings = MagicMock(return_value=mappings)
+    return result
+
+
+def _mock_execute_returning_first(
+    row: Optional[Dict[str, Any]],
+) -> MagicMock:
+    """Build a return value whose .mappings().first() yields `row`.
+
+    Matches fetch_latest_breach:
+
+        result = await session.execute(stmt)
+        result.mappings().first()  # -> dict or None
+    """
+    result = MagicMock()
+    mappings = MagicMock()
+    mappings.first = MagicMock(return_value=row)
+    result.mappings = MagicMock(return_value=mappings)
+    return result
+
+
+def _mock_execute_returning_scalar(value: Any) -> MagicMock:
+    """Build a return value whose .scalar_one() yields `value`.
+
+    Matches count_breaches:
+
+        result = await session.execute(stmt)
+        result.scalar_one()  # -> int
+    """
+    result = MagicMock()
+    result.scalar_one = MagicMock(return_value=value)
+    return result
+
+
+def _last_stmt(session: MagicMock) -> Any:
+    """Return the statement from the most recent session.execute() call."""
+    return session.execute.call_args.args[0]
+
+
 # ============================================================
-# ROW DATACLASS
+# Fixtures
+# ============================================================
+@pytest.fixture
+def session() -> MagicMock:
+    """A mocked AsyncSession."""
+    return _mock_session()
+
+
+@pytest.fixture
+def repo(session: MagicMock) -> ThresholdRepository:
+    """A repository bound to the mocked session."""
+    return ThresholdRepository(session)
+
+
+# ============================================================
+# ThresholdBreachRow
 # ============================================================
 class TestThresholdBreachRow:
     """Tests for the ThresholdBreachRow dataclass."""
 
-    def test_construction(self) -> None:
-        """Test constructing with all fields."""
-        row = _make_breach_row()
-        assert row.horizon == "24h"
-        assert row.metric == "mae_pct"
-        assert row.value == 12.5
-
-    def test_default_consecutive_days(self) -> None:
-        """Test that consecutive_days defaults to 1."""
+    def test_to_dict_contains_expected_keys(self) -> None:
+        """Test to_dict includes every insertable column."""
         row = ThresholdBreachRow(
             horizon="24h",
-            model_name="x",
+            model_name="prophet_fresh",
             metric="mae_pct",
             metric_unit="percent",
             value=12.0,
             threshold=10.0,
             breach_direction="above",
+            consecutive_days=3,
         )
-        assert row.consecutive_days == 1
-
-    def test_to_dict_keys(self) -> None:
-        """Test to_dict returns the expected keys."""
-        row = _make_breach_row()
         d = row.to_dict()
-        expected = {
+        for key in (
             "horizon",
             "model_name",
             "metric",
@@ -106,173 +141,351 @@ class TestThresholdBreachRow:
             "consecutive_days",
             "model_version",
             "notes",
-        }
-        assert set(d.keys()) == expected
+        ):
+            assert key in d
+
+    def test_defaults(self) -> None:
+        """Test consecutive_days defaults to 1; optionals to None."""
+        row = ThresholdBreachRow(
+            horizon="24h",
+            model_name="prophet_fresh",
+            metric="mae_pct",
+            metric_unit="percent",
+            value=12.0,
+            threshold=10.0,
+            breach_direction="above",
+        )
+        assert row.consecutive_days == 1
+        assert row.model_version is None
+        assert row.notes is None
 
 
 # ============================================================
-# SAVE
+# save_breaches
 # ============================================================
 class TestSaveBreaches:
     """Tests for save_breaches()."""
 
-    @pytest.mark.asyncio
-    async def test_empty_list_returns_zero(self) -> None:
-        """Test that an empty list returns 0 without executing SQL."""
-        session = AsyncMock()
-        repo = ThresholdRepository(session)
+    async def test_empty_list_returns_zero_without_execute(
+        self, repo: ThresholdRepository, session: MagicMock
+    ) -> None:
+        """Test empty input short-circuits and never touches the DB."""
+        assert await repo.save_breaches([]) == 0
+        session.execute.assert_not_called()
+        session.flush.assert_not_called()
 
-        count = await repo.save_breaches([])
+    async def test_inserts_rows_and_flushes(
+        self, repo: ThresholdRepository, session: MagicMock
+    ) -> None:
+        """Test rows are inserted via a single INSERT and flushed."""
+        session.execute.return_value = MagicMock()
 
-        assert count == 0
-        assert session.execute.call_count == 0
+        rows = [
+            ThresholdBreachRow(
+                horizon="24h",
+                model_name="prophet_fresh",
+                metric="mae_pct",
+                metric_unit="percent",
+                value=12.0,
+                threshold=10.0,
+                breach_direction="above",
+            ),
+            ThresholdBreachRow(
+                horizon="24h",
+                model_name="prophet_fresh",
+                metric="mape",
+                metric_unit="percent",
+                value=14.0,
+                threshold=10.0,
+                breach_direction="above",
+            ),
+        ]
+        n = await repo.save_breaches(rows)
+        assert n == 2
+        session.execute.assert_awaited_once()
+        session.flush.assert_awaited_once()
 
-    @pytest.mark.asyncio
-    async def test_returns_row_count(self) -> None:
-        """Test that the returned count equals the number of rows."""
-        session = AsyncMock()
-        session.flush = AsyncMock()
-        repo = ThresholdRepository(session)
+        stmt = _last_stmt(session)
+        # An INSERT statement carries a compiled string starting
+        # with "INSERT INTO threshold_breaches".
+        compiled = str(stmt.compile())
+        assert "INSERT INTO threshold_breaches" in compiled
 
-        rows = [_make_breach_row() for _ in range(5)]
-        count = await repo.save_breaches(rows)
-
-        assert count == 5
-        assert session.execute.call_count == 1
-        assert session.flush.call_count == 1
-
-    @pytest.mark.asyncio
-    async def test_execute_and_flush_called(self) -> None:
-        """Test that execute() and flush() are both called."""
-        session = AsyncMock()
-        session.flush = AsyncMock()
-        repo = ThresholdRepository(session)
-
-        await repo.save_breaches([_make_breach_row()])
-
-        session.execute.assert_called_once()
-        session.flush.assert_called_once()
+    async def test_does_not_commit(
+        self, repo: ThresholdRepository, session: MagicMock
+    ) -> None:
+        """Test the repository never commits — callers control that."""
+        session.execute.return_value = MagicMock()
+        rows = [
+            ThresholdBreachRow(
+                horizon="24h",
+                model_name="prophet_fresh",
+                metric="mae_pct",
+                metric_unit="percent",
+                value=12.0,
+                threshold=10.0,
+                breach_direction="above",
+            )
+        ]
+        await repo.save_breaches(rows)
+        # AsyncSession.commit should not be called by the repository.
+        assert not hasattr(session, "commit") or not session.commit.called
 
 
 # ============================================================
-# FETCH RECENT
+# fetch_recent_breaches
 # ============================================================
 class TestFetchRecentBreaches:
     """Tests for fetch_recent_breaches()."""
 
-    @pytest.mark.asyncio
-    async def test_returns_list_of_dicts(self) -> None:
-        """Test that recent breaches are returned as dicts."""
-        now = datetime.now(timezone.utc)
+    async def test_empty_result(
+        self, repo: ThresholdRepository, session: MagicMock
+    ) -> None:
+        """Test an empty DB result maps to an empty list."""
+        session.execute.return_value = _mock_execute_returning_rows([])
+        result = await repo.fetch_recent_breaches(
+            horizon="24h", model_name="prophet_fresh"
+        )
+        assert result == []
+
+    async def test_returns_list_of_dicts(
+        self, repo: ThresholdRepository, session: MagicMock
+    ) -> None:
+        """Test rows come back as plain dicts."""
         rows = [
             {
-                "id": i,
-                "detected_at": now - timedelta(days=i),
-                "horizon": "24h",
-                "model_name": "prophet_fresh",
+                "id": 1,
                 "metric": "mae_pct",
-                "metric_unit": "percent",
-                "value": 12.0 + i,
-                "threshold": 10.0,
-                "breach_direction": "above",
-                "consecutive_days": 1 + i,
-                "model_version": "1.0.0",
-                "notes": None,
+                "consecutive_days": 3,
+                "detected_at": datetime.now(timezone.utc),
             }
-            for i in range(3)
         ]
-        session = _mock_session_with_rows(rows)
-        repo = ThresholdRepository(session)
-
+        session.execute.return_value = _mock_execute_returning_rows(rows)
         result = await repo.fetch_recent_breaches(
-            "24h", "prophet_fresh", days=7
+            horizon="24h", model_name="prophet_fresh", days=7
         )
+        assert result == rows
+        session.execute.assert_awaited_once()
 
-        assert isinstance(result, list)
-        assert len(result) == 3
-
-    @pytest.mark.asyncio
-    async def test_empty_returns_empty_list(self) -> None:
-        """Test that an empty result returns an empty list."""
-        session = _mock_session_with_rows([])
-        repo = ThresholdRepository(session)
-
-        result = await repo.fetch_recent_breaches("24h", "nonexistent")
-
-        assert result == []
+    async def test_statement_filters_and_orders(
+        self, repo: ThresholdRepository, session: MagicMock
+    ) -> None:
+        """Test the SELECT filters by horizon/model/since and DESC-orders."""
+        session.execute.return_value = _mock_execute_returning_rows([])
+        await repo.fetch_recent_breaches(
+            horizon="24h", model_name="prophet_fresh", days=7
+        )
+        stmt = _last_stmt(session)
+        compiled = str(stmt.compile(compile_kwargs={"literal_binds": True}))
+        # Filters
+        assert "threshold_breaches.horizon" in compiled
+        assert "threshold_breaches.model_name" in compiled
+        assert "threshold_breaches.detected_at >=" in compiled
+        # Ordering (DESC)
+        assert "ORDER BY threshold_breaches.detected_at DESC" in compiled
+        # Only one statement
+        assert session.execute.await_count == 1
 
 
 # ============================================================
-# FETCH LATEST
+# fetch_latest_breach
 # ============================================================
 class TestFetchLatestBreach:
     """Tests for fetch_latest_breach()."""
 
-    @pytest.mark.asyncio
-    async def test_returns_dict_when_found(self) -> None:
-        """Test that the latest breach is returned."""
-        now = datetime.now(timezone.utc)
+    async def test_none_when_absent(
+        self, repo: ThresholdRepository, session: MagicMock
+    ) -> None:
+        """Test no matching row → None."""
+        session.execute.return_value = _mock_execute_returning_first(None)
+        result = await repo.fetch_latest_breach(
+            horizon="24h", model_name="prophet_fresh", metric="mae_pct"
+        )
+        assert result is None
+
+    async def test_returns_dict_when_found(
+        self, repo: ThresholdRepository, session: MagicMock
+    ) -> None:
+        """Test a matching row comes back as a dict."""
         row = {
             "id": 1,
-            "detected_at": now,
-            "consecutive_days": 3,
-            "value": 12.5,
+            "detected_at": datetime.now(timezone.utc),
+            "consecutive_days": 4,
+            "value": 11.0,
             "threshold": 10.0,
         }
-        session = _mock_session_with_rows([row])
-        repo = ThresholdRepository(session)
-
+        session.execute.return_value = _mock_execute_returning_first(row)
         result = await repo.fetch_latest_breach(
-            "24h", "prophet_fresh", "mae_pct"
+            horizon="24h", model_name="prophet_fresh", metric="mae_pct"
         )
+        assert result == row
 
-        assert result is not None
-        assert result["consecutive_days"] == 3
-
-    @pytest.mark.asyncio
-    async def test_returns_none_when_empty(self) -> None:
-        """Test that no rows returns None."""
-        session = _mock_session_with_rows([])
-        repo = ThresholdRepository(session)
-
-        result = await repo.fetch_latest_breach(
-            "24h", "prophet_fresh", "mae_pct"
+    async def test_statement_has_limit_1_and_desc(
+        self, repo: ThresholdRepository, session: MagicMock
+    ) -> None:
+        """Test the SELECT orders DESC and limits to 1."""
+        session.execute.return_value = _mock_execute_returning_first(None)
+        await repo.fetch_latest_breach(
+            horizon="24h", model_name="prophet_fresh", metric="mae_pct"
         )
-
-        assert result is None
+        stmt = _last_stmt(session)
+        compiled = str(stmt.compile(compile_kwargs={"literal_binds": True}))
+        assert "ORDER BY threshold_breaches.detected_at DESC" in compiled
+        assert "LIMIT 1" in compiled
+        # All three filters present
+        assert "threshold_breaches.horizon" in compiled
+        assert "threshold_breaches.model_name" in compiled
+        assert "threshold_breaches.metric" in compiled
 
 
 # ============================================================
-# COUNT
+# fetch_latest_breaches_batch  (T5.6)
+# ============================================================
+class TestFetchLatestBreachesBatch:
+    """Tests for fetch_latest_breaches_batch()."""
+
+    async def test_empty_result(
+        self, repo: ThresholdRepository, session: MagicMock
+    ) -> None:
+        """Test an empty DB result maps to an empty list."""
+        session.execute.return_value = _mock_execute_returning_rows([])
+        result = await repo.fetch_latest_breaches_batch(since_days=30)
+        assert result == []
+
+    async def test_returns_dicts(
+        self, repo: ThresholdRepository, session: MagicMock
+    ) -> None:
+        """Test rows come back as plain dicts."""
+        rows = [
+            {
+                "model_name": "prophet_fresh",
+                "horizon": "24h",
+                "metric": "mae_pct",
+                "consecutive_days": 3,
+                "detected_at": datetime.now(timezone.utc),
+            }
+        ]
+        session.execute.return_value = _mock_execute_returning_rows(rows)
+        result = await repo.fetch_latest_breaches_batch(since_days=30)
+        assert result == rows
+
+    async def test_uses_distinct_on_sql_and_passes_since_param(
+        self, repo: ThresholdRepository, session: MagicMock
+    ) -> None:
+        """Test the raw SQL uses DISTINCT ON and binds the since param.
+
+        The method issues raw SQL via text(); we assert on the
+        compiled statement and on the bound parameters dict.
+        """
+        session.execute.return_value = _mock_execute_returning_rows([])
+        await repo.fetch_latest_breaches_batch(since_days=30)
+
+        # The statement is a text() Clauses object; str() reveals the SQL.
+        stmt = _last_stmt(session)
+        sql = str(stmt)
+        assert "DISTINCT ON (model_name, horizon, metric)" in sql
+        assert "FROM threshold_breaches" in sql
+        assert "WHERE detected_at >= :since" in sql
+        assert "ORDER BY model_name, horizon, metric, detected_at DESC" in sql
+
+        # The bound parameters dict is the second positional arg.
+        params = session.execute.call_args.args[1]
+        assert "since" in params
+        # `since` is "now - since_days"; assert it's a recent past datetime.
+        delta = datetime.now(timezone.utc) - params["since"]
+        assert timedelta(days=29) < delta < timedelta(days=31)
+
+    async def test_since_days_respected(
+        self, repo: ThresholdRepository, session: MagicMock
+    ) -> None:
+        """Test the since_days argument drives the bound `since` value."""
+        session.execute.return_value = _mock_execute_returning_rows([])
+        await repo.fetch_latest_breaches_batch(since_days=7)
+        params = session.execute.call_args.args[1]
+        delta = datetime.now(timezone.utc) - params["since"]
+        assert timedelta(days=6) < delta < timedelta(days=8)
+
+
+# ============================================================
+# count_breaches
 # ============================================================
 class TestCountBreaches:
     """Tests for count_breaches()."""
 
-    @pytest.mark.asyncio
-    async def test_returns_count(self) -> None:
-        """Test that the count is returned as an int."""
-        session = AsyncMock()
-        mock_result = MagicMock()
-        mock_result.scalar_one.return_value = 42
-        session.execute.return_value = mock_result
+    async def test_zero_when_empty(
+        self, repo: ThresholdRepository, session: MagicMock
+    ) -> None:
+        """Test a count query returning 0 maps to int 0."""
+        session.execute.return_value = _mock_execute_returning_scalar(0)
+        assert await repo.count_breaches() == 0
 
-        repo = ThresholdRepository(session)
-        count = await repo.count_breaches()
+    async def test_no_filters(
+        self, repo: ThresholdRepository, session: MagicMock
+    ) -> None:
+        """Test no filters produces a bare COUNT query."""
+        session.execute.return_value = _mock_execute_returning_scalar(42)
+        assert await repo.count_breaches() == 42
+        stmt = _last_stmt(session)
+        compiled = str(stmt.compile(compile_kwargs={"literal_binds": True}))
+        # SQLAlchemy 2.x inserts a newline between the SELECT clause
+        # and FROM, so match on the two fragments independently.
+        assert "SELECT count(*) AS count_1" in compiled
+        assert "FROM threshold_breaches" in compiled
+        # No WHERE clause when no filters are given
+        assert "WHERE" not in compiled
 
-        assert count == 42
-        assert isinstance(count, int)
+    async def test_horizon_filter(
+        self, repo: ThresholdRepository, session: MagicMock
+    ) -> None:
+        """Test the horizon filter is applied."""
+        session.execute.return_value = _mock_execute_returning_scalar(7)
+        assert await repo.count_breaches(horizon="24h") == 7
+        stmt = _last_stmt(session)
+        compiled = str(stmt.compile(compile_kwargs={"literal_binds": True}))
+        assert "WHERE" in compiled
+        assert "threshold_breaches.horizon = '24h'" in compiled
 
-    @pytest.mark.asyncio
-    async def test_with_all_filters(self) -> None:
-        """Test that horizon + model + since_days are all applied."""
-        session = AsyncMock()
-        mock_result = MagicMock()
-        mock_result.scalar_one.return_value = 5
-        session.execute.return_value = mock_result
-
-        repo = ThresholdRepository(session)
-        count = await repo.count_breaches(
-            horizon="24h", model_name="prophet_fresh", since_days=7
+    async def test_model_name_filter(
+        self, repo: ThresholdRepository, session: MagicMock
+    ) -> None:
+        """Test the model_name filter is applied."""
+        session.execute.return_value = _mock_execute_returning_scalar(3)
+        assert (
+            await repo.count_breaches(model_name="prophet_fresh") == 3
+        )
+        stmt = _last_stmt(session)
+        compiled = str(stmt.compile(compile_kwargs={"literal_binds": True}))
+        assert (
+            "threshold_breaches.model_name = 'prophet_fresh'" in compiled
         )
 
-        assert count == 5
+    async def test_since_days_filter(
+        self, repo: ThresholdRepository, session: MagicMock
+    ) -> None:
+        """Test the since_days filter is applied."""
+        session.execute.return_value = _mock_execute_returning_scalar(5)
+        assert await repo.count_breaches(since_days=30) == 5
+        stmt = _last_stmt(session)
+        compiled = str(stmt.compile(compile_kwargs={"literal_binds": True}))
+        assert "threshold_breaches.detected_at >=" in compiled
+
+    async def test_all_filters_combined(
+        self, repo: ThresholdRepository, session: MagicMock
+    ) -> None:
+        """Test horizon + model + since all appear in the WHERE clause."""
+        session.execute.return_value = _mock_execute_returning_scalar(2)
+        assert (
+            await repo.count_breaches(
+                horizon="7d",
+                model_name="xgboost_fresh",
+                since_days=14,
+            )
+            == 2
+        )
+        stmt = _last_stmt(session)
+        compiled = str(stmt.compile(compile_kwargs={"literal_binds": True}))
+        assert "threshold_breaches.horizon = '7d'" in compiled
+        assert (
+            "threshold_breaches.model_name = 'xgboost_fresh'" in compiled
+        )
+        assert "threshold_breaches.detected_at >=" in compiled

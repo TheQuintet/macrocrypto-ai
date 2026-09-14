@@ -6,8 +6,13 @@ Test organization:
     - TestCheckThresholds: main checker
     - TestFilterBreaches: breach filtering
     - TestThresholdConstants: module constants
+    - TestStreakInfo: StreakInfo dataclass (T5.6)
+    - TestStreakWarningResult: StreakWarningResult dataclass (T5.6)
+    - TestEvaluateStreaks: evaluate_streaks() (T5.6)
+    - TestConsecutiveDaysToMetricMap: row → metric map helper (T5.6)
 """
 
+import logging
 from typing import Any, Dict
 
 import pytest
@@ -21,8 +26,12 @@ from app.ai.thresholds import (
     METRIC_MAPE,
     METRIC_RMSE_PCT,
     METRIC_UNIT_PERCENT,
+    StreakInfo,
+    StreakWarningResult,
     ThresholdCheckResult,
     check_thresholds,
+    consecutive_days_to_metric_map,
+    evaluate_streaks,
     filter_breaches,
     normalize_usd_to_pct,
 )
@@ -407,3 +416,313 @@ class TestThresholdConstants:
         """Test the direction constants."""
         assert DIRECTION_ABOVE == "above"
         assert DIRECTION_BELOW == "below"
+
+
+# ============================================================
+# STREAK INFO (T5.6)
+# ============================================================
+class TestStreakInfo:
+    """Tests for the StreakInfo dataclass."""
+
+    def test_construction(self) -> None:
+        """Test constructing a StreakInfo."""
+        info = StreakInfo(
+            metric=METRIC_MAE_PCT,
+            consecutive_days=3,
+            warning=True,
+        )
+        assert info.metric == METRIC_MAE_PCT
+        assert info.consecutive_days == 3
+        assert info.warning is True
+
+    def test_defaults(self) -> None:
+        """Test defaults: 0 days, no warning."""
+        info = StreakInfo(metric=METRIC_MAE_PCT)
+        assert info.consecutive_days == 0
+        assert info.warning is False
+
+    def test_to_dict(self) -> None:
+        """Test to_dict returns the three expected keys."""
+        info = StreakInfo(
+            metric=METRIC_MAPE,
+            consecutive_days=5,
+            warning=True,
+        )
+        d = info.to_dict()
+        assert d == {
+            "metric": METRIC_MAPE,
+            "consecutive_days": 5,
+            "warning": True,
+        }
+
+    def test_repr_contains_metric(self) -> None:
+        """Test __repr__ mentions the metric."""
+        info = StreakInfo(
+            metric=METRIC_RMSE_PCT,
+            consecutive_days=4,
+            warning=True,
+        )
+        assert METRIC_RMSE_PCT in repr(info)
+
+    def test_repr_warning_status(self) -> None:
+        """Test __repr__ says WARNING when warning is True."""
+        info = StreakInfo(
+            metric=METRIC_MAE_PCT,
+            consecutive_days=3,
+            warning=True,
+        )
+        assert "WARNING" in repr(info)
+
+    def test_repr_ok_status(self) -> None:
+        """Test __repr__ says ok when warning is False."""
+        info = StreakInfo(
+            metric=METRIC_MAE_PCT,
+            consecutive_days=1,
+            warning=False,
+        )
+        assert "ok" in repr(info)
+        assert "WARNING" not in repr(info)
+
+
+# ============================================================
+# STREAK WARNING RESULT (T5.6)
+# ============================================================
+class TestStreakWarningResult:
+    """Tests for the StreakWarningResult dataclass.
+
+    Note: `any_warning` and `warning_count` are stored fields, not
+    computed properties. `evaluate_streaks()` is what populates
+    them. Direct construction requires passing them explicitly.
+    """
+
+    def test_defaults(self) -> None:
+        """Test the default-constructed result is empty and healthy."""
+        result = StreakWarningResult()
+        assert result.streaks == {}
+        assert result.any_warning is False
+        assert result.warning_count == 0
+        assert result.warning_threshold == 3
+
+    def test_any_warning_true(self) -> None:
+        """Test any_warning reflects the stored field."""
+        result = StreakWarningResult(
+            streaks={
+                METRIC_MAE_PCT: StreakInfo(
+                    METRIC_MAE_PCT, 3, True
+                ),
+                METRIC_MAPE: StreakInfo(METRIC_MAPE, 1, False),
+            },
+            any_warning=True,
+            warning_count=1,
+            warning_threshold=3,
+        )
+        assert result.any_warning is True
+        assert result.warning_count == 1
+
+    def test_to_dict_nests_per_metric(self) -> None:
+        """Test to_dict nests per-metric dicts."""
+        result = StreakWarningResult(
+            streaks={
+                METRIC_MAE_PCT: StreakInfo(
+                    METRIC_MAE_PCT, 3, True
+                )
+            },
+            any_warning=True,
+            warning_count=1,
+            warning_threshold=3,
+        )
+        d = result.to_dict()
+        assert "streaks" in d
+        assert "any_warning" in d
+        assert "warning_count" in d
+        assert "warning_threshold" in d
+        assert d["warning_count"] == 1
+        assert d["any_warning"] is True
+        assert d["warning_threshold"] == 3
+        assert d["streaks"][METRIC_MAE_PCT]["consecutive_days"] == 3
+
+    def test_repr_returns_string(self) -> None:
+        """Test __repr__ returns a string."""
+        result = StreakWarningResult()
+        assert isinstance(repr(result), str)
+
+    def test_repr_warning_status(self) -> None:
+        """Test __repr__ says WARNING when any_warning is True."""
+        result = StreakWarningResult(
+            any_warning=True, warning_count=1
+        )
+        assert "WARNING" in repr(result)
+
+    def test_repr_ok_status(self) -> None:
+        """Test __repr__ says ok when no warning is active."""
+        result = StreakWarningResult()
+        assert "ok" in repr(result)
+
+
+# ============================================================
+# EVALUATE STREAKS (T5.6)
+# ============================================================
+class TestEvaluateStreaks:
+    """Tests for evaluate_streaks()."""
+
+    def test_empty_map_seeds_all_metrics(self) -> None:
+        """Test empty input still produces one StreakInfo per known metric.
+
+        `evaluate_streaks()` seeds every metric in ALL_METRICS with
+        consecutive_days=0 so the API response shape is stable —
+        every metric key is always present.
+        """
+        result = evaluate_streaks({})
+        assert set(result.streaks.keys()) == set(ALL_METRICS)
+        assert all(
+            info.consecutive_days == 0
+            for info in result.streaks.values()
+        )
+        assert result.any_warning is False
+        assert result.warning_count == 0
+
+    def test_below_threshold_no_warning(self) -> None:
+        """Test streak of 2 with default threshold 3 → no warning."""
+        result = evaluate_streaks({METRIC_MAE_PCT: 2})
+        assert result.any_warning is False
+        assert result.warning_count == 0
+        assert result.streaks[METRIC_MAE_PCT].warning is False
+        assert result.streaks[METRIC_MAE_PCT].consecutive_days == 2
+
+    def test_exactly_at_threshold_warns(self) -> None:
+        """Test streak of exactly 3 → warning (>= semantics)."""
+        result = evaluate_streaks({METRIC_MAE_PCT: 3})
+        assert result.any_warning is True
+        assert result.warning_count == 1
+        assert result.streaks[METRIC_MAE_PCT].warning is True
+
+    def test_above_threshold_warns(self) -> None:
+        """Test streak of 5 → warning."""
+        result = evaluate_streaks({METRIC_MAE_PCT: 5})
+        assert result.any_warning is True
+        assert result.streaks[METRIC_MAE_PCT].consecutive_days == 5
+
+    def test_multiple_metrics_partial(self) -> None:
+        """Test one metric warns, another does not."""
+        result = evaluate_streaks({METRIC_MAE_PCT: 3, METRIC_MAPE: 1})
+        assert result.any_warning is True
+        assert result.warning_count == 1
+        assert result.streaks[METRIC_MAE_PCT].warning is True
+        assert result.streaks[METRIC_MAPE].warning is False
+
+    def test_multiple_warned_metrics(self) -> None:
+        """Test two metrics warn → warning_count == 2."""
+        result = evaluate_streaks(
+            {METRIC_MAE_PCT: 3, METRIC_RMSE_PCT: 5}
+        )
+        assert result.any_warning is True
+        assert result.warning_count == 2
+
+    def test_custom_threshold(self) -> None:
+        """Test a custom warning_threshold overrides the default."""
+        result = evaluate_streaks(
+            {METRIC_MAE_PCT: 2}, warning_threshold=2
+        )
+        assert result.any_warning is True
+        assert result.warning_threshold == 2
+
+    def test_custom_threshold_not_met(self) -> None:
+        """Test a custom threshold of 5 not met by streak of 4."""
+        result = evaluate_streaks(
+            {METRIC_MAE_PCT: 4}, warning_threshold=5
+        )
+        assert result.any_warning is False
+
+    def test_logs_warning_when_triggered(self, caplog) -> None:
+        """Test a WARNING log is emitted when a streak triggers."""
+        with caplog.at_level(logging.WARNING):
+            evaluate_streaks({METRIC_MAE_PCT: 3})
+        assert any(
+            rec.levelno == logging.WARNING
+            for rec in caplog.records
+        )
+
+    def test_zero_streak_no_warning(self) -> None:
+        """Test a metric with 0 consecutive days produces no warning."""
+        result = evaluate_streaks({METRIC_MAE_PCT: 0})
+        assert result.any_warning is False
+        assert result.streaks[METRIC_MAE_PCT].consecutive_days == 0
+
+    def test_unknown_metric_ignored(self) -> None:
+        """Test a metric not in ALL_METRICS does not appear."""
+        result = evaluate_streaks({"unknown_metric": 99})
+        assert "unknown_metric" not in result.streaks
+        assert set(result.streaks.keys()) == set(ALL_METRICS)
+
+    def test_warning_threshold_reflected_in_result(self) -> None:
+        """Test the result carries the threshold used."""
+        result = evaluate_streaks({}, warning_threshold=7)
+        assert result.warning_threshold == 7
+
+
+# ============================================================
+# CONSECUTIVE DAYS MAP (T5.6)
+# ============================================================
+class TestConsecutiveDaysToMetricMap:
+    """Tests for consecutive_days_to_metric_map()."""
+
+    def test_empty_rows(self) -> None:
+        """Test empty input → empty dict."""
+        assert consecutive_days_to_metric_map([]) == {}
+
+    def test_single_row(self) -> None:
+        """Test one row maps metric → consecutive_days."""
+        rows = [{"metric": METRIC_MAE_PCT, "consecutive_days": 3}]
+        assert consecutive_days_to_metric_map(rows) == {
+            METRIC_MAE_PCT: 3
+        }
+
+    def test_duplicate_metric_takes_max(self) -> None:
+        """Test duplicate metric keys keep the max consecutive_days."""
+        rows = [
+            {"metric": METRIC_MAE_PCT, "consecutive_days": 2},
+            {"metric": METRIC_MAE_PCT, "consecutive_days": 5},
+        ]
+        assert consecutive_days_to_metric_map(rows) == {
+            METRIC_MAE_PCT: 5
+        }
+
+    def test_zero_consecutive_days_skipped(self) -> None:
+        """Test rows with consecutive_days=0 are skipped entirely."""
+        rows = [{"metric": METRIC_MAE_PCT, "consecutive_days": 0}]
+        assert consecutive_days_to_metric_map(rows) == {}
+
+    def test_missing_consecutive_days_skipped(self) -> None:
+        """Test rows without consecutive_days are skipped.
+
+        `consecutive_days_to_metric_map` treats a missing value as 0
+        and skips it, so no key appears for the metric.
+        """
+        rows = [{"metric": METRIC_MAE_PCT}]
+        assert consecutive_days_to_metric_map(rows) == {}
+
+    def test_none_metric_skipped(self) -> None:
+        """Test rows with metric=None are skipped."""
+        rows = [{"metric": None, "consecutive_days": 3}]
+        assert consecutive_days_to_metric_map(rows) == {}
+
+    def test_multiple_metrics(self) -> None:
+        """Test multiple distinct metrics all appear."""
+        rows = [
+            {"metric": METRIC_MAE_PCT, "consecutive_days": 3},
+            {"metric": METRIC_RMSE_PCT, "consecutive_days": 2},
+        ]
+        assert consecutive_days_to_metric_map(rows) == {
+            METRIC_MAE_PCT: 3,
+            METRIC_RMSE_PCT: 2,
+        }
+
+    def test_mixed_zero_and_positive(self) -> None:
+        """Test only the positive streaks survive."""
+        rows = [
+            {"metric": METRIC_MAE_PCT, "consecutive_days": 0},
+            {"metric": METRIC_RMSE_PCT, "consecutive_days": 4},
+        ]
+        assert consecutive_days_to_metric_map(rows) == {
+            METRIC_RMSE_PCT: 4
+        }

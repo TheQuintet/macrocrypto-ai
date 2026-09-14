@@ -5,6 +5,7 @@ Encapsulates reads and writes for the threshold_breaches table
     - Writing breach rows during the daily accuracy check
     - Reading recent breaches for T5.6's escalation logic
     - Counting consecutive-day streaks
+    - Batch reads for the T5.6 performance API
 
 Design:
     - Takes an AsyncSession in the constructor. Callers wire the
@@ -18,7 +19,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
-from sqlalchemy import desc, func, insert, select
+from sqlalchemy import desc, func, insert, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.tables import threshold_breaches
@@ -207,6 +208,50 @@ class ThresholdRepository:
         result = await self.session.execute(stmt)
         row = result.mappings().first()
         return dict(row) if row else None
+
+    async def fetch_latest_breaches_batch(
+        self,
+        since_days: int = 30,
+    ) -> List[Dict[str, Any]]:
+        """Fetch the latest breach per (model, horizon, metric).
+
+        Uses Postgres's DISTINCT ON to return one row per distinct
+        (model_name, horizon, metric) tuple — the row with the
+        maximum `detected_at`.
+
+        Intended for the T5.6 performance API: it lets us surface
+        current streaks for every model-horizon-metric combination
+        in a single query instead of dozens.
+
+        Args:
+            since_days: Only consider breaches within the last N
+                days. Older streaks are irrelevant.
+
+        Returns:
+            List of dicts with keys: model_name, horizon, metric,
+            consecutive_days, detected_at.
+        """
+        since = datetime.now(timezone.utc) - timedelta(days=since_days)
+
+        # DISTINCT ON requires ORDER BY to start with the DISTINCT
+        # ON columns, then by whatever determines "the row we want"
+        # — here, the newest detected_at.
+        stmt = text(
+            """
+            SELECT DISTINCT ON (model_name, horizon, metric)
+                model_name,
+                horizon,
+                metric,
+                consecutive_days,
+                detected_at
+            FROM threshold_breaches
+            WHERE detected_at >= :since
+            ORDER BY model_name, horizon, metric, detected_at DESC
+            """
+        )
+
+        result = await self.session.execute(stmt, {"since": since})
+        return [dict(row) for row in result.mappings().all()]
 
     async def count_breaches(
         self,

@@ -113,6 +113,13 @@ class Settings(BaseSettings):
     threshold_directional: float = Field(default=55.0)
 
     # ============================================================
+    # THRESHOLD WARNING STREAKS (T5.6)
+    # ============================================================
+    # A warning is emitted when a metric has breached its threshold
+    # for this many consecutive days.
+    threshold_warning_streak_days: int = Field(default=3)
+
+    # ============================================================
     # MARKET CONDITION THRESHOLDS (T5.3)
     # ============================================================
     # Bull market: cumulative return > +20% over the forecast window
