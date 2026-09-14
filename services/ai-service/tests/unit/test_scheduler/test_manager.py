@@ -27,6 +27,7 @@ import pytest
 
 from app.scheduler.manager import (
     JOB_ID_DAILY_7D_PREDICTION,
+    JOB_ID_DAILY_RETRAIN,
     JOB_ID_HOURLY_PREDICTION,
     SchedulerManager,
 )
@@ -66,6 +67,15 @@ class TestManagerInit:
 class TestManagerSetup:
     """Tests for SchedulerManager.setup()."""
 
+    def test_setup_registers_daily_retrain_job(self) -> None:
+        """Test that setup registers the daily retrain job."""
+        manager = SchedulerManager(enabled=False)
+        manager.setup()
+        try:
+            assert JOB_ID_DAILY_RETRAIN in manager.get_job_ids()
+        finally:
+            manager.shutdown()
+
     def test_setup_registers_hourly_job(self) -> None:
         """Test that setup registers the hourly 24h job."""
         manager = SchedulerManager(enabled=False)
@@ -84,14 +94,18 @@ class TestManagerSetup:
         finally:
             manager.shutdown()
 
-    def test_setup_registers_both_jobs(self) -> None:
-        """Test that setup registers exactly both prediction jobs."""
+    def test_setup_registers_all_three_jobs(self) -> None:
+        """Test that setup registers exactly all three jobs."""
         manager = SchedulerManager(enabled=False)
         manager.setup()
         try:
             ids = sorted(manager.get_job_ids())
             assert ids == sorted(
-                [JOB_ID_HOURLY_PREDICTION, JOB_ID_DAILY_7D_PREDICTION]
+                [
+                    JOB_ID_DAILY_RETRAIN,
+                    JOB_ID_HOURLY_PREDICTION,
+                    JOB_ID_DAILY_7D_PREDICTION,
+                ]
             )
         finally:
             manager.shutdown()
@@ -324,11 +338,12 @@ class TestManagerIntrospection:
         assert manager.get_job_ids() == []
 
     def test_get_job_ids_after_setup(self) -> None:
-        """Test that get_job_ids returns both registered jobs after setup."""
+        """Test that get_job_ids returns all registered jobs after setup."""
         manager = SchedulerManager(enabled=False)
         manager.setup()
         try:
             ids = manager.get_job_ids()
+            assert JOB_ID_DAILY_RETRAIN in ids
             assert JOB_ID_HOURLY_PREDICTION in ids
             assert JOB_ID_DAILY_7D_PREDICTION in ids
         finally:
