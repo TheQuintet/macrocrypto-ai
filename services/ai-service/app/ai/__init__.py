@@ -6,6 +6,7 @@ This package contains:
     - ModelComparisonEngine: Runs multiple models and compares them
     - build_default_engine: Factory for all 6 default model variants
     - Model implementations: ProphetModel, XGBoostModel, LightGBMModel
+    - Configurations: Per-model, per-horizon config dataclasses
     - Feature engineering utilities — later branches
     - Training and prediction logic — later branches
 """
@@ -19,6 +20,12 @@ from app.ai.comparison import (
     build_default_engine,
 )
 from app.ai.models import ProphetModel, XGBoostModel, LightGBMModel
+from app.ai.configs import (
+    ProphetConfig,
+    Prophet24hConfig,
+    build_prophet_kwargs,
+    PROPHET_24H_CONFIG,
+)
 
 __all__ = [
     "ForecastModel",
@@ -31,4 +38,8 @@ __all__ = [
     "ProphetModel",
     "XGBoostModel",
     "LightGBMModel",
+    "ProphetConfig",
+    "Prophet24hConfig",
+    "build_prophet_kwargs",
+    "PROPHET_24H_CONFIG",
 ]
