@@ -24,12 +24,12 @@ export function MacroAlertHistoryFilters({
   onDateRangeChange,
 }: MacroAlertHistoryFiltersProps) {
   return (
-    <div className="flex min-w-0 flex-col gap-3 lg:flex-row lg:items-end">
+    <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-end">
       <SearchBar
         value={search}
         onChange={onSearchChange}
         placeholder="Search sent alerts..."
-        className="min-w-0 flex-1"
+        className="w-full min-w-0 sm:w-56"
       />
 
       <select
@@ -39,7 +39,7 @@ export function MacroAlertHistoryFilters({
           onEventTypeChange(event.target.value as EventTypeFilter)
         }
         className={cn(
-          'h-9 w-full min-w-0 rounded-md border border-input bg-transparent px-2 text-sm lg:w-auto',
+          'h-9 w-full min-w-0 rounded-md border border-input bg-transparent px-2 text-sm sm:w-auto',
           'touch-manipulation outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50',
           'dark:bg-input/30',
         )}

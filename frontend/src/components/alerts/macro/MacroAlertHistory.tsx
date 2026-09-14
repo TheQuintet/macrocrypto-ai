@@ -8,6 +8,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { AlertListToolbar } from '@/components/alerts/shared/AlertListToolbar';
 import { Pagination } from '@/components/alerts/shared/Pagination';
 import { showToast } from '@/components/alerts/shared/ToastNotification';
 import { MacroAlertHistoryFilters } from '@/components/alerts/macro/MacroAlertHistoryFilters';
@@ -86,6 +87,11 @@ export function MacroAlertHistory({ userId }: MacroAlertHistoryProps) {
     }
   };
 
+  const summary =
+    visibleEntries.length === entries.length
+      ? `${entries.length} sent ${entries.length === 1 ? 'alert' : 'alerts'}`
+      : `${visibleEntries.length} of ${entries.length} sent alerts`;
+
   const total = historyQuery.data?.total ?? entries.length;
   const isCapped = total > entries.length;
 
@@ -144,31 +150,25 @@ export function MacroAlertHistory({ userId }: MacroAlertHistoryProps) {
       </CardHeader>
 
       <CardContent className="space-y-4">
-        <MacroAlertHistoryFilters
-          search={search}
-          onSearchChange={(value) => {
-            setSearch(value);
-            resetPage();
-          }}
-          eventType={eventType}
-          onEventTypeChange={(value) => {
-            setEventType(value);
-            resetPage();
-          }}
-          dateRange={dateRange}
-          onDateRangeChange={(range) => {
-            setDateRange(range);
-            resetPage();
-          }}
-        />
-
-        <p className="text-xs text-muted-foreground">
-          {visibleEntries.length}{' '}
-          {visibleEntries.length === 1 ? 'alert' : 'alerts'}
-          {visibleEntries.length === entries.length
-            ? ''
-            : ` of ${entries.length}`}
-        </p>
+        <AlertListToolbar summary={summary}>
+          <MacroAlertHistoryFilters
+            search={search}
+            onSearchChange={(value) => {
+              setSearch(value);
+              resetPage();
+            }}
+            eventType={eventType}
+            onEventTypeChange={(value) => {
+              setEventType(value);
+              resetPage();
+            }}
+            dateRange={dateRange}
+            onDateRangeChange={(range) => {
+              setDateRange(range);
+              resetPage();
+            }}
+          />
+        </AlertListToolbar>
 
         {isCapped ? (
           <p className="text-xs text-muted-foreground">
