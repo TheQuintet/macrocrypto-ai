@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app import __version__, __service_name__
 from app.api.v1 import predict_router
+from app.cache.redis_client import close_redis, ping_redis
 from app.config import settings
 from app.health import router as health_router
 
@@ -35,25 +36,26 @@ async def lifespan(app: FastAPI):
     # ============================================================
     # STARTUP
     # ============================================================
-    # Connections (RabbitMQ, TimescaleDB, Redis, MLflow)
-    # will be added in subsequent branches.
-    #
-    # Planned startup order:
-    #   1. Connect to TimescaleDB
-    #   2. Connect to Redis
-    #   3. Connect to RabbitMQ
-    #   4. Connect to MLflow
-    #   5. Load latest model
-    #   6. Start RabbitMQ consumer
-    #   7. Start retraining scheduler
+    # Verify Redis connectivity. Caching is best-effort, so a
+    # failed ping is logged but does not prevent startup.
+    if await ping_redis():
+        logger.info("Redis connection verified")
+    else:
+        logger.warning(
+            "Redis is not reachable at startup. "
+            "Caching will be degraded until Redis recovers."
+        )
+
+    # Remaining startup steps (RabbitMQ, TimescaleDB, MLflow,
+    # model load, RabbitMQ consumer, scheduler) will be added in
+    # subsequent branches.
 
     yield
 
     # ============================================================
     # SHUTDOWN
     # ============================================================
-    # Graceful shutdown of connections
-    # will be added in subsequent branches.
+    await close_redis()
     logger.info(f"Stopping {__service_name__}")
 
 

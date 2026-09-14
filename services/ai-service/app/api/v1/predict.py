@@ -14,9 +14,16 @@ Design:
     - Reads from the database via PredictionRepository
     - Uses pure helpers from app.prediction.trend for classification
     - Returns a Pydantic PredictionResponse
+    - Caches the response in Redis (cache-aside, best-effort)
 
-Caching and authentication are deliberately out of scope for this
-branch (T1.5 handles caching; auth is deferred).
+Caching:
+    - Cache key: predict:btc:{horizon}:{model_name}:{confidence}
+    - TTL: settings.redis_forecast_ttl (default 300s = 5 min)
+    - Invalidation: the generator invalidates after saving new
+      predictions; the TTL is a safety net.
+    - On Redis failure, we log a warning and fall through to the DB.
+
+Authentication is deliberately out of scope for this branch.
 """
 
 import logging
@@ -25,6 +32,10 @@ from typing import List, Literal
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.api.dependencies import get_repository
+from app.cache.prediction_cache import (
+    get_cached_prediction,
+    set_cached_prediction,
+)
 from app.database.repositories.prediction_repository import (
     PredictionRepository,
     PredictionRow,
@@ -97,7 +108,8 @@ def _rows_to_points(rows: List[PredictionRow]) -> List[PredictionPoint]:
     description=(
         "Return the latest stored prediction batch for the requested "
         "horizon and model, along with the current price, predicted "
-        "end price, percentage change, and trend direction."
+        "end price, percentage change, and trend direction. Results "
+        "are cached in Redis for 5 minutes."
     ),
 )
 async def get_btc_predictions(
@@ -116,6 +128,14 @@ async def get_btc_predictions(
     repository: PredictionRepository = Depends(get_repository),
 ) -> PredictionResponse:
     """Get the latest BTC price predictions.
+
+    Cache-aside flow:
+        1. Validate confidence.
+        2. Try the cache. On hit, return immediately.
+        3. Query the database.
+        4. Build the response.
+        5. Write to the cache (best-effort).
+        6. Return the response.
 
     Args:
         horizon: Requested forecast horizon.
@@ -149,7 +169,21 @@ async def get_btc_predictions(
             },
         )
 
-    # ---- 1. Fetch the latest prediction batch ----
+    # ---- 1. Try cache (best-effort; returns None on miss or error) ----
+    cached = await get_cached_prediction(
+        horizon=horizon,
+        model_name=model_name,
+        confidence=confidence,
+    )
+    if cached is not None:
+        logger.debug(
+            f"Serving cached response for "
+            f"(horizon={horizon}, model={model_name}, "
+            f"confidence={confidence})"
+        )
+        return PredictionResponse.model_validate(cached)
+
+    # ---- 2. Cache miss — query the database ----
     rows = await repository.fetch_latest_predictions(
         horizon=horizon,
         model_name=model_name,
@@ -174,10 +208,10 @@ async def get_btc_predictions(
             },
         )
 
-    # ---- 2. Fetch current price (may be None) ----
+    # ---- 3. Fetch current price (may be None) ----
     current_price = await repository.fetch_latest_close_price()
 
-    # ---- 3. Compute summary metrics ----
+    # ---- 4. Compute summary metrics ----
     first_row = rows[0]
     last_row = rows[-1]
     predicted_end_price = last_row.predicted_price
@@ -188,7 +222,7 @@ async def get_btc_predictions(
         horizon=horizon,
     )
 
-    # ---- 4. Build response ----
+    # ---- 5. Build response ----
     response = PredictionResponse(
         horizon=first_row.horizon,
         model_name=first_row.model_name,
@@ -199,6 +233,14 @@ async def get_btc_predictions(
         price_change_pct=price_change_pct,
         trend=trend,
         predictions=_rows_to_points(rows),
+    )
+
+    # ---- 6. Write to cache (best-effort; failures are logged) ----
+    await set_cached_prediction(
+        horizon=horizon,
+        model_name=model_name,
+        confidence=confidence,
+        payload=response.model_dump(mode="json"),
     )
 
     logger.info(

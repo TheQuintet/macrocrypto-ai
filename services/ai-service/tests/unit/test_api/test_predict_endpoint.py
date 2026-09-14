@@ -6,6 +6,7 @@ no live database is required.
 Strategy:
     - Override the `get_repository` FastAPI dependency with a fake
       that returns canned data.
+    - Patch Redis with the FakeRedis fixture from conftest.py.
     - Assert on status codes, response shape, and computed fields.
 
 Test organization:
@@ -13,6 +14,7 @@ Test organization:
     - TestPredictEndpointEdgeCases: missing data, boundary cases
     - TestPredictEndpointValidation: query-param validation
     - TestPredictEndpointErrors: error responses
+    - TestPredictEndpointCaching: cache hit / miss / write behavior
 """
 
 from datetime import datetime, timedelta, timezone
@@ -23,6 +25,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.api.dependencies import get_repository
+from app.cache.prediction_cache import build_cache_key
 from app.database.repositories.prediction_repository import PredictionRow
 from app.main import app
 from app.schemas import TrendDirection
@@ -382,3 +385,99 @@ class TestPredictEndpointErrors:
         data = response.json()
         # FastAPI wraps HTTPException detail in {"detail": ...}
         assert "detail" in data
+
+
+# ============================================================
+# CACHING BEHAVIOR
+# ============================================================
+class TestPredictEndpointCaching:
+    """Cache-aside behavior of the endpoint.
+
+    Uses the FakeRedis fixture from conftest.py, which is autouse
+    for everything in tests/unit/test_api/.
+    """
+
+    def test_cache_miss_queries_database(
+        self, client: TestClient, fake_redis
+    ) -> None:
+        """Test that on a cold cache, the database is queried."""
+        rows = _make_rows(24)
+        repo = _make_mock_repository(rows=rows)
+        app.dependency_overrides[get_repository] = _override_repo(repo)
+
+        try:
+            response = client.get("/api/v1/predict/btc")
+        finally:
+            app.dependency_overrides.clear()
+
+        assert response.status_code == 200
+        repo.fetch_latest_predictions.assert_called_once()
+        # Cache was checked (miss) then written
+        assert fake_redis.get_calls >= 1
+        assert fake_redis.set_calls >= 1
+
+    def test_cache_hit_skips_database(
+        self, client: TestClient, fake_redis
+    ) -> None:
+        """Test that on a warm cache, the database is not queried again."""
+        # First call: cold cache → DB → cache populated
+        rows = _make_rows(24)
+        repo = _make_mock_repository(rows=rows)
+        app.dependency_overrides[get_repository] = _override_repo(repo)
+
+        try:
+            first = client.get("/api/v1/predict/btc")
+        finally:
+            app.dependency_overrides.clear()
+
+        assert first.status_code == 200
+        assert repo.fetch_latest_predictions.call_count == 1
+
+        # Second call: repo now returns nothing (simulating a DB miss),
+        # but cache should hit so DB is never queried again
+        repo.fetch_latest_predictions = AsyncMock(return_value=[])
+        app.dependency_overrides[get_repository] = _override_repo(repo)
+
+        try:
+            second = client.get("/api/v1/predict/btc")
+        finally:
+            app.dependency_overrides.clear()
+
+        assert second.status_code == 200
+        # Repo's fetch was NOT called during the second request
+        assert repo.fetch_latest_predictions.call_count == 0
+        # Second response matches the first
+        assert second.json() == first.json()
+
+    def test_cache_key_is_horizon_model_confidence_scoped(
+        self, client: TestClient, fake_redis
+    ) -> None:
+        """Test that different keys produce different cache entries."""
+        rows_24h = _make_rows(24, horizon="24h")
+        repo = _make_mock_repository(rows=rows_24h)
+        app.dependency_overrides[get_repository] = _override_repo(repo)
+
+        try:
+            client.get("/api/v1/predict/btc?horizon=24h")
+            client.get("/api/v1/predict/btc?horizon=24h&confidence=0.95")
+        finally:
+            app.dependency_overrides.clear()
+
+        expected_24h = build_cache_key("24h", "prophet", 0.85)
+        expected_24h_95 = build_cache_key("24h", "prophet", 0.95)
+        assert expected_24h in fake_redis._store
+        assert expected_24h_95 in fake_redis._store
+        assert expected_24h != expected_24h_95
+
+    def test_404_is_not_cached(self, client: TestClient, fake_redis) -> None:
+        """Test that 404 responses do not populate the cache."""
+        repo = _make_mock_repository(rows=[])
+        app.dependency_overrides[get_repository] = _override_repo(repo)
+
+        try:
+            response = client.get("/api/v1/predict/btc")
+        finally:
+            app.dependency_overrides.clear()
+
+        assert response.status_code == 404
+        assert fake_redis.set_calls == 0

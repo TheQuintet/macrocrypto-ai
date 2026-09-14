@@ -55,7 +55,9 @@ class Settings(BaseSettings):
     redis_port: int = Field(default=6379)
     redis_db: int = Field(default=0)
     redis_password: Optional[str] = Field(default=None)
-    redis_forecast_ttl: int = Field(default=3600)
+
+    # TTL for cached predictions (5 minutes per T1.5 spec)
+    redis_forecast_ttl: int = Field(default=300)
 
     # ============================================================
     # RABBITMQ
@@ -97,9 +99,7 @@ class Settings(BaseSettings):
 
     # Model artifact storage
     model_save_dir: str = Field(default="models")
-    prophet_24h_model_filename: str = Field(
-        default="prophet_24h.json"
-    )
+    prophet_24h_model_filename: str = Field(default="prophet_24h.json")
 
     # ============================================================
     # PERFORMANCE THRESHOLDS
