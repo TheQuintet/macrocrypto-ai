@@ -19,6 +19,7 @@ Test organization:
     - TestGeneratorRowConversion: _predictions_to_rows logic
     - TestGeneratorGenerate: end-to-end generate() with mocks
     - TestGeneratorCacheInvalidation: cache invalidation paths
+    - TestGenerator7dHorizon: 7d-specific behavior (T2.3)
 """
 
 from datetime import datetime, timedelta, timezone
@@ -413,6 +414,23 @@ class TestGeneratorRowConversion:
         assert row.lower_bound == 49_000.0
         assert row.upper_bound == 51_000.0
 
+    def test_field_mapping_7d(self) -> None:
+        """Test that 7d rows are produced with horizon='7d'."""
+        g = PredictionGenerator(
+            model=FakeModel(name="prophet"),
+            repository=MagicMock(),
+            horizon="7d",
+            horizon_hours=168,
+            confidence=0.85,
+        )
+        now = datetime.now(timezone.utc)
+        rows = g._predictions_to_rows(self._make_predictions(3), now)
+        assert len(rows) == 3
+        for row in rows:
+            assert row.horizon == "7d"
+            assert row.model_name == "prophet"
+            assert row.confidence == 0.85
+
     def test_missing_columns_raises(self) -> None:
         """Test that missing prediction columns raise ValueError."""
         g = PredictionGenerator(
@@ -679,3 +697,77 @@ class TestGeneratorCacheInvalidation:
 
         assert result.succeeded is False
         mock_invalidate.assert_not_called()
+
+
+# ============================================================
+# 7D HORIZON TESTS (T2.3)
+# ============================================================
+class TestGenerator7dHorizon:
+    """Tests specific to the 7d horizon (T2.3)."""
+
+    @pytest.mark.asyncio
+    async def test_7d_generate_produces_168_rows(
+        self,
+        mock_repository: MagicMock,
+    ) -> None:
+        """Test that a 7d generation produces 168 hourly forecast rows."""
+        # The mock repository's save returns 24 — override to return 168
+        mock_repository.save_predictions = AsyncMock(return_value=168)
+
+        g = PredictionGenerator(
+            model=FakeModel(name="prophet"),
+            repository=mock_repository,
+            horizon="7d",
+            horizon_hours=168,
+            confidence=0.85,
+            history_hours=2160,
+        )
+        result = await g.generate()
+
+        assert result.succeeded is True
+        assert result.horizon == "7d"
+        assert result.rows_generated == 168
+        assert result.rows_saved == 168
+
+    @pytest.mark.asyncio
+    async def test_7d_rows_use_horizon_7d(
+        self,
+        mock_repository: MagicMock,
+    ) -> None:
+        """Test that all saved rows carry horizon='7d'."""
+        mock_repository.save_predictions = AsyncMock(return_value=168)
+
+        g = PredictionGenerator(
+            model=FakeModel(name="prophet"),
+            repository=mock_repository,
+            horizon="7d",
+            horizon_hours=168,
+            confidence=0.85,
+        )
+        result = await g.generate()
+
+        saved_rows = mock_repository.save_predictions.call_args[0][0]
+        assert len(saved_rows) == 168
+        assert all(row.horizon == "7d" for row in saved_rows)
+        assert all(row.model_name == "prophet" for row in saved_rows)
+
+    @pytest.mark.asyncio
+    async def test_7d_fetches_90_days_of_history(
+        self,
+        mock_repository: MagicMock,
+    ) -> None:
+        """Test that the 7d generator requests 90 days of history."""
+        mock_repository.save_predictions = AsyncMock(return_value=168)
+
+        g = PredictionGenerator(
+            model=FakeModel(),
+            repository=mock_repository,
+            horizon="7d",
+            horizon_hours=168,
+            history_hours=2160,
+        )
+        await g.generate()
+
+        # Assert the repository was called with hours=2160
+        call_kwargs = mock_repository.fetch_training_frame.call_args.kwargs
+        assert call_kwargs["hours"] == 2160
