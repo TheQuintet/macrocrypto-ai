@@ -1,6 +1,6 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { cn } from '@/lib/utils'
+import { CalendarTimezoneSelect } from '@/components/calendar/CalendarTimezoneSelect'
 import type {
   CalendarTimezoneMode,
   CalendarViewMode,
@@ -85,31 +85,11 @@ export function CalendarToolbar({
           ))}
         </div>
 
-        <div className="flex items-center gap-2">
-          <label
-            htmlFor="calendar-timezone"
-            className="text-xs text-muted-foreground"
-          >
-            Times in
-          </label>
-          <select
-            id="calendar-timezone"
-            value={timezoneMode}
-            onChange={(event) =>
-              onTimezoneModeChange(
-                event.target.value as CalendarTimezoneMode,
-              )
-            }
-            className={cn(
-              'h-8 min-w-0 rounded-md border border-input bg-transparent px-2 text-xs',
-              'outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50',
-              'dark:bg-input/30',
-            )}
-          >
-            <option value="local">{timeZone}</option>
-            <option value="utc">UTC</option>
-          </select>
-        </div>
+        <CalendarTimezoneSelect
+          value={timezoneMode}
+          onChange={onTimezoneModeChange}
+          timeZone={timeZone}
+        />
       </div>
     </div>
   )

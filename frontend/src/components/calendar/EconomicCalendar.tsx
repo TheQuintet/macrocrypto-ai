@@ -4,8 +4,11 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { CalendarAgenda } from '@/components/calendar/CalendarAgenda'
 import { CalendarFilters } from '@/components/calendar/CalendarFilters'
 import { CalendarGrid } from '@/components/calendar/CalendarGrid'
+import { CalendarScopeToggle } from '@/components/calendar/CalendarScopeToggle'
+import { CalendarTimezoneSelect } from '@/components/calendar/CalendarTimezoneSelect'
 import { CalendarToolbar } from '@/components/calendar/CalendarToolbar'
 import { EventDetailsDialog } from '@/components/calendar/EventDetailsDialog'
+import { EventHistory } from '@/components/calendar/EventHistory'
 import { useMacroSubscriptionsQuery } from '@/hooks/alerts/useMacroSubscriptionsQuery'
 import { useEconomicCalendarQuery } from '@/hooks/useEconomicCalendarQuery'
 import {
@@ -22,6 +25,7 @@ import {
   isEventSubscribed,
 } from '@/lib/economicEventFilters'
 import type {
+  CalendarEventScope,
   CalendarTimezoneMode,
   CalendarViewMode,
   EconomicEvent,
@@ -34,6 +38,7 @@ type EconomicCalendarProps = {
 }
 
 export function EconomicCalendar({ userId }: EconomicCalendarProps) {
+  const [scope, setScope] = useState<CalendarEventScope>('upcoming')
   const [view, setView] = useState<CalendarViewMode>('month')
   const [timezoneMode, setTimezoneMode] =
     useState<CalendarTimezoneMode>('local')
@@ -116,21 +121,34 @@ export function EconomicCalendar({ userId }: EconomicCalendarProps) {
           </Badge>
         ) : null}
 
-        <CalendarToolbar
-          label={grid.label}
-          view={view}
-          onViewChange={handleViewChange}
-          timezoneMode={timezoneMode}
-          onTimezoneModeChange={setTimezoneMode}
-          timeZone={displayTimezone('local')}
-          onPrevious={() =>
-            setAnchor((current) => shiftAnchor(current, view, -1))
-          }
-          onNext={() =>
-            setAnchor((current) => shiftAnchor(current, view, 1))
-          }
-          onToday={handleToday}
-        />
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <CalendarScopeToggle value={scope} onChange={setScope} />
+          {scope === 'past' ? (
+            <CalendarTimezoneSelect
+              value={timezoneMode}
+              onChange={setTimezoneMode}
+              timeZone={displayTimezone('local')}
+            />
+          ) : null}
+        </div>
+
+        {scope === 'upcoming' ? (
+          <CalendarToolbar
+            label={grid.label}
+            view={view}
+            onViewChange={handleViewChange}
+            timezoneMode={timezoneMode}
+            onTimezoneModeChange={setTimezoneMode}
+            timeZone={displayTimezone('local')}
+            onPrevious={() =>
+              setAnchor((current) => shiftAnchor(current, view, -1))
+            }
+            onNext={() =>
+              setAnchor((current) => shiftAnchor(current, view, 1))
+            }
+            onToday={handleToday}
+          />
+        ) : null}
 
         <CalendarFilters
           eventType={eventType}
@@ -156,6 +174,12 @@ export function EconomicCalendar({ userId }: EconomicCalendarProps) {
         >
           Economic calendar unavailable. {calendarQuery.error.message}
         </p>
+      ) : scope === 'past' ? (
+        <EventHistory
+          events={visibleEvents}
+          timeZone={timeZone}
+          onSelectEvent={(event) => setSelectedEventId(event.id)}
+        />
       ) : (
         <>
           <CalendarGrid
@@ -173,7 +197,7 @@ export function EconomicCalendar({ userId }: EconomicCalendarProps) {
         </>
       )}
 
-      {grid.undated.length > 0 ? (
+      {scope === 'upcoming' && grid.undated.length > 0 ? (
         <p className="text-xs text-muted-foreground">
           {grid.undated.length} event
           {grid.undated.length === 1 ? '' : 's'} could not be placed on the

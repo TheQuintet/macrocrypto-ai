@@ -44,6 +44,9 @@ export type EconomicCalendarResponse = {
   events: EconomicEventPayload[]
 }
 
+/** Whether the calendar shows what is coming or what already happened. */
+export type CalendarEventScope = 'upcoming' | 'past'
+
 /** Month grid or single week. */
 export type CalendarViewMode = 'month' | 'week'
 

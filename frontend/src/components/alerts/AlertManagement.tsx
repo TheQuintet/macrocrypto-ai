@@ -29,6 +29,7 @@ import type {
 } from '@/types/alerts/macroAlert';
 import type { NewAlertType } from '@/types/alerts';
 import { MacroCalendarTable } from './macro/MacroCalendarTable';
+import { MacroAlertHistory } from './macro/MacroAlertHistory';
 import { AlertTypeSelector } from './shared/AlertTypeSelector';
 import { AlertTypeSwitch } from './shared/AlertTypeSwitch';
 
@@ -45,7 +46,7 @@ export const AlertManagement: React.FC<AlertManagementProps> = ({ userId }) => {
   const [statusFilter, setStatusFilter] = useState<AlertListStatusFilter>('all');
   const [eventFilter, setEventFilter] = useState<MacroEventStatusFilterValue>('all');
   const [impactFilter, setImpactFilter] = useState<ImpactFilterValue>('all');
-  const [activeTab, setActiveTab] = useState<'price' | 'macro'>('price');
+  const [activeTab, setActiveTab] = useState<'price' | 'macro' | 'history'>('price');
 
   const {
     alerts,
@@ -268,6 +269,17 @@ export const AlertManagement: React.FC<AlertManagementProps> = ({ userId }) => {
         >
           Macro Events ({eventCounts.all})
         </button>
+        <button
+          className={cn(
+            'px-4 py-2 text-sm font-medium border-b-2 transition-colors',
+            activeTab === 'history'
+              ? 'border-primary text-primary'
+              : 'border-transparent text-muted-foreground hover:text-foreground'
+          )}
+          onClick={() => setActiveTab('history')}
+        >
+          History
+        </button>
       </div>
 
       {/* Price Alerts Tab */}
@@ -324,6 +336,9 @@ export const AlertManagement: React.FC<AlertManagementProps> = ({ userId }) => {
           />
         </>
       )}
+
+      {/* Macro Alert History Tab */}
+      {activeTab === 'history' && <MacroAlertHistory userId={userId} />}
 
       {/* Alert Type Selection */}
       <AlertTypeSelector
