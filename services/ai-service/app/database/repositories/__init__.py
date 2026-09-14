@@ -10,6 +10,8 @@ Available repositories:
       BTC predictions
     - PerformanceRepository: writes prediction_performance rows,
       reads aggregated metrics
+    - ThresholdRepository: writes threshold_breaches rows, reads
+      recent breaches
 """
 
 from app.database.repositories.prediction_repository import (
@@ -20,10 +22,16 @@ from app.database.repositories.performance_repository import (
     PerformanceRepository,
     PerformanceRow,
 )
+from app.database.repositories.threshold_repository import (
+    ThresholdBreachRow,
+    ThresholdRepository,
+)
 
 __all__ = [
     "PredictionRepository",
     "PredictionRow",
     "PerformanceRepository",
     "PerformanceRow",
+    "ThresholdRepository",
+    "ThresholdBreachRow",
 ]

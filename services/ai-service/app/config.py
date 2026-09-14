@@ -105,6 +105,8 @@ class Settings(BaseSettings):
     # ============================================================
     # PERFORMANCE THRESHOLDS
     # ============================================================
+    # MAE/RMSE thresholds are decimal fractions of mean price
+    # (0.10 = 10%). MAPE and directional are already percentages.
     threshold_mae: float = Field(default=0.10)
     threshold_rmse: float = Field(default=0.15)
     threshold_mape: float = Field(default=10.0)
@@ -145,6 +147,10 @@ class Settings(BaseSettings):
     backtest_hour: int = Field(default=6)
     backtest_minute: int = Field(default=45)
 
+    # Accuracy check job schedule (daily at 7:00 AM UTC, after backtest)
+    accuracy_hour: int = Field(default=7)
+    accuracy_minute: int = Field(default=0)
+
     # ============================================================
     # BACKTEST PARAMETERS
     # ============================================================
@@ -161,6 +167,12 @@ class Settings(BaseSettings):
 
     # Temporary directory for chained warm-start models between iterations
     backtest_model_dir: str = Field(default="models/backtest")
+
+    # ============================================================
+    # ACCURACY JOB PARAMETERS (T5.4)
+    # ============================================================
+    # Look-back window for accuracy checks (in days)
+    accuracy_lookback_days: int = Field(default=7)
 
     # ============================================================
     # PROPERTIES

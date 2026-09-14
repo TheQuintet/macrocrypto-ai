@@ -15,6 +15,7 @@ Tables:
     - btc_predictions:         Target — hourly predictions from the AI Service
                                (unified table; 24h and 7d horizons)
     - prediction_performance:  Target — per-point evaluation metrics (T5.1)
+    - threshold_breaches:      Target — threshold breach history (T5.4)
 
 Naming:
     Table names are pulled from Settings so they can be overridden
@@ -33,6 +34,7 @@ from sqlalchemy import (
     MetaData,
     String,
     Table,
+    Text,
     text,
 )
 
@@ -162,6 +164,49 @@ prediction_performance = Table(
 
 
 # ============================================================
+# TARGET TABLE: threshold_breaches
+# ============================================================
+# One row per (horizon, model, metric) that breached its configured
+# threshold during a daily accuracy check (T5.4). Feeds T5.6's
+# streak-based escalation logic.
+threshold_breaches = Table(
+    "threshold_breaches",
+    metadata,
+    # Surrogate primary key
+    Column("id", BigInteger, primary_key=True),
+    # When the daily check ran
+    Column(
+        "detected_at",
+        DateTime(timezone=True),
+        server_default=text("now()"),
+    ),
+    # Which model-horizon the breach belongs to
+    Column("horizon", String(8), nullable=False),
+    Column("model_name", String(64), nullable=False),
+    # Which metric breached
+    Column("metric", String(32), nullable=False),
+    Column("metric_unit", String(16), nullable=False),
+    # The actual value and the configured threshold
+    Column("value", Float, nullable=False),
+    Column("threshold", Float, nullable=False),
+    # Direction of the breach:
+    #   'above' — MAE, RMSE, MAPE (higher is worse)
+    #   'below' — directional accuracy (lower is worse)
+    Column("breach_direction", String(8), nullable=False),
+    # Number of consecutive days this metric has been breaching
+    Column(
+        "consecutive_days",
+        Integer,
+        nullable=False,
+        server_default=text("1"),
+    ),
+    # Optional context
+    Column("model_version", String(64), nullable=True),
+    Column("notes", Text, nullable=True),
+)
+
+
+# ============================================================
 # INDEXES — btc_predictions
 # ============================================================
 # The composite read index is attached to the Core Table so
@@ -189,6 +234,18 @@ Index(
 
 
 # ============================================================
+# INDEXES — threshold_breaches
+# ============================================================
+# The common read index for T5.6: "recent breaches for a model".
+Index(
+    "idx_threshold_breaches_horizon_model_date",
+    threshold_breaches.c.horizon,
+    threshold_breaches.c.model_name,
+    threshold_breaches.c.detected_at,
+)
+
+
+# ============================================================
 # CONVENIENCE: table name constants
 # ============================================================
 # These are imported by repositories and tests so they don't
@@ -197,3 +254,4 @@ TABLE_BTC_PRICES = settings.db_table_btc_prices
 TABLE_MACRO_INDICATORS = settings.db_table_macro_indicators
 TABLE_BTC_PREDICTIONS = settings.db_table_predictions
 TABLE_PREDICTION_PERFORMANCE = "prediction_performance"
+TABLE_THRESHOLD_BREACHES = "threshold_breaches"

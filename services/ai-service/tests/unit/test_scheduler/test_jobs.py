@@ -1,11 +1,13 @@
 """Unit tests for the scheduler jobs module.
 
 These tests mock the Prophet model, the repository, the generator,
-and the backtester to isolate the job orchestration logic.
+the backtester, and the threshold repository to isolate the job
+orchestration logic.
 
 Test organization:
     - TestDailyRetrainJob: daily retrain of all 6 models
     - TestDailyBacktestJob: daily walk-forward backtest of all 12 (T5.2)
+    - TestDailyAccuracyJob: daily threshold check (T5.4)
     - TestHourlyPredictionJob: 24h job happy path + failure paths
     - TestDaily7dPredictionJob: 7d job happy path + failure paths
     - TestBacktestVariantSpecs: variant registry + factory helper
@@ -23,14 +25,17 @@ import pytest
 from app.ai.backtest import BacktestResult, IterationResult
 from app.prediction.generator import GenerationResult
 from app.scheduler.jobs import (
+    ACCURACY_CHECK_MATRIX,
     BACKTEST_VARIANTS,
     JOB_DAILY_7D_PREDICTION,
+    JOB_DAILY_ACCURACY,
     JOB_DAILY_BACKTEST,
     JOB_DAILY_RETRAIN,
     JOB_HOURLY_PREDICTION,
     _result_to_rows,
     _variant_factory,
     daily_7d_prediction_job,
+    daily_accuracy_job,
     daily_backtest_job,
     daily_retrain_job,
     hourly_prediction_job,
@@ -261,7 +266,6 @@ class TestDailyRetrainJob:
         mock_repo = MagicMock()
         mock_repo.fetch_training_frame = AsyncMock(return_value=frame)
 
-        # 5 succeed, 1 fails
         results = _all_success_results()
         results["xgboost_fresh"]["status"] = "failed"
         results["xgboost_fresh"]["error"] = "boom"
@@ -311,7 +315,6 @@ class TestDailyRetrainJob:
 
         call_kwargs = mock_orch_class.call_args.kwargs
         assert call_kwargs["model_save_dir"] == settings.model_save_dir
-        # All 6 models registered
         assert len(call_kwargs["models"]) == 6
 
     @pytest.mark.asyncio
@@ -339,7 +342,6 @@ class TestDailyRetrainJob:
         ):
             await daily_retrain_job()
 
-        # Verify fetch_training_frame was called with hours=2160
         call_kwargs = mock_repo.fetch_training_frame.call_args.kwargs
         assert call_kwargs["hours"] == 2160
 
@@ -389,7 +391,6 @@ class TestDailyBacktestJob:
     @pytest.mark.asyncio
     async def test_happy_path(self) -> None:
         """Test that a successful backtest run returns a summary."""
-        # 30 iterations * 168 hours + 60 = 5100 rows needed
         frame = _make_training_frame(6000)
 
         mock_pred_repo = MagicMock()
@@ -489,6 +490,186 @@ class TestDailyBacktestJob:
 
 
 # ============================================================
+# DAILY ACCURACY JOB
+# ============================================================
+class TestDailyAccuracyJob:
+    """Tests for daily_accuracy_job()."""
+
+    @pytest.mark.asyncio
+    async def test_happy_path_with_no_breaches(self) -> None:
+        """Test that a healthy model produces no breaches."""
+        # All metrics below thresholds → no breach
+        metrics = {
+            "horizon": "24h",
+            "model_name": "prophet_fresh",
+            "model_version": "1.0.0",
+            "forecast_date": datetime.now(timezone.utc),
+            "mae": 1_000.0,  # 2% of 50000 → ok
+            "rmse": 1_500.0,  # 3% → ok
+            "mape": 2.0,  # < 10 → ok
+            "market_condition": None,
+            "created_at": datetime.now(timezone.utc),
+        }
+
+        mock_perf_repo = MagicMock()
+        mock_perf_repo.fetch_latest_metrics = AsyncMock(return_value=metrics)
+        # The job calls _get_mean_actual_price which queries via
+        # perf_repo.session.execute(...).scalar_one_or_none()
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = 50_000.0
+        mock_session.execute.return_value = mock_result
+        mock_perf_repo.session = mock_session
+
+        mock_threshold_repo = MagicMock()
+        mock_threshold_repo.save_breaches = AsyncMock(return_value=0)
+        mock_threshold_repo.fetch_latest_breach = AsyncMock(return_value=None)
+
+        with patch(
+            "app.scheduler.jobs.PerformanceRepository",
+            return_value=mock_perf_repo,
+        ), patch(
+            "app.scheduler.jobs.ThresholdRepository",
+            return_value=mock_threshold_repo,
+        ), patch(
+            "app.scheduler.jobs.session_scope",
+            return_value=_session_scope_mock(),
+        ):
+            result = await daily_accuracy_job()
+
+        assert result["models_checked"] == len(ACCURACY_CHECK_MATRIX)
+        assert result["breaches_detected"] == 0
+
+    @pytest.mark.asyncio
+    async def test_records_breaches_when_metrics_degrade(self) -> None:
+        """Test that breaches are recorded when metrics exceed thresholds."""
+        # MAE = 15% of mean → breach
+        metrics = {
+            "horizon": "24h",
+            "model_name": "prophet_fresh",
+            "model_version": "1.0.0",
+            "forecast_date": datetime.now(timezone.utc),
+            "mae": 7_500.0,  # 15% of 50000 → breach
+            "rmse": 9_000.0,  # 18% → breach
+            "mape": 12.0,  # > 10 → breach
+            "market_condition": None,
+            "created_at": datetime.now(timezone.utc),
+        }
+
+        mock_perf_repo = MagicMock()
+        mock_perf_repo.fetch_latest_metrics = AsyncMock(return_value=metrics)
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = 50_000.0
+        mock_session.execute.return_value = mock_result
+        mock_perf_repo.session = mock_session
+
+        mock_threshold_repo = MagicMock()
+        mock_threshold_repo.save_breaches = AsyncMock(return_value=3)
+        mock_threshold_repo.fetch_latest_breach = AsyncMock(return_value=None)
+
+        with patch(
+            "app.scheduler.jobs.PerformanceRepository",
+            return_value=mock_perf_repo,
+        ), patch(
+            "app.scheduler.jobs.ThresholdRepository",
+            return_value=mock_threshold_repo,
+        ), patch(
+            "app.scheduler.jobs.session_scope",
+            return_value=_session_scope_mock(),
+        ):
+            result = await daily_accuracy_job()
+
+        assert result["breaches_detected"] > 0
+        # save_breaches was called for each model with a breach
+        assert mock_threshold_repo.save_breaches.call_count > 0
+
+    @pytest.mark.asyncio
+    async def test_skips_models_with_no_metrics(self) -> None:
+        """Test that models with no metrics are skipped."""
+        mock_perf_repo = MagicMock()
+        mock_perf_repo.fetch_latest_metrics = AsyncMock(return_value=None)
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+        mock_session.execute.return_value = mock_result
+        mock_perf_repo.session = mock_session
+
+        mock_threshold_repo = MagicMock()
+        mock_threshold_repo.save_breaches = AsyncMock(return_value=0)
+
+        with patch(
+            "app.scheduler.jobs.PerformanceRepository",
+            return_value=mock_perf_repo,
+        ), patch(
+            "app.scheduler.jobs.ThresholdRepository",
+            return_value=mock_threshold_repo,
+        ), patch(
+            "app.scheduler.jobs.session_scope",
+            return_value=_session_scope_mock(),
+        ):
+            result = await daily_accuracy_job()
+
+        # Zero models checked (all returned None metrics)
+        assert result["models_checked"] == 0
+        # No breaches written
+        assert result["breaches_detected"] == 0
+
+    @pytest.mark.asyncio
+    async def test_isolates_per_model_failures(self) -> None:
+        """Test that one failing model does not abort the others."""
+        metrics = {
+            "horizon": "24h",
+            "model_name": "prophet_fresh",
+            "model_version": "1.0.0",
+            "forecast_date": datetime.now(timezone.utc),
+            "mae": 1_000.0,
+            "rmse": 1_500.0,
+            "mape": 2.0,
+            "market_condition": None,
+            "created_at": datetime.now(timezone.utc),
+        }
+
+        call_count = {"n": 0}
+
+        async def flaky_fetch(*args, **kwargs):
+            call_count["n"] += 1
+            if call_count["n"] == 1:
+                raise RuntimeError("transient DB error")
+            return metrics
+
+        mock_perf_repo = MagicMock()
+        mock_perf_repo.fetch_latest_metrics = AsyncMock(
+            side_effect=flaky_fetch
+        )
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = 50_000.0
+        mock_session.execute.return_value = mock_result
+        mock_perf_repo.session = mock_session
+
+        mock_threshold_repo = MagicMock()
+        mock_threshold_repo.save_breaches = AsyncMock(return_value=0)
+        mock_threshold_repo.fetch_latest_breach = AsyncMock(return_value=None)
+
+        with patch(
+            "app.scheduler.jobs.PerformanceRepository",
+            return_value=mock_perf_repo,
+        ), patch(
+            "app.scheduler.jobs.ThresholdRepository",
+            return_value=mock_threshold_repo,
+        ), patch(
+            "app.scheduler.jobs.session_scope",
+            return_value=_session_scope_mock(),
+        ):
+            result = await daily_accuracy_job()
+
+        # At least one failed, at least one succeeded
+        assert result["models_failed"] >= 1
+        assert result["models_checked"] >= 1
+
+
+# ============================================================
 # BACKTEST VARIANT SPECS
 # ============================================================
 class TestBacktestVariantSpecs:
@@ -541,29 +722,19 @@ class TestBacktestVariantSpecs:
     def test_result_to_rows_skips_failed_iterations(self) -> None:
         """Test that failed iterations produce no rows."""
         result = _make_backtest_result(True)
-        # Manually break one iteration
         result.iteration_results[0].error = "boom"
         rows = _result_to_rows(result)
-        # Only iteration 1's 24 points remain
         assert len(rows) == 24
 
     def test_result_to_rows_repeats_iteration_metrics(self) -> None:
         """Test that metrics are repeated on every row of an iteration."""
         result = _make_backtest_result(True)
         rows = _result_to_rows(result)
-        # All rows from iteration 0 have the same mae
         for row in rows[:24]:
             assert row.mae == 100.0
 
     def test_result_to_rows_classifies_market_condition(self) -> None:
-        """Test that _result_to_rows assigns a market condition label.
-
-        The test helper produces actuals that go from 50_100 to
-        50_123 (24 points, small per-step moves). That's a small
-        cumulative move with low volatility → likely neutral, but
-        we accept any valid label (including None) to keep the test
-        resilient to threshold tuning.
-        """
+        """Test that _result_to_rows assigns a market condition label."""
         result = _make_backtest_result(True)
         rows = _result_to_rows(result)
         assert len(rows) > 0
@@ -577,25 +748,31 @@ class TestBacktestVariantSpecs:
             )
 
     def test_result_to_rows_same_condition_per_iteration(self) -> None:
-        """Test that all rows from one iteration share one condition.
-
-        The classifier runs once per iteration (on that iteration's
-        actuals), so every row of an iteration must carry the same
-        label.
-        """
+        """Test that all rows from one iteration share one condition."""
         result = _make_backtest_result(True)
         rows = _result_to_rows(result)
-
-        # The helper produces 2 iterations × 24 rows, in order.
         first_iter = rows[:24]
         second_iter = rows[24:48]
-
         first_conditions = {r.market_condition for r in first_iter}
         second_conditions = {r.market_condition for r in second_iter}
-
-        # One label per iteration
         assert len(first_conditions) == 1
         assert len(second_conditions) == 1
+
+
+# ============================================================
+# ACCURACY CHECK MATRIX
+# ============================================================
+class TestAccuracyCheckMatrix:
+    """Tests for ACCURACY_CHECK_MATRIX."""
+
+    def test_twelve_entries(self) -> None:
+        """Test that the matrix mirrors BACKTEST_VARIANTS."""
+        assert len(ACCURACY_CHECK_MATRIX) == 12
+
+    def test_all_pairs_present(self) -> None:
+        """Test that every (model, horizon) from BACKTEST_VARIANTS is here."""
+        expected = {(name, horizon) for name, horizon, _ in BACKTEST_VARIANTS}
+        assert set(ACCURACY_CHECK_MATRIX) == expected
 
 
 # ============================================================
@@ -879,3 +1056,7 @@ class TestJobConstants:
     def test_daily_backtest_job_name(self) -> None:
         """Test that JOB_DAILY_BACKTEST has the expected value."""
         assert JOB_DAILY_BACKTEST == "daily_backtest"
+
+    def test_daily_accuracy_job_name(self) -> None:
+        """Test that JOB_DAILY_ACCURACY has the expected value."""
+        assert JOB_DAILY_ACCURACY == "daily_accuracy"
