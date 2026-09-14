@@ -41,6 +41,13 @@ class Settings(BaseSettings):
         default="postgresql://macro:crypto@postgres:5432/macrocrypto"
     )
 
+    # Source tables (written by Data Ingestion Service)
+    db_table_btc_prices: str = Field(default="btc_prices")
+    db_table_macro_indicators: str = Field(default="macro_indicators")
+
+    # Target table (written by AI Service)
+    db_table_predictions: str = Field(default="btc_predictions")
+
     # ============================================================
     # REDIS
     # ============================================================
@@ -88,6 +95,12 @@ class Settings(BaseSettings):
     model_seasonality_prior: float = Field(default=10.0)
     model_holidays_prior: float = Field(default=10.0)
 
+    # Model artifact storage
+    model_save_dir: str = Field(default="models")
+    prophet_24h_model_filename: str = Field(
+        default="prophet_24h.json"
+    )
+
     # ============================================================
     # PERFORMANCE THRESHOLDS
     # ============================================================
@@ -104,6 +117,9 @@ class Settings(BaseSettings):
     retrain_timezone: str = Field(default="UTC")
     walk_forward_days: int = Field(default=30)
 
+    # ============================================================
+    # PROPERTIES
+    # ============================================================
     @property
     def rabbitmq_url(self) -> str:
         """Build RabbitMQ connection URL."""
@@ -121,6 +137,30 @@ class Settings(BaseSettings):
                 f"{self.redis_port}/{self.redis_db}"
             )
         return f"redis://{self.redis_host}:{self.redis_port}/{self.redis_db}"
+
+    @property
+    def async_database_url(self) -> str:
+        """Build the async (asyncpg) variant of the database URL.
+
+        SQLAlchemy async requires the driver to be specified in the
+        URL scheme. This property converts a plain postgresql://
+        URL to postgresql+asyncpg://, and leaves already-driver-
+        specified URLs untouched.
+
+        Returns:
+            SQLAlchemy-compatible async database URL.
+        """
+        url = self.database_url
+        if url.startswith("postgresql+asyncpg://"):
+            return url
+        if url.startswith("postgresql://"):
+            return url.replace("postgresql://", "postgresql+asyncpg://", 1)
+        return url
+
+    @property
+    def prophet_24h_model_path(self) -> str:
+        """Return the full path to the trained 24h Prophet model file."""
+        return f"{self.model_save_dir}/{self.prophet_24h_model_filename}"
 
 
 # Global settings instance
