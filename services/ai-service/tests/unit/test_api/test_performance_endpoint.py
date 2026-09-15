@@ -14,8 +14,10 @@ Test organization:
     - TestPerformanceEndpointFilters: query parameter handling
     - TestPerformanceEndpointEdgeCases: empty data, missing prices
     - TestPerformanceEndpointValidation: invalid query params
-    - TestPerformanceEndpointHelpers: _as_float, _get_mean_actual_price
     - TestPerformanceEndpointStreakWarnings: T5.6 streak warnings
+    - TestPerformanceEndpointM8BestModel: best_model on the envelope (M8)
+    - TestPerformanceEndpointM8ModelsFilter: ?models= filtering (M8)
+    - TestPerformanceEndpointM8History: ?include_history= behavior (M8)
 """
 
 from datetime import datetime, timedelta, timezone
@@ -89,6 +91,29 @@ def _make_streak_row(
     }
 
 
+def _make_history_row(
+    model_name: str = "prophet_fresh",
+    horizon: str = "24h",
+    mae: float = 100.0,
+    rmse: float = 120.0,
+    mape: float = 1.5,
+    directional_accuracy: Optional[float] = 62.0,
+    sample_size: int = 1,
+    calculated_at: Optional[datetime] = None,
+) -> Dict[str, Any]:
+    """Build a row matching what ModelPerformanceRepository.fetch_history returns."""
+    return {
+        "model_name": model_name,
+        "horizon": horizon,
+        "mae": mae,
+        "rmse": rmse,
+        "mape": mape,
+        "directional_accuracy": directional_accuracy,
+        "sample_size": sample_size,
+        "calculated_at": calculated_at or datetime.now(timezone.utc),
+    }
+
+
 def _mock_perf_repo(
     metrics_rows: Optional[List[Dict[str, Any]]] = None,
     breakdown_rows: Optional[List[Dict[str, Any]]] = None,
@@ -133,6 +158,29 @@ def _mock_threshold_repo(
     return repo
 
 
+def _mock_model_perf_repo(
+    history_rows: Optional[List[Dict[str, Any]]] = None,
+    best_model: Optional[str] = None,
+    history_raises: Optional[Exception] = None,
+) -> MagicMock:
+    """Build a mocked ModelPerformanceRepository for M8 tests.
+
+    Args:
+        history_rows: Return value of fetch_history(). Defaults to [].
+        best_model: Return value of fetch_best_model_by_mae().
+            Defaults to None.
+        history_raises: When set, fetch_history() raises this instead
+            of returning a value.
+    """
+    repo = MagicMock()
+    if history_raises is not None:
+        repo.fetch_history = AsyncMock(side_effect=history_raises)
+    else:
+        repo.fetch_history = AsyncMock(return_value=history_rows or [])
+    repo.fetch_best_model_by_mae = AsyncMock(return_value=best_model)
+    return repo
+
+
 def _session_scope_with(perf_repo, threshold_repo) -> MagicMock:
     """Build a session_scope mock returning the given repos."""
     cm = MagicMock()
@@ -146,6 +194,46 @@ def _session_scope_with(perf_repo, threshold_repo) -> MagicMock:
     cm.__aenter__ = AsyncMock(return_value=MagicMock())
     cm.__aexit__ = AsyncMock(return_value=False)
     return cm
+
+
+def _patch_stack(
+    perf_repo: MagicMock,
+    threshold_repo: MagicMock,
+    model_perf_repo: Optional[MagicMock] = None,
+):
+    """Return a tuple of patch context managers for the three repos.
+
+    When `model_perf_repo` is None, a default empty one is created.
+
+    Usage:
+        with _patch_stack(perf, threshold) as (p1, p2, p3, p4):
+            ...
+
+    The order is: PerformanceRepository, ThresholdRepository,
+    ModelPerformanceRepository, session_scope. These must be entered
+    together because the endpoint uses all four.
+    """
+    if model_perf_repo is None:
+        model_perf_repo = _mock_model_perf_repo()
+
+    return (
+        patch(
+            "app.api.v1.performance.PerformanceRepository",
+            return_value=perf_repo,
+        ),
+        patch(
+            "app.api.v1.performance.ThresholdRepository",
+            return_value=threshold_repo,
+        ),
+        patch(
+            "app.api.v1.performance.ModelPerformanceRepository",
+            return_value=model_perf_repo,
+        ),
+        patch(
+            "app.api.v1.performance.session_scope",
+            return_value=_session_scope_with(perf_repo, threshold_repo),
+        ),
+    )
 
 
 @pytest.fixture
@@ -167,16 +255,10 @@ class TestPerformanceEndpointHappyPath:
         )
         threshold_repo = _mock_threshold_repo()
 
-        with patch(
-            "app.api.v1.performance.PerformanceRepository",
-            return_value=perf_repo,
-        ), patch(
-            "app.api.v1.performance.ThresholdRepository",
-            return_value=threshold_repo,
-        ), patch(
-            "app.api.v1.performance.session_scope",
-            return_value=_session_scope_with(perf_repo, threshold_repo),
-        ):
+        with _patch_stack(perf_repo, threshold_repo)[0], \
+             _patch_stack(perf_repo, threshold_repo)[1], \
+             _patch_stack(perf_repo, threshold_repo)[2], \
+             _patch_stack(perf_repo, threshold_repo)[3]:
             response = client.get("/api/v1/performance/btc")
 
         assert response.status_code == 200
@@ -188,16 +270,10 @@ class TestPerformanceEndpointHappyPath:
         )
         threshold_repo = _mock_threshold_repo()
 
-        with patch(
-            "app.api.v1.performance.PerformanceRepository",
-            return_value=perf_repo,
-        ), patch(
-            "app.api.v1.performance.ThresholdRepository",
-            return_value=threshold_repo,
-        ), patch(
-            "app.api.v1.performance.session_scope",
-            return_value=_session_scope_with(perf_repo, threshold_repo),
-        ):
+        with _patch_stack(perf_repo, threshold_repo)[0], \
+             _patch_stack(perf_repo, threshold_repo)[1], \
+             _patch_stack(perf_repo, threshold_repo)[2], \
+             _patch_stack(perf_repo, threshold_repo)[3]:
             response = client.get("/api/v1/performance/btc")
 
         data = response.json()
@@ -206,6 +282,7 @@ class TestPerformanceEndpointHappyPath:
             "generated_at",
             "entries",
             "warnings_count",
+            "best_model",
         }
 
     def test_entry_has_expected_keys(self, client: TestClient) -> None:
@@ -215,16 +292,10 @@ class TestPerformanceEndpointHappyPath:
         )
         threshold_repo = _mock_threshold_repo()
 
-        with patch(
-            "app.api.v1.performance.PerformanceRepository",
-            return_value=perf_repo,
-        ), patch(
-            "app.api.v1.performance.ThresholdRepository",
-            return_value=threshold_repo,
-        ), patch(
-            "app.api.v1.performance.session_scope",
-            return_value=_session_scope_with(perf_repo, threshold_repo),
-        ):
+        with _patch_stack(perf_repo, threshold_repo)[0], \
+             _patch_stack(perf_repo, threshold_repo)[1], \
+             _patch_stack(perf_repo, threshold_repo)[2], \
+             _patch_stack(perf_repo, threshold_repo)[3]:
             response = client.get("/api/v1/performance/btc")
 
         entry = response.json()["entries"][0]
@@ -241,6 +312,7 @@ class TestPerformanceEndpointHappyPath:
             "warning",
             "warning_count",
             "warning_threshold_days",
+            "history",
         }
         assert set(entry.keys()) == expected
 
@@ -251,16 +323,10 @@ class TestPerformanceEndpointHappyPath:
         )
         threshold_repo = _mock_threshold_repo()
 
-        with patch(
-            "app.api.v1.performance.PerformanceRepository",
-            return_value=perf_repo,
-        ), patch(
-            "app.api.v1.performance.ThresholdRepository",
-            return_value=threshold_repo,
-        ), patch(
-            "app.api.v1.performance.session_scope",
-            return_value=_session_scope_with(perf_repo, threshold_repo),
-        ):
+        with _patch_stack(perf_repo, threshold_repo)[0], \
+             _patch_stack(perf_repo, threshold_repo)[1], \
+             _patch_stack(perf_repo, threshold_repo)[2], \
+             _patch_stack(perf_repo, threshold_repo)[3]:
             response = client.get("/api/v1/performance/btc")
 
         metrics = response.json()["entries"][0]["metrics"]
@@ -276,16 +342,10 @@ class TestPerformanceEndpointHappyPath:
         )
         threshold_repo = _mock_threshold_repo()
 
-        with patch(
-            "app.api.v1.performance.PerformanceRepository",
-            return_value=perf_repo,
-        ), patch(
-            "app.api.v1.performance.ThresholdRepository",
-            return_value=threshold_repo,
-        ), patch(
-            "app.api.v1.performance.session_scope",
-            return_value=_session_scope_with(perf_repo, threshold_repo),
-        ):
+        with _patch_stack(perf_repo, threshold_repo)[0], \
+             _patch_stack(perf_repo, threshold_repo)[1], \
+             _patch_stack(perf_repo, threshold_repo)[2], \
+             _patch_stack(perf_repo, threshold_repo)[3]:
             response = client.get("/api/v1/performance/btc")
 
         breakdown = response.json()["entries"][0]["market_breakdown"]
@@ -300,16 +360,10 @@ class TestPerformanceEndpointHappyPath:
         )
         threshold_repo = _mock_threshold_repo()
 
-        with patch(
-            "app.api.v1.performance.PerformanceRepository",
-            return_value=perf_repo,
-        ), patch(
-            "app.api.v1.performance.ThresholdRepository",
-            return_value=threshold_repo,
-        ), patch(
-            "app.api.v1.performance.session_scope",
-            return_value=_session_scope_with(perf_repo, threshold_repo),
-        ):
+        with _patch_stack(perf_repo, threshold_repo)[0], \
+             _patch_stack(perf_repo, threshold_repo)[1], \
+             _patch_stack(perf_repo, threshold_repo)[2], \
+             _patch_stack(perf_repo, threshold_repo)[3]:
             response = client.get("/api/v1/performance/btc")
 
         thresholds = response.json()["entries"][0]["thresholds"]
@@ -326,16 +380,10 @@ class TestPerformanceEndpointHappyPath:
         )
         threshold_repo = _mock_threshold_repo(breach_count=3)
 
-        with patch(
-            "app.api.v1.performance.PerformanceRepository",
-            return_value=perf_repo,
-        ), patch(
-            "app.api.v1.performance.ThresholdRepository",
-            return_value=threshold_repo,
-        ), patch(
-            "app.api.v1.performance.session_scope",
-            return_value=_session_scope_with(perf_repo, threshold_repo),
-        ):
+        with _patch_stack(perf_repo, threshold_repo)[0], \
+             _patch_stack(perf_repo, threshold_repo)[1], \
+             _patch_stack(perf_repo, threshold_repo)[2], \
+             _patch_stack(perf_repo, threshold_repo)[3]:
             response = client.get("/api/v1/performance/btc")
 
         assert response.json()["entries"][0]["recent_breach_count"] == 3
@@ -351,16 +399,10 @@ class TestPerformanceEndpointHappyPath:
         )
         threshold_repo = _mock_threshold_repo()
 
-        with patch(
-            "app.api.v1.performance.PerformanceRepository",
-            return_value=perf_repo,
-        ), patch(
-            "app.api.v1.performance.ThresholdRepository",
-            return_value=threshold_repo,
-        ), patch(
-            "app.api.v1.performance.session_scope",
-            return_value=_session_scope_with(perf_repo, threshold_repo),
-        ):
+        with _patch_stack(perf_repo, threshold_repo)[0], \
+             _patch_stack(perf_repo, threshold_repo)[1], \
+             _patch_stack(perf_repo, threshold_repo)[2], \
+             _patch_stack(perf_repo, threshold_repo)[3]:
             response = client.get("/api/v1/performance/btc")
 
         entries = response.json()["entries"]
@@ -373,16 +415,10 @@ class TestPerformanceEndpointHappyPath:
         )
         threshold_repo = _mock_threshold_repo()
 
-        with patch(
-            "app.api.v1.performance.PerformanceRepository",
-            return_value=perf_repo,
-        ), patch(
-            "app.api.v1.performance.ThresholdRepository",
-            return_value=threshold_repo,
-        ), patch(
-            "app.api.v1.performance.session_scope",
-            return_value=_session_scope_with(perf_repo, threshold_repo),
-        ):
+        with _patch_stack(perf_repo, threshold_repo)[0], \
+             _patch_stack(perf_repo, threshold_repo)[1], \
+             _patch_stack(perf_repo, threshold_repo)[2], \
+             _patch_stack(perf_repo, threshold_repo)[3]:
             response = client.get("/api/v1/performance/btc?days=90")
 
         assert response.json()["time_period_days"] == 90
@@ -401,42 +437,46 @@ class TestPerformanceEndpointFilters:
         )
         threshold_repo = _mock_threshold_repo()
 
-        with patch(
-            "app.api.v1.performance.PerformanceRepository",
-            return_value=perf_repo,
-        ), patch(
-            "app.api.v1.performance.ThresholdRepository",
-            return_value=threshold_repo,
-        ), patch(
-            "app.api.v1.performance.session_scope",
-            return_value=_session_scope_with(perf_repo, threshold_repo),
-        ):
+        with _patch_stack(perf_repo, threshold_repo)[0], \
+             _patch_stack(perf_repo, threshold_repo)[1], \
+             _patch_stack(perf_repo, threshold_repo)[2], \
+             _patch_stack(perf_repo, threshold_repo)[3]:
             client.get("/api/v1/performance/btc?horizon=24h")
 
         call_kwargs = perf_repo.fetch_latest_metrics_batch.call_args.kwargs
         assert call_kwargs["horizon"] == "24h"
 
-    def test_model_name_filter_forwarded(self, client: TestClient) -> None:
-        """Test that model_name filter is passed to the repository."""
+    def test_model_name_filter_restricts_entries(
+        self, client: TestClient
+    ) -> None:
+        """Test that ?model_name= restricts the returned entries.
+
+        M8 changed the filtering strategy: the endpoint fetches all
+        rows from the repository and filters Python-side, because
+        `fetch_latest_metrics_batch` only accepts a single-model
+        filter and adding an IN-style parameter would be out of
+        scope. We therefore assert on the effect (only the
+        requested model appears), not on a repository kwarg.
+        """
         perf_repo = _mock_perf_repo(
-            metrics_rows=[_make_metrics_row(model_name="prophet_fresh")],
+            metrics_rows=[
+                _make_metrics_row(model_name="prophet_fresh"),
+                _make_metrics_row(model_name="xgboost_fresh"),
+            ],
         )
         threshold_repo = _mock_threshold_repo()
 
-        with patch(
-            "app.api.v1.performance.PerformanceRepository",
-            return_value=perf_repo,
-        ), patch(
-            "app.api.v1.performance.ThresholdRepository",
-            return_value=threshold_repo,
-        ), patch(
-            "app.api.v1.performance.session_scope",
-            return_value=_session_scope_with(perf_repo, threshold_repo),
-        ):
-            client.get("/api/v1/performance/btc?model_name=prophet_fresh")
+        with _patch_stack(perf_repo, threshold_repo)[0], \
+             _patch_stack(perf_repo, threshold_repo)[1], \
+             _patch_stack(perf_repo, threshold_repo)[2], \
+             _patch_stack(perf_repo, threshold_repo)[3]:
+            response = client.get(
+                "/api/v1/performance/btc?model_name=prophet_fresh"
+            )
 
-        call_kwargs = perf_repo.fetch_latest_metrics_batch.call_args.kwargs
-        assert call_kwargs["model_name"] == "prophet_fresh"
+        entries = response.json()["entries"]
+        assert len(entries) == 1
+        assert entries[0]["model_name"] == "prophet_fresh"
 
     def test_days_filter_forwarded(self, client: TestClient) -> None:
         """Test that days filter is passed to the repository."""
@@ -445,16 +485,10 @@ class TestPerformanceEndpointFilters:
         )
         threshold_repo = _mock_threshold_repo()
 
-        with patch(
-            "app.api.v1.performance.PerformanceRepository",
-            return_value=perf_repo,
-        ), patch(
-            "app.api.v1.performance.ThresholdRepository",
-            return_value=threshold_repo,
-        ), patch(
-            "app.api.v1.performance.session_scope",
-            return_value=_session_scope_with(perf_repo, threshold_repo),
-        ):
+        with _patch_stack(perf_repo, threshold_repo)[0], \
+             _patch_stack(perf_repo, threshold_repo)[1], \
+             _patch_stack(perf_repo, threshold_repo)[2], \
+             _patch_stack(perf_repo, threshold_repo)[3]:
             client.get("/api/v1/performance/btc?days=90")
 
         call_kwargs = perf_repo.fetch_latest_metrics_batch.call_args.kwargs
@@ -472,16 +506,10 @@ class TestPerformanceEndpointEdgeCases:
         perf_repo = _mock_perf_repo(metrics_rows=[])
         threshold_repo = _mock_threshold_repo()
 
-        with patch(
-            "app.api.v1.performance.PerformanceRepository",
-            return_value=perf_repo,
-        ), patch(
-            "app.api.v1.performance.ThresholdRepository",
-            return_value=threshold_repo,
-        ), patch(
-            "app.api.v1.performance.session_scope",
-            return_value=_session_scope_with(perf_repo, threshold_repo),
-        ):
+        with _patch_stack(perf_repo, threshold_repo)[0], \
+             _patch_stack(perf_repo, threshold_repo)[1], \
+             _patch_stack(perf_repo, threshold_repo)[2], \
+             _patch_stack(perf_repo, threshold_repo)[3]:
             response = client.get("/api/v1/performance/btc")
 
         assert response.status_code == 200
@@ -497,16 +525,10 @@ class TestPerformanceEndpointEdgeCases:
         )
         threshold_repo = _mock_threshold_repo()
 
-        with patch(
-            "app.api.v1.performance.PerformanceRepository",
-            return_value=perf_repo,
-        ), patch(
-            "app.api.v1.performance.ThresholdRepository",
-            return_value=threshold_repo,
-        ), patch(
-            "app.api.v1.performance.session_scope",
-            return_value=_session_scope_with(perf_repo, threshold_repo),
-        ):
+        with _patch_stack(perf_repo, threshold_repo)[0], \
+             _patch_stack(perf_repo, threshold_repo)[1], \
+             _patch_stack(perf_repo, threshold_repo)[2], \
+             _patch_stack(perf_repo, threshold_repo)[3]:
             response = client.get("/api/v1/performance/btc")
 
         thresholds = response.json()["entries"][0]["thresholds"]
@@ -524,16 +546,10 @@ class TestPerformanceEndpointEdgeCases:
         )
         threshold_repo = _mock_threshold_repo()
 
-        with patch(
-            "app.api.v1.performance.PerformanceRepository",
-            return_value=perf_repo,
-        ), patch(
-            "app.api.v1.performance.ThresholdRepository",
-            return_value=threshold_repo,
-        ), patch(
-            "app.api.v1.performance.session_scope",
-            return_value=_session_scope_with(perf_repo, threshold_repo),
-        ):
+        with _patch_stack(perf_repo, threshold_repo)[0], \
+             _patch_stack(perf_repo, threshold_repo)[1], \
+             _patch_stack(perf_repo, threshold_repo)[2], \
+             _patch_stack(perf_repo, threshold_repo)[3]:
             response = client.get("/api/v1/performance/btc")
 
         assert response.json()["entries"][0]["market_breakdown"] == {}
@@ -574,16 +590,10 @@ class TestPerformanceEndpointStreakWarnings:
         )
         threshold_repo = _mock_threshold_repo(streak_rows=[])
 
-        with patch(
-            "app.api.v1.performance.PerformanceRepository",
-            return_value=perf_repo,
-        ), patch(
-            "app.api.v1.performance.ThresholdRepository",
-            return_value=threshold_repo,
-        ), patch(
-            "app.api.v1.performance.session_scope",
-            return_value=_session_scope_with(perf_repo, threshold_repo),
-        ):
+        with _patch_stack(perf_repo, threshold_repo)[0], \
+             _patch_stack(perf_repo, threshold_repo)[1], \
+             _patch_stack(perf_repo, threshold_repo)[2], \
+             _patch_stack(perf_repo, threshold_repo)[3]:
             response = client.get("/api/v1/performance/btc")
 
         body = response.json()
@@ -608,16 +618,10 @@ class TestPerformanceEndpointStreakWarnings:
             ],
         )
 
-        with patch(
-            "app.api.v1.performance.PerformanceRepository",
-            return_value=perf_repo,
-        ), patch(
-            "app.api.v1.performance.ThresholdRepository",
-            return_value=threshold_repo,
-        ), patch(
-            "app.api.v1.performance.session_scope",
-            return_value=_session_scope_with(perf_repo, threshold_repo),
-        ):
+        with _patch_stack(perf_repo, threshold_repo)[0], \
+             _patch_stack(perf_repo, threshold_repo)[1], \
+             _patch_stack(perf_repo, threshold_repo)[2], \
+             _patch_stack(perf_repo, threshold_repo)[3]:
             response = client.get("/api/v1/performance/btc")
 
         body = response.json()
@@ -642,16 +646,10 @@ class TestPerformanceEndpointStreakWarnings:
             ],
         )
 
-        with patch(
-            "app.api.v1.performance.PerformanceRepository",
-            return_value=perf_repo,
-        ), patch(
-            "app.api.v1.performance.ThresholdRepository",
-            return_value=threshold_repo,
-        ), patch(
-            "app.api.v1.performance.session_scope",
-            return_value=_session_scope_with(perf_repo, threshold_repo),
-        ):
+        with _patch_stack(perf_repo, threshold_repo)[0], \
+             _patch_stack(perf_repo, threshold_repo)[1], \
+             _patch_stack(perf_repo, threshold_repo)[2], \
+             _patch_stack(perf_repo, threshold_repo)[3]:
             response = client.get("/api/v1/performance/btc")
 
         entry = response.json()["entries"][0]
@@ -673,16 +671,10 @@ class TestPerformanceEndpointStreakWarnings:
             ],
         )
 
-        with patch(
-            "app.api.v1.performance.PerformanceRepository",
-            return_value=perf_repo,
-        ), patch(
-            "app.api.v1.performance.ThresholdRepository",
-            return_value=threshold_repo,
-        ), patch(
-            "app.api.v1.performance.session_scope",
-            return_value=_session_scope_with(perf_repo, threshold_repo),
-        ):
+        with _patch_stack(perf_repo, threshold_repo)[0], \
+             _patch_stack(perf_repo, threshold_repo)[1], \
+             _patch_stack(perf_repo, threshold_repo)[2], \
+             _patch_stack(perf_repo, threshold_repo)[3]:
             response = client.get("/api/v1/performance/btc")
 
         entry = response.json()["entries"][0]
@@ -714,16 +706,10 @@ class TestPerformanceEndpointStreakWarnings:
             ],
         )
 
-        with patch(
-            "app.api.v1.performance.PerformanceRepository",
-            return_value=perf_repo,
-        ), patch(
-            "app.api.v1.performance.ThresholdRepository",
-            return_value=threshold_repo,
-        ), patch(
-            "app.api.v1.performance.session_scope",
-            return_value=_session_scope_with(perf_repo, threshold_repo),
-        ):
+        with _patch_stack(perf_repo, threshold_repo)[0], \
+             _patch_stack(perf_repo, threshold_repo)[1], \
+             _patch_stack(perf_repo, threshold_repo)[2], \
+             _patch_stack(perf_repo, threshold_repo)[3]:
             response = client.get("/api/v1/performance/btc")
 
         body = response.json()
@@ -754,16 +740,10 @@ class TestPerformanceEndpointStreakWarnings:
         )
         threshold_repo = _mock_threshold_repo(streak_rows=[])
 
-        with patch(
-            "app.api.v1.performance.PerformanceRepository",
-            return_value=perf_repo,
-        ), patch(
-            "app.api.v1.performance.ThresholdRepository",
-            return_value=threshold_repo,
-        ), patch(
-            "app.api.v1.performance.session_scope",
-            return_value=_session_scope_with(perf_repo, threshold_repo),
-        ):
+        with _patch_stack(perf_repo, threshold_repo)[0], \
+             _patch_stack(perf_repo, threshold_repo)[1], \
+             _patch_stack(perf_repo, threshold_repo)[2], \
+             _patch_stack(perf_repo, threshold_repo)[3]:
             response = client.get("/api/v1/performance/btc")
 
         entry = response.json()["entries"][0]
@@ -802,16 +782,10 @@ class TestPerformanceEndpointStreakWarnings:
             ],
         )
 
-        with patch(
-            "app.api.v1.performance.PerformanceRepository",
-            return_value=perf_repo,
-        ), patch(
-            "app.api.v1.performance.ThresholdRepository",
-            return_value=threshold_repo,
-        ), patch(
-            "app.api.v1.performance.session_scope",
-            return_value=_session_scope_with(perf_repo, threshold_repo),
-        ):
+        with _patch_stack(perf_repo, threshold_repo)[0], \
+             _patch_stack(perf_repo, threshold_repo)[1], \
+             _patch_stack(perf_repo, threshold_repo)[2], \
+             _patch_stack(perf_repo, threshold_repo)[3]:
             response = client.get("/api/v1/performance/btc")
 
         entries = {
@@ -858,18 +832,425 @@ class TestPerformanceEndpointStreakWarnings:
             ],
         )
 
-        with patch(
-            "app.api.v1.performance.PerformanceRepository",
-            return_value=perf_repo,
-        ), patch(
-            "app.api.v1.performance.ThresholdRepository",
-            return_value=threshold_repo,
-        ), patch(
-            "app.api.v1.performance.session_scope",
-            return_value=_session_scope_with(perf_repo, threshold_repo),
-        ):
+        with _patch_stack(perf_repo, threshold_repo)[0], \
+             _patch_stack(perf_repo, threshold_repo)[1], \
+             _patch_stack(perf_repo, threshold_repo)[2], \
+             _patch_stack(perf_repo, threshold_repo)[3]:
             response = client.get("/api/v1/performance/btc")
 
         body = response.json()
         # 1 warning for prophet, 2 for xgboost → 3 total
         assert body["warnings_count"] == 3
+
+
+# ============================================================
+# M8 — BEST MODEL ON THE ENVELOPE
+# ============================================================
+class TestPerformanceEndpointM8BestModel:
+    """Tests for the additive best_model field (M8)."""
+
+    def test_best_model_populated_when_entries_exist(
+        self, client: TestClient
+    ) -> None:
+        """Test that best_model is populated when entries exist."""
+        perf_repo = _mock_perf_repo(
+            metrics_rows=[_make_metrics_row()],
+        )
+        threshold_repo = _mock_threshold_repo()
+        model_perf_repo = _mock_model_perf_repo(best_model="prophet_fresh")
+
+        patches = _patch_stack(perf_repo, threshold_repo, model_perf_repo)
+        with patches[0], patches[1], patches[2], patches[3]:
+            response = client.get("/api/v1/performance/btc")
+
+        assert response.status_code == 200
+        assert response.json()["best_model"] == "prophet_fresh"
+
+    def test_best_model_none_when_no_entries(
+        self, client: TestClient
+    ) -> None:
+        """Test that best_model is None when there are no entries.
+
+        The endpoint skips the best-model query when entries is
+        empty, so the field is None even if the repository would
+        return a value.
+        """
+        perf_repo = _mock_perf_repo(metrics_rows=[])
+        threshold_repo = _mock_threshold_repo()
+        model_perf_repo = _mock_model_perf_repo(best_model="prophet_fresh")
+
+        patches = _patch_stack(perf_repo, threshold_repo, model_perf_repo)
+        with patches[0], patches[1], patches[2], patches[3]:
+            response = client.get("/api/v1/performance/btc")
+
+        body = response.json()
+        assert body["entries"] == []
+        assert body["best_model"] is None
+        # Repository was never consulted
+        assert model_perf_repo.fetch_best_model_by_mae.call_count == 0
+
+    def test_best_model_none_when_repo_returns_none(
+        self, client: TestClient
+    ) -> None:
+        """Test that best_model is None when the repo has no MAE data."""
+        perf_repo = _mock_perf_repo(
+            metrics_rows=[_make_metrics_row()],
+        )
+        threshold_repo = _mock_threshold_repo()
+        model_perf_repo = _mock_model_perf_repo(best_model=None)
+
+        patches = _patch_stack(perf_repo, threshold_repo, model_perf_repo)
+        with patches[0], patches[1], patches[2], patches[3]:
+            response = client.get("/api/v1/performance/btc")
+
+        assert response.json()["best_model"] is None
+
+    def test_best_model_lookup_error_is_swallowed(
+        self, client: TestClient
+    ) -> None:
+        """Test that a repo error during best-model lookup does not 500.
+
+        Best model is a convenience field — losing it must not break
+        the response. The endpoint catches the exception, logs a
+        warning, and returns best_model=None.
+        """
+        perf_repo = _mock_perf_repo(
+            metrics_rows=[_make_metrics_row()],
+        )
+        threshold_repo = _mock_threshold_repo()
+
+        model_perf_repo = MagicMock()
+        model_perf_repo.fetch_best_model_by_mae = AsyncMock(
+            side_effect=RuntimeError("DB down")
+        )
+
+        patches = _patch_stack(perf_repo, threshold_repo, model_perf_repo)
+        with patches[0], patches[1], patches[2], patches[3]:
+            response = client.get("/api/v1/performance/btc")
+
+        assert response.status_code == 200
+        assert response.json()["best_model"] is None
+
+
+# ============================================================
+# M8 — ?models= FILTER
+# ============================================================
+class TestPerformanceEndpointM8ModelsFilter:
+    """Tests for the ?models= comma-separated filter (M8)."""
+
+    def test_models_filters_to_single_model(
+        self, client: TestClient
+    ) -> None:
+        """Test that ?models=a returns only model a."""
+        perf_repo = _mock_perf_repo(
+            metrics_rows=[
+                _make_metrics_row(model_name="prophet_fresh"),
+                _make_metrics_row(model_name="xgboost_fresh"),
+            ],
+        )
+        threshold_repo = _mock_threshold_repo()
+
+        with _patch_stack(perf_repo, threshold_repo)[0], \
+             _patch_stack(perf_repo, threshold_repo)[1], \
+             _patch_stack(perf_repo, threshold_repo)[2], \
+             _patch_stack(perf_repo, threshold_repo)[3]:
+            response = client.get(
+                "/api/v1/performance/btc?models=prophet_fresh"
+            )
+
+        entries = response.json()["entries"]
+        assert len(entries) == 1
+        assert entries[0]["model_name"] == "prophet_fresh"
+
+    def test_models_filters_to_multiple_models(
+        self, client: TestClient
+    ) -> None:
+        """Test that ?models=a,b returns only a and b."""
+        perf_repo = _mock_perf_repo(
+            metrics_rows=[
+                _make_metrics_row(model_name="prophet_fresh"),
+                _make_metrics_row(model_name="xgboost_fresh"),
+                _make_metrics_row(model_name="lightgbm_fresh"),
+            ],
+        )
+        threshold_repo = _mock_threshold_repo()
+
+        with _patch_stack(perf_repo, threshold_repo)[0], \
+             _patch_stack(perf_repo, threshold_repo)[1], \
+             _patch_stack(perf_repo, threshold_repo)[2], \
+             _patch_stack(perf_repo, threshold_repo)[3]:
+            response = client.get(
+                "/api/v1/performance/btc"
+                "?models=prophet_fresh,xgboost_fresh"
+            )
+
+        entries = response.json()["entries"]
+        names = {e["model_name"] for e in entries}
+        assert names == {"prophet_fresh", "xgboost_fresh"}
+
+    def test_models_unknown_names_silently_ignored(
+        self, client: TestClient
+    ) -> None:
+        """Test that unknown model names in ?models= are silently dropped.
+
+        Matches the M6a convention: well-formed unknown names are not
+        errors. The response simply has no entry for them.
+        """
+        perf_repo = _mock_perf_repo(
+            metrics_rows=[_make_metrics_row(model_name="prophet_fresh")],
+        )
+        threshold_repo = _mock_threshold_repo()
+
+        with _patch_stack(perf_repo, threshold_repo)[0], \
+             _patch_stack(perf_repo, threshold_repo)[1], \
+             _patch_stack(perf_repo, threshold_repo)[2], \
+             _patch_stack(perf_repo, threshold_repo)[3]:
+            response = client.get(
+                "/api/v1/performance/btc?models=prophet_fresh,ghost"
+            )
+
+        assert response.status_code == 200
+        entries = response.json()["entries"]
+        assert len(entries) == 1
+        assert entries[0]["model_name"] == "prophet_fresh"
+
+    def test_models_duplicates_deduplicated(
+        self, client: TestClient
+    ) -> None:
+        """Test that ?models=a,a is treated as ?models=a (no 422)."""
+        perf_repo = _mock_perf_repo(
+            metrics_rows=[_make_metrics_row(model_name="prophet_fresh")],
+        )
+        threshold_repo = _mock_threshold_repo()
+
+        with _patch_stack(perf_repo, threshold_repo)[0], \
+             _patch_stack(perf_repo, threshold_repo)[1], \
+             _patch_stack(perf_repo, threshold_repo)[2], \
+             _patch_stack(perf_repo, threshold_repo)[3]:
+            response = client.get(
+                "/api/v1/performance/btc"
+                "?models=prophet_fresh,prophet_fresh"
+            )
+
+        assert response.status_code == 200
+        assert len(response.json()["entries"]) == 1
+
+    def test_models_empty_segment_returns_422(
+        self, client: TestClient
+    ) -> None:
+        """Test that a doubled comma in ?models= returns 422."""
+        response = client.get(
+            "/api/v1/performance/btc?models=a,,b"
+        )
+        assert response.status_code == 422
+
+    def test_models_and_model_name_both_given_models_wins(
+        self, client: TestClient
+    ) -> None:
+        """Test that ?models= wins over ?model_name= when both are given.
+
+        This is a deliberate ergonomic choice: clients shouldn't have
+        to know which parameter to send. The endpoint logs a warning
+        so operators can spot the confusion.
+        """
+        perf_repo = _mock_perf_repo(
+            metrics_rows=[
+                _make_metrics_row(model_name="prophet_fresh"),
+                _make_metrics_row(model_name="xgboost_fresh"),
+            ],
+        )
+        threshold_repo = _mock_threshold_repo()
+
+        with _patch_stack(perf_repo, threshold_repo)[0], \
+             _patch_stack(perf_repo, threshold_repo)[1], \
+             _patch_stack(perf_repo, threshold_repo)[2], \
+             _patch_stack(perf_repo, threshold_repo)[3]:
+            response = client.get(
+                "/api/v1/performance/btc"
+                "?models=prophet_fresh"
+                "&model_name=xgboost_fresh"
+            )
+
+        assert response.status_code == 200
+        entries = response.json()["entries"]
+        # models= wins, so only prophet_fresh appears
+        assert len(entries) == 1
+        assert entries[0]["model_name"] == "prophet_fresh"
+
+    def test_models_whitespace_only_treated_as_unset(
+        self, client: TestClient
+    ) -> None:
+        """Test that ?models=%20 returns every entry (no filter)."""
+        perf_repo = _mock_perf_repo(
+            metrics_rows=[
+                _make_metrics_row(model_name="prophet_fresh"),
+                _make_metrics_row(model_name="xgboost_fresh"),
+            ],
+        )
+        threshold_repo = _mock_threshold_repo()
+
+        with _patch_stack(perf_repo, threshold_repo)[0], \
+             _patch_stack(perf_repo, threshold_repo)[1], \
+             _patch_stack(perf_repo, threshold_repo)[2], \
+             _patch_stack(perf_repo, threshold_repo)[3]:
+            response = client.get(
+                "/api/v1/performance/btc?models=%20"
+            )
+
+        assert response.status_code == 200
+        assert len(response.json()["entries"]) == 2
+
+
+# ============================================================
+# M8 — ?include_history= BEHAVIOR
+# ============================================================
+class TestPerformanceEndpointM8History:
+    """Tests for the ?include_history= opt-in flag (M8)."""
+
+    def test_history_empty_by_default(self, client: TestClient) -> None:
+        """Test that entries have history=[] when the flag is off."""
+        perf_repo = _mock_perf_repo(
+            metrics_rows=[_make_metrics_row()],
+        )
+        threshold_repo = _mock_threshold_repo()
+        model_perf_repo = _mock_model_perf_repo(
+            history_rows=[_make_history_row()]
+        )
+
+        patches = _patch_stack(perf_repo, threshold_repo, model_perf_repo)
+        with patches[0], patches[1], patches[2], patches[3]:
+            response = client.get("/api/v1/performance/btc")
+
+        entry = response.json()["entries"][0]
+        assert entry["history"] == []
+        # History repository was never consulted
+        assert model_perf_repo.fetch_history.call_count == 0
+
+    def test_history_included_when_flag_on(
+        self, client: TestClient
+    ) -> None:
+        """Test that ?include_history=true attaches history to each entry."""
+        now = datetime.now(timezone.utc)
+        perf_repo = _mock_perf_repo(
+            metrics_rows=[_make_metrics_row()],
+        )
+        threshold_repo = _mock_threshold_repo()
+        model_perf_repo = _mock_model_perf_repo(
+            history_rows=[
+                _make_history_row(
+                    mae=100.0,
+                    calculated_at=now - timedelta(days=1),
+                ),
+                _make_history_row(
+                    mae=110.0,
+                    calculated_at=now,
+                ),
+            ]
+        )
+
+        patches = _patch_stack(perf_repo, threshold_repo, model_perf_repo)
+        with patches[0], patches[1], patches[2], patches[3]:
+            response = client.get(
+                "/api/v1/performance/btc?include_history=true"
+            )
+
+        entry = response.json()["entries"][0]
+        assert len(entry["history"]) == 2
+        assert entry["history"][0]["mae"] == 100.0
+        assert entry["history"][1]["mae"] == 110.0
+
+    def test_history_limit_truncates_to_most_recent(
+        self, client: TestClient
+    ) -> None:
+        """Test that ?history_limit=N keeps the most recent N points."""
+        now = datetime.now(timezone.utc)
+        rows = [
+            _make_history_row(
+                mae=float(i),
+                calculated_at=now - timedelta(days=10 - i),
+            )
+            for i in range(10)
+        ]
+        perf_repo = _mock_perf_repo(
+            metrics_rows=[_make_metrics_row()],
+        )
+        threshold_repo = _mock_threshold_repo()
+        model_perf_repo = _mock_model_perf_repo(history_rows=rows)
+
+        patches = _patch_stack(perf_repo, threshold_repo, model_perf_repo)
+        with patches[0], patches[1], patches[2], patches[3]:
+            response = client.get(
+                "/api/v1/performance/btc"
+                "?include_history=true&history_limit=3"
+            )
+
+        entry = response.json()["entries"][0]
+        assert len(entry["history"]) == 3
+        # Most recent three: mae = 7.0, 8.0, 9.0 (ascending order preserved)
+        assert [p["mae"] for p in entry["history"]] == [7.0, 8.0, 9.0]
+
+    def test_history_ordered_ascending_by_calculated_at(
+        self, client: TestClient
+    ) -> None:
+        """Test that history points are returned oldest-first."""
+        now = datetime.now(timezone.utc)
+        perf_repo = _mock_perf_repo(
+            metrics_rows=[_make_metrics_row()],
+        )
+        threshold_repo = _mock_threshold_repo()
+        model_perf_repo = _mock_model_perf_repo(
+            history_rows=[
+                _make_history_row(
+                    mae=100.0,
+                    calculated_at=now - timedelta(days=2),
+                ),
+                _make_history_row(
+                    mae=110.0,
+                    calculated_at=now - timedelta(days=1),
+                ),
+                _make_history_row(
+                    mae=120.0,
+                    calculated_at=now,
+                ),
+            ]
+        )
+
+        patches = _patch_stack(perf_repo, threshold_repo, model_perf_repo)
+        with patches[0], patches[1], patches[2], patches[3]:
+            response = client.get(
+                "/api/v1/performance/btc?include_history=true"
+            )
+
+        entry = response.json()["entries"][0]
+        times = [p["calculated_at"] for p in entry["history"]]
+        assert times == sorted(times)
+        assert [p["mae"] for p in entry["history"]] == [100.0, 110.0, 120.0]
+
+    def test_history_repo_error_is_swallowed(
+        self, client: TestClient
+    ) -> None:
+        """Test that a history fetch error yields history=[] but 200 OK.
+
+        History is opt-in and best-effort. If the underlying query
+        fails, the entry still appears with an empty history and the
+        rest of the response is unaffected.
+        """
+        perf_repo = _mock_perf_repo(
+            metrics_rows=[_make_metrics_row()],
+        )
+        threshold_repo = _mock_threshold_repo()
+        model_perf_repo = _mock_model_perf_repo(
+            history_raises=RuntimeError("history query failed")
+        )
+
+        patches = _patch_stack(perf_repo, threshold_repo, model_perf_repo)
+        with patches[0], patches[1], patches[2], patches[3]:
+            response = client.get(
+                "/api/v1/performance/btc?include_history=true"
+            )
+
+        assert response.status_code == 200
+        entry = response.json()["entries"][0]
+        assert entry["history"] == []
+        # Other fields still populated
+        assert entry["model_name"] == "prophet_fresh"
