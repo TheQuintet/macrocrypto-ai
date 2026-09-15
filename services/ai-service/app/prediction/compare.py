@@ -139,6 +139,7 @@ class StoredComparison:
 def compare_stored_predictions(
     batches: Dict[str, List[Any]],
     best_model: Optional[str] = None,
+    requested_models: Optional[List[str]] = None,
 ) -> StoredComparison:
     """Compare stored prediction batches from multiple models.
 
@@ -157,17 +158,32 @@ def compare_stored_predictions(
             with empty lists are treated as missing.
         best_model: Optional name of the best model (by MAE),
             determined by the caller. Passed through unchanged.
+        requested_models: Optional list of model names the caller
+            asked for. Used to compute `models_missing` correctly
+            when some requested models have no stored predictions
+            (in which case they don't appear in `batches` at all).
+            When None, falls back to the keys of `batches`.
 
     Returns:
         StoredComparison with models_compared, models_missing,
         consensus (ascending by time), agreement_score, best_model,
         and timestamps_compared.
     """
-    requested = list(batches.keys())
+    # The `batches` dict comes from fetch_latest_predictions_batch,
+    # which omits models with no stored rows. To correctly report
+    # "requested but missing" models, we need the caller's full
+    # request list. When it's absent, fall back to the dict keys
+    # (this preserves the old behavior for callers that don't care
+    # about missing-model reporting).
+    requested = (
+        list(requested_models)
+        if requested_models is not None
+        else list(batches.keys())
+    )
     non_empty = {
         name: rows for name, rows in batches.items() if rows
     }
-    empty = [name for name in requested if not batches[name]]
+    empty = [name for name in requested if not batches.get(name)]
 
     if not non_empty:
         logger.info(

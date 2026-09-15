@@ -15,6 +15,7 @@ Test organization:
     - TestFetchLatestForecastDate: MAX query
     - TestFetchLatestMetricsBatch: batch read (T5.5)
     - TestFetchMarketBreakdown: per-condition aggregates (T5.5)
+    - TestFetchBestModelByMae: best-model lookup (M6a)
 """
 
 from datetime import datetime, timedelta, timezone
@@ -599,3 +600,76 @@ class TestFetchMarketBreakdown:
         assert result[0]["rmse"] == 500.25
         assert result[0]["mape"] == 1.05
         assert result[0]["samples"] == 300
+
+
+# ============================================================
+# FETCH BEST MODEL BY MAE (M6a)
+# ============================================================
+class TestFetchBestModelByMae:
+    """Tests for fetch_best_model_by_mae()."""
+
+    @pytest.mark.asyncio
+    async def test_returns_model_name_when_found(self) -> None:
+        """Test that the model name is returned when a row exists."""
+        row = {"model_name": "prophet_fresh", "mean_mae": 100.0}
+
+        session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.mappings.return_value.first.return_value = row
+        session.execute.return_value = mock_result
+
+        repo = PerformanceRepository(session)
+        result = await repo.fetch_best_model_by_mae("24h", days=30)
+
+        assert result == "prophet_fresh"
+
+    @pytest.mark.asyncio
+    async def test_returns_none_when_empty(self) -> None:
+        """Test that None is returned when no MAE data exists."""
+        session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.mappings.return_value.first.return_value = None
+        session.execute.return_value = mock_result
+
+        repo = PerformanceRepository(session)
+        result = await repo.fetch_best_model_by_mae("24h", days=30)
+
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_model_names_filter_does_not_error(self) -> None:
+        """Test that the optional model_names filter works end-to-end."""
+        row = {"model_name": "xgboost_fresh", "mean_mae": 90.0}
+
+        session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.mappings.return_value.first.return_value = row
+        session.execute.return_value = mock_result
+
+        repo = PerformanceRepository(session)
+        result = await repo.fetch_best_model_by_mae(
+            "24h",
+            days=30,
+            model_names=["prophet_fresh", "xgboost_fresh"],
+        )
+
+        assert result == "xgboost_fresh"
+
+    @pytest.mark.asyncio
+    async def test_statement_has_expected_clauses(self) -> None:
+        """Test that the SELECT groups by model and orders by mean MAE."""
+        session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.mappings.return_value.first.return_value = None
+        session.execute.return_value = mock_result
+
+        repo = PerformanceRepository(session)
+        await repo.fetch_best_model_by_mae("24h", days=30)
+
+        stmt = session.execute.call_args.args[0]
+        compiled = str(stmt.compile(compile_kwargs={"literal_binds": True}))
+        assert "prediction_performance.model_name" in compiled
+        assert "avg(prediction_performance.mae)" in compiled
+        assert "GROUP BY prediction_performance.model_name" in compiled
+        assert "ORDER BY avg(prediction_performance.mae) ASC" in compiled
+        assert "LIMIT 1" in compiled

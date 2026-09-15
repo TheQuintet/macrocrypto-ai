@@ -15,10 +15,11 @@ Test organization:
     - TestFetchTrainingFrame: merge + ffill logic
     - TestSavePredictions: bulk insert
     - TestFetchLatestPredictionTime: idempotency helper
+    - TestFetchLatestPredictionsBatch: multi-model batch read (M6a)
 """
 
 from datetime import datetime, timedelta, timezone
-from typing import Any
+from typing import Any, Dict, List
 from unittest.mock import AsyncMock, MagicMock
 
 import pandas as pd
@@ -50,6 +51,26 @@ def _mock_session_returning(rows: list[dict]) -> AsyncMock:
     mock_session.execute.return_value = mock_result
     mock_session.flush = AsyncMock()
     return mock_session
+
+
+def _make_prediction_row(
+    time: datetime,
+    model_name: str,
+    price: float,
+    horizon: str = "24h",
+    confidence: float = 0.85,
+) -> Dict[str, Any]:
+    """Build a dict shaped like a btc_predictions row mapping."""
+    return {
+        "time": time,
+        "prediction_time": time - timedelta(hours=1),
+        "horizon": horizon,
+        "model_name": model_name,
+        "confidence": confidence,
+        "predicted_price": price,
+        "lower_bound": price - 500.0,
+        "upper_bound": price + 500.0,
+    }
 
 
 # ============================================================
@@ -474,3 +495,140 @@ class TestFetchLatestPredictionTime:
         )
 
         assert value is None
+
+
+# ============================================================
+# FETCH LATEST PREDICTIONS BATCH (M6a)
+# ============================================================
+class TestFetchLatestPredictionsBatch:
+    """Tests for fetch_latest_predictions_batch()."""
+
+    @pytest.mark.asyncio
+    async def test_empty_model_names_returns_empty_dict(self) -> None:
+        """Test that empty input short-circuits without hitting the DB."""
+        session = AsyncMock()
+        repo = PredictionRepository(session)
+
+        result = await repo.fetch_latest_predictions_batch(
+            model_names=[],
+            horizon="24h",
+            confidence=0.85,
+        )
+
+        assert result == {}
+        assert session.execute.call_count == 0
+
+    @pytest.mark.asyncio
+    async def test_returns_dict_keyed_by_model(self) -> None:
+        """Test that the result is keyed by model name."""
+        t0 = datetime(2026, 9, 14, 12, 0, tzinfo=timezone.utc)
+
+        # Query 1: latest prediction_time per model
+        latest_rows = [
+            {"model_name": "prophet", "latest_ts": t0},
+            {"model_name": "xgboost_fresh", "latest_ts": t0},
+        ]
+        # Query 2: all rows in those batches
+        batch_rows = [
+            _make_prediction_row(t0, "prophet", 50_000.0),
+            _make_prediction_row(t0, "xgboost_fresh", 50_100.0),
+        ]
+
+        mock_result_latest = MagicMock()
+        mock_result_latest.mappings.return_value.all.return_value = latest_rows
+
+        mock_result_batch = MagicMock()
+        mock_result_batch.mappings.return_value.all.return_value = batch_rows
+
+        session = AsyncMock()
+        session.execute.side_effect = [mock_result_latest, mock_result_batch]
+
+        repo = PredictionRepository(session)
+        result = await repo.fetch_latest_predictions_batch(
+            model_names=["prophet", "xgboost_fresh"],
+            horizon="24h",
+            confidence=0.85,
+        )
+
+        assert set(result.keys()) == {"prophet", "xgboost_fresh"}
+        assert len(result["prophet"]) == 1
+        assert len(result["xgboost_fresh"]) == 1
+
+    @pytest.mark.asyncio
+    async def test_missing_model_omitted(self) -> None:
+        """Test that a requested model with no rows is not a key."""
+        t0 = datetime(2026, 9, 14, 12, 0, tzinfo=timezone.utc)
+        latest_rows = [{"model_name": "prophet", "latest_ts": t0}]
+        batch_rows = [
+            _make_prediction_row(t0, "prophet", 50_000.0),
+        ]
+
+        mock_result_latest = MagicMock()
+        mock_result_latest.mappings.return_value.all.return_value = latest_rows
+        mock_result_batch = MagicMock()
+        mock_result_batch.mappings.return_value.all.return_value = batch_rows
+
+        session = AsyncMock()
+        session.execute.side_effect = [mock_result_latest, mock_result_batch]
+
+        repo = PredictionRepository(session)
+        result = await repo.fetch_latest_predictions_batch(
+            model_names=["prophet", "ghost"],
+            horizon="24h",
+            confidence=0.85,
+        )
+
+        assert "prophet" in result
+        assert "ghost" not in result
+
+    @pytest.mark.asyncio
+    async def test_no_latest_batches_returns_empty(self) -> None:
+        """Test that no models with data yields an empty dict."""
+        mock_result_latest = MagicMock()
+        mock_result_latest.mappings.return_value.all.return_value = []
+
+        session = AsyncMock()
+        session.execute.return_value = mock_result_latest
+
+        repo = PredictionRepository(session)
+        result = await repo.fetch_latest_predictions_batch(
+            model_names=["prophet", "xgboost_fresh"],
+            horizon="24h",
+            confidence=0.85,
+        )
+
+        assert result == {}
+        # Only one query issued (the "latest" one); no second query
+        # when there's nothing to fetch.
+        assert session.execute.call_count == 1
+
+    @pytest.mark.asyncio
+    async def test_rows_grouped_by_model(self) -> None:
+        """Test that multiple rows for the same model are grouped."""
+        t0 = datetime(2026, 9, 14, 12, 0, tzinfo=timezone.utc)
+        t1 = t0 + timedelta(hours=1)
+
+        latest_rows = [{"model_name": "prophet", "latest_ts": t0}]
+        batch_rows = [
+            _make_prediction_row(t0, "prophet", 50_000.0),
+            _make_prediction_row(t1, "prophet", 50_100.0),
+        ]
+
+        mock_result_latest = MagicMock()
+        mock_result_latest.mappings.return_value.all.return_value = latest_rows
+        mock_result_batch = MagicMock()
+        mock_result_batch.mappings.return_value.all.return_value = batch_rows
+
+        session = AsyncMock()
+        session.execute.side_effect = [mock_result_latest, mock_result_batch]
+
+        repo = PredictionRepository(session)
+        result = await repo.fetch_latest_predictions_batch(
+            model_names=["prophet"],
+            horizon="24h",
+            confidence=0.85,
+        )
+
+        assert len(result["prophet"]) == 2
+        assert result["prophet"][0].time == t0
+        assert result["prophet"][1].time == t1
