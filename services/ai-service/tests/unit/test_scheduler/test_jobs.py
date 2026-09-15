@@ -1819,3 +1819,10 @@ class TestJobConstants:
             JOB_DAILY_MULTI_MODEL_PREDICTIONS
             == "daily_multi_model_predictions"
         )
+    
+    def test_daily_model_performance_aggregation_job_name(self) -> None:
+        """Test that JOB_DAILY_MODEL_PERFORMANCE_AGGREGATION is correct."""
+        assert (
+            JOB_DAILY_MODEL_PERFORMANCE_AGGREGATION
+            == "daily_model_performance_aggregation"
+        )
