@@ -1,11 +1,14 @@
 """Unit tests for app.correlation.calculator.
 
 Covers:
-    - pearson_correlation(): happy paths, edge cases, boundaries
+    - pearson_correlation(): happy paths, edge cases, boundaries,
+      and the A1.4 p-value return value
     - classify_strength(): threshold boundaries
     - classify_direction(): sign boundaries
     - strength_color(): label → color mapping (A1.3)
     - direction_arrow(): label → arrow mapping (A1.3)
+    - derive_significance(): significance rule (A1.4)
+    - confidence_from_p_value(): p-value → confidence (A1.4)
     - resample_btc_to_daily(): column naming, dedup, sorting
     - CalculationResult: dataclass behavior
     - CorrelationCalculator: construction guards, run() paths,
@@ -27,12 +30,15 @@ from app.correlation.calculator import (
     INDICATOR_SOURCE_COLUMNS,
     MEDIUM_THRESHOLD,
     MIN_SAMPLES,
+    SIGNIFICANCE_THRESHOLD,
     STRONG_THRESHOLD,
     WINDOWS,
     CalculationResult,
     CorrelationCalculator,
     classify_direction,
     classify_strength,
+    confidence_from_p_value,
+    derive_significance,
     direction_arrow,
     pearson_correlation,
     resample_btc_to_daily,
@@ -163,106 +169,141 @@ class TestPearsonCorrelation:
     """Tests for pearson_correlation()."""
 
     def test_perfect_positive(self) -> None:
-        """Perfectly co-linear increasing series → coefficient 1."""
-        coefficient, n = pearson_correlation(
+        """Perfectly co-linear increasing series → coefficient 1, p-value 0."""
+        coefficient, p_value, n = pearson_correlation(
             [1, 2, 3, 4, 5], [2, 4, 6, 8, 10]
         )
         assert coefficient == pytest.approx(1.0)
+        assert p_value == pytest.approx(0.0)
         assert n == 5
 
     def test_perfect_negative(self) -> None:
         """Perfectly co-linear decreasing series → coefficient -1."""
-        coefficient, n = pearson_correlation(
+        coefficient, p_value, n = pearson_correlation(
             [1, 2, 3, 4, 5], [10, 8, 6, 4, 2]
         )
         assert coefficient == pytest.approx(-1.0)
+        assert p_value == pytest.approx(0.0)
         assert n == 5
 
+    def test_moderate_correlation(self) -> None:
+        """A moderate positive correlation returns a small p-value."""
+        coefficient, p_value, n = pearson_correlation(
+            [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+            [2, 4, 5, 4, 5, 7, 8, 9, 10, 12],
+        )
+        assert coefficient is not None
+        assert coefficient > 0
+        assert p_value is not None
+        assert 0.0 <= p_value <= 1.0
+        assert n == 10
+
     def test_no_correlation(self) -> None:
-        """A constant series has zero variance → None."""
-        # Note: we can't easily construct "true zero correlation" with
-        # small integers without luck; use a case we know returns None.
-        coefficient, n = pearson_correlation(
+        """A constant series has zero variance → None, None."""
+        coefficient, p_value, n = pearson_correlation(
             [1, 1, 1, 1, 1], [1, 2, 3, 4, 5]
         )
         assert coefficient is None
+        assert p_value is None
         assert n == 5
 
     def test_mismatched_lengths(self) -> None:
-        """Different-length series → None with n=0."""
-        coefficient, n = pearson_correlation([1, 2, 3], [1, 2])
+        """Different-length series → None, None, 0."""
+        coefficient, p_value, n = pearson_correlation([1, 2, 3], [1, 2])
         assert coefficient is None
+        assert p_value is None
         assert n == 0
 
     def test_none_input(self) -> None:
-        """None input → None with n=0."""
-        coefficient, n = pearson_correlation(None, [1, 2, 3])
+        """None input → None, None, 0."""
+        coefficient, p_value, n = pearson_correlation(None, [1, 2, 3])
         assert coefficient is None
+        assert p_value is None
         assert n == 0
 
     def test_too_few_samples(self) -> None:
-        """Below MIN_SAMPLES → None with n=len."""
+        """Below MIN_SAMPLES → None, None, n."""
         assert MIN_SAMPLES == 3
-        coefficient, n = pearson_correlation([1, 2], [1, 2])
+        coefficient, p_value, n = pearson_correlation([1, 2], [1, 2])
         assert coefficient is None
+        assert p_value is None
         assert n == 2
 
     def test_exactly_min_samples(self) -> None:
-        """Exactly MIN_SAMPLES → coefficient computed."""
-        coefficient, n = pearson_correlation(
+        """Exactly MIN_SAMPLES → coefficient and p-value computed."""
+        coefficient, p_value, n = pearson_correlation(
             [1, 2, 3], [2, 4, 6]
         )
         assert coefficient == pytest.approx(1.0)
+        assert p_value is not None
+        assert 0.0 <= p_value <= 1.0
         assert n == 3
 
     def test_zero_variance_x(self) -> None:
-        """Constant x → None."""
-        coefficient, n = pearson_correlation(
+        """Constant x → None, None."""
+        coefficient, p_value, n = pearson_correlation(
             [5, 5, 5, 5], [1, 2, 3, 4]
         )
         assert coefficient is None
+        assert p_value is None
         assert n == 4
 
     def test_zero_variance_y(self) -> None:
-        """Constant y → None."""
-        coefficient, n = pearson_correlation(
+        """Constant y → None, None."""
+        coefficient, p_value, n = pearson_correlation(
             [1, 2, 3, 4], [5, 5, 5, 5]
         )
         assert coefficient is None
+        assert p_value is None
         assert n == 4
 
     def test_nan_in_x(self) -> None:
-        """NaN in x → None."""
-        coefficient, n = pearson_correlation(
+        """NaN in x → None, None."""
+        coefficient, p_value, n = pearson_correlation(
             [1, 2, float("nan"), 4], [1, 2, 3, 4]
         )
         assert coefficient is None
+        assert p_value is None
         assert n == 4
 
     def test_nan_in_y(self) -> None:
-        """NaN in y → None."""
-        coefficient, n = pearson_correlation(
+        """NaN in y → None, None."""
+        coefficient, p_value, n = pearson_correlation(
             [1, 2, 3, 4], [1, 2, float("nan"), 4]
         )
         assert coefficient is None
+        assert p_value is None
         assert n == 4
 
     def test_inf_in_x(self) -> None:
-        """Infinity in x → None."""
-        coefficient, n = pearson_correlation(
+        """Infinity in x → None, None."""
+        coefficient, p_value, n = pearson_correlation(
             [1, 2, float("inf"), 4], [1, 2, 3, 4]
         )
         assert coefficient is None
+        assert p_value is None
         assert n == 4
 
     def test_coefficient_bounded(self) -> None:
         """Result is always in [-1, 1] even with floating-point drift."""
-        coefficient, _ = pearson_correlation(
+        coefficient, p_value, _ = pearson_correlation(
             [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
             [1, 4, 9, 16, 25, 36, 49, 64, 81, 100],
         )
         assert coefficient is not None
         assert -1.0 <= coefficient <= 1.0
+        assert p_value is not None
+        assert 0.0 <= p_value <= 1.0
+
+    def test_p_value_is_in_unit_interval(self) -> None:
+        """The p-value is always in [0, 1] when defined."""
+        coefficient, p_value, _ = pearson_correlation(
+            [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+            [5, 3, 6, 2, 8, 4, 9, 1, 7, 10],
+        )
+        assert coefficient is not None
+        assert p_value is not None
+        assert 0.0 <= p_value <= 1.0
 
 
 # ============================================================
@@ -421,6 +462,89 @@ class TestDirectionArrow:
         assert direction_arrow(classify_direction(0.5)) == "↑"
         assert direction_arrow(classify_direction(-0.5)) == "↓"
         assert direction_arrow(classify_direction(0.0)) == "↑"
+
+
+# ============================================================
+# PURE: derive_significance (A1.4)
+# ============================================================
+class TestDeriveSignificance:
+    """Tests for derive_significance()."""
+
+    def test_none_is_not_significant(self) -> None:
+        """None p-value → False (no evidence without a p-value)."""
+        assert derive_significance(None) is False
+
+    def test_zero_is_significant(self) -> None:
+        """p_value == 0 → True (perfectly significant)."""
+        assert derive_significance(0.0) is True
+
+    def test_below_threshold_is_significant(self) -> None:
+        """p_value < 0.05 → True."""
+        assert derive_significance(0.001) is True
+        assert derive_significance(0.01) is True
+        assert derive_significance(0.04) is True
+        assert derive_significance(0.049) is True
+
+    def test_exactly_at_threshold_is_not_significant(self) -> None:
+        """p_value == 0.05 → False (strictly below the threshold)."""
+        assert derive_significance(0.05) is False
+
+    def test_above_threshold_is_not_significant(self) -> None:
+        """p_value > 0.05 → False."""
+        assert derive_significance(0.051) is False
+        assert derive_significance(0.1) is False
+        assert derive_significance(0.5) is False
+        assert derive_significance(1.0) is False
+
+
+# ============================================================
+# PURE: confidence_from_p_value (A1.4)
+# ============================================================
+class TestConfidenceFromPValue:
+    """Tests for confidence_from_p_value()."""
+
+    def test_none_returns_none(self) -> None:
+        """None p-value → None confidence."""
+        assert confidence_from_p_value(None) is None
+
+    def test_p_value_of_005_is_95_percent(self) -> None:
+        """p_value == 0.05 → 95.0 (the conventional threshold)."""
+        assert confidence_from_p_value(0.05) == pytest.approx(95.0)
+
+    def test_p_value_of_001_is_99_percent(self) -> None:
+        """p_value == 0.01 → 99.0."""
+        assert confidence_from_p_value(0.01) == pytest.approx(99.0)
+
+    def test_p_value_of_zero_is_100_percent(self) -> None:
+        """p_value == 0 → 100.0."""
+        assert confidence_from_p_value(0.0) == pytest.approx(100.0)
+
+    def test_p_value_of_one_is_zero_percent(self) -> None:
+        """p_value == 1 → 0.0."""
+        assert confidence_from_p_value(1.0) == pytest.approx(0.0)
+
+    def test_returns_percentage(self) -> None:
+        """The result is a percentage, not a fraction."""
+        # 0.03 → 97.0, not 0.97
+        assert confidence_from_p_value(0.03) == pytest.approx(97.0)
+
+
+# ============================================================
+# PURE: significance threshold constant
+# ============================================================
+class TestSignificanceThreshold:
+    """Tests for the SIGNIFICANCE_THRESHOLD constant."""
+
+    def test_value(self) -> None:
+        """The threshold is 0.05."""
+        assert SIGNIFICANCE_THRESHOLD == 0.05
+
+    def test_is_used_by_derive_significance(self) -> None:
+        """derive_significance uses SIGNIFICANCE_THRESHOLD as its boundary."""
+        # Just below, exactly at, and just above the threshold
+        assert derive_significance(SIGNIFICANCE_THRESHOLD - 0.001) is True
+        assert derive_significance(SIGNIFICANCE_THRESHOLD) is False
+        assert derive_significance(SIGNIFICANCE_THRESHOLD + 0.001) is False
 
 
 # ============================================================
@@ -648,7 +772,7 @@ class TestCalculatorRunHappyPath:
 
     @pytest.mark.asyncio
     async def test_rows_have_expected_fields(self) -> None:
-        """Built rows have expected fields, shared calculated_at, None p_value."""
+        """Built rows have expected fields, shared calculated_at, real p_value."""
         btc = _hourly_btc_frame(days=400)
         macro = _daily_macro_frame(days=400)
         pred_repo = _mock_prediction_repo(btc, macro)
@@ -669,7 +793,9 @@ class TestCalculatorRunHappyPath:
             assert row.window_days in (30, 90, 365)
             assert row.strength in ("strong", "medium", "weak")
             assert row.direction in ("positive", "negative")
-            assert row.p_value is None
+            # A1.4: the p-value is a real float now, not None
+            assert row.p_value is not None
+            assert 0.0 <= row.p_value <= 1.0
             assert -1.0 <= row.correlation_coefficient <= 1.0
 
     @pytest.mark.asyncio
@@ -1068,7 +1194,7 @@ class TestComputeOne:
         assert "macro_column_missing" in skipped[0]["reason"]
 
     def test_happy_path_returns_correlation_row(self) -> None:
-        """A well-formed pair returns a CorrelationRow."""
+        """A well-formed pair returns a CorrelationRow with a real p-value."""
         calc = CorrelationCalculator(None, None)
         skipped: List[Dict[str, Any]] = []
         n = 40
@@ -1101,5 +1227,7 @@ class TestComputeOne:
         assert -1.0 <= row.correlation_coefficient <= 1.0
         assert row.strength in ("strong", "medium", "weak")
         assert row.direction in ("positive", "negative")
-        assert row.p_value is None
+        # A1.4: the calculator now writes a real p-value
+        assert row.p_value is not None
+        assert 0.0 <= row.p_value <= 1.0
         assert skipped == []

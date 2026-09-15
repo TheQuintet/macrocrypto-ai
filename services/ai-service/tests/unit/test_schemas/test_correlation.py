@@ -3,7 +3,8 @@
 Covers:
     - CorrelationEntry: field shapes, defaults, serialization,
       the color and arrow fields populated from the calculator
-      helpers, and the OpenAPI example.
+      helpers, the A1.4 significance and confidence fields, and
+      the OpenAPI example.
     - CorrelationErrorResponse: shape and defaults.
 
 No I/O — these tests only exercise the Pydantic models.
@@ -17,6 +18,8 @@ from pydantic import ValidationError
 from app.correlation.calculator import (
     classify_direction,
     classify_strength,
+    confidence_from_p_value,
+    derive_significance,
     direction_arrow,
     strength_color,
 )
@@ -40,6 +43,8 @@ def _make_entry(**overrides) -> CorrelationEntry:
         direction="negative",
         direction_arrow="↓",
         p_value=0.03,
+        is_significant=True,
+        confidence_level=97.0,
         calculated_at=datetime.now(timezone.utc),
     )
     defaults.update(overrides)
@@ -63,6 +68,8 @@ class TestCorrelationEntry:
         assert entry.direction == "negative"
         assert entry.direction_arrow == "↓"
         assert entry.p_value == 0.03
+        assert entry.is_significant is True
+        assert entry.confidence_level == 97.0
 
     def test_p_value_default_is_none(self) -> None:
         """p_value defaults to None when omitted."""
@@ -78,8 +85,36 @@ class TestCorrelationEntry:
         )
         assert entry.p_value is None
 
+    def test_is_significant_default_is_false(self) -> None:
+        """is_significant defaults to False when omitted."""
+        entry = CorrelationEntry(
+            indicator_name="rates",
+            window_days=30,
+            correlation_coefficient=0.5,
+            strength="medium",
+            strength_color="yellow",
+            direction="positive",
+            direction_arrow="↑",
+            calculated_at=datetime.now(timezone.utc),
+        )
+        assert entry.is_significant is False
+
+    def test_confidence_level_default_is_none(self) -> None:
+        """confidence_level defaults to None when omitted."""
+        entry = CorrelationEntry(
+            indicator_name="rates",
+            window_days=30,
+            correlation_coefficient=0.5,
+            strength="medium",
+            strength_color="yellow",
+            direction="positive",
+            direction_arrow="↑",
+            calculated_at=datetime.now(timezone.utc),
+        )
+        assert entry.confidence_level is None
+
     def test_model_dump_keys(self) -> None:
-        """model_dump returns every field."""
+        """model_dump returns every field, including the A1.4 additions."""
         entry = _make_entry()
         d = entry.model_dump()
         expected = {
@@ -91,6 +126,8 @@ class TestCorrelationEntry:
             "direction",
             "direction_arrow",
             "p_value",
+            "is_significant",
+            "confidence_level",
             "calculated_at",
         }
         assert set(d.keys()) == expected
@@ -178,6 +215,52 @@ class TestCorrelationEntry:
         assert entry.direction == "negative"
         assert entry.direction_arrow == "↓"
 
+    def test_integration_with_significance_helpers(self) -> None:
+        """The is_significant and confidence_level fields can be populated
+        from the A1.4 helpers.
+
+        Locks in the intended usage: the API layer (A1.6) will build a
+        CorrelationEntry from a stored row by calling
+        derive_significance() and confidence_from_p_value() on the
+        stored p-value.
+        """
+        p_value = 0.03
+        entry = CorrelationEntry(
+            indicator_name="inflation",
+            window_days=90,
+            correlation_coefficient=-0.42,
+            strength="medium",
+            strength_color="yellow",
+            direction="negative",
+            direction_arrow="↓",
+            p_value=p_value,
+            is_significant=derive_significance(p_value),
+            confidence_level=confidence_from_p_value(p_value),
+            calculated_at=datetime.now(timezone.utc),
+        )
+
+        assert entry.is_significant is True
+        assert entry.confidence_level == pytest.approx(97.0)
+
+    def test_integration_with_none_p_value(self) -> None:
+        """When p_value is None, is_significant is False and confidence is None."""
+        entry = CorrelationEntry(
+            indicator_name="inflation",
+            window_days=90,
+            correlation_coefficient=-0.42,
+            strength="medium",
+            strength_color="yellow",
+            direction="negative",
+            direction_arrow="↓",
+            p_value=None,
+            is_significant=derive_significance(None),
+            confidence_level=confidence_from_p_value(None),
+            calculated_at=datetime.now(timezone.utc),
+        )
+
+        assert entry.is_significant is False
+        assert entry.confidence_level is None
+
     def test_openapi_example_is_valid(self) -> None:
         """The embedded JSON example in model_config is a valid entry."""
         example = CorrelationEntry.model_config["json_schema_extra"][
@@ -188,6 +271,9 @@ class TestCorrelationEntry:
         assert entry.indicator_name == "inflation"
         assert entry.strength_color == "yellow"
         assert entry.direction_arrow == "↓"
+        # A1.4 additions in the example
+        assert entry.is_significant is True
+        assert entry.confidence_level == pytest.approx(97.0)
 
 
 # ============================================================
