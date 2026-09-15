@@ -157,3 +157,71 @@ export type RegimeTimelineSegment = {
   startMs: number
   endMs: number
 }
+
+/** BTC over a similar historical window, when history reaches back that far. */
+export type SimilarPeriodBtcResponse = {
+  price_start: number
+  price_end: number
+  return_percent: number
+  observations: number
+}
+
+export type SimilarPeriodMatchingIndicatorResponse = {
+  indicator: string
+  normalized_difference: number
+}
+
+/** One entry of GET /api/v1/regimes/history/similar-periods. */
+export type SimilarPeriodResponse = {
+  period_start: string
+  period_end: string
+  distance: number
+  similarity_score: number
+  reason: string
+  matching_indicators: SimilarPeriodMatchingIndicatorResponse[]
+  macro_conditions: Record<string, number>
+  btc_performance: SimilarPeriodBtcResponse | null
+}
+
+export type SimilarPeriodsApiResponse = {
+  current_conditions: Record<string, number>
+  method: string
+  period_count: number
+  similar_periods: SimilarPeriodResponse[]
+  message?: string | null
+}
+
+export type SimilarPeriodBtc = {
+  priceStart: number
+  priceEnd: number
+  returnPercent: number
+  observations: number
+}
+
+export type SimilarPeriodMatchingIndicator = {
+  indicator: string
+  normalizedDifference: number
+}
+
+export type SimilarPeriod = {
+  /** Stable key for lists — the service does not send an id. */
+  id: string
+  periodStart: string
+  periodEnd: string
+  distance: number
+  /** 0–100 confidence in the match. */
+  similarityScore: number
+  reason: string
+  matchingIndicators: SimilarPeriodMatchingIndicator[]
+  macroConditions: Record<string, number>
+  btcPerformance: SimilarPeriodBtc | null
+}
+
+export type SimilarPeriods = {
+  source: RegimeSource
+  /** How the service found these — shown so the reader can judge them. */
+  method: string
+  currentConditions: Record<string, number>
+  periods: SimilarPeriod[]
+  message: string | null
+}

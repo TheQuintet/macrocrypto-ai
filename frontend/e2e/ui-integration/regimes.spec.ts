@@ -7,6 +7,12 @@ import {
 } from './priceDisplay.specHelpers'
 import {
   clickFirstSegment,
+  clickFirstSimilarPeriod,
+  exportRegimeCsv,
+  expectExportToast,
+  expectSimilarPeriodCards,
+  expectSimilarPeriodConfidence,
+  expectSimilarPeriodDialog,
   closeDialog,
   expectBandWidensWithoutBreakingLayout,
   expectCurrentRegimeBadged,
@@ -125,6 +131,47 @@ test.describe('macro regime UI integration', () => {
     await goToRoute(page, 'dashboard')
 
     await expectRegimeCardClassified(page)
+    await expectNoHorizontalScroll(page)
+  })
+
+  test('performance page suggests similar historical periods with a confidence', async ({
+    page,
+  }) => {
+    await goToRoute(page, 'regimePerformance')
+
+    await expectSimilarPeriodCards(page, 2)
+    await expectSimilarPeriodConfidence(page)
+  })
+
+  test('clicking a similar period compares its conditions against today', async ({
+    page,
+  }) => {
+    await goToRoute(page, 'regimePerformance')
+
+    await expectSimilarPeriodCards(page, 1)
+    await clickFirstSimilarPeriod(page)
+    await expectSimilarPeriodDialog(page)
+  })
+
+  test('exporting regime data hands over a dated CSV', async ({ page }) => {
+    await goToRoute(page, 'regimePerformance')
+
+    await expectPerformanceRows(page, 2)
+    const download = await exportRegimeCsv(page)
+
+    test
+      .expect(download.suggestedFilename())
+      .toMatch(/^regime-performance-\d{4}-\d{2}-\d{2}\.csv$/)
+    await expectExportToast(page)
+  })
+
+  test('similar periods fit a phone without sideways scroll', async ({
+    page,
+  }) => {
+    await page.setViewportSize(MOBILE_VIEWPORT)
+    await goToRoute(page, 'regimePerformance')
+
+    await expectSimilarPeriodCards(page, 2)
     await expectNoHorizontalScroll(page)
   })
 })
