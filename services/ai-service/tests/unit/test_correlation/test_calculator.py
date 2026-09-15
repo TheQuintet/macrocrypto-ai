@@ -4,6 +4,8 @@ Covers:
     - pearson_correlation(): happy paths, edge cases, boundaries
     - classify_strength(): threshold boundaries
     - classify_direction(): sign boundaries
+    - strength_color(): label → color mapping (A1.3)
+    - direction_arrow(): label → arrow mapping (A1.3)
     - resample_btc_to_daily(): column naming, dedup, sorting
     - CalculationResult: dataclass behavior
     - CorrelationCalculator: construction guards, run() paths,
@@ -31,8 +33,10 @@ from app.correlation.calculator import (
     CorrelationCalculator,
     classify_direction,
     classify_strength,
+    direction_arrow,
     pearson_correlation,
     resample_btc_to_daily,
+    strength_color,
 )
 
 
@@ -321,6 +325,102 @@ class TestClassifyDirection:
     def test_zero_is_positive(self) -> None:
         """Coefficient exactly 0 → positive (>= 0)."""
         assert classify_direction(0.0) == "positive"
+
+
+# ============================================================
+# PURE: strength_color (A1.3)
+# ============================================================
+class TestStrengthColor:
+    """Tests for strength_color()."""
+
+    def test_strong_is_green(self) -> None:
+        """'strong' maps to 'green'."""
+        assert strength_color("strong") == "green"
+
+    def test_medium_is_yellow(self) -> None:
+        """'medium' maps to 'yellow'."""
+        assert strength_color("medium") == "yellow"
+
+    def test_weak_is_red(self) -> None:
+        """'weak' maps to 'red'."""
+        assert strength_color("weak") == "red"
+
+    def test_unknown_label_raises(self) -> None:
+        """An unknown label raises ValueError."""
+        with pytest.raises(ValueError, match="Unknown strength label"):
+            strength_color("enormous")
+
+    def test_empty_string_raises(self) -> None:
+        """An empty string raises ValueError."""
+        with pytest.raises(ValueError, match="Unknown strength label"):
+            strength_color("")
+
+    def test_case_sensitive(self) -> None:
+        """Labels are case-sensitive — 'Strong' is not 'strong'."""
+        with pytest.raises(ValueError, match="Unknown strength label"):
+            strength_color("Strong")
+
+    def test_covers_all_strength_labels(self) -> None:
+        """Every label produced by classify_strength has a color."""
+        for label in ("strong", "medium", "weak"):
+            color = strength_color(label)
+            assert color in ("green", "yellow", "red")
+
+    def test_pairs_with_classify_strength(self) -> None:
+        """The output of classify_strength feeds directly into strength_color."""
+        # A few representative coefficients
+        for coefficient, expected_color in [
+            (0.9, "green"),
+            (-0.9, "green"),
+            (0.5, "yellow"),
+            (-0.5, "yellow"),
+            (0.1, "red"),
+            (-0.1, "red"),
+        ]:
+            label = classify_strength(coefficient)
+            assert strength_color(label) == expected_color
+
+
+# ============================================================
+# PURE: direction_arrow (A1.3)
+# ============================================================
+class TestDirectionArrow:
+    """Tests for direction_arrow()."""
+
+    def test_positive_is_up_arrow(self) -> None:
+        """'positive' maps to '↑'."""
+        assert direction_arrow("positive") == "↑"
+
+    def test_negative_is_down_arrow(self) -> None:
+        """'negative' maps to '↓'."""
+        assert direction_arrow("negative") == "↓"
+
+    def test_unknown_label_raises(self) -> None:
+        """An unknown label raises ValueError."""
+        with pytest.raises(ValueError, match="Unknown direction label"):
+            direction_arrow("neutral")
+
+    def test_empty_string_raises(self) -> None:
+        """An empty string raises ValueError."""
+        with pytest.raises(ValueError, match="Unknown direction label"):
+            direction_arrow("")
+
+    def test_case_sensitive(self) -> None:
+        """Labels are case-sensitive — 'Positive' is not 'positive'."""
+        with pytest.raises(ValueError, match="Unknown direction label"):
+            direction_arrow("Positive")
+
+    def test_covers_all_direction_labels(self) -> None:
+        """Every label produced by classify_direction has an arrow."""
+        for label in ("positive", "negative"):
+            arrow = direction_arrow(label)
+            assert arrow in ("↑", "↓")
+
+    def test_pairs_with_classify_direction(self) -> None:
+        """The output of classify_direction feeds directly into direction_arrow."""
+        assert direction_arrow(classify_direction(0.5)) == "↑"
+        assert direction_arrow(classify_direction(-0.5)) == "↓"
+        assert direction_arrow(classify_direction(0.0)) == "↑"
 
 
 # ============================================================

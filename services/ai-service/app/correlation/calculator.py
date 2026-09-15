@@ -42,8 +42,15 @@ Strength/direction thresholds:
     A1.3 owns the exact thresholds. The implementations of
     `classify_strength` and `classify_direction` in this module are
     the canonical source for the thresholds. Callers should not
-    reimplement the classification. When A1.3 lands, only these
-    two functions change.
+    reimplement the classification.
+
+Presentation layer (A1.3):
+    `strength_color` and `direction_arrow` translate the labels
+    produced by `classify_strength` and `classify_direction` into
+    the visual hints the API and export layers expose (colors and
+    arrows). Both functions reject unknown labels with a ValueError
+    so a mismatch between classification and presentation cannot be
+    silently wrong.
 """
 
 import logging
@@ -268,6 +275,73 @@ def classify_direction(coefficient: float) -> str:
         One of "positive", "negative".
     """
     return "positive" if coefficient >= 0 else "negative"
+
+
+def strength_color(strength: str) -> str:
+    """Translate a strength label into its display color.
+
+    Mapping (per A1.3):
+        - "strong" → "green"
+        - "medium" → "yellow"
+        - "weak"   → "red"
+
+    The input must be a label produced by `classify_strength`. This
+    function raises ValueError for anything else, so a mismatch
+    between classification and presentation cannot silently produce
+    a wrong color.
+
+    Args:
+        strength: One of "strong", "medium", "weak".
+
+    Returns:
+        One of "green", "yellow", "red".
+
+    Raises:
+        ValueError: If strength is not a recognized label.
+    """
+    if strength == "strong":
+        return "green"
+    if strength == "medium":
+        return "yellow"
+    if strength == "weak":
+        return "red"
+
+    raise ValueError(
+        f"Unknown strength label '{strength}'. "
+        f"Expected one of 'strong', 'medium', 'weak'."
+    )
+
+
+def direction_arrow(direction: str) -> str:
+    """Translate a direction label into its display arrow.
+
+    Mapping (per A1.3):
+        - "positive" → "↑"
+        - "negative" → "↓"
+
+    The input must be a label produced by `classify_direction`. This
+    function raises ValueError for anything else, so a mismatch
+    between classification and presentation cannot silently produce
+    a wrong arrow.
+
+    Args:
+        direction: One of "positive", "negative".
+
+    Returns:
+        One of "↑", "↓".
+
+    Raises:
+        ValueError: If direction is not a recognized label.
+    """
+    if direction == "positive":
+        return "↑"
+    if direction == "negative":
+        return "↓"
+
+    raise ValueError(
+        f"Unknown direction label '{direction}'. "
+        f"Expected one of 'positive', 'negative'."
+    )
 
 
 def resample_btc_to_daily(btc_df: pd.DataFrame) -> pd.DataFrame:
