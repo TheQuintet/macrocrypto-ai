@@ -26,6 +26,12 @@
   --color-indicator-cpi: var(--indicator-cpi);
   --color-indicator-federal-funds-rate: var(--indicator-federal-funds-rate);
   --color-indicator-gdp: var(--indicator-gdp);
+  --color-regime-growth: var(--regime-growth);
+  --color-regime-low-inflation: var(--regime-low-inflation);
+  --color-regime-falling-rates: var(--regime-falling-rates);
+  --color-regime-rising-rates: var(--regime-rising-rates);
+  --color-regime-high-inflation: var(--regime-high-inflation);
+  --color-regime-recession: var(--regime-recession);
   --color-ring: var(--ring);
   --color-input: var(--input);
   --color-border: var(--border);
@@ -108,6 +114,15 @@
   --indicator-federal-funds-rate: var(--warning);
   --indicator-gdp: oklch(0.66 0.16 300);
 
+  /* Regime series — ordered by stance, so hue carries meaning as well as
+     identity: bullish classes sit in green/teal, bearish in amber/red. */
+  --regime-growth: oklch(0.58 0.12 155);
+  --regime-low-inflation: oklch(0.6 0.09 180);
+  --regime-falling-rates: oklch(0.62 0.08 205);
+  --regime-rising-rates: oklch(0.68 0.13 65);
+  --regime-high-inflation: oklch(0.63 0.16 40);
+  --regime-recession: oklch(0.56 0.2 25);
+
   --sidebar: oklch(0.975 0.003 220);
   --sidebar-foreground: oklch(0.28 0.012 240);
   --sidebar-primary: oklch(0.52 0.083 194);
@@ -179,6 +194,13 @@
   --indicator-cpi: var(--chart-1);
   --indicator-federal-funds-rate: var(--warning);
   --indicator-gdp: oklch(0.74 0.14 300);
+
+  --regime-growth: oklch(0.72 0.13 155);
+  --regime-low-inflation: oklch(0.74 0.1 180);
+  --regime-falling-rates: oklch(0.74 0.09 205);
+  --regime-rising-rates: oklch(0.78 0.13 65);
+  --regime-high-inflation: oklch(0.72 0.15 40);
+  --regime-recession: oklch(0.68 0.18 25);
 
   --sidebar: oklch(0.195 0.007 240);
   --sidebar-foreground: oklch(0.9 0.004 220);

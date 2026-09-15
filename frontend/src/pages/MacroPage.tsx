@@ -1,5 +1,7 @@
 import { PageIntro } from '@/components/layout/PageIntro'
 import { MacroIndicatorsSection } from '@/components/dashboard/indicators/MacroIndicatorsSection'
+import { RegimePerformanceSection } from '@/components/dashboard/regime/RegimePerformanceSection'
+import { RegimeTimelineSection } from '@/components/dashboard/regime/RegimeTimelineSection'
 import { pageCopy } from '@/constants/navigation'
 
 export function MacroPage() {
@@ -10,6 +12,10 @@ export function MacroPage() {
       <PageIntro description={page.body} />
 
       <MacroIndicatorsSection />
+
+      <RegimeTimelineSection />
+
+      <RegimePerformanceSection />
     </div>
   )
 }
