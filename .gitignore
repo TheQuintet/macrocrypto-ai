@@ -59,6 +59,9 @@ yarn-error.log*
 package-lock.json
 yarn.lock
 pnpm-lock.yaml
+# The frontend is an application, not a library: its lockfile is what
+# makes `npm ci` reproducible, locally and in CI.
+!frontend/package-lock.json
 dist/
 build/
 out/
