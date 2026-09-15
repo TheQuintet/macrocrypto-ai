@@ -4,7 +4,8 @@ Covers:
     - CorrelationEntry: field shapes, defaults, serialization,
       the color and arrow fields populated from the calculator
       helpers, the A1.4 significance and confidence fields, the
-      history field, and the OpenAPI example.
+      A1.7 insight field, the history field, and the OpenAPI
+      example.
     - CorrelationHistoryPoint: shape and defaults.
     - CorrelationResponse: envelope shape and defaults.
     - CorrelationErrorResponse: shape and defaults.
@@ -25,6 +26,7 @@ from app.correlation.calculator import (
     direction_arrow,
     strength_color,
 )
+from app.correlation.insights import generate_insight
 from app.schemas.correlation import (
     CorrelationEntry,
     CorrelationErrorResponse,
@@ -49,6 +51,10 @@ def _make_entry(**overrides) -> CorrelationEntry:
         p_value=0.03,
         is_significant=True,
         confidence_level=97.0,
+        insight=(
+            "When inflation rises, BTC typically falls "
+            "(medium negative correlation, 97% confidence)."
+        ),
         calculated_at=datetime.now(timezone.utc),
     )
     defaults.update(overrides)
@@ -92,6 +98,7 @@ class TestCorrelationEntry:
         assert entry.is_significant is True
         assert entry.confidence_level == 97.0
         assert entry.history == []
+        assert "inflation" in entry.insight
 
     def test_p_value_default_is_none(self) -> None:
         """p_value defaults to None when omitted."""
@@ -135,6 +142,20 @@ class TestCorrelationEntry:
         )
         assert entry.confidence_level is None
 
+    def test_insight_default_is_empty_string(self) -> None:
+        """insight defaults to an empty string when omitted."""
+        entry = CorrelationEntry(
+            indicator_name="rates",
+            window_days=30,
+            correlation_coefficient=0.5,
+            strength="medium",
+            strength_color="yellow",
+            direction="positive",
+            direction_arrow="↑",
+            calculated_at=datetime.now(timezone.utc),
+        )
+        assert entry.insight == ""
+
     def test_history_default_is_empty_list(self) -> None:
         """history defaults to an empty list when omitted."""
         entry = _make_entry()
@@ -148,7 +169,7 @@ class TestCorrelationEntry:
         assert entry.history[0].correlation_coefficient == -0.40
 
     def test_model_dump_keys(self) -> None:
-        """model_dump returns every field, including history."""
+        """model_dump returns every field, including insight and history."""
         entry = _make_entry()
         d = entry.model_dump()
         expected = {
@@ -163,6 +184,7 @@ class TestCorrelationEntry:
             "is_significant",
             "confidence_level",
             "calculated_at",
+            "insight",
             "history",
         }
         assert set(d.keys()) == expected
@@ -284,6 +306,32 @@ class TestCorrelationEntry:
         assert entry.is_significant is False
         assert entry.confidence_level is None
 
+    def test_integration_with_insight_helper(self) -> None:
+        """The insight field can be populated from the A1.7 helper."""
+        p_value = 0.03
+        strength = "medium"
+        direction = "negative"
+        entry = CorrelationEntry(
+            indicator_name="inflation",
+            window_days=90,
+            correlation_coefficient=-0.42,
+            strength=strength,
+            strength_color=strength_color(strength),
+            direction=direction,
+            direction_arrow=direction_arrow(direction),
+            p_value=p_value,
+            is_significant=derive_significance(p_value),
+            confidence_level=confidence_from_p_value(p_value),
+            insight=generate_insight(
+                "inflation", -0.42, strength, direction, p_value
+            ),
+            calculated_at=datetime.now(timezone.utc),
+        )
+
+        assert "inflation" in entry.insight
+        assert "falls" in entry.insight
+        assert "medium" in entry.insight
+
     def test_openapi_example_is_valid(self) -> None:
         """The embedded JSON example in model_config is a valid entry."""
         example = CorrelationEntry.model_config["json_schema_extra"][
@@ -296,6 +344,8 @@ class TestCorrelationEntry:
         assert entry.direction_arrow == "↓"
         assert entry.is_significant is True
         assert entry.confidence_level == pytest.approx(97.0)
+        # The example includes an insight
+        assert "inflation" in entry.insight
         # The example includes a history point
         assert len(entry.history) == 1
         assert entry.history[0].is_significant is True
@@ -324,6 +374,12 @@ class TestCorrelationHistoryPoint:
         d = hp.model_dump()
         assert "indicator_name" not in d
         assert "window_days" not in d
+
+    def test_has_no_insight_field(self) -> None:
+        """History points do NOT carry an insight sentence."""
+        hp = _make_history_point()
+        d = hp.model_dump()
+        assert "insight" not in d
 
     def test_model_dump_keys(self) -> None:
         """model_dump returns every field."""

@@ -9,6 +9,7 @@ requested rolling window:
     - Derived strength (strong / medium / weak) and its display color
     - Derived direction (positive / negative) and its display arrow
     - Two-tailed p-value, significance flag, and confidence level
+    - Short human-readable insight sentence (A1.7)
     - Optionally, a historical series per indicator
 
 Design:
@@ -18,6 +19,10 @@ Design:
       helpers from `app.correlation.calculator`, so the display
       logic lives in one place and the schema stays a dumb
       container.
+    - The insight sentence is generated via the pure helper
+      `generate_insight` from `app.correlation.insights`. It is
+      derived from the same labels the entry already carries, so
+      the sentence is always consistent with the fields around it.
     - History is opt-in via ?include_history=true, matching the
       performance endpoint's pattern (M8).
     - Empty results return 200 with an empty entries list, not 404.
@@ -39,6 +44,7 @@ from app.correlation.calculator import (
     direction_arrow,
     strength_color,
 )
+from app.correlation.insights import generate_insight
 from app.database.engine import session_scope
 from app.database.repositories.correlation_repository import (
     CorrelationRepository,
@@ -90,6 +96,10 @@ def _build_history_point(row: Dict[str, Any]) -> CorrelationHistoryPoint:
     direction, p_value. The display fields are derived from the
     helpers so the derivation rules live in one place.
 
+    History points deliberately do NOT carry an insight sentence —
+    the insight describes the current relationship, not past
+    observations.
+
     Args:
         row: A single history row.
 
@@ -120,6 +130,10 @@ def _build_entry(
     and have keys: indicator_name, window_days, calculated_at,
     correlation_coefficient, strength, direction, p_value.
 
+    The insight sentence is generated via the pure helper
+    `generate_insight` using the same labels the entry carries, so
+    the sentence and the fields are always in sync.
+
     Args:
         row: A single latest-per-indicator row.
         history: The history points to attach (may be empty).
@@ -128,18 +142,30 @@ def _build_entry(
         A populated CorrelationEntry.
     """
     p_value = row.get("p_value")
+    strength = row["strength"]
+    direction = row["direction"]
+
+    insight = generate_insight(
+        indicator_name=row["indicator_name"],
+        coefficient=float(row["correlation_coefficient"]),
+        strength=strength,
+        direction=direction,
+        p_value=p_value,
+    )
+
     return CorrelationEntry(
         indicator_name=row["indicator_name"],
         window_days=int(row["window_days"]),
         correlation_coefficient=float(row["correlation_coefficient"]),
-        strength=row["strength"],
-        strength_color=strength_color(row["strength"]),
-        direction=row["direction"],
-        direction_arrow=direction_arrow(row["direction"]),
+        strength=strength,
+        strength_color=strength_color(strength),
+        direction=direction,
+        direction_arrow=direction_arrow(direction),
         p_value=p_value,
         is_significant=derive_significance(p_value),
         confidence_level=confidence_from_p_value(p_value),
         calculated_at=row["calculated_at"],
+        insight=insight,
         history=history,
     )
 
@@ -163,7 +189,8 @@ def _build_entry(
         "indicator, the response includes the raw coefficient, the "
         "derived strength and direction labels with their display "
         "hints (color and arrow), the two-tailed p-value, the "
-        "statistical significance flag, and the confidence level.\n\n"
+        "statistical significance flag, the confidence level, and a "
+        "short human-readable insight sentence.\n\n"
         "Set `include_history=true` to attach a historical series "
         "per indicator (oldest first). `history_days` controls how "
         "far back the series goes; `history_limit` caps the number "
