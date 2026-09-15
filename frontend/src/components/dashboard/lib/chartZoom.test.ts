@@ -1,9 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import {
+  CANDLE_LEGIBLE_MIN_WIDTH,
   DEFAULT_CHART_POINT_WIDTH,
   MAX_CHART_POINT_WIDTH,
   MIN_CHART_POINT_WIDTH,
   clampChartPointWidth,
+  fitChartPointWidth,
+  initialChartPointWidth,
+  minChartPointWidth,
+  shouldRenderAsLine,
   zoomChartPointWidth,
 } from '@/components/dashboard/lib/chartZoom'
 
@@ -42,5 +47,79 @@ describe('zoomChartPointWidth', () => {
     expect(zoomChartPointWidth(MIN_CHART_POINT_WIDTH, 'out')).toBe(
       MIN_CHART_POINT_WIDTH,
     )
+  })
+})
+
+describe('fitChartPointWidth', () => {
+  it('divides the plot evenly between the points', () => {
+    expect(fitChartPointWidth(1_200, 100)).toBe(12)
+  })
+
+  it('has no answer before the plot has been measured', () => {
+    expect(fitChartPointWidth(0, 100)).toBeNull()
+  })
+
+  it('has no answer with nothing to plot', () => {
+    expect(fitChartPointWidth(1_200, 0)).toBeNull()
+  })
+})
+
+describe('initialChartPointWidth', () => {
+  it('fits the whole range when it is denser than the default', () => {
+    // 500 buckets in 1200px is the 90d case the range picker felt inert on.
+    expect(initialChartPointWidth(1_200, 500)).toBeCloseTo(2.4, 5)
+  })
+
+  it('does not stretch a short range past the normal density', () => {
+    expect(initialChartPointWidth(1_200, 10)).toBe(DEFAULT_CHART_POINT_WIDTH)
+  })
+
+  it('falls back to the default before the plot is measured', () => {
+    expect(initialChartPointWidth(0, 500)).toBe(DEFAULT_CHART_POINT_WIDTH)
+  })
+})
+
+describe('minChartPointWidth', () => {
+  it('lets the user zoom out to the whole range, below the fixed floor', () => {
+    expect(minChartPointWidth(1_200, 500)).toBeCloseTo(2.4, 5)
+  })
+
+  it('keeps the fixed floor when the range already fits', () => {
+    expect(minChartPointWidth(1_200, 10)).toBe(MIN_CHART_POINT_WIDTH)
+  })
+
+  it('falls back to the fixed floor before the plot is measured', () => {
+    expect(minChartPointWidth(0, 500)).toBe(MIN_CHART_POINT_WIDTH)
+  })
+})
+
+describe('zooming out to the fitted floor', () => {
+  it('stops at the whole range rather than adding empty space', () => {
+    const fit = minChartPointWidth(1_200, 500)
+
+    expect(zoomChartPointWidth(fit, 'out', fit)).toBeCloseTo(fit, 5)
+  })
+
+  it('still zooms back in from the fitted floor', () => {
+    const fit = minChartPointWidth(1_200, 500)
+
+    expect(zoomChartPointWidth(fit, 'in', fit)).toBeGreaterThan(fit)
+  })
+
+  it('never lets a caller raise the floor above the fixed minimum', () => {
+    // A bad `minWidth` must not trap the user above the normal zoom range.
+    expect(clampChartPointWidth(8, 40)).toBe(MIN_CHART_POINT_WIDTH)
+  })
+})
+
+describe('shouldRenderAsLine', () => {
+  it('draws candles at a readable density', () => {
+    expect(shouldRenderAsLine(DEFAULT_CHART_POINT_WIDTH)).toBe(false)
+    expect(shouldRenderAsLine(CANDLE_LEGIBLE_MIN_WIDTH)).toBe(false)
+  })
+
+  it('degrades to a line once a body cannot be read', () => {
+    expect(shouldRenderAsLine(2.4)).toBe(true)
+    expect(shouldRenderAsLine(CANDLE_LEGIBLE_MIN_WIDTH - 0.1)).toBe(true)
   })
 })

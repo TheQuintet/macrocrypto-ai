@@ -172,7 +172,15 @@ export function PriceChart({
                 : undefined
             }
           >
-            {({ data: panData, width, height, yDomain, compact, hideXAxis }) => (
+            {({
+              data: panData,
+              width,
+              height,
+              yDomain,
+              compact,
+              hideXAxis,
+              asLine,
+            }) => (
               <PriceCandlestickChart
                 data={panData}
                 width={width}
@@ -180,6 +188,7 @@ export function PriceChart({
                 yDomain={yDomain}
                 compact={compact}
                 hideXAxis={hideXAxis}
+                asLine={asLine}
                 syncId={syncId}
                 overlayTooltip={!compact}
                 onInspect={setInspectedCandle}
