@@ -353,6 +353,133 @@ class PredictionRepository:
             for r in rows
         ]
 
+    async def fetch_latest_predictions_batch(
+        self,
+        model_names: List[str],
+        horizon: str = "24h",
+        confidence: float = 0.85,
+    ) -> Dict[str, List[PredictionRow]]:
+        """Fetch the latest prediction batch for each requested model.
+
+        Runs two queries regardless of how many models are requested:
+            1. The latest `prediction_time` per model (GROUP BY
+               model_name).
+            2. All rows in those batches, filtered by an OR of
+               (model_name, prediction_time) pairs.
+
+        Returns a mapping keyed by model name. Models with no stored
+        rows do not appear as keys — the caller decides whether to
+        surface them as "missing".
+
+        Called by the M6a multi-model comparison endpoint; the two-
+        query design keeps latency flat as the model count grows.
+
+        Args:
+            model_names: Names of the models to fetch. Empty input
+                short-circuits without touching the DB.
+            horizon: Horizon label ('24h' or '7d').
+            confidence: Confidence level (0.70, 0.85, 0.95).
+
+        Returns:
+            Dict mapping model_name → List[PredictionRow], ordered
+            by `time` ascending within each batch. Missing models
+            are omitted from the result.
+        """
+        from sqlalchemy import and_, func, or_
+
+        if not model_names:
+            logger.debug(
+                "fetch_latest_predictions_batch called with empty "
+                "model_names list"
+            )
+            return {}
+
+        # ---- Step 1: latest prediction_time per model ----
+        latest_stmt = (
+            select(
+                btc_predictions.c.model_name,
+                func.max(btc_predictions.c.prediction_time).label(
+                    "latest_ts"
+                ),
+            )
+            .where(
+                btc_predictions.c.horizon == horizon,
+                btc_predictions.c.model_name.in_(model_names),
+                btc_predictions.c.confidence == confidence,
+            )
+            .group_by(btc_predictions.c.model_name)
+        )
+
+        result = await self.session.execute(latest_stmt)
+        latest_by_model: Dict[str, Any] = {
+            row["model_name"]: row["latest_ts"]
+            for row in result.mappings().all()
+        }
+
+        if not latest_by_model:
+            logger.debug(
+                f"No latest batches found for "
+                f"(models={model_names}, horizon={horizon}, "
+                f"confidence={confidence})"
+            )
+            return {}
+
+        # ---- Step 2: fetch all rows in those batches ----
+        conditions = [
+            and_(
+                btc_predictions.c.model_name == name,
+                btc_predictions.c.prediction_time == ts,
+            )
+            for name, ts in latest_by_model.items()
+        ]
+
+        rows_stmt = (
+            select(
+                btc_predictions.c.time,
+                btc_predictions.c.prediction_time,
+                btc_predictions.c.horizon,
+                btc_predictions.c.model_name,
+                btc_predictions.c.confidence,
+                btc_predictions.c.predicted_price,
+                btc_predictions.c.lower_bound,
+                btc_predictions.c.upper_bound,
+            )
+            .where(
+                btc_predictions.c.horizon == horizon,
+                btc_predictions.c.confidence == confidence,
+                or_(*conditions),
+            )
+            .order_by(
+                btc_predictions.c.model_name.asc(),
+                btc_predictions.c.time.asc(),
+            )
+        )
+
+        result = await self.session.execute(rows_stmt)
+
+        batches: Dict[str, List[PredictionRow]] = {}
+        for r in result.mappings().all():
+            batches.setdefault(r["model_name"], []).append(
+                PredictionRow(
+                    time=r["time"],
+                    prediction_time=r["prediction_time"],
+                    horizon=r["horizon"],
+                    model_name=r["model_name"],
+                    confidence=r["confidence"],
+                    predicted_price=r["predicted_price"],
+                    lower_bound=r["lower_bound"],
+                    upper_bound=r["upper_bound"],
+                )
+            )
+
+        logger.debug(
+            f"Fetched batches for "
+            f"{len(batches)}/{len(model_names)} models "
+            f"(horizon={horizon}, confidence={confidence})"
+        )
+
+        return batches
+
     async def fetch_latest_close_price(self) -> Optional[float]:
         """Fetch the most recent BTC close price.
 
