@@ -3,7 +3,8 @@
 Wraps APScheduler's AsyncIOScheduler with:
     - Job registration (daily retrain, hourly 24h prediction,
       daily 7d prediction, daily backtest, daily accuracy,
-      daily multi-model predictions)
+      daily multi-model predictions, daily model performance
+      aggregation)
     - Lifecycle (start, shutdown) tied to FastAPI's lifespan
     - Failure handling (retries per settings.scheduler_max_retries)
     - Run history in SchedulerState
@@ -31,12 +32,14 @@ from app.scheduler.jobs import (
     JOB_DAILY_7D_PREDICTION,
     JOB_DAILY_ACCURACY,
     JOB_DAILY_BACKTEST,
+    JOB_DAILY_MODEL_PERFORMANCE_AGGREGATION,
     JOB_DAILY_MULTI_MODEL_PREDICTIONS,
     JOB_DAILY_RETRAIN,
     JOB_HOURLY_PREDICTION,
     daily_7d_prediction_job,
     daily_accuracy_job,
     daily_backtest_job,
+    daily_model_performance_aggregation_job,
     daily_multi_model_predictions_job,
     daily_retrain_job,
     hourly_prediction_job,
@@ -59,6 +62,9 @@ JOB_ID_DAILY_7D_PREDICTION = "daily_7d_prediction"
 JOB_ID_DAILY_BACKTEST = "daily_backtest"
 JOB_ID_DAILY_ACCURACY = "daily_accuracy"
 JOB_ID_DAILY_MULTI_MODEL_PREDICTIONS = "daily_multi_model_predictions"
+JOB_ID_DAILY_MODEL_PERFORMANCE_AGGREGATION = (
+    "daily_model_performance_aggregation"
+)
 
 
 # ============================================================
@@ -127,6 +133,7 @@ class SchedulerManager:
         self._register_daily_backtest_job()
         self._register_daily_accuracy_job()
         self._register_daily_multi_model_predictions_job()
+        self._register_daily_model_performance_aggregation_job()
 
         logger.info("Scheduler setup complete")
 
@@ -356,6 +363,46 @@ class SchedulerManager:
             f"Registered job '{JOB_ID_DAILY_MULTI_MODEL_PREDICTIONS}' "
             f"(trigger: hour={settings.multi_model_prediction_hour} "
             f"minute={settings.multi_model_prediction_minute} "
+            f"tz={settings.retrain_timezone})"
+        )
+
+    def _register_daily_model_performance_aggregation_job(self) -> None:
+        """Register the daily model-performance aggregation job (7:15 AM UTC).
+
+        Sits after the 6:45 backtest (which writes prediction_performance)
+        and after the 7:00 accuracy check (which reads the same source).
+        Copies the latest aggregate metrics from prediction_performance
+        into model_performance, so the M8 multi-model performance API
+        has a compact, indexed history to read from.
+        """
+        if self._scheduler is None:
+            raise RuntimeError("Scheduler not set up")
+
+        trigger = CronTrigger(
+            hour=settings.model_performance_aggregation_hour,
+            minute=settings.model_performance_aggregation_minute,
+            timezone=settings.retrain_timezone,
+        )
+
+        self._scheduler.add_job(
+            func=self._wrap_job(
+                JOB_DAILY_MODEL_PERFORMANCE_AGGREGATION,
+                daily_model_performance_aggregation_job,
+            ),
+            trigger=trigger,
+            id=JOB_ID_DAILY_MODEL_PERFORMANCE_AGGREGATION,
+            name="Daily model performance aggregation",
+            replace_existing=True,
+            max_instances=1,
+            coalesce=True,
+            misfire_grace_time=1800,
+        )
+
+        logger.info(
+            f"Registered job "
+            f"'{JOB_ID_DAILY_MODEL_PERFORMANCE_AGGREGATION}' "
+            f"(trigger: hour={settings.model_performance_aggregation_hour} "
+            f"minute={settings.model_performance_aggregation_minute} "
             f"tz={settings.retrain_timezone})"
         )
 

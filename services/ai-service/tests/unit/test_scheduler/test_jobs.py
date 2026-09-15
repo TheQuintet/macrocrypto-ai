@@ -33,6 +33,7 @@ from app.scheduler.jobs import (
     JOB_DAILY_7D_PREDICTION,
     JOB_DAILY_ACCURACY,
     JOB_DAILY_BACKTEST,
+    JOB_DAILY_MODEL_PERFORMANCE_AGGREGATION,
     JOB_DAILY_MULTI_MODEL_PREDICTIONS,
     JOB_DAILY_RETRAIN,
     JOB_HOURLY_PREDICTION,
@@ -43,11 +44,11 @@ from app.scheduler.jobs import (
     daily_7d_prediction_job,
     daily_accuracy_job,
     daily_backtest_job,
+    daily_model_performance_aggregation_job,
     daily_multi_model_predictions_job,
     daily_retrain_job,
     hourly_prediction_job,
 )
-
 
 # ============================================================
 # HELPERS
@@ -1368,6 +1369,423 @@ class TestDailyMultiModelPredictionsJob:
             with pytest.raises(RuntimeError, match="All .* pairs failed"):
                 await daily_multi_model_predictions_job()
 
+
+# ============================================================
+# DAILY MODEL PERFORMANCE AGGREGATION JOB (M7b)
+# ============================================================
+class TestDailyModelPerformanceAggregationJob:
+    """Tests for daily_model_performance_aggregation_job()."""
+
+    @pytest.mark.asyncio
+    async def test_happy_path(self) -> None:
+        """Test that a full run writes one row per (model, horizon)."""
+        from datetime import datetime, timezone
+
+        now = datetime.now(timezone.utc)
+
+        metrics = {
+            "horizon": "24h",
+            "model_name": "prophet_fresh",
+            "model_version": "1.0.0",
+            "forecast_date": now,
+            "mae": 100.0,
+            "rmse": 120.0,
+            "mape": 1.5,
+            "directional_accuracy": 62.0,
+            "market_condition": None,
+            "created_at": now,
+        }
+
+        mock_perf_repo = MagicMock()
+        mock_perf_repo.fetch_latest_metrics = AsyncMock(
+            return_value=metrics
+        )
+
+        mock_model_perf_repo = MagicMock()
+        mock_model_perf_repo.save_rows = AsyncMock(return_value=1)
+
+        with patch(
+            "app.scheduler.jobs.PerformanceRepository",
+            return_value=mock_perf_repo,
+        ), patch(
+            "app.scheduler.jobs.ModelPerformanceRepository",
+            return_value=mock_model_perf_repo,
+        ), patch(
+            "app.scheduler.jobs.session_scope",
+            return_value=_session_scope_mock(),
+        ):
+            result = await daily_model_performance_aggregation_job()
+
+        assert result["pairs_attempted"] == len(ACCURACY_CHECK_MATRIX)
+        assert result["pairs_written"] == len(ACCURACY_CHECK_MATRIX)
+        assert result["pairs_skipped"] == 0
+        assert result["pairs_failed"] == 0
+        assert result["total_rows_written"] == len(ACCURACY_CHECK_MATRIX)
+
+    @pytest.mark.asyncio
+    async def test_skips_pairs_with_no_source_metrics(self) -> None:
+        """Test that pairs with no source metrics are counted as skipped.
+
+        On the first run for a brand-new model, fetch_latest_metrics
+        returns None. That is normal, not a failure — the job must
+        not raise just because some pairs have no data yet.
+        """
+        mock_perf_repo = MagicMock()
+        mock_perf_repo.fetch_latest_metrics = AsyncMock(
+            return_value=None
+        )
+
+        mock_model_perf_repo = MagicMock()
+        mock_model_perf_repo.save_rows = AsyncMock(return_value=0)
+
+        with patch(
+            "app.scheduler.jobs.PerformanceRepository",
+            return_value=mock_perf_repo,
+        ), patch(
+            "app.scheduler.jobs.ModelPerformanceRepository",
+            return_value=mock_model_perf_repo,
+        ), patch(
+            "app.scheduler.jobs.session_scope",
+            return_value=_session_scope_mock(),
+        ):
+            result = await daily_model_performance_aggregation_job()
+
+        assert result["pairs_written"] == 0
+        assert result["pairs_skipped"] == len(ACCURACY_CHECK_MATRIX)
+        assert result["pairs_failed"] == 0
+        assert result["total_rows_written"] == 0
+        # save_rows was never called
+        assert mock_model_perf_repo.save_rows.call_count == 0
+
+    @pytest.mark.asyncio
+    async def test_all_skipped_does_not_raise(self) -> None:
+        """Test that a full skip (no source data anywhere) does not raise.
+
+        This is the very first run on a fresh install. It is not an
+        error — the table just has no source data yet.
+        """
+        mock_perf_repo = MagicMock()
+        mock_perf_repo.fetch_latest_metrics = AsyncMock(
+            return_value=None
+        )
+
+        mock_model_perf_repo = MagicMock()
+        mock_model_perf_repo.save_rows = AsyncMock(return_value=0)
+
+        with patch(
+            "app.scheduler.jobs.PerformanceRepository",
+            return_value=mock_perf_repo,
+        ), patch(
+            "app.scheduler.jobs.ModelPerformanceRepository",
+            return_value=mock_model_perf_repo,
+        ), patch(
+            "app.scheduler.jobs.session_scope",
+            return_value=_session_scope_mock(),
+        ):
+            # Should NOT raise
+            result = await daily_model_performance_aggregation_job()
+
+        assert result["pairs_written"] == 0
+        assert result["pairs_failed"] == 0
+
+    @pytest.mark.asyncio
+    async def test_isolates_per_pair_failures(self) -> None:
+        """Test that one failing pair does not abort the others."""
+        from datetime import datetime, timezone
+
+        now = datetime.now(timezone.utc)
+
+        metrics = {
+            "horizon": "24h",
+            "model_name": "prophet_fresh",
+            "model_version": "1.0.0",
+            "forecast_date": now,
+            "mae": 100.0,
+            "rmse": 120.0,
+            "mape": 1.5,
+            "directional_accuracy": 62.0,
+            "market_condition": None,
+            "created_at": now,
+        }
+
+        call_count = {"n": 0}
+
+        async def flaky_fetch(*args, **kwargs):
+            call_count["n"] += 1
+            if call_count["n"] == 1:
+                raise RuntimeError("transient DB error")
+            return metrics
+
+        mock_perf_repo = MagicMock()
+        mock_perf_repo.fetch_latest_metrics = AsyncMock(
+            side_effect=flaky_fetch
+        )
+
+        mock_model_perf_repo = MagicMock()
+        mock_model_perf_repo.save_rows = AsyncMock(return_value=1)
+
+        with patch(
+            "app.scheduler.jobs.PerformanceRepository",
+            return_value=mock_perf_repo,
+        ), patch(
+            "app.scheduler.jobs.ModelPerformanceRepository",
+            return_value=mock_model_perf_repo,
+        ), patch(
+            "app.scheduler.jobs.session_scope",
+            return_value=_session_scope_mock(),
+        ):
+            result = await daily_model_performance_aggregation_job()
+
+        # First pair failed, rest succeeded
+        assert result["pairs_failed"] == 1
+        assert result["pairs_written"] == len(ACCURACY_CHECK_MATRIX) - 1
+
+    @pytest.mark.asyncio
+    async def test_raises_when_all_pairs_fail(self) -> None:
+        """Test that every-pair failure for a non-skip reason raises."""
+        mock_perf_repo = MagicMock()
+        mock_perf_repo.fetch_latest_metrics = AsyncMock(
+            side_effect=RuntimeError("DB down")
+        )
+
+        mock_model_perf_repo = MagicMock()
+        mock_model_perf_repo.save_rows = AsyncMock(return_value=0)
+
+        with patch(
+            "app.scheduler.jobs.PerformanceRepository",
+            return_value=mock_perf_repo,
+        ), patch(
+            "app.scheduler.jobs.ModelPerformanceRepository",
+            return_value=mock_model_perf_repo,
+        ), patch(
+            "app.scheduler.jobs.session_scope",
+            return_value=_session_scope_mock(),
+        ):
+            with pytest.raises(
+                RuntimeError, match="All .* pairs failed"
+            ):
+                await daily_model_performance_aggregation_job()
+
+    @pytest.mark.asyncio
+    async def test_builds_row_with_sample_size_1(self) -> None:
+        """Test that each written row has sample_size == 1.
+
+        We record one aggregate contribution, not the underlying
+        per-point count. sample_size=1 is the honest value.
+        """
+        from datetime import datetime, timezone
+
+        now = datetime.now(timezone.utc)
+
+        metrics = {
+            "horizon": "24h",
+            "model_name": "prophet_fresh",
+            "model_version": "1.0.0",
+            "forecast_date": now,
+            "mae": 100.0,
+            "rmse": 120.0,
+            "mape": 1.5,
+            "directional_accuracy": 62.0,
+            "market_condition": None,
+            "created_at": now,
+        }
+
+        mock_perf_repo = MagicMock()
+        mock_perf_repo.fetch_latest_metrics = AsyncMock(
+            return_value=metrics
+        )
+
+        captured_rows = []
+
+        async def capture_save(rows):
+            captured_rows.extend(rows)
+            return len(rows)
+
+        mock_model_perf_repo = MagicMock()
+        mock_model_perf_repo.save_rows = AsyncMock(side_effect=capture_save)
+
+        with patch(
+            "app.scheduler.jobs.PerformanceRepository",
+            return_value=mock_perf_repo,
+        ), patch(
+            "app.scheduler.jobs.ModelPerformanceRepository",
+            return_value=mock_model_perf_repo,
+        ), patch(
+            "app.scheduler.jobs.session_scope",
+            return_value=_session_scope_mock(),
+        ):
+            await daily_model_performance_aggregation_job()
+
+        assert len(captured_rows) > 0
+        for row in captured_rows:
+            assert row.sample_size == 1
+
+    @pytest.mark.asyncio
+    async def test_propagates_metric_values_from_source(self) -> None:
+        """Test that mae/rmse/mape/directional_accuracy pass through."""
+        from datetime import datetime, timezone
+
+        now = datetime.now(timezone.utc)
+
+        metrics = {
+            "horizon": "24h",
+            "model_name": "prophet_fresh",
+            "model_version": "1.0.0",
+            "forecast_date": now,
+            "mae": 111.11,
+            "rmse": 222.22,
+            "mape": 3.33,
+            "directional_accuracy": 55.55,
+            "market_condition": None,
+            "created_at": now,
+        }
+
+        mock_perf_repo = MagicMock()
+        mock_perf_repo.fetch_latest_metrics = AsyncMock(
+            return_value=metrics
+        )
+
+        captured_rows = []
+
+        async def capture_save(rows):
+            captured_rows.extend(rows)
+            return len(rows)
+
+        mock_model_perf_repo = MagicMock()
+        mock_model_perf_repo.save_rows = AsyncMock(side_effect=capture_save)
+
+        with patch(
+            "app.scheduler.jobs.PerformanceRepository",
+            return_value=mock_perf_repo,
+        ), patch(
+            "app.scheduler.jobs.ModelPerformanceRepository",
+            return_value=mock_model_perf_repo,
+        ), patch(
+            "app.scheduler.jobs.session_scope",
+            return_value=_session_scope_mock(),
+        ):
+            await daily_model_performance_aggregation_job()
+
+        for row in captured_rows:
+            assert row.mae == 111.11
+            assert row.rmse == 222.22
+            assert row.mape == 3.33
+            assert row.directional_accuracy == 55.55
+
+    @pytest.mark.asyncio
+    async def test_all_rows_share_one_calculated_at(self) -> None:
+        """Test that every row in one run shares a single calculated_at.
+
+        This makes it easy to identify "what the table looked like
+        after the 7:15 run on a given day".
+        """
+        from datetime import datetime, timezone
+
+        now = datetime.now(timezone.utc)
+
+        metrics = {
+            "horizon": "24h",
+            "model_name": "prophet_fresh",
+            "model_version": "1.0.0",
+            "forecast_date": now,
+            "mae": 100.0,
+            "rmse": 120.0,
+            "mape": 1.5,
+            "directional_accuracy": 62.0,
+            "market_condition": None,
+            "created_at": now,
+        }
+
+        mock_perf_repo = MagicMock()
+        mock_perf_repo.fetch_latest_metrics = AsyncMock(
+            return_value=metrics
+        )
+
+        captured_rows = []
+
+        async def capture_save(rows):
+            captured_rows.extend(rows)
+            return len(rows)
+
+        mock_model_perf_repo = MagicMock()
+        mock_model_perf_repo.save_rows = AsyncMock(side_effect=capture_save)
+
+        with patch(
+            "app.scheduler.jobs.PerformanceRepository",
+            return_value=mock_perf_repo,
+        ), patch(
+            "app.scheduler.jobs.ModelPerformanceRepository",
+            return_value=mock_model_perf_repo,
+        ), patch(
+            "app.scheduler.jobs.session_scope",
+            return_value=_session_scope_mock(),
+        ):
+            await daily_model_performance_aggregation_job()
+
+        timestamps = {row.calculated_at for row in captured_rows}
+        assert len(timestamps) == 1
+
+    @pytest.mark.asyncio
+    async def test_iterates_over_accuracy_check_matrix(self) -> None:
+        """Test that every (model, horizon) in ACCURACY_CHECK_MATRIX is tried."""
+        mock_perf_repo = MagicMock()
+        mock_perf_repo.fetch_latest_metrics = AsyncMock(
+            return_value=None
+        )
+
+        mock_model_perf_repo = MagicMock()
+        mock_model_perf_repo.save_rows = AsyncMock(return_value=0)
+
+        with patch(
+            "app.scheduler.jobs.PerformanceRepository",
+            return_value=mock_perf_repo,
+        ), patch(
+            "app.scheduler.jobs.ModelPerformanceRepository",
+            return_value=mock_model_perf_repo,
+        ), patch(
+            "app.scheduler.jobs.session_scope",
+            return_value=_session_scope_mock(),
+        ):
+            await daily_model_performance_aggregation_job()
+
+        # fetch_latest_metrics called once per (model, horizon) pair
+        assert mock_perf_repo.fetch_latest_metrics.call_count == len(
+            ACCURACY_CHECK_MATRIX
+        )
+
+    @pytest.mark.asyncio
+    async def test_summary_has_expected_keys(self) -> None:
+        """Test that the summary dict has all expected keys."""
+        mock_perf_repo = MagicMock()
+        mock_perf_repo.fetch_latest_metrics = AsyncMock(
+            return_value=None
+        )
+
+        mock_model_perf_repo = MagicMock()
+        mock_model_perf_repo.save_rows = AsyncMock(return_value=0)
+
+        with patch(
+            "app.scheduler.jobs.PerformanceRepository",
+            return_value=mock_perf_repo,
+        ), patch(
+            "app.scheduler.jobs.ModelPerformanceRepository",
+            return_value=mock_model_perf_repo,
+        ), patch(
+            "app.scheduler.jobs.session_scope",
+            return_value=_session_scope_mock(),
+        ):
+            result = await daily_model_performance_aggregation_job()
+
+        expected_keys = {
+            "pairs_attempted",
+            "pairs_written",
+            "pairs_skipped",
+            "pairs_failed",
+            "total_rows_written",
+            "results",
+            "elapsed_seconds",
+        }
+        assert set(result.keys()) == expected_keys
 
 # ============================================================
 # CONSTANTS TESTS

@@ -16,6 +16,9 @@ Jobs currently registered:
     - daily_multi_model_predictions_job: generate and store
       predictions for the 5 non-prophet_fresh variants (6:15 AM UTC,
       M6b)
+    - daily_model_performance_aggregation_job: copy the latest
+      aggregate metrics from prediction_performance into
+      model_performance (7:15 AM UTC, M7b)
 
 Design:
     - Each job opens its own DB session via session_scope(); the
@@ -43,6 +46,10 @@ from app.ai.thresholds import (
 )
 from app.config import settings
 from app.database.engine import session_scope
+from app.database.repositories.model_performance_repository import (
+    ModelPerformanceRepository,
+    ModelPerformanceRow,
+)
 from app.database.repositories.performance_repository import (
     PerformanceRepository,
     PerformanceRow,
@@ -72,6 +79,9 @@ JOB_DAILY_7D_PREDICTION = "daily_7d_prediction"
 JOB_DAILY_BACKTEST = "daily_backtest"
 JOB_DAILY_ACCURACY = "daily_accuracy"
 JOB_DAILY_MULTI_MODEL_PREDICTIONS = "daily_multi_model_predictions"
+JOB_DAILY_MODEL_PERFORMANCE_AGGREGATION = (
+    "daily_model_performance_aggregation"
+)
 
 
 # ============================================================
@@ -1180,6 +1190,175 @@ async def daily_multi_model_predictions_job() -> Dict[str, Any]:
         raise RuntimeError(
             f"All {len(MULTI_MODEL_VARIANTS)} multi-model prediction "
             f"pairs failed"
+        )
+
+    return summary
+
+
+# ============================================================
+# DAILY MODEL PERFORMANCE AGGREGATION JOB (M7b)
+# ============================================================
+async def daily_model_performance_aggregation_job() -> Dict[str, Any]:
+    """Copy the latest aggregate metrics into model_performance.
+
+    Runs daily at 7:15 AM UTC, after the 6:45 backtest has written
+    fresh rows to prediction_performance and after the 7:00
+    accuracy check has read the same source. This job reads the
+    latest aggregate metrics for each (model, horizon) pair and
+    writes one row per pair to model_performance, so the M8
+    multi-model performance API has a compact, indexed history to
+    read from instead of re-aggregating prediction_performance on
+    every request.
+
+    Steps:
+        1. Open a DB session.
+        2. For each (model_name, horizon) in ACCURACY_CHECK_MATRIX:
+            a. Read the latest aggregate metrics via
+               PerformanceRepository.fetch_latest_metrics()
+            b. Build a ModelPerformanceRow
+            c. Write it via ModelPerformanceRepository.save_rows()
+        3. Aggregate results and return a summary.
+
+    Sample-size semantics:
+        Each row written here represents one aggregate contribution.
+        We set sample_size=1 because we are recording one aggregate
+        row, not the underlying per-point count. The metrics
+        themselves (mae, rmse, mape, directional_accuracy) are
+        copied verbatim from the source aggregate row. If a true
+        sample count becomes important later, add a method to
+        PerformanceRepository that returns the row count for the
+        same window.
+
+    Failure isolation:
+        Each (model, horizon) pair is wrapped in its own try/except.
+        A pair with no source metrics (fetch_latest_metrics returns
+        None) is counted as "skipped", not "failed" — this is a
+        normal situation on the first run of a brand-new model. The
+        job raises only if every pair failed for a non-skip reason.
+
+    Idempotency:
+        Each run writes a fresh row per (model, horizon) with a new
+        calculated_at. Re-running the same day produces a second
+        row, which is intentional — model_performance is a time
+        series, and the M8 API reads the latest row per pair. If
+        double-runs become a concern, add a deduplication check
+        against a "calculated_at on the same calendar day" test.
+
+    Returns:
+        Dict with keys: pairs_attempted (int),
+        pairs_written (int), pairs_skipped (int),
+        pairs_failed (int), total_rows_written (int),
+        results (per-key dict), elapsed_seconds.
+
+    Raises:
+        RuntimeError: If every pair failed (or was skipped) for a
+            non-empty ACCURACY_CHECK_MATRIX.
+    """
+    import time
+    from datetime import datetime, timezone
+
+    start = time.monotonic()
+    logger.info("Running daily_model_performance_aggregation_job")
+
+    results: Dict[str, Dict[str, Any]] = {}
+    written = 0
+    skipped = 0
+    failed = 0
+    total_rows = 0
+
+    # Single timestamp for the whole run so all rows share one
+    # calculated_at. This makes it easy to identify "what the
+    # table looked like after the 7:15 run on a given day".
+    calculated_at = datetime.now(timezone.utc)
+
+    async with session_scope() as session:
+        perf_repo = PerformanceRepository(session)
+        model_perf_repo = ModelPerformanceRepository(session)
+
+        for model_name, horizon in ACCURACY_CHECK_MATRIX:
+            key = f"{model_name}_{horizon}"
+            logger.debug(f"Aggregating model performance for {key}")
+
+            try:
+                # ---- 1. Read the latest aggregate metrics ----
+                metrics = await perf_repo.fetch_latest_metrics(
+                    horizon=horizon,
+                    model_name=model_name,
+                )
+
+                if metrics is None:
+                    # Normal on first runs — no source data yet for
+                    # this (model, horizon). Count as skipped, not failed.
+                    logger.debug(
+                        f"No source metrics for {key} — skipping"
+                    )
+                    results[key] = {"status": "skipped"}
+                    skipped += 1
+                    continue
+
+                # ---- 2. Build the ModelPerformanceRow ----
+                row = ModelPerformanceRow(
+                    model_name=model_name,
+                    horizon=horizon,
+                    sample_size=1,
+                    calculated_at=calculated_at,
+                    mae=metrics.get("mae"),
+                    rmse=metrics.get("rmse"),
+                    mape=metrics.get("mape"),
+                    directional_accuracy=metrics.get(
+                        "directional_accuracy"
+                    ),
+                )
+
+                # ---- 3. Persist ----
+                n = await model_perf_repo.save_rows([row])
+
+                results[key] = {
+                    "status": "written",
+                    "rows_written": n,
+                    "mae": row.mae,
+                    "rmse": row.rmse,
+                    "mape": row.mape,
+                    "directional_accuracy": row.directional_accuracy,
+                }
+                written += 1
+                total_rows += n
+
+            except Exception as e:
+                logger.error(
+                    f"Model performance aggregation for {key} "
+                    f"failed: {e}",
+                    exc_info=True,
+                )
+                results[key] = {
+                    "status": "failed",
+                    "error": str(e),
+                }
+                failed += 1
+
+    elapsed = time.monotonic() - start
+
+    summary = {
+        "pairs_attempted": len(ACCURACY_CHECK_MATRIX),
+        "pairs_written": written,
+        "pairs_skipped": skipped,
+        "pairs_failed": failed,
+        "total_rows_written": total_rows,
+        "results": results,
+        "elapsed_seconds": elapsed,
+    }
+
+    logger.info(
+        f"daily_model_performance_aggregation_job complete: "
+        f"{written} written, {skipped} skipped, {failed} failed, "
+        f"{total_rows} rows, in {elapsed:.3f}s"
+    )
+
+    # Only fail if every pair failed for a non-skip reason. Skips
+    # are expected (a brand-new model has no source metrics yet).
+    if written == 0 and failed > 0:
+        raise RuntimeError(
+            f"All {failed} model performance aggregation pairs failed"
         )
 
     return summary
