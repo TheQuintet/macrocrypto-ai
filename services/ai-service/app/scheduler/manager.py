@@ -2,7 +2,8 @@
 
 Wraps APScheduler's AsyncIOScheduler with:
     - Job registration (daily retrain, hourly 24h prediction,
-      daily 7d prediction, daily backtest, daily accuracy)
+      daily 7d prediction, daily backtest, daily accuracy,
+      daily multi-model predictions)
     - Lifecycle (start, shutdown) tied to FastAPI's lifespan
     - Failure handling (retries per settings.scheduler_max_retries)
     - Run history in SchedulerState
@@ -30,11 +31,13 @@ from app.scheduler.jobs import (
     JOB_DAILY_7D_PREDICTION,
     JOB_DAILY_ACCURACY,
     JOB_DAILY_BACKTEST,
+    JOB_DAILY_MULTI_MODEL_PREDICTIONS,
     JOB_DAILY_RETRAIN,
     JOB_HOURLY_PREDICTION,
     daily_7d_prediction_job,
     daily_accuracy_job,
     daily_backtest_job,
+    daily_multi_model_predictions_job,
     daily_retrain_job,
     hourly_prediction_job,
 )
@@ -55,6 +58,7 @@ JOB_ID_HOURLY_PREDICTION = "hourly_prediction"
 JOB_ID_DAILY_7D_PREDICTION = "daily_7d_prediction"
 JOB_ID_DAILY_BACKTEST = "daily_backtest"
 JOB_ID_DAILY_ACCURACY = "daily_accuracy"
+JOB_ID_DAILY_MULTI_MODEL_PREDICTIONS = "daily_multi_model_predictions"
 
 
 # ============================================================
@@ -122,6 +126,7 @@ class SchedulerManager:
         self._register_daily_7d_prediction_job()
         self._register_daily_backtest_job()
         self._register_daily_accuracy_job()
+        self._register_daily_multi_model_predictions_job()
 
         logger.info("Scheduler setup complete")
 
@@ -313,6 +318,44 @@ class SchedulerManager:
             f"Registered job '{JOB_ID_DAILY_ACCURACY}' "
             f"(trigger: hour={settings.accuracy_hour} "
             f"minute={settings.accuracy_minute} "
+            f"tz={settings.retrain_timezone})"
+        )
+
+    def _register_daily_multi_model_predictions_job(self) -> None:
+        """Register the daily multi-model predictions job (6:15 AM UTC).
+
+        Sits between the daily retrain (6:00) and the daily 7d
+        Prophet prediction (6:30). Writes one stored batch per
+        non-prophet_fresh variant for both horizons, so the M6a
+        comparison endpoint has real multi-model data to compare.
+        """
+        if self._scheduler is None:
+            raise RuntimeError("Scheduler not set up")
+
+        trigger = CronTrigger(
+            hour=settings.multi_model_prediction_hour,
+            minute=settings.multi_model_prediction_minute,
+            timezone=settings.retrain_timezone,
+        )
+
+        self._scheduler.add_job(
+            func=self._wrap_job(
+                JOB_DAILY_MULTI_MODEL_PREDICTIONS,
+                daily_multi_model_predictions_job,
+            ),
+            trigger=trigger,
+            id=JOB_ID_DAILY_MULTI_MODEL_PREDICTIONS,
+            name="Daily multi-model prediction generation",
+            replace_existing=True,
+            max_instances=1,
+            coalesce=True,
+            misfire_grace_time=1800,
+        )
+
+        logger.info(
+            f"Registered job '{JOB_ID_DAILY_MULTI_MODEL_PREDICTIONS}' "
+            f"(trigger: hour={settings.multi_model_prediction_hour} "
+            f"minute={settings.multi_model_prediction_minute} "
             f"tz={settings.retrain_timezone})"
         )
 

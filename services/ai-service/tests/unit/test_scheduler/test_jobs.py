@@ -10,6 +10,9 @@ Test organization:
     - TestDailyAccuracyJob: daily threshold check (T5.4)
     - TestHourlyPredictionJob: 24h job happy path + failure paths
     - TestDaily7dPredictionJob: 7d job happy path + failure paths
+    - TestMultiModelVariants: MULTI_MODEL_VARIANTS spec (M6b)
+    - TestLoadVariantModel: _load_variant_model helper (M6b)
+    - TestDailyMultiModelPredictionsJob: multi-model prediction job (M6b)
     - TestBacktestVariantSpecs: variant registry + factory helper
     - TestJobConstants: module constants
 """
@@ -30,13 +33,17 @@ from app.scheduler.jobs import (
     JOB_DAILY_7D_PREDICTION,
     JOB_DAILY_ACCURACY,
     JOB_DAILY_BACKTEST,
+    JOB_DAILY_MULTI_MODEL_PREDICTIONS,
     JOB_DAILY_RETRAIN,
     JOB_HOURLY_PREDICTION,
+    MULTI_MODEL_VARIANTS,
+    _load_variant_model,
     _result_to_rows,
     _variant_factory,
     daily_7d_prediction_job,
     daily_accuracy_job,
     daily_backtest_job,
+    daily_multi_model_predictions_job,
     daily_retrain_job,
     hourly_prediction_job,
 )
@@ -1036,6 +1043,333 @@ class TestDaily7dPredictionJob:
 
 
 # ============================================================
+# MULTI-MODEL VARIANTS (M6b)
+# ============================================================
+class TestMultiModelVariants:
+    """Tests for the MULTI_MODEL_VARIANTS spec."""
+
+    def test_ten_variants(self) -> None:
+        """Test that there are 10 (5 models × 2 horizons) variants."""
+        assert len(MULTI_MODEL_VARIANTS) == 10
+
+    def test_five_unique_models(self) -> None:
+        """Test that 5 model names appear twice (once per horizon)."""
+        names = [v[0] for v in MULTI_MODEL_VARIANTS]
+        assert len(set(names)) == 5
+        for name in set(names):
+            assert names.count(name) == 2
+
+    def test_excludes_prophet_fresh(self) -> None:
+        """Test that prophet_fresh is excluded from the multi-model job.
+
+        prophet_fresh predictions are written by hourly_prediction_job
+        (24h) and daily_7d_prediction_job (7d). Including them here
+        would create competing batches with different prediction_time
+        values for the same key.
+        """
+        names = {v[0] for v in MULTI_MODEL_VARIANTS}
+        assert "prophet_fresh" not in names
+
+    def test_includes_all_other_variants(self) -> None:
+        """Test that the other 5 variants are present."""
+        names = {v[0] for v in MULTI_MODEL_VARIANTS}
+        assert names == {
+            "prophet_warm",
+            "xgboost_fresh",
+            "xgboost_incremental",
+            "lightgbm_fresh",
+            "lightgbm_incremental",
+        }
+
+    def test_two_horizons(self) -> None:
+        """Test that every variant uses 24h or 7d."""
+        horizons = {v[1] for v in MULTI_MODEL_VARIANTS}
+        assert horizons == {"24h", "7d"}
+
+    def test_horizon_hours_consistent(self) -> None:
+        """Test that horizon='24h' → 24 and horizon='7d' → 168."""
+        for _, horizon, hours in MULTI_MODEL_VARIANTS:
+            if horizon == "24h":
+                assert hours == 24
+            else:
+                assert hours == 168
+
+
+# ============================================================
+# LOAD VARIANT MODEL HELPER (M6b)
+# ============================================================
+class TestLoadVariantModel:
+    """Tests for _load_variant_model()."""
+
+    def test_unknown_variant_raises(self) -> None:
+        """Test that an unknown variant name raises ValueError."""
+        with pytest.raises(ValueError, match="Unknown variant"):
+            _load_variant_model("bogus")
+
+    def test_prophet_fresh_not_supported(self) -> None:
+        """Test that prophet_fresh is not accepted by the helper.
+
+        The multi-model job deliberately excludes prophet_fresh; the
+        helper must reject it so a future caller can't accidentally
+        include it and double-write the prophet_fresh batches.
+        """
+        with pytest.raises(ValueError, match="Unknown variant"):
+            _load_variant_model("prophet_fresh")
+
+    @pytest.mark.parametrize(
+        "variant",
+        [
+            "prophet_warm",
+            "xgboost_fresh",
+            "xgboost_incremental",
+            "lightgbm_fresh",
+            "lightgbm_incremental",
+        ],
+    )
+    def test_loads_known_variant(self, variant: str) -> None:
+        """Test that each known variant loads from the expected path.
+
+        Patches all three model classes so the helper's `if/elif`
+        chain selects whichever one its mapping says to use. The
+        loaded mock is returned by the helper after load().
+        """
+        from app.config import settings
+
+        mock_model = MagicMock()
+        mock_model.load = MagicMock()
+        mock_model.is_model_trained = MagicMock(return_value=True)
+
+        with patch(
+            "app.scheduler.jobs.ProphetModel", return_value=mock_model
+        ), patch(
+            "app.scheduler.jobs.XGBoostModel", return_value=mock_model
+        ), patch(
+            "app.scheduler.jobs.LightGBMModel", return_value=mock_model
+        ):
+            result = _load_variant_model(variant)
+
+        expected_path = f"{settings.model_save_dir}/{variant}.pkl"
+        mock_model.load.assert_called_once_with(expected_path)
+        assert result is mock_model
+
+    def test_raises_when_not_trained(self) -> None:
+        """Test that a loaded-but-untrained model raises RuntimeError."""
+        mock_model = MagicMock()
+        mock_model.load = MagicMock()
+        mock_model.is_model_trained = MagicMock(return_value=False)
+
+        with patch(
+            "app.scheduler.jobs.ProphetModel", return_value=mock_model
+        ):
+            with pytest.raises(RuntimeError, match="not marked as trained"):
+                _load_variant_model("prophet_warm")
+
+    def test_propagates_file_not_found(self) -> None:
+        """Test that a missing artifact propagates FileNotFoundError."""
+        mock_model = MagicMock()
+        mock_model.load = MagicMock(
+            side_effect=FileNotFoundError("missing artifact")
+        )
+
+        with patch(
+            "app.scheduler.jobs.ProphetModel", return_value=mock_model
+        ):
+            with pytest.raises(FileNotFoundError, match="missing artifact"):
+                _load_variant_model("prophet_warm")
+
+
+# ============================================================
+# DAILY MULTI-MODEL PREDICTIONS JOB (M6b)
+# ============================================================
+class TestDailyMultiModelPredictionsJob:
+    """Tests for daily_multi_model_predictions_job()."""
+
+    @pytest.mark.asyncio
+    async def test_happy_path(self) -> None:
+        """Test that all 10 pairs succeeding returns a clean summary."""
+        mock_model = _make_trained_model()
+        mock_gen_result = _make_generation_result(succeeded=True)
+
+        mock_generator = MagicMock()
+        mock_generator.generate = AsyncMock(return_value=mock_gen_result)
+
+        with patch(
+            "app.scheduler.jobs._load_variant_model",
+            return_value=mock_model,
+        ), patch(
+            "app.scheduler.jobs.PredictionGenerator",
+            return_value=mock_generator,
+        ), patch(
+            "app.scheduler.jobs.session_scope",
+            return_value=_session_scope_mock(),
+        ):
+            result = await daily_multi_model_predictions_job()
+
+        assert result["variants_attempted"] == len(MULTI_MODEL_VARIANTS)
+        assert result["variants_succeeded"] == len(MULTI_MODEL_VARIANTS)
+        assert result["variants_failed"] == 0
+        assert result["total_rows_saved"] > 0
+
+    @pytest.mark.asyncio
+    async def test_calls_load_variant_for_each_pair(self) -> None:
+        """Test that _load_variant_model is called once per pair."""
+        mock_model = _make_trained_model()
+
+        mock_generator = MagicMock()
+        mock_generator.generate = AsyncMock(
+            return_value=_make_generation_result(succeeded=True)
+        )
+
+        with patch(
+            "app.scheduler.jobs._load_variant_model",
+            return_value=mock_model,
+        ) as mock_load, patch(
+            "app.scheduler.jobs.PredictionGenerator",
+            return_value=mock_generator,
+        ), patch(
+            "app.scheduler.jobs.session_scope",
+            return_value=_session_scope_mock(),
+        ):
+            await daily_multi_model_predictions_job()
+
+        assert mock_load.call_count == len(MULTI_MODEL_VARIANTS)
+
+    @pytest.mark.asyncio
+    async def test_isolates_per_pair_failure(self) -> None:
+        """Test that one failing pair does not abort the others."""
+        mock_model = _make_trained_model()
+
+        call_count = {"n": 0}
+
+        async def flaky_generate(*args, **kwargs):
+            call_count["n"] += 1
+            if call_count["n"] == 1:
+                raise RuntimeError("transient")
+            return _make_generation_result(succeeded=True)
+
+        mock_generator = MagicMock()
+        mock_generator.generate = AsyncMock(side_effect=flaky_generate)
+
+        with patch(
+            "app.scheduler.jobs._load_variant_model",
+            return_value=mock_model,
+        ), patch(
+            "app.scheduler.jobs.PredictionGenerator",
+            return_value=mock_generator,
+        ), patch(
+            "app.scheduler.jobs.session_scope",
+            return_value=_session_scope_mock(),
+        ):
+            result = await daily_multi_model_predictions_job()
+
+        assert result["variants_failed"] == 1
+        assert result["variants_succeeded"] == len(MULTI_MODEL_VARIANTS) - 1
+
+    @pytest.mark.asyncio
+    async def test_raises_when_all_pairs_fail(self) -> None:
+        """Test that every-pair failure raises RuntimeError."""
+        mock_model = MagicMock()
+        mock_model.load = MagicMock(
+            side_effect=FileNotFoundError("no artifact")
+        )
+
+        with patch(
+            "app.scheduler.jobs._load_variant_model",
+            side_effect=FileNotFoundError("no artifact"),
+        ), patch(
+            "app.scheduler.jobs.session_scope",
+            return_value=_session_scope_mock(),
+        ):
+            with pytest.raises(RuntimeError, match="All .* pairs failed"):
+                await daily_multi_model_predictions_job()
+
+    @pytest.mark.asyncio
+    async def test_uses_correct_horizon_per_pair(self) -> None:
+        """Test that each pair passes the right horizon to the generator."""
+        mock_model = _make_trained_model()
+
+        mock_generator = MagicMock()
+        mock_generator.generate = AsyncMock(
+            return_value=_make_generation_result(succeeded=True)
+        )
+
+        with patch(
+            "app.scheduler.jobs._load_variant_model",
+            return_value=mock_model,
+        ), patch(
+            "app.scheduler.jobs.PredictionGenerator",
+            return_value=mock_generator,
+        ) as mock_gen_class, patch(
+            "app.scheduler.jobs.session_scope",
+            return_value=_session_scope_mock(),
+        ):
+            await daily_multi_model_predictions_job()
+
+        # Collect horizons from each call
+        horizons = [
+            call.kwargs["horizon"]
+            for call in mock_gen_class.call_args_list
+        ]
+        assert "24h" in horizons
+        assert "7d" in horizons
+        # 5 variants × 2 horizons = 10 calls
+        assert len(horizons) == 10
+        # Each horizon appears exactly 5 times
+        assert horizons.count("24h") == 5
+        assert horizons.count("7d") == 5
+
+    @pytest.mark.asyncio
+    async def test_uses_confidence_085(self) -> None:
+        """Test that the generator is constructed with confidence 0.85."""
+        mock_model = _make_trained_model()
+
+        mock_generator = MagicMock()
+        mock_generator.generate = AsyncMock(
+            return_value=_make_generation_result(succeeded=True)
+        )
+
+        with patch(
+            "app.scheduler.jobs._load_variant_model",
+            return_value=mock_model,
+        ), patch(
+            "app.scheduler.jobs.PredictionGenerator",
+            return_value=mock_generator,
+        ) as mock_gen_class, patch(
+            "app.scheduler.jobs.session_scope",
+            return_value=_session_scope_mock(),
+        ):
+            await daily_multi_model_predictions_job()
+
+        for call in mock_gen_class.call_args_list:
+            assert call.kwargs["confidence"] == 0.85
+
+    @pytest.mark.asyncio
+    async def test_raises_when_generation_fails_for_all_pairs(self) -> None:
+        """Test that generator-reported failure counts as a pair failure."""
+        mock_model = _make_trained_model()
+
+        mock_generator = MagicMock()
+        mock_generator.generate = AsyncMock(
+            return_value=_make_generation_result(
+                succeeded=False, error="gen failed"
+            )
+        )
+
+        with patch(
+            "app.scheduler.jobs._load_variant_model",
+            return_value=mock_model,
+        ), patch(
+            "app.scheduler.jobs.PredictionGenerator",
+            return_value=mock_generator,
+        ), patch(
+            "app.scheduler.jobs.session_scope",
+            return_value=_session_scope_mock(),
+        ):
+            with pytest.raises(RuntimeError, match="All .* pairs failed"):
+                await daily_multi_model_predictions_job()
+
+
+# ============================================================
 # CONSTANTS TESTS
 # ============================================================
 class TestJobConstants:
@@ -1060,3 +1394,10 @@ class TestJobConstants:
     def test_daily_accuracy_job_name(self) -> None:
         """Test that JOB_DAILY_ACCURACY has the expected value."""
         assert JOB_DAILY_ACCURACY == "daily_accuracy"
+
+    def test_daily_multi_model_predictions_job_name(self) -> None:
+        """Test that JOB_DAILY_MULTI_MODEL_PREDICTIONS has the expected value."""
+        assert (
+            JOB_DAILY_MULTI_MODEL_PREDICTIONS
+            == "daily_multi_model_predictions"
+        )

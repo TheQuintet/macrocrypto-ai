@@ -29,6 +29,7 @@ from app.scheduler.manager import (
     JOB_ID_DAILY_7D_PREDICTION,
     JOB_ID_DAILY_ACCURACY,
     JOB_ID_DAILY_BACKTEST,
+    JOB_ID_DAILY_MULTI_MODEL_PREDICTIONS,
     JOB_ID_DAILY_RETRAIN,
     JOB_ID_HOURLY_PREDICTION,
     SchedulerManager,
@@ -114,8 +115,20 @@ class TestManagerSetup:
         finally:
             manager.shutdown()
 
-    def test_setup_registers_all_five_jobs(self) -> None:
-        """Test that setup registers exactly all five jobs."""
+    def test_setup_registers_daily_multi_model_predictions_job(self) -> None:
+        """Test that setup registers the multi-model predictions job (M6b)."""
+        manager = SchedulerManager(enabled=False)
+        manager.setup()
+        try:
+            assert (
+                JOB_ID_DAILY_MULTI_MODEL_PREDICTIONS
+                in manager.get_job_ids()
+            )
+        finally:
+            manager.shutdown()
+
+    def test_setup_registers_all_six_jobs(self) -> None:
+        """Test that setup registers exactly all six jobs."""
         manager = SchedulerManager(enabled=False)
         manager.setup()
         try:
@@ -127,6 +140,7 @@ class TestManagerSetup:
                     JOB_ID_DAILY_7D_PREDICTION,
                     JOB_ID_DAILY_BACKTEST,
                     JOB_ID_DAILY_ACCURACY,
+                    JOB_ID_DAILY_MULTI_MODEL_PREDICTIONS,
                 ]
             )
         finally:
@@ -370,6 +384,7 @@ class TestManagerIntrospection:
             assert JOB_ID_DAILY_7D_PREDICTION in ids
             assert JOB_ID_DAILY_BACKTEST in ids
             assert JOB_ID_DAILY_ACCURACY in ids
+            assert JOB_ID_DAILY_MULTI_MODEL_PREDICTIONS in ids
         finally:
             manager.shutdown()
 
