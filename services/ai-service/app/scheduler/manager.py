@@ -4,7 +4,7 @@ Wraps APScheduler's AsyncIOScheduler with:
     - Job registration (daily retrain, hourly 24h prediction,
       daily 7d prediction, daily backtest, daily accuracy,
       daily multi-model predictions, daily model performance
-      aggregation)
+      aggregation, daily correlation)
     - Lifecycle (start, shutdown) tied to FastAPI's lifespan
     - Failure handling (retries per settings.scheduler_max_retries)
     - Run history in SchedulerState
@@ -32,6 +32,7 @@ from app.scheduler.jobs import (
     JOB_DAILY_7D_PREDICTION,
     JOB_DAILY_ACCURACY,
     JOB_DAILY_BACKTEST,
+    JOB_DAILY_CORRELATION,
     JOB_DAILY_MODEL_PERFORMANCE_AGGREGATION,
     JOB_DAILY_MULTI_MODEL_PREDICTIONS,
     JOB_DAILY_RETRAIN,
@@ -39,6 +40,7 @@ from app.scheduler.jobs import (
     daily_7d_prediction_job,
     daily_accuracy_job,
     daily_backtest_job,
+    daily_correlation_job,
     daily_model_performance_aggregation_job,
     daily_multi_model_predictions_job,
     daily_retrain_job,
@@ -65,6 +67,7 @@ JOB_ID_DAILY_MULTI_MODEL_PREDICTIONS = "daily_multi_model_predictions"
 JOB_ID_DAILY_MODEL_PERFORMANCE_AGGREGATION = (
     "daily_model_performance_aggregation"
 )
+JOB_ID_DAILY_CORRELATION = "daily_correlation"
 
 
 # ============================================================
@@ -134,6 +137,7 @@ class SchedulerManager:
         self._register_daily_accuracy_job()
         self._register_daily_multi_model_predictions_job()
         self._register_daily_model_performance_aggregation_job()
+        self._register_daily_correlation_job()
 
         logger.info("Scheduler setup complete")
 
@@ -403,6 +407,45 @@ class SchedulerManager:
             f"'{JOB_ID_DAILY_MODEL_PERFORMANCE_AGGREGATION}' "
             f"(trigger: hour={settings.model_performance_aggregation_hour} "
             f"minute={settings.model_performance_aggregation_minute} "
+            f"tz={settings.retrain_timezone})"
+        )
+
+    def _register_daily_correlation_job(self) -> None:
+        """Register the daily correlation job (2:00 AM UTC).
+
+        Sits well before the 6:00 retrain so the correlations are
+        computed on the previous day's freshest macro data. Reads
+        BTC price and macro indicator data, resamples BTC to daily
+        close, and writes one correlation row per (indicator,
+        window) to btc_macro_correlation. Feeds A1.6's read API.
+        """
+        if self._scheduler is None:
+            raise RuntimeError("Scheduler not set up")
+
+        trigger = CronTrigger(
+            hour=settings.correlation_hour,
+            minute=settings.correlation_minute,
+            timezone=settings.retrain_timezone,
+        )
+
+        self._scheduler.add_job(
+            func=self._wrap_job(
+                JOB_DAILY_CORRELATION,
+                daily_correlation_job,
+            ),
+            trigger=trigger,
+            id=JOB_ID_DAILY_CORRELATION,
+            name="Daily correlation calculation",
+            replace_existing=True,
+            max_instances=1,
+            coalesce=True,
+            misfire_grace_time=1800,
+        )
+
+        logger.info(
+            f"Registered job '{JOB_ID_DAILY_CORRELATION}' "
+            f"(trigger: hour={settings.correlation_hour} "
+            f"minute={settings.correlation_minute} "
             f"tz={settings.retrain_timezone})"
         )
 

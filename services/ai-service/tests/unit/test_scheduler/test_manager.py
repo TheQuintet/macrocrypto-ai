@@ -29,6 +29,7 @@ from app.scheduler.manager import (
     JOB_ID_DAILY_7D_PREDICTION,
     JOB_ID_DAILY_ACCURACY,
     JOB_ID_DAILY_BACKTEST,
+    JOB_ID_DAILY_CORRELATION,
     JOB_ID_DAILY_MODEL_PERFORMANCE_AGGREGATION,
     JOB_ID_DAILY_MULTI_MODEL_PREDICTIONS,
     JOB_ID_DAILY_RETRAIN,
@@ -142,8 +143,20 @@ class TestManagerSetup:
         finally:
             manager.shutdown()
 
-    def test_setup_registers_all_seven_jobs(self) -> None:
-        """Test that setup registers exactly all seven jobs."""
+    def test_setup_registers_daily_correlation_job(self) -> None:
+        """Test that setup registers the A1.5 correlation job."""
+        manager = SchedulerManager(enabled=False)
+        manager.setup()
+        try:
+            assert (
+                JOB_ID_DAILY_CORRELATION
+                in manager.get_job_ids()
+            )
+        finally:
+            manager.shutdown()
+
+    def test_setup_registers_all_eight_jobs(self) -> None:
+        """Test that setup registers exactly all eight jobs."""
         manager = SchedulerManager(enabled=False)
         manager.setup()
         try:
@@ -157,6 +170,7 @@ class TestManagerSetup:
                     JOB_ID_DAILY_ACCURACY,
                     JOB_ID_DAILY_MULTI_MODEL_PREDICTIONS,
                     JOB_ID_DAILY_MODEL_PERFORMANCE_AGGREGATION,
+                    JOB_ID_DAILY_CORRELATION,
                 ]
             )
         finally:
@@ -404,6 +418,7 @@ class TestManagerIntrospection:
             assert (
                 JOB_ID_DAILY_MODEL_PERFORMANCE_AGGREGATION in ids
             )
+            assert JOB_ID_DAILY_CORRELATION in ids
         finally:
             manager.shutdown()
 

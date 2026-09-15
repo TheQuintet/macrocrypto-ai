@@ -19,6 +19,8 @@ Jobs currently registered:
     - daily_model_performance_aggregation_job: copy the latest
       aggregate metrics from prediction_performance into
       model_performance (7:15 AM UTC, M7b)
+    - daily_correlation_job: compute BTC-vs-macro correlations for
+      all indicators × windows (2:00 AM UTC, A1.5)
 
 Design:
     - Each job opens its own DB session via session_scope(); the
@@ -45,7 +47,11 @@ from app.ai.thresholds import (
     filter_breaches,
 )
 from app.config import settings
+from app.correlation.calculator import CorrelationCalculator
 from app.database.engine import session_scope
+from app.database.repositories.correlation_repository import (
+    CorrelationRepository,
+)
 from app.database.repositories.model_performance_repository import (
     ModelPerformanceRepository,
     ModelPerformanceRow,
@@ -82,6 +88,7 @@ JOB_DAILY_MULTI_MODEL_PREDICTIONS = "daily_multi_model_predictions"
 JOB_DAILY_MODEL_PERFORMANCE_AGGREGATION = (
     "daily_model_performance_aggregation"
 )
+JOB_DAILY_CORRELATION = "daily_correlation"
 
 
 # ============================================================
@@ -1359,6 +1366,107 @@ async def daily_model_performance_aggregation_job() -> Dict[str, Any]:
     if written == 0 and failed > 0:
         raise RuntimeError(
             f"All {failed} model performance aggregation pairs failed"
+        )
+
+    return summary
+
+
+# ============================================================
+# DAILY CORRELATION JOB (A1.5)
+# ============================================================
+async def daily_correlation_job() -> Dict[str, Any]:
+    """Compute BTC-vs-macro correlations for all indicators × windows.
+
+    Runs daily at 2:00 AM UTC, well before the 6:00 retrain. Fetches
+    the previous day's BTC price and macro indicator data, resamples
+    BTC to daily close, computes Pearson correlations for every
+    (indicator, window) pair, and writes one row per pair to the
+    btc_macro_correlation table. The read API (A1.6) will surface
+    those rows.
+
+    Steps:
+        1. Open a DB session.
+        2. Build a CorrelationCalculator with the two repositories
+           it needs (CorrelationRepository + PredictionRepository).
+        3. Call calc.run().
+        4. Return a summary dict derived from the calculation result.
+
+    Failure semantics:
+        The calculator already isolates failures per (indicator,
+        window) pair and captures skips and errors in its result.
+        The job only raises when the calculator produced zero rows
+        AND recorded zero skips AND zero errors — which means the
+        calculator could not fetch either source table at all
+        (BTC or macro data entirely unavailable). That's the one
+        condition a retry might resolve; everything else is data
+        the operator sees in the run summary and logs.
+
+    Notification semantics:
+        Matches the existing jobs: success and failure are recorded
+        in SchedulerState (visible via the run history) and logged
+        at INFO (success) or ERROR (failure). The scheduler's
+        retry policy applies if the job raises. No external
+        notification system is used.
+
+    Returns:
+        Dict with keys: rows_built (int), rows_written (int),
+        skipped_count (int), error_count (int),
+        elapsed_seconds (float), calculated_at (ISO string).
+
+    Raises:
+        RuntimeError: If the calculator produced no rows, no
+            skips, and no errors — meaning both source fetches
+            failed or both returned empty.
+    """
+    import time
+
+    start = time.monotonic()
+    logger.info("Running daily_correlation_job")
+
+    async with session_scope() as session:
+        correlation_repo = CorrelationRepository(session)
+        prediction_repo = PredictionRepository(session)
+
+        calculator = CorrelationCalculator(
+            correlation_repo=correlation_repo,
+            prediction_repo=prediction_repo,
+        )
+
+        result = await calculator.run()
+
+    elapsed = time.monotonic() - start
+
+    summary = {
+        "rows_built": result.rows_built,
+        "rows_written": result.rows_written,
+        "skipped_count": len(result.skipped),
+        "error_count": len(result.errors),
+        "elapsed_seconds": result.elapsed_seconds,
+        "calculated_at": result.calculated_at.isoformat(),
+    }
+
+    logger.info(
+        f"daily_correlation_job complete: "
+        f"{result.rows_built} built, {result.rows_written} written, "
+        f"{len(result.skipped)} skipped, {len(result.errors)} errors, "
+        f"in {elapsed:.3f}s"
+    )
+
+    # The calculator returns a result even when both source fetches
+    # fail (it catches those errors internally and returns early).
+    # If NOTHING was attempted and nothing was skipped and nothing
+    # errored, that means the calculator could not even reach the
+    # per-pair loop — the two empty source fetches took that path.
+    # This is the one condition a retry might resolve, so we raise.
+    if (
+        result.rows_built == 0
+        and len(result.skipped) == 0
+        and len(result.errors) == 0
+    ):
+        raise RuntimeError(
+            "daily_correlation_job produced no rows, no skips, and no "
+            "errors — both source tables appear to be empty or "
+            "unavailable. See the previous log lines for details."
         )
 
     return summary
