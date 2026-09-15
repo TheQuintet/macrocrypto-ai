@@ -12,8 +12,14 @@ Available repositories:
       reads aggregated metrics
     - ThresholdRepository: writes threshold_breaches rows, reads
       recent breaches
+    - ModelPerformanceRepository: writes model_performance rows,
+      reads per-model aggregate metrics and history (M7)
 """
 
+from app.database.repositories.model_performance_repository import (
+    ModelPerformanceRepository,
+    ModelPerformanceRow,
+)
 from app.database.repositories.prediction_repository import (
     PredictionRepository,
     PredictionRow,
@@ -34,4 +40,6 @@ __all__ = [
     "PerformanceRow",
     "ThresholdRepository",
     "ThresholdBreachRow",
+    "ModelPerformanceRepository",
+    "ModelPerformanceRow",
 ]

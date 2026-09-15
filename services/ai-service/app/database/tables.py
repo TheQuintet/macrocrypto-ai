@@ -16,6 +16,7 @@ Tables:
                                (unified table; 24h and 7d horizons)
     - prediction_performance:  Target — per-point evaluation metrics (T5.1)
     - threshold_breaches:      Target — threshold breach history (T5.4)
+    - model_performance:       Target — per-model aggregate metrics (M7)
 
 Naming:
     Table names are pulled from Settings so they can be overridden
@@ -207,6 +208,41 @@ threshold_breaches = Table(
 
 
 # ============================================================
+# TARGET TABLE: model_performance
+# ============================================================
+# One row per (model_name, horizon, calculated_at). Stores
+# aggregate performance metrics for a model-horizon pair computed
+# at a point in time. Unlike prediction_performance (one row per
+# evaluated point), this table stores one row per aggregation run,
+# making long-term trend queries cheap.
+#
+# Populated by a dedicated job (a later branch); M8 reads from it
+# for the multi-model performance API.
+model_performance = Table(
+    "model_performance",
+    metadata,
+    # Surrogate primary key
+    Column("id", BigInteger, primary_key=True),
+    # Which model-horizon the aggregate is for
+    Column("model_name", String(64), nullable=False),
+    Column("horizon", String(8), nullable=False),
+    # Aggregate metrics — all nullable because not every run
+    # produces every metric (e.g. directional_accuracy requires
+    # direction ground truth, which is not always available)
+    Column("mae", Float, nullable=True),
+    Column("rmse", Float, nullable=True),
+    Column("mape", Float, nullable=True),
+    Column("directional_accuracy", Float, nullable=True),
+    # How many evaluated points contributed to the aggregate
+    Column("sample_size", Integer, nullable=False),
+    # When the aggregation was computed (the timestamp of the run)
+    Column("calculated_at", DateTime(timezone=True), nullable=False),
+    # Housekeeping
+    Column("created_at", DateTime(timezone=True), server_default=text("now()")),
+)
+
+
+# ============================================================
 # INDEXES — btc_predictions
 # ============================================================
 # The composite read index is attached to the Core Table so
@@ -246,6 +282,38 @@ Index(
 
 
 # ============================================================
+# INDEXES — model_performance
+# ============================================================
+# Single-column indexes for the three most common filter columns.
+# The composite index below covers the common access pattern;
+# the single-column ones cover ad-hoc filters (e.g. "all models
+# on horizon=7d" or "everything computed since T").
+Index(
+    "idx_model_performance_model_name",
+    model_performance.c.model_name,
+)
+Index(
+    "idx_model_performance_horizon",
+    model_performance.c.horizon,
+)
+Index(
+    "idx_model_performance_calculated_at",
+    model_performance.c.calculated_at,
+)
+
+# Composite index for the primary read pattern:
+# "give me the latest N rows for this (model, horizon)".
+# DESC on calculated_at because readers almost always want the
+# newest first.
+Index(
+    "idx_model_performance_model_horizon_calc",
+    model_performance.c.model_name,
+    model_performance.c.horizon,
+    model_performance.c.calculated_at.desc(),
+)
+
+
+# ============================================================
 # CONVENIENCE: table name constants
 # ============================================================
 # These are imported by repositories and tests so they don't
@@ -255,3 +323,4 @@ TABLE_MACRO_INDICATORS = settings.db_table_macro_indicators
 TABLE_BTC_PREDICTIONS = settings.db_table_predictions
 TABLE_PREDICTION_PERFORMANCE = "prediction_performance"
 TABLE_THRESHOLD_BREACHES = "threshold_breaches"
+TABLE_MODEL_PERFORMANCE = "model_performance"
