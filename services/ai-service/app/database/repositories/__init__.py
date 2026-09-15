@@ -14,8 +14,14 @@ Available repositories:
       recent breaches
     - ModelPerformanceRepository: writes model_performance rows,
       reads per-model aggregate metrics and history (M7)
+    - CorrelationRepository: writes btc_macro_correlation rows,
+      reads BTC-vs-macro correlations (A1.1)
 """
 
+from app.database.repositories.correlation_repository import (
+    CorrelationRepository,
+    CorrelationRow,
+)
 from app.database.repositories.model_performance_repository import (
     ModelPerformanceRepository,
     ModelPerformanceRow,
@@ -42,4 +48,6 @@ __all__ = [
     "ThresholdBreachRow",
     "ModelPerformanceRepository",
     "ModelPerformanceRow",
+    "CorrelationRepository",
+    "CorrelationRow",
 ]

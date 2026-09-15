@@ -13,6 +13,8 @@ Currently validates:
     - Performance rows: metric non-negativity, market condition enum
     - Model performance rows: metric range, sample_size positivity,
       horizon enum (M7)
+    - Correlation rows: indicator/window/strength/direction enums,
+      coefficient and p_value ranges (A1.1)
 """
 
 import logging
@@ -30,6 +32,12 @@ logger = logging.getLogger(__name__)
 VALID_HORIZONS = ("24h", "7d")
 VALID_CONFIDENCE_LEVELS = (0.70, 0.85, 0.95)
 VALID_MARKET_CONDITIONS = ("bull", "bear", "volatile", "neutral")
+
+# A1.1 — correlation enums
+VALID_INDICATOR_NAMES = ("inflation", "rates", "gdp", "unemployment")
+VALID_CORRELATION_WINDOWS = (30, 90, 365)
+VALID_CORRELATION_STRENGTHS = ("strong", "medium", "weak")
+VALID_CORRELATION_DIRECTIONS = ("positive", "negative")
 
 
 # ============================================================
@@ -378,3 +386,132 @@ def validate_model_performance_rows(
         validate_model_performance_row(row, index=i)
 
     logger.debug("All model performance rows passed validation")
+
+
+# ============================================================
+# CORRELATION ROW VALIDATION (A1.1)
+# ============================================================
+def validate_correlation_row(
+    row: Any,
+    index: int = 0,
+) -> None:
+    """Validate a single btc_macro_correlation row.
+
+    The row may be a ``CorrelationRow`` dataclass, a dict, or any
+    object with the expected attributes. This keeps the validator
+    decoupled from the repository's concrete row type.
+
+    Checks:
+        - indicator_name is one of 'inflation', 'rates', 'gdp',
+          'unemployment'
+        - window_days is one of 30, 90, 365
+        - calculated_at is present
+        - correlation_coefficient is finite and in [-1, 1]
+        - strength is one of 'strong', 'medium', 'weak'
+        - direction is one of 'positive', 'negative'
+        - p_value is None, or finite and in [0, 1]
+
+    Note: this validator does NOT check that `strength` and
+    `direction` are consistent with the coefficient. That
+    consistency is A1.3's responsibility — the table stores the
+    derived labels as a cache, not as the source of truth.
+
+    Args:
+        row: The row to validate (object or dict).
+        index: Row index (for error messages).
+
+    Raises:
+        ValueError: If the row violates any invariant.
+    """
+
+    def _get(name: str) -> Any:
+        """Read a field from a dict or object."""
+        if isinstance(row, dict):
+            return row.get(name)
+        return getattr(row, name, None)
+
+    # ---- 1. indicator_name ----
+    indicator_name = _get("indicator_name")
+    if indicator_name not in VALID_INDICATOR_NAMES:
+        raise ValueError(
+            f"Row {index}: invalid indicator_name '{indicator_name}'. "
+            f"Must be one of {VALID_INDICATOR_NAMES}."
+        )
+
+    # ---- 2. window_days ----
+    window_days = _get("window_days")
+    if window_days not in VALID_CORRELATION_WINDOWS:
+        raise ValueError(
+            f"Row {index}: invalid window_days {window_days}. "
+            f"Must be one of {VALID_CORRELATION_WINDOWS}."
+        )
+
+    # ---- 3. calculated_at ----
+    calculated_at = _get("calculated_at")
+    if calculated_at is None:
+        raise ValueError(
+            f"Row {index}: calculated_at must be set"
+        )
+
+    # ---- 4. correlation_coefficient: finite and in [-1, 1] ----
+    coefficient = _get("correlation_coefficient")
+    if coefficient is None or not math.isfinite(coefficient):
+        raise ValueError(
+            f"Row {index}: correlation_coefficient must be a finite "
+            f"number, got {coefficient!r}"
+        )
+    if coefficient < -1.0 or coefficient > 1.0:
+        raise ValueError(
+            f"Row {index}: correlation_coefficient must be in "
+            f"[-1, 1], got {coefficient}"
+        )
+
+    # ---- 5. strength ----
+    strength = _get("strength")
+    if strength not in VALID_CORRELATION_STRENGTHS:
+        raise ValueError(
+            f"Row {index}: invalid strength '{strength}'. "
+            f"Must be one of {VALID_CORRELATION_STRENGTHS}."
+        )
+
+    # ---- 6. direction ----
+    direction = _get("direction")
+    if direction not in VALID_CORRELATION_DIRECTIONS:
+        raise ValueError(
+            f"Row {index}: invalid direction '{direction}'. "
+            f"Must be one of {VALID_CORRELATION_DIRECTIONS}."
+        )
+
+    # ---- 7. p_value: nullable, but in [0, 1] when set ----
+    p_value = _get("p_value")
+    if p_value is not None:
+        if not math.isfinite(p_value):
+            raise ValueError(
+                f"Row {index}: p_value must be finite when set, "
+                f"got {p_value!r}"
+            )
+        if p_value < 0.0 or p_value > 1.0:
+            raise ValueError(
+                f"Row {index}: p_value must be in [0, 1], "
+                f"got {p_value}"
+            )
+
+
+def validate_correlation_rows(
+    rows: Iterable[Any],
+) -> None:
+    """Validate a batch of btc_macro_correlation rows.
+
+    Fails on the first invalid row and includes its index in the
+    error message. Returns None on success.
+
+    Args:
+        rows: An iterable of correlation rows (objects or dicts).
+
+    Raises:
+        ValueError: If any row is invalid.
+    """
+    for i, row in enumerate(rows):
+        validate_correlation_row(row, index=i)
+
+    logger.debug("All correlation rows passed validation")
