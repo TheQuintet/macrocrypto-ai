@@ -5,13 +5,16 @@ Covers:
     - generate_csv_export: failure path (mark_failed + re-raise)
     - generate_png_export: happy path (pending → completed)
     - generate_png_export: failure path (mark_failed + re-raise)
+    - generate_pdf_export: happy path (pending → completed)
+    - generate_pdf_export: failure path (mark_failed + re-raise)
     - The exact filename and file_size passed to mark_completed
     - That mark_failed is NOT allowed to mask the original error
-    - That generate_png_export records export_type='png' and
-      data_types=['chart'] on the history row
+    - That generate_png_export and generate_pdf_export record
+      export_type='png' / 'pdf' and data_types=['chart'] on the
+      history row
 
 The service owns ``session_scope()`` and constructs its own
-repositories, so the test monkeypatches five things on
+repositories, so the test monkeypatches the following things on
 ``app.export.service``:
 
     - session_scope: an asynccontextmanager yielding a fake session
@@ -21,17 +24,19 @@ repositories, so the test monkeypatches five things on
       raises a canned exception
     - PngExporter: a fake with the same contract, but a
       ``render`` method and a single-argument ``_filename``
+    - PdfExporter: same contract as PngExporter
 
-Note on ``_FakeExporter._filename`` / ``_FakePngExporter._filename``:
+Note on ``_FakeExporter._filename`` / ``_FakePngExporter._filename``
+/ ``_FakePdfExporter._filename``:
 
-    Both service functions call ``<Exporter>._filename(...)`` to
+    Every service function calls ``<Exporter>._filename(...)`` to
     compute a provisional name *before* the session opens, so the
     fakes must expose that static method. The service tests do not
     care what the name looks like — the naming conventions are
-    covered exhaustively in ``test_csv_export.py`` and
-    ``test_png_export.py``. The fakes return fixed placeholders,
-    which the happy-path tests assert are passed through to
-    ``create_request`` unchanged.
+    covered exhaustively in ``test_csv_export.py``,
+    ``test_png_export.py``, and ``test_pdf_export.py``. The fakes
+    return fixed placeholders, which the happy-path tests assert
+    are passed through to ``create_request`` unchanged.
 """
 
 from contextlib import asynccontextmanager
@@ -41,9 +46,11 @@ from typing import Any, Dict, List, Optional
 import pytest
 
 from app.export.csv_export import ExportRequest, ExportResult
+from app.export.pdf_export import PdfRequest, PdfResult
 from app.export.png_export import ChartRequest, ChartResult
 from app.export.service import (
     generate_csv_export,
+    generate_pdf_export,
     generate_png_export,
 )
 
@@ -193,6 +200,42 @@ class _FakePngExporter:
 
 
 # ============================================================
+# FAKE PDF EXPORTER
+# ============================================================
+class _FakePdfExporter:
+    """Returns a canned PdfResult or raises a canned exception.
+
+    Mirrors the two attributes of the real ``PdfExporter`` that
+    ``generate_pdf_export`` touches: the ``_filename`` static
+    method (called before the session opens) and an instance
+    ``render`` method (called inside the session).
+    """
+
+    # Class-level canned outcome, set per test.
+    result: Optional[PdfResult] = None
+    raises: Optional[BaseException] = None
+    last_request: Optional[PdfRequest] = None
+
+    # Fixed placeholder returned by the fake's ``_filename``. The
+    # real naming convention is covered in test_pdf_export.py.
+    PLACEHOLDER_NAME = "provisional.pdf"
+
+    def __init__(self, prediction_repo: Any) -> None:
+        self.prediction_repo = prediction_repo
+
+    @staticmethod
+    def _filename(timeframe: str) -> str:
+        return _FakePdfExporter.PLACEHOLDER_NAME
+
+    async def render(self, request: PdfRequest) -> PdfResult:
+        _FakePdfExporter.last_request = request
+        if _FakePdfExporter.raises is not None:
+            raise _FakePdfExporter.raises
+        assert _FakePdfExporter.result is not None
+        return _FakePdfExporter.result
+
+
+# ============================================================
 # FIXTURES
 # ============================================================
 @pytest.fixture(autouse=True)
@@ -208,6 +251,7 @@ def _patch_service(monkeypatch):
     monkeypatch.setattr(svc, "CorrelationRepository", _NoopRepo)
     monkeypatch.setattr(svc, "CsvExporter", _FakeExporter)
     monkeypatch.setattr(svc, "PngExporter", _FakePngExporter)
+    monkeypatch.setattr(svc, "PdfExporter", _FakePdfExporter)
 
     # Reset shared state.
     _FakeHistoryRepo.next_id = 1
@@ -219,6 +263,9 @@ def _patch_service(monkeypatch):
     _FakePngExporter.result = None
     _FakePngExporter.raises = None
     _FakePngExporter.last_request = None
+    _FakePdfExporter.result = None
+    _FakePdfExporter.raises = None
+    _FakePdfExporter.last_request = None
 
     yield
 
@@ -241,6 +288,17 @@ def _canned_png_result(file_name: str = "out.png") -> ChartResult:
         timeframe="30d",
         rows_plotted=42,
         content=b"\x89PNG\r\n\x1a\nfake",
+    )
+
+
+def _canned_pdf_result(file_name: str = "out.pdf") -> PdfResult:
+    return PdfResult(
+        file_name=file_name,
+        file_size=4096,
+        timeframe="30d",
+        rows_plotted=42,
+        content=b"%PDF-1.4\nfake",
+        pages=1,
     )
 
 
@@ -514,6 +572,141 @@ class TestGeneratePngExportFailurePath:
         req = ChartRequest(timeframe="30d")
         with pytest.raises(ValueError):
             await generate_png_export(req)
+
+        repo = _FakeHistoryRepo.instances[0]
+        # The mark_failed call was attempted (and raised) — the
+        # fake records the id before raising.
+        assert repo.failed == [1]
+
+
+# ============================================================
+# PDF — HAPPY PATH
+# ============================================================
+class TestGeneratePdfExportHappyPath:
+    """generate_pdf_export: pending → completed."""
+
+    @pytest.mark.asyncio
+    async def test_returns_exporter_result(self) -> None:
+        _FakePdfExporter.result = _canned_pdf_result()
+        req = PdfRequest(timeframe="30d", user_id="u-1")
+        result = await generate_pdf_export(req)
+        assert result.file_name == "out.pdf"
+        assert result.file_size == 4096
+        assert result.rows_plotted == 42
+        assert result.pages == 1
+
+    @pytest.mark.asyncio
+    async def test_inserts_pending_row_first(self) -> None:
+        _FakePdfExporter.result = _canned_pdf_result()
+        req = PdfRequest(timeframe="30d", user_id="u-1")
+        await generate_pdf_export(req)
+
+        repo = _FakeHistoryRepo.instances[0]
+        assert len(repo.created) == 1
+        pending = repo.created[0]
+        assert pending.export_type == "pdf"
+        assert pending.timeframe == "30d"
+        assert pending.status == "pending"
+        assert pending.user_id == "u-1"
+        # Same storage-level 'chart' label the PNG path uses. The
+        # export_type column is what distinguishes PDF from PNG.
+        assert pending.data_types == ["chart"]
+        assert pending.file_name == _FakePdfExporter.PLACEHOLDER_NAME
+
+    @pytest.mark.asyncio
+    async def test_marks_completed_with_real_name_and_size(self) -> None:
+        _FakePdfExporter.result = _canned_pdf_result(
+            file_name="macro-crypto-report-30d-2026-09-16.pdf"
+        )
+        req = PdfRequest(timeframe="30d")
+        await generate_pdf_export(req)
+
+        repo = _FakeHistoryRepo.instances[0]
+        assert len(repo.completed) == 1
+        completed = repo.completed[0]
+        assert completed["export_id"] == 1
+        assert (
+            completed["file_name"]
+            == "macro-crypto-report-30d-2026-09-16.pdf"
+        )
+        assert completed["file_size"] == 4096
+
+    @pytest.mark.asyncio
+    async def test_passes_the_request_through_to_the_exporter(self) -> None:
+        _FakePdfExporter.result = _canned_pdf_result()
+        req = PdfRequest(
+            timeframe="1y", user_id="analyst-9", title="Custom"
+        )
+        await generate_pdf_export(req)
+        assert _FakePdfExporter.last_request is req
+
+    @pytest.mark.asyncio
+    async def test_does_not_mark_failed_on_success(self) -> None:
+        _FakePdfExporter.result = _canned_pdf_result()
+        req = PdfRequest(timeframe="30d")
+        await generate_pdf_export(req)
+        repo = _FakeHistoryRepo.instances[0]
+        assert repo.failed == []
+
+    @pytest.mark.asyncio
+    async def test_user_id_none_is_recorded_as_none(self) -> None:
+        _FakePdfExporter.result = _canned_pdf_result()
+        req = PdfRequest(timeframe="30d")
+        await generate_pdf_export(req)
+        repo = _FakeHistoryRepo.instances[0]
+        assert repo.created[0].user_id is None
+
+
+# ============================================================
+# PDF — FAILURE PATH
+# ============================================================
+class TestGeneratePdfExportFailurePath:
+    """generate_pdf_export: exporter raises → mark_failed + re-raise."""
+
+    @pytest.mark.asyncio
+    async def test_re_raises_the_original_exception(self) -> None:
+        _FakePdfExporter.raises = ValueError("boom")
+        req = PdfRequest(timeframe="30d")
+        with pytest.raises(ValueError, match="boom"):
+            await generate_pdf_export(req)
+
+    @pytest.mark.asyncio
+    async def test_marks_failed(self) -> None:
+        _FakePdfExporter.raises = ValueError("boom")
+        req = PdfRequest(timeframe="30d")
+        with pytest.raises(ValueError):
+            await generate_pdf_export(req)
+
+        repo = _FakeHistoryRepo.instances[0]
+        assert repo.failed == [1]
+
+    @pytest.mark.asyncio
+    async def test_does_not_mark_completed(self) -> None:
+        _FakePdfExporter.raises = ValueError("boom")
+        req = PdfRequest(timeframe="30d")
+        with pytest.raises(ValueError):
+            await generate_pdf_export(req)
+
+        repo = _FakeHistoryRepo.instances[0]
+        assert repo.completed == []
+
+    @pytest.mark.asyncio
+    async def test_mark_failed_does_not_mask_the_original_error(self) -> None:
+        _FakePdfExporter.raises = ValueError("original error")
+        _FakeHistoryRepo.mark_failed_raises = RuntimeError("cleanup boom")
+
+        req = PdfRequest(timeframe="30d")
+        with pytest.raises(ValueError, match="original error"):
+            await generate_pdf_export(req)
+
+    @pytest.mark.asyncio
+    async def test_mark_failed_is_still_attempted(self) -> None:
+        _FakePdfExporter.raises = ValueError("original error")
+        _FakeHistoryRepo.mark_failed_raises = RuntimeError("cleanup boom")
+
+        req = PdfRequest(timeframe="30d")
+        with pytest.raises(ValueError):
+            await generate_pdf_export(req)
 
         repo = _FakeHistoryRepo.instances[0]
         # The mark_failed call was attempted (and raised) — the

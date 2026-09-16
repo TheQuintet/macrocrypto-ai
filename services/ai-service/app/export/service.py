@@ -2,20 +2,20 @@
 
 Owns the session and the ``export_history`` write for every export
 request. This is the wiring layer between the pure byte-producing
-exporters (``CsvExporter``, ``PngExporter``) and the
-``ExportHistoryRepository`` (which records the request and its
+exporters (``CsvExporter``, ``PngExporter``, ``PdfExporter``) and
+the ``ExportHistoryRepository`` (which records the request and its
 outcome).
 
 Design:
 
     - One public function per export format:
-      ``generate_csv_export`` and ``generate_png_export``. Each
-      takes its format-specific request dataclass, opens one
-      ``session_scope()``, and returns the format-specific result.
-      Callers do not see the session.
+      ``generate_csv_export``, ``generate_png_export``, and
+      ``generate_pdf_export``. Each takes its format-specific
+      request dataclass, opens one ``session_scope()``, and returns
+      the format-specific result. Callers do not see the session.
     - The shared lifecycle (insert a ``pending`` row, run the
       exporter, transition to ``completed`` or ``failed``) lives in
-      ``_run_with_history``. The two public functions are thin
+      ``_run_with_history``. The public functions are thin
       wrappers that wire up the right exporter and the right
       request shape.
     - The request is recorded with status='pending' before the
@@ -37,9 +37,11 @@ Usage:
 
     from app.export.csv_export import ExportRequest
     from app.export.png_export import ChartRequest
+    from app.export.pdf_export import PdfRequest
     from app.export.service import (
         generate_csv_export,
         generate_png_export,
+        generate_pdf_export,
     )
 
     # CSV
@@ -58,7 +60,13 @@ Usage:
     )
     # png_result.content is the PNG bytes.
 
-    # In both cases, result.file_name and result.file_size match
+    # PDF
+    pdf_result = await generate_pdf_export(
+        PdfRequest(timeframe="90d", user_id="analyst-42")
+    )
+    # pdf_result.content is the PDF bytes.
+
+    # In every case, result.file_name and result.file_size match
     # the row recorded in export_history.
 """
 
@@ -82,6 +90,11 @@ from app.export.csv_export import (
     ExportRequest,
     ExportResult,
 )
+from app.export.pdf_export import (
+    PdfExporter,
+    PdfRequest,
+    PdfResult,
+)
 from app.export.png_export import (
     ChartRequest,
     ChartResult,
@@ -91,9 +104,9 @@ from app.export.png_export import (
 logger = logging.getLogger(__name__)
 
 
-# The result type is either ExportResult (CSV) or ChartResult (PNG).
-# Both carry file_name, file_size, and content, which is all the
-# shared lifecycle needs.
+# The result type is ExportResult (CSV), ChartResult (PNG), or
+# PdfResult (PDF). All three carry file_name, file_size, and
+# content, which is all the shared lifecycle needs.
 T = TypeVar("T")
 
 
@@ -113,13 +126,13 @@ async def _run_with_history(
 ) -> T:
     """Run an exporter and record the request in ``export_history``.
 
-    Shared by ``generate_csv_export`` and ``generate_png_export``.
-    The two public functions differ only in the exporter they
-    construct, the request shape they take, and the values they
-    write into the history row. Everything else — the pending insert,
-    the try/except around the exporter, the completed transition,
-    the mark_failed guard, the logging — is identical and lives
-    here.
+    Shared by ``generate_csv_export``, ``generate_png_export``, and
+    ``generate_pdf_export``. The public functions differ only in the
+    exporter they construct, the request shape they take, and the
+    values they write into the history row. Everything else — the
+    pending insert, the try/except around the exporter, the
+    completed transition, the mark_failed guard, the logging — is
+    identical and lives here.
 
     Args:
         history_repo: The export history repository, bound to the
@@ -132,8 +145,8 @@ async def _run_with_history(
         user_id: Optional opaque identifier. ``None`` for
             system-triggered exports.
         data_types: Data types to record on the history row. For
-            CSV this is the requested stream list; for PNG this is
-            the single-element list ``['chart']``.
+            CSV this is the requested stream list; for PNG and PDF
+            this is the single-element list ``['chart']``.
         runner: Zero-argument callable that builds the export and
             returns the format-specific result. Called exactly once.
         start_time: ``time.monotonic()`` value captured by the
@@ -340,7 +353,66 @@ async def generate_png_export(
         )
 
 
+# ============================================================
+# PDF EXPORT
+# ============================================================
+async def generate_pdf_export(
+    request: PdfRequest,
+) -> PdfResult:
+    """Generate a PDF chart export and record it in ``export_history``.
+
+    Same lifecycle as ``generate_csv_export`` and
+    ``generate_png_export``: insert a ``pending`` row, render the
+    vector PDF, transition to ``completed`` with the real file size.
+    On failure, mark the row failed and re-raise.
+
+    The history row is recorded with ``export_type='pdf'`` and
+    ``data_types=['chart']``. The ``'chart'`` label is the same
+    storage-level marker the PNG path uses; the ``export_type``
+    column is what distinguishes PDF from PNG.
+
+    Args:
+        request: The PDF request. ``request.timeframe`` drives the
+            chart; ``request.user_id`` is recorded on the history
+            row if set; ``request.title`` overrides the default
+            chart title.
+
+    Returns:
+        The ``PdfResult`` produced by the exporter, including the
+        PDF bytes.
+
+    Raises:
+        ValueError: Propagated from ``PdfExporter.render`` for an
+            unknown timeframe or an empty BTC price frame.
+        Exception: Any other exception raised by ``render`` is
+            logged and re-raised after marking the row failed.
+    """
+    start = time.monotonic()
+
+    # Provisional filename, computed up front so we can insert the
+    # pending row before the exporter has produced anything.
+    provisional_name = PdfExporter._filename(request.timeframe)
+
+    async with session_scope() as session:
+        history_repo = ExportHistoryRepository(session)
+        prediction_repo = PredictionRepository(session)
+
+        exporter = PdfExporter(prediction_repo=prediction_repo)
+
+        return await _run_with_history(
+            history_repo=history_repo,
+            export_type="pdf",
+            timeframe=request.timeframe,
+            provisional_file_name=provisional_name,
+            user_id=request.user_id,
+            data_types=["chart"],
+            runner=lambda: exporter.render(request),
+            start_time=start,
+        )
+
+
 __all__ = [
     "generate_csv_export",
     "generate_png_export",
+    "generate_pdf_export",
 ]
