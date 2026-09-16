@@ -1,7 +1,7 @@
 """PNG chart export generation for analyst-facing downloads (A2.3).
 
 Renders a single chart — BTC price over the chosen timeframe, with
-a legend, axis labels, and a metadata footer — into a 300 DPI PNG
+a legend, axis labels, and a citations footer — into a 300 DPI PNG
 byte payload.
 
 The chart is deliberately minimal for A2.3:
@@ -9,8 +9,8 @@ The chart is deliberately minimal for A2.3:
     - One price line (BTC close) over the export window.
     - A title that names the timeframe.
     - Axis labels ("Time" / "Price (USD)").
-    - A footer line that names the data source and the render time.
-      A2.5 will extend this into a proper citations block.
+    - A citations footer naming the data sources, the methodology,
+      and the access time (A2.5).
 
 Design:
 
@@ -26,11 +26,12 @@ Design:
     - The Figure construction and the PNG save step live in
       ``app.export.chart``, shared with the PDF exporter (A2.4).
       This module stays a thin format-specific wrapper.
-    - matplotlib is used with the ``Agg`` backend, selected in
-      ``app.export.chart``. Agg is headless-safe (no display
-      required, correct for a server process and for CI), and
-      ``chart.save_figure_png`` closes every figure in a
-      ``finally`` block so long-running processes do not leak.
+    - The citations block is built here via
+      ``app.export.metadata.build_metadata`` and carried on the
+      returned ``ChartResult.metadata`` (A2.5).
+    - matplotlib is used with the ``Agg`` backend (selected in
+      ``app.export.chart``), which is headless-safe — no display
+      required, correct for a server process and for CI.
     - Output resolution is fixed at 300 DPI, matching the A2.3
       acceptance criterion. The PNG's ``pHYs`` chunk carries the
       resolution; ``savefig(dpi=300)`` writes it.
@@ -49,6 +50,7 @@ Usage:
             ChartRequest(timeframe="90d", user_id="analyst-42")
         )
         # result.content is the PNG bytes
+        # result.metadata is the citations block
         # result.file_name follows the naming convention
 """
 
@@ -73,6 +75,10 @@ from app.export.frames import (
     TIMEFRAME_HOURS,
     build_btc_price_frame,
 )
+from app.export.metadata import (
+    ExportMetadata,
+    build_metadata,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -81,9 +87,8 @@ logger = logging.getLogger(__name__)
 # CONSTANTS
 # ============================================================
 # The three chart constants now live in ``app.export.chart`` and
-# are re-exported here so existing importers — including A2.3's
-# own test module — keep working unchanged. The values are
-# identical; ``__all__`` still lists all three.
+# are re-exported here so existing importers (including A2.3's own
+# test module) keep working unchanged. The values are identical.
 
 
 # ============================================================
@@ -139,6 +144,8 @@ class ChartResult:
         timeframe: The timeframe that was requested (echoed).
         rows_plotted: Number of BTC price rows that were plotted.
         content: The PNG bytes.
+        metadata: The citations block that was rendered into the
+            chart footer (A2.5).
     """
 
     file_name: str
@@ -146,6 +153,7 @@ class ChartResult:
     timeframe: str
     rows_plotted: int
     content: bytes
+    metadata: Optional[ExportMetadata] = None
 
     def to_dict(self) -> Dict[str, Any]:
         """Return a JSON-serialisable dict.
@@ -153,12 +161,15 @@ class ChartResult:
         ``content`` is deliberately omitted — it can be large, and
         the caller already holds it.
         """
-        return {
+        d: Dict[str, Any] = {
             "file_name": self.file_name,
             "file_size": self.file_size,
             "timeframe": self.timeframe,
             "rows_plotted": self.rows_plotted,
         }
+        if self.metadata is not None:
+            d["metadata"] = self.metadata.to_dict()
+        return d
 
     def __repr__(self) -> str:  # pragma: no cover - trivial
         return (
@@ -210,15 +221,17 @@ class PngExporter:
             1. Validate the timeframe.
             2. Build the BTC price frame via the shared
                ``frames.build_btc_price_frame``.
-            3. Build the Figure via ``chart.build_chart_figure``.
-            4. Save to a 300 DPI PNG byte buffer via
+            3. Build the citations block via
+               ``metadata.build_metadata``.
+            4. Build the Figure via ``chart.build_chart_figure``.
+            5. Save to a 300 DPI PNG byte buffer via
                ``chart.save_figure_png``.
 
         Args:
             request: The chart request.
 
         Returns:
-            ChartResult with the PNG bytes.
+            ChartResult with the PNG bytes and citations metadata.
 
         Raises:
             ValueError: If the timeframe is unknown, or if the
@@ -249,11 +262,15 @@ class PngExporter:
                 f"timeframe={request.timeframe}"
             )
 
-        # ---- 3. Build the Figure, then save ----
+        # ---- 3. Citations block (A2.5) ----
+        export_metadata = build_metadata(data_types=["chart"])
+
+        # ---- 4. Build the Figure, then save ----
         content = self._render_png(
             frame=frame,
             timeframe=request.timeframe,
             title=request.title,
+            metadata=export_metadata,
         )
 
         file_name = self._filename(timeframe=request.timeframe)
@@ -270,6 +287,7 @@ class PngExporter:
             timeframe=request.timeframe,
             rows_plotted=rows_plotted,
             content=content,
+            metadata=export_metadata,
         )
 
     # ============================================================
@@ -280,6 +298,7 @@ class PngExporter:
         frame: pd.DataFrame,
         timeframe: str,
         title: Optional[str],
+        metadata: Optional[ExportMetadata] = None,
     ) -> bytes:
         """Render the frame to PNG bytes.
 
@@ -294,6 +313,9 @@ class PngExporter:
             timeframe: The timeframe label, used in the default
                 title and the footer.
             title: Optional title override.
+            metadata: Citations block to render into the footer.
+                When None, ``build_chart_figure`` builds a default
+                block internally.
 
         Returns:
             PNG bytes.
@@ -302,6 +324,7 @@ class PngExporter:
             frame=frame,
             timeframe=timeframe,
             title=title,
+            metadata=metadata,
         )
         return save_figure_png(fig)
 

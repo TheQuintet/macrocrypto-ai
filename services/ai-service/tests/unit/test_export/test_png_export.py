@@ -3,6 +3,7 @@
 Covers:
     - CHART_DPI, CHART_FIGSIZE_INCHES, CHART_DATA_SOURCE constants
     - ChartRequest / ChartResult dataclasses (to_dict, __repr__)
+    - ChartResult.metadata is populated by render (A2.5)
     - PngExporter._filename for every timeframe
     - PngExporter.render against a fake repository:
         - happy path: PNG bytes, non-empty, correct magic number
@@ -206,6 +207,24 @@ class TestChartResult:
         assert "30d" in text
         assert "10" in text
 
+    def test_to_dict_includes_metadata_when_present(self) -> None:
+        """A2.5: ChartResult.to_dict includes the metadata block."""
+        from app.export.metadata import build_metadata
+
+        md = build_metadata()
+        res = ChartResult(
+            file_name="f.png",
+            file_size=100,
+            timeframe="30d",
+            rows_plotted=10,
+            content=b"",
+            metadata=md,
+        )
+        d = res.to_dict()
+        assert "metadata" in d
+        assert d["metadata"] == md.to_dict()
+        assert "content" not in d
+
 
 # ============================================================
 # FILENAME
@@ -313,6 +332,29 @@ class TestRenderHappyPath:
             exporter = PngExporter(repo)
             await exporter.render(ChartRequest(timeframe=tf))
             assert repo.calls == [expected_hours], tf
+
+
+# ============================================================
+# render() — METADATA (A2.5)
+# ============================================================
+class TestRenderMetadata:
+    """render() populates ChartResult.metadata."""
+
+    @pytest.mark.asyncio
+    async def test_metadata_is_populated(self) -> None:
+        repo = _FakePredictionRepo(btc=_btc_frame(12))
+        exporter = PngExporter(repo)
+        result = await exporter.render(ChartRequest(timeframe="30d"))
+        assert result.metadata is not None
+
+    @pytest.mark.asyncio
+    async def test_metadata_has_expected_sources(self) -> None:
+        repo = _FakePredictionRepo(btc=_btc_frame(12))
+        exporter = PngExporter(repo)
+        result = await exporter.render(ChartRequest(timeframe="30d"))
+        names = [s.name for s in result.metadata.sources]
+        # The chart data type maps to CoinGecko + AI Service.
+        assert names == ["CoinGecko", "MacroCrypto AI Service"]
 
 
 # ============================================================

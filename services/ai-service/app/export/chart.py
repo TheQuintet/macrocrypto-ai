@@ -2,8 +2,9 @@
 
 Both export formats that render a chart — PNG (A2.3) and PDF
 (A2.4) — build the same matplotlib Figure: one BTC close line over
-the export window, legend, axis labels, a title, and a footer line
-naming the data source and the render time.
+the export window, legend, axis labels, a title, and a citations
+footer naming the data sources, the methodology, and the access
+time.
 
 This module is that figure, plus the two save paths:
 
@@ -25,10 +26,14 @@ Design:
       ``CHART_DPI``, ``CHART_FIGSIZE_INCHES``, and
       ``CHART_DATA_SOURCE`` for backward compatibility with A2.3's
       tests and callers.
-    - The footnote ("Source: ... | Rendered: ...") is applied here
-      rather than in the format modules because A2.5 will replace
-      it with a structured citations block in exactly one place.
-      The ``data_source`` parameter is what A2.5 will override.
+    - The footer is now a multi-line citations block built from an
+      ``ExportMetadata`` (A2.5). The deprecated ``data_source``
+      keyword is preserved as a shim: when set, it produces the
+      A2.4-era single-line footer. A2.6 will remove it.
+    - ``build_chart_figure`` still works with no arguments beyond
+      the frame, timeframe, and title — when neither ``metadata``
+      nor ``data_source`` is passed, it builds a default metadata
+      block via ``metadata.build_metadata(data_types=["chart"])``.
 
 Usage:
 
@@ -47,7 +52,6 @@ Usage:
 
 import io
 import logging
-from datetime import datetime, timezone
 from typing import Optional
 
 import matplotlib
@@ -59,6 +63,11 @@ matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt  # noqa: E402  (after matplotlib.use)
 import pandas as pd  # noqa: E402
+
+from app.export.metadata import (
+    ExportMetadata,
+    build_metadata,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -74,9 +83,16 @@ CHART_DPI = 300
 # system; the same figsize produces a 12 × 6 inch page.
 CHART_FIGSIZE_INCHES = (12.0, 6.0)
 
-# The data-source label that appears in the footer. Kept here so
-# A2.5 can override it when the full metadata block lands.
+# DEPRECATED (A2.5): a single-line source label. Kept so A2.3-era
+# importers continue to work. New callers should pass an
+# ``ExportMetadata`` to ``build_chart_figure`` instead. A2.6 will
+# remove this constant.
 CHART_DATA_SOURCE = "BTC price: btc_prices (Data Ingestion Service)"
+
+# Fraction of the figure height reserved for the citations footer.
+# The A2.4 footer was a single line and reserved 3%. A2.5's block
+# is up to four lines, so we reserve 8% to avoid clipping.
+_FOOTER_RECT = (0.0, 0.08, 1.0, 1.0)
 
 
 # ============================================================
@@ -87,7 +103,8 @@ def build_chart_figure(
     timeframe: str,
     title: Optional[str],
     *,
-    data_source: str = CHART_DATA_SOURCE,
+    metadata: Optional[ExportMetadata] = None,
+    data_source: Optional[str] = None,
 ):
     """Construct the chart Figure from a BTC price frame.
 
@@ -102,7 +119,8 @@ def build_chart_figure(
         - Apply axis labels, title, legend, and grid.
         - Rotate the x tick labels (the dense timestamps on 30d
           and 90d windows would otherwise overlap).
-        - Add the footer line (data source + render time).
+        - Add the citations footer (sources, methodology, access
+          time; optionally significance).
         - Reserve the bottom margin so the footer is not clipped.
 
     Args:
@@ -111,9 +129,14 @@ def build_chart_figure(
         timeframe: The timeframe label, used in the default title.
         title: Optional title override. When None, a default title
             is derived from the timeframe.
-        data_source: Footer source label. Defaults to the module
-            constant; A2.5 will override it when the citations
-            block lands.
+        metadata: The citations block to render in the footer. When
+            None and ``data_source`` is also None, a default block
+            is built via
+            ``metadata.build_metadata(data_types=["chart"])``.
+        data_source: DEPRECATED (A2.5). When provided, produces the
+            A2.4-era single-line footer instead of the citations
+            block. Takes priority over ``metadata``. A2.6 removes
+            this argument.
 
     Returns:
         An open :class:`matplotlib.figure.Figure` instance.
@@ -147,19 +170,39 @@ def build_chart_figure(
     # overlap on the 30d / 90d charts.
     fig.autofmt_xdate(rotation=30)
 
-    # Footer line: data source + render time. A2.5 will replace
-    # this with a structured citations block.
-    render_time = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-    fig.text(
-        0.01,
-        0.01,
-        f"Source: {data_source} | Rendered: {render_time}",
-        fontsize=8,
-        color="#555555",
-    )
+    # Footer. Two paths, both supported.
+    if data_source is not None:
+        # DEPRECATED (A2.5): the A2.4-era single-line footer.
+        # Rendered only when a caller explicitly passes
+        # ``data_source``. A2.6 removes this path.
+        from datetime import datetime, timezone
+
+        render_time = datetime.now(timezone.utc).strftime(
+            "%Y-%m-%d %H:%M UTC"
+        )
+        fig.text(
+            0.01,
+            0.01,
+            f"Source: {data_source} | Rendered: {render_time}",
+            fontsize=8,
+            color="#555555",
+        )
+    else:
+        # A2.5 path: the multi-line citations block.
+        if metadata is None:
+            metadata = build_metadata(data_types=["chart"])
+        fig.text(
+            0.01,
+            0.01,
+            metadata.to_footer_text(),
+            fontsize=7,
+            color="#555555",
+            verticalalignment="bottom",
+            linespacing=1.4,
+        )
 
     # Reserve the bottom margin for the footer.
-    fig.tight_layout(rect=(0.0, 0.03, 1.0, 1.0))
+    fig.tight_layout(rect=_FOOTER_RECT)
 
     return fig
 

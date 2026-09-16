@@ -4,6 +4,7 @@ Covers:
     - PdfExporter._filename for every timeframe
     - PdfRequest / PdfResult dataclasses (to_dict, __repr__,
       pages default)
+    - PdfResult.metadata is populated by render (A2.5)
     - PdfExporter.render against a fake repository:
         - happy path: PDF bytes, correct magic number, pages=1
         - vector-quality signature (PDF is much smaller than the
@@ -137,6 +138,24 @@ class TestPdfResult:
         assert "30d" in text
         assert "10" in text
 
+    def test_to_dict_includes_metadata_when_present(self) -> None:
+        """A2.5: PdfResult.to_dict includes the metadata block."""
+        from app.export.metadata import build_metadata
+
+        md = build_metadata()
+        res = PdfResult(
+            file_name="f.pdf",
+            file_size=100,
+            timeframe="30d",
+            rows_plotted=10,
+            content=b"",
+            metadata=md,
+        )
+        d = res.to_dict()
+        assert "metadata" in d
+        assert d["metadata"] == md.to_dict()
+        assert "content" not in d
+
 
 # ============================================================
 # FILENAME
@@ -262,6 +281,29 @@ class TestRenderHappyPath:
         assert pdf_result.file_size < 200_000, (
             f"PDF is {pdf_result.file_size} bytes — looks rasterized"
         )
+
+
+# ============================================================
+# render() — METADATA (A2.5)
+# ============================================================
+class TestRenderMetadata:
+    """render() populates PdfResult.metadata."""
+
+    @pytest.mark.asyncio
+    async def test_metadata_is_populated(self) -> None:
+        repo = _FakePredictionRepo(btc=_btc_frame(12))
+        exporter = PdfExporter(repo)
+        result = await exporter.render(PdfRequest(timeframe="30d"))
+        assert result.metadata is not None
+
+    @pytest.mark.asyncio
+    async def test_metadata_has_expected_sources(self) -> None:
+        repo = _FakePredictionRepo(btc=_btc_frame(12))
+        exporter = PdfExporter(repo)
+        result = await exporter.render(PdfRequest(timeframe="30d"))
+        names = [s.name for s in result.metadata.sources]
+        # The chart data type maps to CoinGecko + AI Service.
+        assert names == ["CoinGecko", "MacroCrypto AI Service"]
 
 
 # ============================================================
