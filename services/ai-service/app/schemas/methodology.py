@@ -1,7 +1,9 @@
-"""Pydantic schemas for the methodology API (A4.1).
+"""Pydantic schemas for the methodology API (A4.1, A4.2).
 
 These schemas define the JSON contract for:
     - GET /api/v1/methodology
+    - GET /api/v1/methodology/versions
+    - GET /api/v1/methodology/changelog
 
 Design:
     - The models mirror the dataclasses in ``app.methodology``
@@ -11,8 +13,8 @@ Design:
       a dumb container and the content lives in one module.
     - Every field carries a ``description`` so the OpenAPI docs are
       useful without a separate spec.
-    - The top-level model carries a ``json_schema_extra`` example so
-      Swagger UI shows a representative response.
+    - The top-level models carry ``json_schema_extra`` examples so
+      Swagger UI shows representative responses.
     - ``MethodologyErrorResponse`` mirrors the pattern used by the
       other endpoints in this codebase.
 
@@ -208,7 +210,7 @@ class MethodologyResponse(BaseModel):
         "json_schema_extra": {
             "examples": [
                 {
-                    "version": "1.0.0",
+                    "version": "1.1.0",
                     "updated_at": "2026-09-16",
                     "models": [
                         {
@@ -286,6 +288,116 @@ class MethodologyResponse(BaseModel):
 
 
 # ============================================================
+# VERSION LIST (A4.2)
+# ============================================================
+class MethodologyVersionListResponse(BaseModel):
+    """Response body for GET /api/v1/methodology/versions.
+
+    Attributes:
+        current_version: The version served by
+            ``GET /api/v1/methodology`` when no ``?version=`` is
+            given.
+        versions: Every registered version, ascending by semver.
+    """
+
+    current_version: str = Field(
+        ...,
+        description=(
+            "The version returned by the base endpoint when no "
+            "?version= query parameter is given."
+        ),
+    )
+    versions: List[str] = Field(
+        default_factory=list,
+        description=(
+            "Every registered methodology version, oldest first."
+        ),
+    )
+
+    model_config = {
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "current_version": "1.1.0",
+                    "versions": ["1.0.0", "1.1.0"],
+                }
+            ]
+        }
+    }
+
+
+# ============================================================
+# CHANGELOG (A4.2)
+# ============================================================
+class ChangelogEntryResponse(BaseModel):
+    """One entry in the methodology changelog.
+
+    Attributes:
+        version: The methodology version this entry describes.
+        released_at: ISO 8601 date the version was released.
+        summary: One-sentence description of what changed.
+        changes: A list of short bullet-style strings describing
+            the individual changes in this version.
+    """
+
+    version: str = Field(
+        ...,
+        description="The methodology version this entry describes.",
+    )
+    released_at: str = Field(
+        ...,
+        description="ISO 8601 date the version was released.",
+    )
+    summary: str = Field(
+        ...,
+        description="One-sentence description of what changed.",
+    )
+    changes: List[str] = Field(
+        default_factory=list,
+        description="Short bullet-style descriptions of individual "
+        "changes.",
+    )
+
+
+class MethodologyChangelogResponse(BaseModel):
+    """Response body for GET /api/v1/methodology/changelog.
+
+    Attributes:
+        entries: Changelog entries, newest version first.
+    """
+
+    entries: List[ChangelogEntryResponse] = Field(
+        default_factory=list,
+        description="Changelog entries, newest version first.",
+    )
+
+    model_config = {
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "entries": [
+                        {
+                            "version": "1.1.0",
+                            "released_at": "2026-09-16",
+                            "summary": (
+                                "Added version tracking and a "
+                                "changelog to the methodology API."
+                            ),
+                            "changes": [
+                                "The methodology API now reports "
+                                "its version.",
+                                "A changelog endpoint lists every "
+                                "released version.",
+                            ],
+                        }
+                    ]
+                }
+            ]
+        }
+    }
+
+
+# ============================================================
 # ERROR
 # ============================================================
 class MethodologyErrorResponse(BaseModel):
@@ -307,11 +419,14 @@ class MethodologyErrorResponse(BaseModel):
 
 
 __all__ = [
+    "ChangelogEntryResponse",
     "CorrelationSpecResponse",
     "DataSourceSpecResponse",
     "LimitationSpecResponse",
+    "MethodologyChangelogResponse",
     "MethodologyErrorResponse",
     "MethodologyResponse",
+    "MethodologyVersionListResponse",
     "ModelSpecResponse",
     "RegimeSpecResponse",
 ]

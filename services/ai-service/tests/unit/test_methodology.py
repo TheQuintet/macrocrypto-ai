@@ -1,13 +1,17 @@
 """Unit tests for app.methodology.
 
 Covers:
-    - The canonical Methodology instance: version, sections,
+    - The current Methodology instance: version, sections,
       non-empty fields
-    - Each section dataclass: to_dict shape, JSON-serializability
+    - Every section dataclass: to_dict shape, JSON-serializability
     - Cross-module consistency: thresholds in this module agree with
       the running constants in app.correlation.calculator and
       app.prediction.market
-    - build_methodology() returns the canonical instance
+    - build_methodology() with and without a version argument
+    - The MethodologyRegistry: get, current, list_versions,
+      list_changelog, empty-registry edge cases
+    - The ChangelogEntry dataclass
+    - Semver ordering (1.9.0 < 1.10.0, not lexicographic)
 
 The cross-module tests are the important ones: they assert that the
 methodology documentation and the running code cannot drift apart
@@ -27,18 +31,25 @@ import pytest
 
 from app.correlation import calculator as calc
 from app.methodology import (
+    CANONICAL_CHANGELOG,
     CANONICAL_CORRELATIONS,
     CANONICAL_DATA_SOURCES,
     CANONICAL_LIMITATIONS,
     CANONICAL_MODELS,
     CANONICAL_REGIMES,
+    METHODOLOGY_V1_0_0,
+    METHODOLOGY_V1_1_0,
+    ChangelogEntry,
     CorrelationSpec,
     DataSourceSpec,
     LimitationSpec,
     Methodology,
+    MethodologyRegistry,
     ModelSpec,
     RegimeSpec,
     build_methodology,
+    get_methodology_changelog,
+    list_methodology_versions,
 )
 from app.prediction import market as market_mod
 
@@ -47,22 +58,24 @@ from app.prediction import market as market_mod
 # TOP-LEVEL INSTANCE
 # ============================================================
 class TestBuildMethodology:
-    """build_methodology() returns the canonical instance."""
+    """build_methodology() returns the current version by default."""
 
     def test_returns_a_methodology(self) -> None:
         m = build_methodology()
         assert isinstance(m, Methodology)
 
-    def test_version_is_semver_like(self) -> None:
+    def test_current_version_is_1_1_0(self) -> None:
         m = build_methodology()
-        parts = m.version.split(".")
+        assert m.version == "1.1.0"
+
+    def test_version_is_semver_like(self) -> None:
+        parts = build_methodology().version.split(".")
         assert len(parts) == 3
         for p in parts:
             int(p)  # must be an integer
 
     def test_updated_at_is_iso_date(self) -> None:
         m = build_methodology()
-        # YYYY-MM-DD
         assert len(m.updated_at) == 10
         assert m.updated_at[4] == "-"
         assert m.updated_at[7] == "-"
@@ -70,6 +83,32 @@ class TestBuildMethodology:
     def test_idempotent(self) -> None:
         """Repeated calls return the same object (no rebuilding)."""
         assert build_methodology() is build_methodology()
+
+
+class TestBuildMethodologyWithVersion:
+    """build_methodology(version) returns the requested version."""
+
+    def test_explicit_1_0_0(self) -> None:
+        m = build_methodology("1.0.0")
+        assert m.version == "1.0.0"
+
+    def test_explicit_1_1_0(self) -> None:
+        m = build_methodology("1.1.0")
+        assert m.version == "1.1.0"
+
+    def test_explicit_matches_current_for_current_version(self) -> None:
+        assert build_methodology("1.1.0") is build_methodology()
+
+    def test_unknown_version_raises_key_error(self) -> None:
+        with pytest.raises(KeyError):
+            build_methodology("9.9.9")
+
+    def test_none_is_current(self) -> None:
+        assert build_methodology(None) is build_methodology()
+
+
+class TestMethodologyFrozen:
+    """Methodology is a frozen dataclass."""
 
     def test_frozen(self) -> None:
         m = build_methodology()
@@ -165,7 +204,9 @@ class TestSectionDataclasses:
         }
 
     def test_model_spec_frozen(self) -> None:
-        spec = ModelSpec(name="x", algorithm="y", strategy="z", description="d")
+        spec = ModelSpec(
+            name="x", algorithm="y", strategy="z", description="d"
+        )
         with pytest.raises(FrozenInstanceError):
             spec.name = "other"  # type: ignore[misc]
 
@@ -206,7 +247,9 @@ class TestSectionDataclasses:
         assert d["volatility_threshold"] == 0.05
 
     def test_data_source_spec_to_dict(self) -> None:
-        spec = DataSourceSpec(name="X", url="https://x", description="d")
+        spec = DataSourceSpec(
+            name="X", url="https://x", description="d"
+        )
         assert spec.to_dict() == {
             "name": "X",
             "url": "https://x",
@@ -216,6 +259,168 @@ class TestSectionDataclasses:
     def test_limitation_spec_to_dict(self) -> None:
         spec = LimitationSpec(area="a", description="d")
         assert spec.to_dict() == {"area": "a", "description": "d"}
+
+
+# ============================================================
+# CHANGELOG ENTRY
+# ============================================================
+class TestChangelogEntry:
+    """The ChangelogEntry dataclass."""
+
+    def test_to_dict(self) -> None:
+        e = ChangelogEntry(
+            version="1.2.3",
+            released_at="2026-10-01",
+            summary="sum",
+            changes=["a", "b"],
+        )
+        assert e.to_dict() == {
+            "version": "1.2.3",
+            "released_at": "2026-10-01",
+            "summary": "sum",
+            "changes": ["a", "b"],
+        }
+
+    def test_default_changes_is_empty(self) -> None:
+        e = ChangelogEntry(
+            version="1.0.0",
+            released_at="2026-01-01",
+            summary="s",
+        )
+        assert e.changes == []
+
+    def test_frozen(self) -> None:
+        e = ChangelogEntry(
+            version="1.0.0", released_at="2026-01-01", summary="s"
+        )
+        with pytest.raises(FrozenInstanceError):
+            e.version = "9.9.9"  # type: ignore[misc]
+
+    def test_json_serializable(self) -> None:
+        e = ChangelogEntry(
+            version="1.0.0",
+            released_at="2026-01-01",
+            summary="s",
+            changes=["x"],
+        )
+        text = json.dumps(e.to_dict())
+        assert json.loads(text)["changes"] == ["x"]
+
+
+# ============================================================
+# REGISTRY
+# ============================================================
+class TestMethodologyRegistry:
+    """The MethodologyRegistry dataclass."""
+
+    def test_get_returns_matching_version(self) -> None:
+        reg = MethodologyRegistry(
+            current_version="1.0.0",
+            entries=[
+                Methodology(version="1.0.0", updated_at="x"),
+                Methodology(version="1.1.0", updated_at="x"),
+            ],
+        )
+        assert reg.get("1.0.0").version == "1.0.0"
+        assert reg.get("1.1.0").version == "1.1.0"
+
+    def test_get_unknown_raises_key_error(self) -> None:
+        reg = MethodologyRegistry(
+            current_version="1.0.0",
+            entries=[Methodology(version="1.0.0", updated_at="x")],
+        )
+        with pytest.raises(KeyError):
+            reg.get("9.9.9")
+
+    def test_current_returns_current_version_entry(self) -> None:
+        v1 = Methodology(version="1.0.0", updated_at="x")
+        v2 = Methodology(version="1.1.0", updated_at="x")
+        reg = MethodologyRegistry(
+            current_version="1.1.0", entries=[v1, v2]
+        )
+        assert reg.current() is v2
+
+    def test_current_raises_if_missing(self) -> None:
+        reg = MethodologyRegistry(
+            current_version="9.9.9", entries=[]
+        )
+        with pytest.raises(KeyError):
+            reg.current()
+
+    def test_list_versions_is_semver_ordered(self) -> None:
+        reg = MethodologyRegistry(
+            current_version="1.10.0",
+            entries=[
+                Methodology(version="1.10.0", updated_at="x"),
+                Methodology(version="1.9.0", updated_at="x"),
+                Methodology(version="1.0.0", updated_at="x"),
+            ],
+        )
+        assert reg.list_versions() == ["1.0.0", "1.9.0", "1.10.0"]
+
+    def test_list_versions_empty(self) -> None:
+        reg = MethodologyRegistry(current_version="0.0.0")
+        assert reg.list_versions() == []
+
+    def test_list_changelog_newest_first(self) -> None:
+        reg = MethodologyRegistry(
+            current_version="1.1.0",
+            entries=[],
+            changelog=[
+                ChangelogEntry(
+                    version="1.0.0",
+                    released_at="2026-01-01",
+                    summary="old",
+                ),
+                ChangelogEntry(
+                    version="1.1.0",
+                    released_at="2026-02-01",
+                    summary="new",
+                ),
+            ],
+        )
+        ordered = reg.list_changelog()
+        assert [e.version for e in ordered] == ["1.1.0", "1.0.0"]
+
+    def test_list_changelog_empty(self) -> None:
+        reg = MethodologyRegistry(current_version="0.0.0")
+        assert reg.list_changelog() == []
+
+    def test_registry_frozen(self) -> None:
+        reg = MethodologyRegistry(current_version="0.0.0")
+        with pytest.raises(FrozenInstanceError):
+            reg.current_version = "9.9.9"  # type: ignore[misc]
+
+
+# ============================================================
+# PUBLIC ACCESSORS
+# ============================================================
+class TestPublicAccessors:
+    """list_methodology_versions and get_methodology_changelog."""
+
+    def test_list_methodology_versions(self) -> None:
+        assert list_methodology_versions() == ["1.0.0", "1.1.0"]
+
+    def test_get_methodology_changelog_newest_first(self) -> None:
+        entries = get_methodology_changelog()
+        assert [e.version for e in entries] == ["1.1.0", "1.0.0"]
+
+    def test_changelog_matches_registry_versions(self) -> None:
+        """Every changelog entry has a matching Methodology."""
+        registry_versions = set(list_methodology_versions())
+        changelog_versions = {
+            e.version for e in get_methodology_changelog()
+        }
+        assert changelog_versions == registry_versions
+
+    def test_changelog_matches_canonical(self) -> None:
+        """The public changelog equals the canonical tuple."""
+        entries = get_methodology_changelog()
+        # The canonical tuple is in declaration order; the accessor
+        # sorts newest-first.
+        assert {e.version for e in entries} == {
+            e.version for e in CANONICAL_CHANGELOG
+        }
 
 
 # ============================================================
@@ -247,7 +452,6 @@ class TestMethodologyToDict:
 
     def test_json_serializable(self) -> None:
         payload = build_methodology().to_dict()
-        # Should not raise.
         text = json.dumps(payload)
         reloaded = json.loads(text)
         assert reloaded["version"] == build_methodology().version
@@ -259,12 +463,10 @@ class TestMethodologyToDict:
         assert empty.models == []
         assert empty.data_sources == []
         assert empty.limitations == []
-        # The section defaults still produce a valid (if empty) spec.
         assert empty.correlations.method == ""
         assert empty.correlations.windows_days == ()
         assert empty.regimes.labels == ()
         assert empty.regimes.priority == ()
-        # And to_dict works on the empty instance.
         d = empty.to_dict()
         assert d["correlations"]["windows_days"] == []
         assert d["regimes"]["labels"] == []
@@ -313,6 +515,50 @@ class TestRegimeConsistency:
         assert CANONICAL_REGIMES.priority == tuple(
             market_mod.CONDITION_PRIORITY
         )
+
+
+# ============================================================
+# CANONICAL VERSIONS
+# ============================================================
+class TestCanonicalVersions:
+    """The two shipped versions are wired the way the registry says."""
+
+    def test_v1_0_0_has_the_a41_content(self) -> None:
+        assert METHODOLOGY_V1_0_0.version == "1.0.0"
+        assert METHODOLOGY_V1_0_0.correlations.method == "Pearson"
+        assert METHODOLOGY_V1_0_0.regimes.labels == (
+            "bull",
+            "bear",
+            "volatile",
+            "neutral",
+        )
+
+    def test_v1_1_0_has_the_a42_content(self) -> None:
+        assert METHODOLOGY_V1_1_0.version == "1.1.0"
+        assert METHODOLOGY_V1_1_0.correlations.method == "Pearson"
+        assert METHODOLOGY_V1_1_0.regimes.labels == (
+            "bull",
+            "bear",
+            "volatile",
+            "neutral",
+        )
+
+    def test_sections_identical_across_versions(self) -> None:
+        """A4.2 did not change the methodology sections; it only
+        added version tracking on top."""
+        v1 = METHODOLOGY_V1_0_0
+        v2 = METHODOLOGY_V1_1_0
+        assert [m.name for m in v1.models] == [
+            m.name for m in v2.models
+        ]
+        assert v1.correlations.method == v2.correlations.method
+        assert v1.regimes.labels == v2.regimes.labels
+        assert [s.name for s in v1.data_sources] == [
+            s.name for s in v2.data_sources
+        ]
+        assert [l.area for l in v1.limitations] == [
+            l.area for l in v2.limitations
+        ]
 
 
 # ============================================================

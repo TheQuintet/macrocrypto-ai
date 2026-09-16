@@ -1,31 +1,43 @@
-"""Methodology documentation for the AI Service (A4.1).
+"""Methodology documentation for the AI Service (A4.1, A4.2).
 
 This module is the canonical, machine-readable description of how
 the AI Service produces its predictions, correlations, and regime
 labels. It exists so the methodology can be served via the API
-(A4.1) without duplicating prose across documentation files, and so
-A4.2's version tracking has a single structured object to version.
+(A4.1) and so its version history is tracked in code (A4.2).
 
 Design:
 
     - Pure data. Every section is a frozen dataclass. The module
       has no I/O, no dependencies on settings, and no imports from
-      the rest of the app. ``build_methodology()`` returns the
-      canonical instance; call sites go through it so that a future
-      branch (A4.2) can swap it for a lookup against a versioned
-      registry without changing any caller.
+      the rest of the app.
     - Values are the source of truth. Every threshold, window,
       label, and identifier in here mirrors a constant that the
       running code uses — ``WINDOWS`` and ``SIGNIFICANCE_THRESHOLD``
       in ``app.correlation.calculator``, the regime labels in
       ``app.prediction.market``, the data sources in
-      ``app.export.metadata``. The tests in Group 3 assert that the
-      two agree, so drift fails loudly.
-    - Version is a semver string. A4.1 hard-codes ``"1.0.0"``. A4.2
-      will source it from a version registry; the field stays the
-      same so the response shape does not change.
+      ``app.export.metadata``. The tests in
+      ``tests/unit/test_methodology.py`` assert that the two agree,
+      so drift fails loudly.
+    - Version tracking (A4.2). The module holds a registry of every
+      ``Methodology`` version ever shipped, plus a parallel changelog
+      of one ``ChangelogEntry`` per version. ``build_methodology()``
+      returns the current version by default, and any prior version
+      when called with an explicit version string.
     - The ``to_dict`` methods produce JSON-serializable output.
       Nested dataclasses are converted recursively.
+
+Versioning rules:
+
+    - The version string is semver (``MAJOR.MINOR.PATCH``).
+    - Every new methodology release gets a new ``Methodology``
+      instance, a new ``ChangelogEntry``, and a bump to
+      ``current_version`` in the registry.
+    - The changelog is append-only. Editing an existing entry after
+      the fact would hide the historical record; if a mistake is
+      found, add a new version that corrects it.
+    - Prior versions are preserved exactly as they were shipped, so
+      ``GET /api/v1/methodology?version=1.0.0`` returns what the
+      API returned before A4.2.
 
 Not in this module:
 
@@ -33,12 +45,13 @@ Not in this module:
       in ``app.schemas.methodology``.
     - The endpoint itself — that lives in
       ``app.api.v1.methodology``.
-    - Changelog / version history — deferred to A4.2.
+    - Version comparison logic — deferred; the ticket marks it
+      optional.
 """
 
 import logging
 from dataclasses import asdict, dataclass, field
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -188,7 +201,7 @@ class LimitationSpec:
 
 @dataclass(frozen=True)
 class Methodology:
-    """The full methodology documentation.
+    """The full methodology documentation for one version.
 
     Attributes:
         version: Semver string for the methodology.
@@ -245,7 +258,140 @@ class Methodology:
 
 
 # ============================================================
-# CANONICAL CONTENT
+# CHANGELOG
+# ============================================================
+@dataclass(frozen=True)
+class ChangelogEntry:
+    """One entry in the methodology changelog.
+
+    Attributes:
+        version: The methodology version this entry describes. Every
+            entry must correspond to a ``Methodology`` instance in
+            the registry.
+        released_at: ISO 8601 date the version was released.
+        summary: One-sentence description of what changed.
+        changes: A list of short bullet-style strings describing the
+            individual changes in this version.
+    """
+
+    version: str
+    released_at: str
+    summary: str
+    changes: List[str] = field(default_factory=list)
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Return a JSON-serializable dict."""
+        return {
+            "version": self.version,
+            "released_at": self.released_at,
+            "summary": self.summary,
+            "changes": list(self.changes),
+        }
+
+
+# ============================================================
+# REGISTRY
+# ============================================================
+@dataclass(frozen=True)
+class MethodologyRegistry:
+    """Holds every methodology version plus the changelog.
+
+    The registry is the single source of truth for version lookup.
+    ``current_version`` names the version returned by
+    ``build_methodology()`` when the caller does not ask for a
+    specific one.
+
+    Attributes:
+        current_version: The version treated as "current".
+        entries: Every ``Methodology`` ever shipped, in no
+            particular order. Lookup is by ``version`` field.
+        changelog: Every ``ChangelogEntry``, in no particular order.
+            ``list_changelog()`` returns them newest-first.
+    """
+
+    current_version: str
+    entries: List[Methodology] = field(default_factory=list)
+    changelog: List[ChangelogEntry] = field(default_factory=list)
+
+    def get(self, version: str) -> Methodology:
+        """Return the ``Methodology`` for ``version``.
+
+        Args:
+            version: A semver string present in the registry.
+
+        Returns:
+            The matching :class:`Methodology`.
+
+        Raises:
+            KeyError: If ``version`` is not in the registry. The
+                caller is expected to translate this into a 404.
+        """
+        for entry in self.entries:
+            if entry.version == version:
+                return entry
+        raise KeyError(version)
+
+    def current(self) -> Methodology:
+        """Return the current ``Methodology``.
+
+        Raises:
+            KeyError: If ``current_version`` does not appear in
+                ``entries``. That would be a bug — a release must
+                register both.
+        """
+        return self.get(self.current_version)
+
+    def list_versions(self) -> List[str]:
+        """Return every registered version in ascending order.
+
+        Sort is by semver tuple so ``1.10.0`` sorts after ``1.9.0``,
+        not before it as a lexicographic sort would produce.
+
+        Returns:
+            A new list of version strings.
+        """
+        return sorted(
+            (e.version for e in self.entries),
+            key=_semver_key,
+        )
+
+    def list_changelog(self) -> List[ChangelogEntry]:
+        """Return the changelog, newest version first.
+
+        Returns:
+            A new list of :class:`ChangelogEntry` instances.
+        """
+        return sorted(
+            self.changelog,
+            key=lambda e: _semver_key(e.version),
+            reverse=True,
+        )
+
+
+# ============================================================
+# SEMVER HELPER
+# ============================================================
+def _semver_key(version: str) -> Tuple[int, int, int]:
+    """Convert a semver string to a sortable tuple.
+
+    The registry's versions are all three-part (MAJOR.MINOR.PATCH)
+    with integer components, so a simple tuple is enough. Non-
+    integer or differently-shaped strings would raise ``ValueError``
+    at import time, which is the failure mode we want: a malformed
+    version is a bug in the module, not a runtime condition.
+
+    Args:
+        version: A semver string.
+
+    Returns:
+        A ``(major, minor, patch)`` tuple.
+    """
+    parts = version.split(".")
+    return (int(parts[0]), int(parts[1]), int(parts[2]))
+
+
+# ============================================================
+# CANONICAL CONTENT — SHARED SECTIONS
 # ============================================================
 # Every value below mirrors a constant or behavior in the running
 # code. If the code changes, this module must change with it — the
@@ -402,9 +548,12 @@ CANONICAL_LIMITATIONS: Tuple[LimitationSpec, ...] = (
 
 
 # ============================================================
-# CANONICAL INSTANCE
+# VERSION 1.0.0 — A4.1 RELEASE
 # ============================================================
-_METHODOLOGY = Methodology(
+# The pre-A4.2 methodology, preserved exactly as it was served by
+# the A4.1 endpoint. Do not edit this instance; add a new version
+# instead.
+METHODOLOGY_V1_0_0 = Methodology(
     version="1.0.0",
     updated_at="2026-09-16",
     models=list(CANONICAL_MODELS),
@@ -415,31 +564,139 @@ _METHODOLOGY = Methodology(
 )
 
 
-def build_methodology() -> Methodology:
-    """Return the canonical methodology.
+# ============================================================
+# VERSION 1.1.0 — A4.2 RELEASE (CURRENT)
+# ============================================================
+# The A4.2 release. The methodology content itself is unchanged
+# from 1.0.0; the version bump documents the addition of version
+# tracking and the changelog as part of the API contract.
+METHODOLOGY_V1_1_0 = Methodology(
+    version="1.1.0",
+    updated_at="2026-09-16",
+    models=list(CANONICAL_MODELS),
+    correlations=CANONICAL_CORRELATIONS,
+    regimes=CANONICAL_REGIMES,
+    data_sources=list(CANONICAL_DATA_SOURCES),
+    limitations=list(CANONICAL_LIMITATIONS),
+)
 
-    Today this returns a module-level constant. A4.2 will swap it
-    for a lookup against a version registry; call sites go through
-    this function so the swap does not require changes anywhere
-    else.
+
+# ============================================================
+# CHANGELOG
+# ============================================================
+# Append-only. Add a new entry when shipping a new version; do not
+# edit existing entries.
+CANONICAL_CHANGELOG: Tuple[ChangelogEntry, ...] = (
+    ChangelogEntry(
+        version="1.0.0",
+        released_at="2026-09-16",
+        summary=(
+            "Initial published methodology: model variants, "
+            "correlation method, regime classification, data "
+            "sources, and known limitations."
+        ),
+        changes=[
+            "Documented the six forecasting model variants.",
+            "Documented the Pearson correlation method with "
+            "30/90/365-day windows and 0.7/0.3/0.05 thresholds.",
+            "Documented the four regime labels and their priority "
+            "order.",
+            "Listed the three external data sources (FRED, "
+            "CoinGecko, AI Service).",
+            "Listed four known limitations.",
+        ],
+    ),
+    ChangelogEntry(
+        version="1.1.0",
+        released_at="2026-09-16",
+        summary=(
+            "Added version tracking and a changelog to the "
+            "methodology API. Methodology content unchanged from "
+            "1.0.0."
+        ),
+        changes=[
+            "The methodology API now reports its version and "
+            "exposes a version history.",
+            "A changelog endpoint lists every released version.",
+            "GET /api/v1/methodology accepts an optional ?version= "
+            "query parameter; omitting it returns the current "
+            "version, matching the pre-1.1.0 behavior.",
+        ],
+    ),
+)
+
+
+# ============================================================
+# REGISTRY INSTANCE
+# ============================================================
+_REGISTRY = MethodologyRegistry(
+    current_version="1.1.0",
+    entries=[METHODOLOGY_V1_0_0, METHODOLOGY_V1_1_0],
+    changelog=list(CANONICAL_CHANGELOG),
+)
+
+
+# ============================================================
+# PUBLIC ACCESSORS
+# ============================================================
+def build_methodology(version: Optional[str] = None) -> Methodology:
+    """Return the methodology for a given version, or the current one.
+
+    Args:
+        version: A registered version string, or ``None`` to
+            return the current version. Passing ``None`` matches
+            the pre-A4.2 behavior of this function, so existing
+            call sites do not need to change.
 
     Returns:
-        The canonical :class:`Methodology`.
+        The requested :class:`Methodology`, or the current one when
+        ``version`` is ``None``.
+
+    Raises:
+        KeyError: If ``version`` is provided and not present in the
+            registry. Callers should translate this into a 404.
     """
-    return _METHODOLOGY
+    if version is None:
+        return _REGISTRY.current()
+    return _REGISTRY.get(version)
+
+
+def list_methodology_versions() -> List[str]:
+    """Return every registered methodology version, ascending.
+
+    Returns:
+        A new list of version strings, oldest first.
+    """
+    return _REGISTRY.list_versions()
+
+
+def get_methodology_changelog() -> List[ChangelogEntry]:
+    """Return the methodology changelog, newest version first.
+
+    Returns:
+        A new list of :class:`ChangelogEntry` instances.
+    """
+    return _REGISTRY.list_changelog()
 
 
 __all__ = [
+    "CANONICAL_CHANGELOG",
     "CANONICAL_CORRELATIONS",
     "CANONICAL_DATA_SOURCES",
     "CANONICAL_LIMITATIONS",
     "CANONICAL_MODELS",
     "CANONICAL_REGIMES",
+    "ChangelogEntry",
     "CorrelationSpec",
     "DataSourceSpec",
     "LimitationSpec",
+    "METHODOLOGY_V1_0_0",
+    "METHODOLOGY_V1_1_0",
     "Methodology",
+    "MethodologyRegistry",
     "ModelSpec",
     "RegimeSpec",
     "build_methodology",
+    "get_methodology_changelog",
+    "list_methodology_versions",
 ]
