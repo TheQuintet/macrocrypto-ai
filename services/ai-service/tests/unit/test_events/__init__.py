@@ -1,0 +1,1 @@
+"""Unit tests for the app.events package (A5.2)."""
