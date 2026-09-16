@@ -23,6 +23,8 @@ Jobs currently registered:
       all indicators × windows (2:00 AM UTC, A1.5)
     - daily_export_cleanup_job: delete export files older than the
       configured TTL (3:00 AM UTC, A2.6)
+    - daily_event_impact_update_job: recompute BTC reactions for
+      every stored event, update on change (4:00 AM UTC, A5.5)
 
 Design:
     - Each job opens its own DB session via session_scope(); the
@@ -54,6 +56,9 @@ from app.database.engine import session_scope
 from app.database.repositories.correlation_repository import (
     CorrelationRepository,
 )
+from app.database.repositories.event_impact_repository import (
+    EventImpactRepository,
+)
 from app.database.repositories.model_performance_repository import (
     ModelPerformanceRepository,
     ModelPerformanceRow,
@@ -69,6 +74,7 @@ from app.database.repositories.threshold_repository import (
     ThresholdBreachRow,
     ThresholdRepository,
 )
+from app.events.reaction import ReactionCalculator
 from app.export.storage import get_storage
 from app.prediction.generator import PredictionGenerator
 from app.prediction.market import classify_market_condition_safe
@@ -93,6 +99,7 @@ JOB_DAILY_MODEL_PERFORMANCE_AGGREGATION = (
 )
 JOB_DAILY_CORRELATION = "daily_correlation"
 JOB_DAILY_EXPORT_CLEANUP = "daily_export_cleanup"
+JOB_DAILY_EVENT_IMPACT_UPDATE = "daily_event_impact_update"
 
 
 # ============================================================
@@ -1652,3 +1659,250 @@ async def daily_export_cleanup_job() -> Dict[str, Any]:
     )
 
     return summary
+
+
+# ============================================================
+# DAILY EVENT IMPACT UPDATE JOB (A5.5)
+# ============================================================
+async def daily_event_impact_update_job() -> Dict[str, Any]:
+    """Recompute BTC reactions for every stored event and update on change.
+
+    Runs daily at 4:00 AM UTC. The AI Service has no external
+    source of "new events" — the A5.1 docstring is explicit that
+    a row in ``historical_event_impacts`` implicitly defines the
+    event. What this job can do, idempotently, is:
+
+        1. Read every row currently in ``historical_event_impacts``.
+        2. Recompute the reaction for each ``(event_name, event_date)``
+           using A5.2's ``ReactionCalculator``.
+        3. If the recomputed reaction differs from the stored one,
+           delete the stored row and re-insert the new one. The
+           A5.1 table has a UNIQUE (event_name, event_date)
+           constraint, so an in-place UPDATE would need a bespoke
+           SQL statement; delete-then-insert is the pattern
+           ``EventImpactRepository.delete_by_event`` exists for.
+        4. If the recomputed reaction is identical, skip — no write,
+           no churn.
+
+    Why "recompute-and-update" rather than "discover new events":
+        There is no external event feed. The job cannot invent
+        events. What it *can* do is keep the stored rows honest
+        against the current BTC price history, which is the
+        failure mode A5.2's design anticipates: if the Data
+        Ingestion Service backfills or corrects BTC prices, the
+        stored reactions become stale, and this job corrects them
+        on the next daily run.
+
+    Idempotency:
+        Re-running the same day produces zero writes on the second
+        run. Comparison is exact (float equality on the five
+        comparable fields), so a row only changes if a price
+        actually moved.
+
+    Failure semantics:
+        Each event is wrapped in its own try/except. A per-event
+        failure is counted and logged; it does not abort the run.
+        The job raises only when the initial read failed entirely
+        (i.e., the source table is unreachable), which is the one
+        condition a retry might resolve.
+
+    Notification semantics:
+        Matches the eight prior jobs: success and failure are
+        recorded in SchedulerState via the manager's ``_wrap_job``
+        and logged at INFO (success) or ERROR (failure). No
+        external notification system exists in the AI Service;
+        see the A5.5 PR description for the deferred status.
+
+    Returns:
+        Dict with keys: events_seen (int), events_updated (int),
+        events_unchanged (int), events_skipped (int),
+        events_failed (int), results (per-event dict),
+        elapsed_seconds (float).
+
+    Raises:
+        RuntimeError: If the read of ``historical_event_impacts``
+            fails entirely — the only condition worth a retry.
+    """
+    import time
+
+    start = time.monotonic()
+    logger.info("Running daily_event_impact_update_job")
+
+    # ---- 1. Read every stored event ----
+    async with session_scope() as session:
+        event_repo = EventImpactRepository(session)
+
+        try:
+            stored_rows = await event_repo.fetch_all(limit=10_000)
+        except Exception as e:
+            # The one condition worth a retry: we cannot even read
+            # the source table. Anything else is per-event and
+            # handled below.
+            raise RuntimeError(
+                f"Cannot read historical_event_impacts: {e}"
+            ) from e
+
+    logger.info(
+        f"daily_event_impact_update_job: {len(stored_rows)} stored "
+        f"event(s) to evaluate"
+    )
+
+    results: Dict[str, Dict[str, Any]] = {}
+    seen = 0
+    updated = 0
+    unchanged = 0
+    skipped = 0
+    failed = 0
+
+    for row in stored_rows:
+        key = f"{row['event_name']}_{row['event_date'].isoformat()}"
+        seen += 1
+
+        try:
+            event_name = row["event_name"]
+            event_date = row["event_date"]
+            impact_level = row["impact_level"]
+
+            # ---- 2. Recompute the reaction ----
+            async with session_scope() as session:
+                prediction_repo = PredictionRepository(session)
+                calc = ReactionCalculator(
+                    prediction_repo=prediction_repo,
+                )
+                calc_result = await calc.run(
+                    [
+                        {
+                            "event_name": event_name,
+                            "event_date": event_date,
+                            "impact_level": impact_level,
+                        }
+                    ]
+                )
+
+            # If the recompute skipped (missing price data now),
+            # leave the stored row alone. A previously-computed
+            # reaction is better than deleting it on a transient
+            # data gap. The skip is reported in `results`.
+            if calc_result.rows_built == 0:
+                reason = (
+                    calc_result.skipped[0].reason
+                    if calc_result.skipped
+                    else "unknown"
+                )
+                results[key] = {
+                    "status": "skipped",
+                    "reason": reason,
+                }
+                skipped += 1
+                continue
+
+            new_row = calc_result.rows[0]
+
+            # ---- 3. Compare to stored ----
+            if _event_row_matches(row, new_row):
+                results[key] = {"status": "unchanged"}
+                unchanged += 1
+                continue
+
+            # ---- 4. Delete + re-insert ----
+            async with session_scope() as session:
+                event_repo = EventImpactRepository(session)
+
+                deleted = await event_repo.delete_by_event(
+                    event_name=event_name,
+                    event_date=event_date,
+                )
+                if not deleted:
+                    # Someone else removed the row between our read
+                    # and now. Treat as skipped — not our row to
+                    # update.
+                    results[key] = {
+                        "status": "skipped",
+                        "reason": "vanished_before_update",
+                    }
+                    skipped += 1
+                    continue
+
+                written = await event_repo.save_rows([new_row])
+
+            results[key] = {
+                "status": "updated",
+                "rows_written": written,
+                "old": {
+                    "price_change_percent": row["price_change_percent"],
+                    "volatility": row["volatility"],
+                    "direction": row["direction"],
+                },
+                "new": {
+                    "price_change_percent": new_row.price_change_percent,
+                    "volatility": new_row.volatility,
+                    "direction": new_row.direction,
+                },
+            }
+            updated += 1
+
+        except Exception as e:
+            logger.error(
+                f"Event impact update for {key} failed: {e}",
+                exc_info=True,
+            )
+            results[key] = {
+                "status": "failed",
+                "error": str(e),
+            }
+            failed += 1
+
+    elapsed = time.monotonic() - start
+
+    summary = {
+        "events_seen": seen,
+        "events_updated": updated,
+        "events_unchanged": unchanged,
+        "events_skipped": skipped,
+        "events_failed": failed,
+        "results": results,
+        "elapsed_seconds": elapsed,
+    }
+
+    logger.info(
+        f"daily_event_impact_update_job complete: "
+        f"{updated} updated, {unchanged} unchanged, "
+        f"{skipped} skipped, {failed} failed, "
+        f"in {elapsed:.3f}s"
+    )
+
+    return summary
+
+
+def _event_row_matches(
+    stored: Dict[str, Any],
+    computed: Any,
+) -> bool:
+    """Return True if the recomputed reaction equals the stored one.
+
+    Comparison is on the five fields the recompute can change:
+    ``btc_price_before``, ``btc_price_after``,
+    ``price_change_percent``, ``volatility``, and ``direction``.
+    The two price columns are included because a genuine price
+    revision moves them even if the aggregate metrics coincidentally
+    agree.
+
+    Exact float equality is used. A tolerance-based comparison
+    would treat a small drift as "unchanged" and quietly leave a
+    stale row in place. Exact equality means the job writes only
+    when a value truly differs, which is the intent.
+
+    Args:
+        stored: A dict row from ``EventImpactRepository.fetch_all``.
+        computed: An ``EventImpactRow`` from the reaction calculator.
+
+    Returns:
+        True when all five comparable fields are equal.
+    """
+    return (
+        stored["btc_price_before"] == computed.btc_price_before
+        and stored["btc_price_after"] == computed.btc_price_after
+        and stored["price_change_percent"] == computed.price_change_percent
+        and stored["volatility"] == computed.volatility
+        and stored["direction"] == computed.direction
+    )
