@@ -18,6 +18,7 @@ Tables:
     - threshold_breaches:      Target — threshold breach history (T5.4)
     - model_performance:       Target — per-model aggregate metrics (M7)
     - btc_macro_correlation:   Target — BTC-vs-macro correlation metrics (A1.1)
+    - export_history:          Target — export request history (A2.1)
 
 Naming:
     Table names are pulled from Settings so they can be overridden
@@ -39,6 +40,7 @@ from sqlalchemy import (
     Text,
     text,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 
 from app.config import settings
 
@@ -286,6 +288,82 @@ btc_macro_correlation = Table(
 
 
 # ============================================================
+# TARGET TABLE: export_history
+# ============================================================
+# One row per export request an analyst or system process has
+# made. Records what was requested (export_type, data_types,
+# timeframe) and the outcome (status, file_name, file_size,
+# downloaded_at).
+#
+# Populated by the export pipeline (A2.2 through A2.6); read by
+# the export history API (a later branch). Rows are created when
+# the request arrives (status='pending'), updated when the file
+# is generated (status='completed', file_name + file_size set),
+# and updated again when the caller downloads the file
+# (downloaded_at set).
+#
+# Design notes:
+#   - `user_id` is a VARCHAR(64) opaque identifier, NOT a foreign
+#     key. The auth system lives in a different service; there is
+#     no `users` table in this database to reference. It is
+#     nullable because system-triggered exports (scheduled jobs,
+#     tests, future automation) have no user.
+#   - `data_types` is JSONB so the array is indexable and the DB
+#     can enforce valid JSON at insert time. The contents are a
+#     list of strings (e.g. ["btc_price", "correlations"]). The
+#     default is an empty JSON array — an export with no data
+#     types is meaningless but not a constraint violation.
+#   - `file_size` and `downloaded_at` are nullable because they
+#     are populated at different stages of the export lifecycle
+#     (file_size when the file is generated, downloaded_at when
+#     the caller retrieves it).
+export_history = Table(
+    "export_history",
+    metadata,
+    # Surrogate primary key
+    Column("id", BigInteger, primary_key=True),
+    # Opaque user identifier (nullable — system-triggered exports
+    # have no user)
+    Column("user_id", String(64), nullable=True),
+    # Export format: 'csv', 'png', or 'pdf'
+    Column("export_type", String(8), nullable=False),
+    # JSON array of data types included in the export, e.g.
+    # ["btc_price", "correlations", "regimes", "events"].
+    # NOT NULL with a default empty array.
+    Column(
+        "data_types",
+        JSONB,
+        nullable=False,
+        server_default=text("'[]'::jsonb"),
+    ),
+    # Timeframe of the exported data: '30d', '90d', '1y', or '5y'
+    Column("timeframe", String(8), nullable=False),
+    # Generated filename (populated when the file is created)
+    Column("file_name", String(255), nullable=False),
+    # File size in bytes (populated when the file is created,
+    # hence nullable on the initial insert)
+    Column("file_size", BigInteger, nullable=True),
+    # Lifecycle status: 'pending', 'completed', or 'failed'
+    Column(
+        "status",
+        String(16),
+        nullable=False,
+        server_default=text("'pending'"),
+    ),
+    # When the export was requested
+    Column(
+        "created_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+    ),
+    # When the file was last downloaded (nullable — most rows
+    # will be downloaded once or not at all)
+    Column("downloaded_at", DateTime(timezone=True), nullable=True),
+)
+
+
+# ============================================================
 # INDEXES — btc_predictions
 # ============================================================
 # The composite read index is attached to the Core Table so
@@ -386,6 +464,31 @@ Index(
 
 
 # ============================================================
+# INDEXES — export_history
+# ============================================================
+# Single-column index for the "all my exports" query.
+Index(
+    "idx_export_history_user_id",
+    export_history.c.user_id,
+)
+
+# Single-column index for "most recent exports across all users".
+# DESC because readers almost always want the newest first.
+Index(
+    "idx_export_history_created_at",
+    export_history.c.created_at.desc(),
+)
+
+# Composite index for the primary read pattern:
+# "my most recent exports".
+Index(
+    "idx_export_history_user_created",
+    export_history.c.user_id,
+    export_history.c.created_at.desc(),
+)
+
+
+# ============================================================
 # CONVENIENCE: table name constants
 # ============================================================
 # These are imported by repositories and tests so they don't
@@ -397,3 +500,4 @@ TABLE_PREDICTION_PERFORMANCE = "prediction_performance"
 TABLE_THRESHOLD_BREACHES = "threshold_breaches"
 TABLE_MODEL_PERFORMANCE = "model_performance"
 TABLE_BTC_MACRO_CORRELATION = "btc_macro_correlation"
+TABLE_EXPORT_HISTORY = "export_history"
