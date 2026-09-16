@@ -101,62 +101,6 @@ class CoinGeckoCollector:
             )
             return self._empty_dominance_response()
 
-    async def get_btc_dominance_history(
-        self,
-        days: int = 3650,
-    ) -> list[dict]:
-        """
-        Fetch historical BTC dominance from CoinGecko.
-
-        CoinGecko's market chart endpoint provides BTC market cap and
-        total crypto market cap history. BTC dominance is calculated
-        from those two series.
-        """
-        try:
-            btc_url = f"{self.base_url}/coins/bitcoin/market_chart"
-            global_url = f"{self.base_url}/global/market_cap_chart"
-
-            params = {
-                "vs_currency": "usd",
-                "days": days,
-            }
-
-            btc_response = await self.client.get(
-                btc_url,
-                params=params,
-            )
-            btc_response.raise_for_status()
-
-            global_response = await self.client.get(
-                global_url,
-                params=params,
-            )
-            global_response.raise_for_status()
-
-            btc_data = btc_response.json()
-            global_data = global_response.json()
-
-            btc_market_caps = btc_data.get("market_caps", [])
-            total_market_caps = global_data.get("market_cap_percentage", {})
-
-            # This endpoint does not provide the total market-cap series
-            # in the same structure needed here.
-            # Do not persist incomplete data.
-            if not btc_market_caps or not total_market_caps:
-                logger.warning(
-                    "CoinGecko returned incomplete BTC dominance history"
-                )
-                return []
-
-            return []
-
-        except Exception as error:
-            logger.error(
-                "Failed to fetch BTC dominance history: %s",
-                error,
-            )
-            return []
-
     def _empty_dominance_response(self) -> Dict[str, Any]:
         """
         Return safe fallback response for BTC dominance.

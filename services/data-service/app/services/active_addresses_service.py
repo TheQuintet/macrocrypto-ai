@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 ACTIVE_ADDRESSES_INDICATOR = "active_addresses"
 
-TIMESPAN = "1year"
+TIMESPAN = "all"  # Collect all historical data available from Blockchain.com
 
 
 class ActiveAddressesService:
