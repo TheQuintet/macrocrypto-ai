@@ -18,6 +18,8 @@ Available repositories:
       reads BTC-vs-macro correlations (A1.1)
     - ExportHistoryRepository: writes export_history rows, reads
       export request history (A2.1)
+    - EventImpactRepository: writes historical_event_impacts rows,
+      reads per-event BTC reaction history (A5.1)
 """
 
 from app.database.repositories.correlation_repository import (
@@ -27,6 +29,10 @@ from app.database.repositories.correlation_repository import (
 from app.database.repositories.export_history_repository import (
     ExportHistoryRepository,
     ExportHistoryRow,
+)
+from app.database.repositories.event_impact_repository import (
+    EventImpactRepository,
+    EventImpactRow,
 )
 from app.database.repositories.model_performance_repository import (
     ModelPerformanceRepository,
@@ -58,4 +64,6 @@ __all__ = [
     "CorrelationRow",
     "ExportHistoryRepository",
     "ExportHistoryRow",
+    "EventImpactRepository",
+    "EventImpactRow",
 ]
