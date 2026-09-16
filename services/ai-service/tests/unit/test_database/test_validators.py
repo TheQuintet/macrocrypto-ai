@@ -937,8 +937,7 @@ class TestValidateCorrelationRows:
     def test_validation_stops_at_first_error(self) -> None:
         """Test that validation stops at the first invalid row."""
         rows = [
-            _make_correlation_dict(indicator_name="bogus"),  # index 0
-            _make_correlation_dict(window_days=45),  # index 1 — would fail
+            _make_correlation_dict(indicator_name="bogus"),  # index 0            _make_correlation_dict(window_days=45),  # index 1 — would fail
         ]
         with pytest.raises(ValueError, match="Row 0"):
             validate_correlation_rows(rows)
@@ -1263,7 +1262,13 @@ class TestValidatorConstants:
         )
 
     def test_valid_data_type_names(self) -> None:
-        """Test that VALID_DATA_TYPE_NAMES contains the six data types."""
+        """Test that VALID_DATA_TYPE_NAMES contains the seven data types.
+
+        A2.3 added 'chart' as a storage-level label that PNG exports
+        record in export_history. It is not a data stream a CSV/PNG
+        exporter produces; see the note in
+        app.database.validators.VALID_DATA_TYPE_NAMES.
+        """
         assert VALID_DATA_TYPE_NAMES == (
             "btc_price",
             "predictions",
@@ -1271,4 +1276,5 @@ class TestValidatorConstants:
             "correlations",
             "regimes",
             "events",
+            "chart",
         )
