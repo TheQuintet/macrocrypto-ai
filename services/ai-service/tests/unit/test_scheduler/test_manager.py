@@ -30,6 +30,7 @@ from app.scheduler.manager import (
     JOB_ID_DAILY_ACCURACY,
     JOB_ID_DAILY_BACKTEST,
     JOB_ID_DAILY_CORRELATION,
+    JOB_ID_DAILY_EXPORT_CLEANUP,
     JOB_ID_DAILY_MODEL_PERFORMANCE_AGGREGATION,
     JOB_ID_DAILY_MULTI_MODEL_PREDICTIONS,
     JOB_ID_DAILY_RETRAIN,
@@ -155,8 +156,20 @@ class TestManagerSetup:
         finally:
             manager.shutdown()
 
-    def test_setup_registers_all_eight_jobs(self) -> None:
-        """Test that setup registers exactly all eight jobs."""
+    def test_setup_registers_daily_export_cleanup_job(self) -> None:
+        """Test that setup registers the A2.6 export cleanup job."""
+        manager = SchedulerManager(enabled=False)
+        manager.setup()
+        try:
+            assert (
+                JOB_ID_DAILY_EXPORT_CLEANUP
+                in manager.get_job_ids()
+            )
+        finally:
+            manager.shutdown()
+
+    def test_setup_registers_all_nine_jobs(self) -> None:
+        """Test that setup registers exactly all nine jobs."""
         manager = SchedulerManager(enabled=False)
         manager.setup()
         try:
@@ -171,6 +184,7 @@ class TestManagerSetup:
                     JOB_ID_DAILY_MULTI_MODEL_PREDICTIONS,
                     JOB_ID_DAILY_MODEL_PERFORMANCE_AGGREGATION,
                     JOB_ID_DAILY_CORRELATION,
+                    JOB_ID_DAILY_EXPORT_CLEANUP,
                 ]
             )
         finally:
@@ -419,6 +433,7 @@ class TestManagerIntrospection:
                 JOB_ID_DAILY_MODEL_PERFORMANCE_AGGREGATION in ids
             )
             assert JOB_ID_DAILY_CORRELATION in ids
+            assert JOB_ID_DAILY_EXPORT_CLEANUP in ids
         finally:
             manager.shutdown()
 
