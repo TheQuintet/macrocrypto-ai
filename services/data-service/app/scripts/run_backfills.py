@@ -56,7 +56,7 @@ GOLD_PERTH_SOURCE = "perth_mint_backfill"
 
 # High-yield spread historical CSV files
 FRED_CSV_PATH = Path(__file__).parent / "BAMLH0A0HYM2.csv"
-PROXY_CSV_PATH = Path(__file__).parent / "high_yield_spread_proxy.csv"
+# PROXY_CSV_PATH = Path(__file__).parent / "high_yield_spread_proxy.csv"
 
 INDICATOR_NAME = "high_yield_spread"
 
@@ -452,20 +452,20 @@ def backfill_high_yield_spread() -> None:
         FRED_CSV_PATH,
         source="fred_archive_backfill",
     )
-
+    # This part needs verification to ensure that the proxy data acquisition is functioning correctly. The proxy CSV should be generated and available for the backfill process. If the proxy CSV is not found, a warning will be logged, and the backfill will proceed with only the FRED records.
     # 2. Load the proxy data for the missing historical period.
-    if PROXY_CSV_PATH.exists():
-        proxy_records = load_high_yield_csv(
-            PROXY_CSV_PATH,
-            source="hyg_proxy_backfill",
-        )
-    else:
-        logger.warning(
-            "Proxy CSV not found at %s. "
-            "Skipping proxy data.",
-            PROXY_CSV_PATH,
-        )
-        proxy_records = []
+    # if PROXY_CSV_PATH.exists():
+    #     proxy_records = load_high_yield_csv(
+    #         PROXY_CSV_PATH,
+    #         source="hyg_proxy_backfill",
+    #     )
+    # else:
+    #     logger.warning(
+    #         "Proxy CSV not found at %s. "
+    #         "Skipping proxy data.",
+    #         PROXY_CSV_PATH,
+    #     )
+    #     proxy_records = []
 
     # 3. Combine records by timestamp.
     #
@@ -476,9 +476,9 @@ def backfill_high_yield_spread() -> None:
     for record in fred_records:
         records_by_time[record["time"]] = record
 
-    for record in proxy_records:
-        if record["time"] not in records_by_time:
-            records_by_time[record["time"]] = record
+    # for record in proxy_records:
+    #     if record["time"] not in records_by_time:
+    #         records_by_time[record["time"]] = record
 
     records = sorted(
         records_by_time.values(),
