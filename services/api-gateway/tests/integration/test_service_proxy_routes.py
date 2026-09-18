@@ -170,6 +170,14 @@ ALERT_GET_ROUTES = [
         "/api/v1/macro/alerts/456",
     ),
     (
+        "/api/v1/macro/notifications",
+        "/api/v1/macro/notifications",
+    ),
+    (
+        "/api/v1/macro/notifications/unread",
+        "/api/v1/macro/notifications/unread",
+    ),
+    (
         "/api/v1/macro/notifications/456",
         "/api/v1/macro/notifications/456",
     ),
@@ -304,6 +312,12 @@ def test_alert_get_routes_forward_to_alert_service(
             None,
         ),
         (
+            "POST",
+            "/api/v1/macro/notifications/read-all",
+            "/api/v1/macro/notifications/read-all",
+            None,
+        ),
+        (
             "PUT",
             "/api/v1/macro/notifications/789/read",
             "/api/v1/macro/notifications/789/read",
@@ -345,6 +359,33 @@ def test_alert_routes_forward_correct_method_and_body(
         assert call.kwargs["body"] == body
     else:
         assert call.kwargs["body"] is None
+
+
+# ============================================================================
+# NOTIFICATION ROUTE ORDER
+# ============================================================================
+
+
+def test_notification_static_routes_do_not_match_user_id_route(
+    client,
+    mock_proxy,
+):
+    """Static notification routes are forwarded to their exact paths."""
+    mock_proxy.forward.return_value = make_response()
+
+    response = client.get(
+        "/api/v1/macro/notifications/unread"
+    )
+
+    assert response.status_code == 200
+
+    call = mock_proxy.forward.await_args
+
+    assert call.kwargs["service"] == "alert"
+    assert call.kwargs["method"] == "GET"
+    assert call.kwargs["path"] == (
+        "/api/v1/macro/notifications/unread"
+    )
 
 
 # ============================================================================
@@ -485,6 +526,7 @@ def test_downstream_response_is_returned(
 # HOP-BY-HOP HEADERS
 # ============================================================================
 
+
 @pytest.mark.asyncio
 async def test_hop_by_hop_response_headers_are_removed(
     mock_proxy,
@@ -561,6 +603,8 @@ async def test_hop_by_hop_response_headers_are_removed(
     assert "content-length" not in response_headers
     assert "connection" not in response_headers
     assert "transfer-encoding" not in response_headers
+
+
 # ============================================================================
 # REQUEST HEADERS
 # ============================================================================
@@ -635,15 +679,15 @@ def test_alert_service_proxy_error_returns_502(
 # ============================================================================
 
 
-def test_all_35_proxy_routes_are_registered():
-    """Exactly 35 proxy route definitions are registered."""
+def test_all_38_proxy_routes_are_registered():
+    """Exactly 38 proxy route definitions are registered."""
     routes = [
         route
         for route in service_proxy.router.routes
         if hasattr(route, "methods")
     ]
 
-    assert len(routes) == 35
+    assert len(routes) == 38
 
 
 def test_data_service_route_count():
@@ -658,14 +702,14 @@ def test_data_service_route_count():
 
 
 def test_alert_service_route_count():
-    """Exactly 24 Alert Service routes are registered."""
+    """Exactly 27 Alert Service routes are registered."""
     alert_routes = [
         route
         for route in service_proxy.router.routes
         if "Alert Service" in getattr(route, "tags", [])
     ]
 
-    assert len(alert_routes) == 24
+    assert len(alert_routes) == 27
 
 
 # ============================================================================

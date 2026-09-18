@@ -489,6 +489,36 @@ router.add_api_route(
 )
 
 router.add_api_route(
+    "/macro/notifications",
+    partial(
+        alert_proxy,
+        upstream_path="/api/v1/macro/notifications",
+    ),
+    methods=["GET"],
+    tags=["Alert Service"],
+)
+
+router.add_api_route(
+    "/macro/notifications/unread",
+    partial(
+        alert_proxy,
+        upstream_path="/api/v1/macro/notifications/unread",
+    ),
+    methods=["GET"],
+    tags=["Alert Service"],
+)
+
+router.add_api_route(
+    "/macro/notifications/read-all",
+    partial(
+        alert_proxy,
+        upstream_path="/api/v1/macro/notifications/read-all",
+    ),
+    methods=["POST"],
+    tags=["Alert Service"],
+)
+
+router.add_api_route(
     "/macro/notifications/{user_id}",
     partial(
         alert_proxy,
