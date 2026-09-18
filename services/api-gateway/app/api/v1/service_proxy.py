@@ -7,9 +7,9 @@ The routes are intentionally thin forwarding routes. They contain no
 business logic and delegate all downstream communication to ServiceProxy.
 
 Source of truth:
-    - 11 Data Service endpoints
+    - 12 Data Service endpoints
     - 24 Alert Service endpoints
-    - 35 proxy endpoints total
+    - 36 proxy endpoints total
 """
 
 from __future__ import annotations
@@ -189,6 +189,21 @@ router.add_api_route(
     partial(
         data_proxy,
         upstream_path="/api/v1/indicators",
+    ),
+    methods=["GET"],
+    tags=["Data Service"],
+)
+
+
+# ----------------------------------------------------------------------------
+# Economic Calendar — 1
+# ----------------------------------------------------------------------------
+
+router.add_api_route(
+    "/economic-calendar",
+    partial(
+        data_proxy,
+        upstream_path="/api/v1/economic-calendar",
     ),
     methods=["GET"],
     tags=["Data Service"],
