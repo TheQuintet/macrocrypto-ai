@@ -13,7 +13,8 @@ Design:
     - Uses SQLAlchemy Core for queries (typesafe, parameterized).
     - The merged DataFrame is prepared for Prophet (columns: ds, y,
       plus all 10 regressors).
-    - Predictions are written in a single bulk INSERT.
+    - Predictions are validated before insertion, then written in a
+      single bulk INSERT.
 """
 
 import logging
@@ -266,18 +267,28 @@ class PredictionRepository:
     ) -> int:
         """Bulk-insert prediction rows into btc_predictions.
 
-        Does not commit — the caller controls the transaction via
-        session_scope().
+        Validates all rows before insertion. Does not commit — the
+        caller controls the transaction via session_scope().
 
         Args:
             rows: List of PredictionRow instances.
 
         Returns:
             Number of rows inserted (0 if rows is empty).
+
+        Raises:
+            ValueError: If any row fails validation.
         """
         if not rows:
             logger.debug("save_predictions called with empty list")
             return 0
+
+        # Validate all rows before touching the database.
+        # Imported locally to avoid a circular import: validators.py
+        # imports PredictionRow from this module.
+        from app.database.validators import validate_prediction_rows
+
+        validate_prediction_rows(rows)
 
         payload = [r.to_dict() for r in rows]
 
