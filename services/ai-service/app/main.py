@@ -10,6 +10,7 @@ from app import __version__, __service_name__
 from app.api.v1 import (
     correlation_router,
     download_router,
+    events_router,
     methodology_router,
     performance_router,
     predict_router,
@@ -101,6 +102,7 @@ app.include_router(performance_router)
 app.include_router(correlation_router)
 app.include_router(download_router)
 app.include_router(methodology_router)
+app.include_router(events_router)
 
 
 @app.get("/")

@@ -9,6 +9,7 @@ Available routers:
     - correlation: /api/v1/correlation/btc
     - download: /api/v1/exports/{file_name}
     - methodology: /api/v1/methodology
+    - events: /api/v1/events/historical
 """
 
 from app.api.v1.predict import router as predict_router
@@ -16,6 +17,7 @@ from app.api.v1.performance import router as performance_router
 from app.api.v1.correlation import router as correlation_router
 from app.api.v1.download import router as download_router
 from app.api.v1.methodology import router as methodology_router
+from app.api.v1.events import router as events_router
 
 __all__ = [
     "predict_router",
@@ -23,4 +25,5 @@ __all__ = [
     "correlation_router",
     "download_router",
     "methodology_router",
+    "events_router",
 ]
