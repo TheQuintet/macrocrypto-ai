@@ -7,15 +7,14 @@ results via CorrelationRepository.
 Design:
     - Two layers:
         1. Pure functions: `pearson_correlation`, `classify_strength`,
-           `classify_direction`. No I/O. Trivially testable.
+           `classify_direction`, `derive_significance`,
+           `confidence_from_p_value`. No I/O. Trivially testable.
         2. Orchestrator: `CorrelationCalculator`. Fetches source
            data, resamples it, runs the pure functions, writes rows.
     - Async (repository calls are async)
     - Fails softly: one bad (indicator, window) pair does not abort
       the rest. Skips and errors are captured in the result.
     - Does not commit — the caller controls the transaction
-    - `p_value` is written as None by this module. A1.4 computes
-      statistical significance in a separate branch.
 
 Data flow:
     1. Fetch hourly BTC close prices for max(WINDOWS) + 1 days
@@ -26,7 +25,7 @@ Data flow:
         b. Take the last `window` days of BTC daily
         c. Take the same time range of macro daily
         d. Inner-join on date → two aligned series
-        e. Compute Pearson correlation
+        e. Compute Pearson correlation and its p-value
         f. Classify strength and direction
         g. Build a CorrelationRow
 
@@ -51,6 +50,19 @@ Presentation layer (A1.3):
     arrows). Both functions reject unknown labels with a ValueError
     so a mismatch between classification and presentation cannot be
     silently wrong.
+
+Statistical significance (A1.4):
+    `pearson_correlation` now returns a three-tuple
+    (coefficient, p_value, sample_size). The p-value comes from
+    scipy.stats.pearsonr, which implements the standard t-based
+    two-tailed significance test for Pearson correlation.
+
+    `derive_significance(p_value)` applies the significance rule
+    (p_value < SIGNIFICANCE_THRESHOLD, where the threshold defaults
+    to 0.05). `confidence_from_p_value(p_value)` converts a
+    p-value to a confidence level as a percentage
+    ((1 - p_value) * 100). Both are pure functions so the API layer
+    uses the same rules as the storage layer.
 """
 
 import logging
@@ -60,6 +72,7 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 import pandas as pd
+from scipy import stats as scipy_stats
 
 from app.database.repositories.correlation_repository import (
     CorrelationRepository,
@@ -103,6 +116,12 @@ INDICATOR_SOURCE_COLUMNS: Dict[str, Optional[str]] = {
 # MEDIUM_THRESHOLD it is "weak"; in between it is "medium".
 STRONG_THRESHOLD = 0.7
 MEDIUM_THRESHOLD = 0.3
+
+# Statistical significance threshold (A1.4). A correlation is
+# considered statistically significant when its two-tailed p-value
+# is below this value. The conventional threshold in the social and
+# physical sciences is 0.05 (95% confidence).
+SIGNIFICANCE_THRESHOLD = 0.05
 
 
 # ============================================================
@@ -158,22 +177,34 @@ class CalculationResult:
 def pearson_correlation(
     x: Sequence[float],
     y: Sequence[float],
-) -> Tuple[Optional[float], int]:
-    """Compute the Pearson correlation coefficient between two series.
+) -> Tuple[Optional[float], Optional[float], int]:
+    """Compute the Pearson correlation coefficient and its p-value.
 
-    Uses a manual numpy implementation rather than scipy.stats.pearsonr
-    to avoid adding a new dependency. The math is standard: standardize
-    each series (subtract the mean, divide by the standard deviation),
-    take the dot product of the standardized vectors, divide by N.
+    Uses scipy.stats.pearsonr for the underlying computation. scipy
+    implements the standard t-based two-tailed significance test
+    with (n - 2) degrees of freedom, which is the reference
+    implementation for this calculation. Rolling our own via the
+    regularized incomplete beta function is a foot-gun; small
+    errors compound and the edge cases (very small n, coefficient
+    close to ±1) are exactly where the math is trickiest.
+
+    Guards before calling scipy:
+        - x and y must be the same length
+        - n must be at least MIN_SAMPLES
+        - no NaN or inf values
+        - neither series may have zero variance (scipy would raise
+          a ConstantInputWarning and return NaN; we short-circuit
+          to return None instead)
 
     Args:
         x: First series. Must be the same length as y.
         y: Second series.
 
     Returns:
-        Tuple of (coefficient, sample_size).
+        Tuple of (coefficient, p_value, sample_size).
 
-        `coefficient` is None when the correlation is undefined:
+        `coefficient` and `p_value` are None when the correlation
+        is undefined:
             - x and y have different lengths
             - either series has fewer than MIN_SAMPLES entries
             - either series has zero variance (all values equal)
@@ -183,24 +214,24 @@ def pearson_correlation(
         or 0 when the inputs could not be aligned.
 
     Examples:
-        >>> pearson_correlation([1, 2, 3, 4], [2, 4, 6, 8])
-        (1.0, 4)
-        >>> pearson_correlation([1, 2, 3, 4], [4, 3, 2, 1])
-        (-1.0, 4)
+        >>> pearson_correlation([1, 2, 3, 4], [2, 4, 6, 8])[:2]
+        (1.0, 0.0)
+        >>> pearson_correlation([1, 2, 3, 4], [4, 3, 2, 1])[:2]
+        (-1.0, 0.0)
         >>> pearson_correlation([1, 2], [1, 2])
-        (None, 2)
+        (None, None, 2)
     """
     # ---- 1. Length check ----
     if x is None or y is None:
-        return (None, 0)
+        return (None, None, 0)
 
     if len(x) != len(y):
-        return (None, 0)
+        return (None, None, 0)
 
     n = len(x)
 
     if n < MIN_SAMPLES:
-        return (None, n)
+        return (None, None, n)
 
     # ---- 2. Convert to numpy float arrays ----
     arr_x = np.asarray(x, dtype=float)
@@ -208,28 +239,28 @@ def pearson_correlation(
 
     # ---- 3. Guard against non-finite values ----
     if not np.all(np.isfinite(arr_x)) or not np.all(np.isfinite(arr_y)):
-        return (None, n)
+        return (None, None, n)
 
     # ---- 4. Zero-variance guard ----
-    # std == 0 means the series is constant, and Pearson is undefined.
+    # scipy.stats.pearsonr raises a ConstantInputWarning and returns
+    # NaN for a constant series. We short-circuit and return None so
+    # the caller can classify this as "correlation undefined".
     std_x = np.std(arr_x)
     std_y = np.std(arr_y)
 
     if std_x == 0.0 or std_y == 0.0:
-        return (None, n)
+        return (None, None, n)
 
-    # ---- 5. Standardize and compute ----
-    # corr(x, y) = mean( (x - mean_x)/std_x * (y - mean_y)/std_y )
-    z_x = (arr_x - np.mean(arr_x)) / std_x
-    z_y = (arr_y - np.mean(arr_y)) / std_y
+    # ---- 5. Delegate to scipy ----
+    result = scipy_stats.pearsonr(arr_x, arr_y)
+    coefficient = float(result.statistic)
+    p_value = float(result.pvalue)
 
-    coefficient = float(np.mean(z_x * z_y))
-
-    # Clip to [-1, 1] to absorb floating-point drift. The raw value
-    # can be 1.0000000000000002 for perfectly correlated series.
+    # Clip the coefficient to [-1, 1] to absorb floating-point drift.
+    # scipy's value can be very slightly outside this range.
     coefficient = max(-1.0, min(1.0, coefficient))
 
-    return (coefficient, n)
+    return (coefficient, p_value, n)
 
 
 def classify_strength(coefficient: float) -> str:
@@ -342,6 +373,53 @@ def direction_arrow(direction: str) -> str:
         f"Unknown direction label '{direction}'. "
         f"Expected one of 'positive', 'negative'."
     )
+
+
+def derive_significance(p_value: Optional[float]) -> bool:
+    """Return True when a p-value is statistically significant.
+
+    A correlation is significant when its two-tailed p-value is
+    strictly below SIGNIFICANCE_THRESHOLD (0.05 by default). A
+    p-value of None (not yet computed, or the correlation was
+    undefined) is treated as not significant — there is no evidence
+    of a relationship when we cannot compute the p-value.
+
+    Args:
+        p_value: Two-tailed p-value in [0, 1], or None.
+
+    Returns:
+        True if the p-value is below the significance threshold,
+        False otherwise.
+    """
+    if p_value is None:
+        return False
+    return p_value < SIGNIFICANCE_THRESHOLD
+
+
+def confidence_from_p_value(
+    p_value: Optional[float],
+) -> Optional[float]:
+    """Convert a p-value to a confidence level in percent.
+
+    confidence = (1 - p_value) * 100
+
+    Examples:
+        - p_value = 0.05 → 95.0 (the conventional 95% confidence
+          level)
+        - p_value = 0.01 → 99.0
+        - p_value = 0.5  → 50.0
+        - p_value = None → None
+
+    Args:
+        p_value: Two-tailed p-value in [0, 1], or None.
+
+    Returns:
+        Confidence level as a percentage, or None when p_value is
+        None.
+    """
+    if p_value is None:
+        return None
+    return (1.0 - p_value) * 100.0
 
 
 def resample_btc_to_daily(btc_df: pd.DataFrame) -> pd.DataFrame:
@@ -771,8 +849,8 @@ class CorrelationCalculator:
             )
             return None
 
-        # ---- 7. Compute Pearson ----
-        coefficient, n = pearson_correlation(
+        # ---- 7. Compute Pearson (coefficient + p-value) ----
+        coefficient, p_value, n = pearson_correlation(
             merged["close"].tolist(),
             merged[source_col].tolist(),
         )
@@ -798,7 +876,7 @@ class CorrelationCalculator:
         logger.info(
             f"Computed {indicator}/{window_days}d: "
             f"r={coefficient:+.4f} ({strength}, {direction}), "
-            f"n={n}"
+            f"p={p_value:.4f}, n={n}"
         )
 
         return CorrelationRow(
@@ -808,8 +886,7 @@ class CorrelationCalculator:
             correlation_coefficient=coefficient,
             strength=strength,
             direction=direction,
-            # A1.4 computes significance. Until then, write None.
-            p_value=None,
+            p_value=p_value,
         )
 
     # ============================================================

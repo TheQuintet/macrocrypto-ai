@@ -12,6 +12,8 @@ Design:
       arrow). The color and arrow are populated by
       `app.correlation.calculator.strength_color` and
       `direction_arrow`, so the display logic lives in one place.
+      Also includes the statistical significance flag and confidence
+      level derived from the p-value (A1.4).
     - `CorrelationErrorResponse` — mirrors the pattern used by
       `PerformanceErrorResponse` and `PredictionErrorResponse`.
 
@@ -19,6 +21,8 @@ Units:
     - `correlation_coefficient` is dimensionless, in [-1, 1]
     - `p_value` is dimensionless, in [0, 1] (or None when not yet
       computed)
+    - `confidence_level` is a percentage, in [0, 100] (or None when
+      p_value is None)
     - `window_days` is a duration in days: 30, 90, or 365
 """
 
@@ -48,8 +52,12 @@ class CorrelationEntry(BaseModel):
             'negative'.
         direction_arrow: Display arrow for the direction. One of
             '↑', '↓'.
-        p_value: Two-tailed p-value in [0, 1], or None when not yet
-            computed (A1.4 populates it).
+        p_value: Two-tailed p-value in [0, 1], or None when the
+            correlation was undefined.
+        is_significant: True when p_value is below the significance
+            threshold (0.05). False when p_value is None.
+        confidence_level: Confidence level as a percentage
+            ((1 - p_value) * 100), or None when p_value is None.
         calculated_at: When the correlation was computed (UTC).
     """
 
@@ -77,7 +85,22 @@ class CorrelationEntry(BaseModel):
     p_value: Optional[float] = Field(
         None,
         description=(
-            "Two-tailed p-value in [0, 1]. None until A1.4 computes it."
+            "Two-tailed p-value in [0, 1]. None when the correlation "
+            "was undefined (insufficient data or zero variance)."
+        ),
+    )
+    is_significant: bool = Field(
+        False,
+        description=(
+            "True when p_value is strictly below the significance "
+            "threshold (0.05). False when p_value is None."
+        ),
+    )
+    confidence_level: Optional[float] = Field(
+        None,
+        description=(
+            "Confidence level as a percentage, computed as "
+            "(1 - p_value) * 100. None when p_value is None."
         ),
     )
     calculated_at: datetime = Field(
@@ -96,6 +119,8 @@ class CorrelationEntry(BaseModel):
                     "direction": "negative",
                     "direction_arrow": "↓",
                     "p_value": 0.03,
+                    "is_significant": True,
+                    "confidence_level": 97.0,
                     "calculated_at": "2026-09-14T07:15:00Z",
                 }
             ]
