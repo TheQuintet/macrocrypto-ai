@@ -1,0 +1,551 @@
+"""XGBoost model adapter.
+
+This module provides XGBoostModel, a concrete implementation of the
+ForecastModel interface that wraps XGBoost.
+
+Design:
+    - Uses the ForecastModel interface from app.ai.base
+    - Supports 10 base features (5 macro + 5 BTC)
+    - Engineers lag features for time series (XGBoost needs them)
+    - Approximates confidence intervals from residual std
+    - Serializes with XGBoost's native JSON format
+
+Naming Convention:
+    - Base features come from the data pipeline (e.g., "price_lag_7d")
+    - Engineered features are prefixed with "eng_" to avoid collisions
+      (e.g., "eng_price_lag_7d", "eng_returns_7d")
+
+Branch M3.1 implements only the "fresh" strategy (train from scratch).
+Branch M3.2 will add the "incremental" strategy.
+"""
+
+import json
+import logging
+import os
+from typing import Any, Dict, List, Optional, Tuple
+
+import numpy as np
+import pandas as pd
+import xgboost as xgb
+
+from app.ai.base import ForecastModel
+
+logger = logging.getLogger(__name__)
+
+
+# ============================================================
+# CONSTANTS
+# ============================================================
+BASE_FEATURES = [
+    "cpi",
+    "interest_rate",
+    "m2_growth",
+    "dxy",
+    "treasury_yield",
+    "volume",
+    "volatility",
+    "dominance",
+    "active_addresses",
+    "price_lag_7d",  # Provided by data pipeline
+]
+
+LAG_DAYS = [1, 7, 30]
+
+# Engineered features are prefixed with "eng_" to avoid collision
+# with the base feature "price_lag_7d"
+LAG_FEATURES = [f"eng_price_lag_{d}d" for d in LAG_DAYS]
+RETURN_FEATURES = [f"eng_returns_{d}d" for d in LAG_DAYS]
+ENGINEERED_FEATURES = LAG_FEATURES + RETURN_FEATURES
+
+ALL_FEATURES = BASE_FEATURES + ENGINEERED_FEATURES
+
+REQUIRED_COLUMNS = ["ds", "y"] + BASE_FEATURES
+
+DEFAULT_CONFIG = {
+    "n_estimators": 100,
+    "max_depth": 6,
+    "learning_rate": 0.1,
+    "objective": "reg:squarederror",
+    "random_state": 42,
+    "verbosity": 0,
+}
+
+CONFIDENCE_LEVELS = [0.70, 0.85, 0.95]
+
+# Z-scores for confidence interval approximation
+Z_SCORES = {
+    0.70: 1.04,
+    0.85: 1.44,
+    0.95: 1.96,
+}
+
+# Minimum rows needed for training (must account for max lag)
+MIN_TRAINING_ROWS = max(LAG_DAYS) + 30
+
+
+# ============================================================
+# XGBOOST MODEL
+# ============================================================
+class XGBoostModel(ForecastModel):
+    """XGBoost implementation of the ForecastModel interface.
+
+    This adapter wraps XGBoost and supports:
+        - Training from scratch (fresh strategy)
+        - Feature engineering (lag features for time series)
+        - Prediction with confidence intervals (approximated)
+        - Metrics calculation (MAE, RMSE, MAPE, directional accuracy)
+        - Serialization via XGBoost's native JSON format
+
+    Attributes:
+        model: The underlying XGBRegressor instance.
+        strategy: Training strategy ("fresh" or "incremental").
+        config: XGBoost configuration dictionary.
+        version: Model version string.
+        metrics: Last calculated metrics.
+        is_trained: Whether the model has been trained.
+        last_training_mode: The mode used in the last training
+            ("fresh" or "incremental").
+        feature_columns: List of feature column names used in training.
+        residual_std: Standard deviation of training residuals
+            (used for confidence interval approximation).
+    """
+
+    def __init__(
+        self,
+        strategy: str = "fresh",
+        config: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        """Initialize the XGBoost model adapter.
+
+        Args:
+            strategy: Training strategy. "fresh" trains from scratch.
+                "incremental" will be added in M3.2.
+            config: Optional XGBoost configuration overrides.
+
+        Raises:
+            ValueError: If strategy is not "fresh" or "incremental".
+        """
+        super().__init__()
+
+        if strategy not in ("fresh", "incremental"):
+            raise ValueError(
+                f"Invalid strategy '{strategy}'. "
+                f"Must be 'fresh' or 'incremental'."
+            )
+
+        self.strategy = strategy
+        self.config = {**DEFAULT_CONFIG, **(config or {})}
+        self.model: Optional[xgb.XGBRegressor] = None
+        self.last_training_mode: str = "fresh"
+        self.feature_columns: List[str] = []
+        self.residual_std: float = 0.0
+
+        logger.info(
+            f"XGBoostModel initialized (strategy={strategy})"
+        )
+
+    # ============================================================
+    # TRAINING
+    # ============================================================
+    def train(
+        self,
+        data: pd.DataFrame,
+        warm_start: bool = False,
+        previous_model_path: Optional[str] = None,
+    ) -> Dict[str, float]:
+        """Train the XGBoost model from scratch.
+
+        In M3.1, only "fresh" training is fully implemented.
+        Incremental training will be added in M3.2.
+
+        Args:
+            data: Training DataFrame with columns:
+                'ds', 'y', and all 10 base features.
+            warm_start: If True, attempts incremental training.
+                In M3.1, this falls back to fresh training.
+            previous_model_path: Path to previous model (for incremental).
+                Currently unused in M3.1.
+
+        Returns:
+            Dictionary with metrics: mae, rmse, mape, directional_accuracy.
+
+        Raises:
+            ValueError: If data is empty or missing required columns.
+        """
+        self._validate_data(data)
+
+        if warm_start:
+            logger.warning(
+                "Incremental training requested but not implemented in M3.1. "
+                "Falling back to fresh training."
+            )
+
+        # Prepare features (add lag features)
+        prepared = self._prepare_features(data)
+
+        # Split features and target
+        X = prepared[self.feature_columns]
+        y = prepared["y"]
+
+        logger.info(
+            f"Training XGBoost model (fresh) on {len(prepared)} rows, "
+            f"{len(self.feature_columns)} features"
+        )
+
+        # Initialize fresh XGBoost model
+        self.model = xgb.XGBRegressor(**self.config)
+
+        # Fit model
+        self.model.fit(X, y)
+
+        # Calculate residual std for confidence intervals
+        predictions = self.model.predict(X)
+        residuals = y.values - predictions
+        self.residual_std = float(np.std(residuals))
+
+        # Calculate metrics
+        self.metrics = self._calculate_metrics_from_arrays(
+            y.values, predictions
+        )
+        self.is_trained = True
+        self.last_training_mode = "fresh"
+
+        logger.info(
+            f"XGBoost model trained (fresh). "
+            f"MAE={self.metrics['mae']:.4f}, "
+            f"RMSE={self.metrics['rmse']:.4f}, "
+            f"MAPE={self.metrics['mape']:.2f}%"
+        )
+
+        return self.metrics
+
+    # ============================================================
+    # FEATURE ENGINEERING
+    # ============================================================
+    def _prepare_features(
+        self,
+        data: pd.DataFrame,
+        update_feature_columns: bool = True,
+    ) -> pd.DataFrame:
+        """Prepare features for XGBoost training or prediction.
+
+        Adds lag features and return features to the base data.
+
+        Engineered features are prefixed with "eng_" to avoid
+        colliding with the base feature "price_lag_7d" that comes
+        from the data pipeline.
+
+        Args:
+            data: DataFrame with 'ds', 'y', and base features.
+            update_feature_columns: If True, updates self.feature_columns.
+
+        Returns:
+            DataFrame with all engineered features.
+        """
+        df = data.copy()
+        df = df.sort_values("ds").reset_index(drop=True)
+
+        # Create engineered lag features (only if 'y' is present)
+        if "y" in df.columns:
+            for lag in LAG_DAYS:
+                df[f"eng_price_lag_{lag}d"] = df["y"].shift(lag)
+                df[f"eng_returns_{lag}d"] = df["y"].pct_change(lag)
+
+        # Update feature columns on first call
+        if update_feature_columns:
+            self.feature_columns = ALL_FEATURES
+
+        # Drop rows with NaN (from lagging)
+        df = df.dropna(subset=self.feature_columns).reset_index(drop=True)
+
+        return df
+
+    # ============================================================
+    # PREDICTION
+    # ============================================================
+    def predict(self, future_data: pd.DataFrame) -> pd.DataFrame:
+        """Generate predictions with confidence intervals.
+
+        XGBoost does not provide native confidence intervals. We
+        approximate them using the residual standard deviation
+        from training:
+            - 95%: yhat ± 1.96 * residual_std
+            - 85%: yhat ± 1.44 * residual_std
+            - 70%: yhat ± 1.04 * residual_std
+
+        Args:
+            future_data: DataFrame with 'ds', base features, and
+                (optionally) 'y' for lagging.
+
+        Returns:
+            DataFrame with columns: ds, yhat, yhat_lower, yhat_upper.
+
+        Raises:
+            RuntimeError: If model is not trained.
+            ValueError: If future_data is missing required columns.
+        """
+        if not self.is_trained or self.model is None:
+            raise RuntimeError(
+                "Cannot predict: model is not trained. "
+                "Call train() first."
+            )
+
+        # Prepare features for prediction
+        prepared = self._prepare_features(
+            future_data, update_feature_columns=False
+        )
+
+        if prepared.empty:
+            raise ValueError(
+                "No valid rows for prediction after feature engineering."
+            )
+
+        X = prepared[self.feature_columns]
+        predictions = self.model.predict(X)
+
+        # Build output DataFrame with 95% confidence intervals
+        result = pd.DataFrame(
+            {
+                "ds": prepared["ds"].values,
+                "yhat": predictions,
+                "yhat_lower": predictions - self.residual_std * Z_SCORES[0.95],
+                "yhat_upper": predictions + self.residual_std * Z_SCORES[0.95],
+            }
+        )
+
+        return result
+
+    def predict_with_confidence(
+        self,
+        future_data: pd.DataFrame,
+        confidence_level: float = 0.95,
+    ) -> pd.DataFrame:
+        """Generate predictions with a specific confidence level.
+
+        XGBoost's confidence intervals are approximated using
+        residual std and z-scores:
+            - 95%: z = 1.96
+            - 85%: z = 1.44
+            - 70%: z = 1.04
+
+        Args:
+            future_data: DataFrame with 'ds' and base features.
+            confidence_level: One of 0.70, 0.85, 0.95.
+
+        Returns:
+            DataFrame with columns: ds, yhat, yhat_lower, yhat_upper
+            at the requested confidence level.
+
+        Raises:
+            ValueError: If confidence_level is not 0.70, 0.85, or 0.95.
+        """
+        if confidence_level not in CONFIDENCE_LEVELS:
+            raise ValueError(
+                f"Invalid confidence_level {confidence_level}. "
+                f"Must be one of {CONFIDENCE_LEVELS}."
+            )
+
+        # Get 95% predictions
+        forecast = self.predict(future_data)
+
+        if confidence_level == 0.95:
+            return forecast
+
+        # Rebuild bounds with the requested z-score
+        z = Z_SCORES[confidence_level]
+        yhat = forecast["yhat"]
+        margin = self.residual_std * z
+
+        return pd.DataFrame(
+            {
+                "ds": forecast["ds"],
+                "yhat": yhat,
+                "yhat_lower": yhat - margin,
+                "yhat_upper": yhat + margin,
+            }
+        )
+
+    # ============================================================
+    # METRICS
+    # ============================================================
+    def get_metrics(self) -> Dict[str, float]:
+        """Return the current metrics.
+
+        Returns:
+            Dictionary with mae, rmse, mape, directional_accuracy.
+            Empty dict if not trained yet.
+        """
+        return self.metrics.copy()
+
+    # ============================================================
+    # METADATA
+    # ============================================================
+    def get_name(self) -> str:
+        """Return the model name."""
+        return "xgboost"
+
+    def get_version(self) -> str:
+        """Return the model version."""
+        return self.version
+
+    # ============================================================
+    # SERIALIZATION
+    # ============================================================
+    def save(self, path: str) -> None:
+        """Save the trained model to disk using XGBoost's native format.
+
+        XGBoost uses its own binary format for model serialization.
+        We also save a metadata JSON file alongside the model that
+        contains:
+            - feature_columns: for consistency between train/predict
+            - residual_std: for confidence interval approximation
+            - metrics: for reference
+            - version: for tracking
+            - strategy: for tracking
+
+        Args:
+            path: File path to save the model.
+
+        Raises:
+            RuntimeError: If model is not trained.
+        """
+        if not self.is_trained or self.model is None:
+            raise RuntimeError(
+                "Cannot save: model is not trained. "
+                "Call train() first."
+            )
+
+        os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+
+        # Save XGBoost model using native format
+        self.model.save_model(path)
+
+        # Save metadata (feature columns + residual_std + metrics)
+        metadata = {
+            "feature_columns": self.feature_columns,
+            "residual_std": self.residual_std,
+            "metrics": self.metrics,
+            "version": self.version,
+            "strategy": self.strategy,
+        }
+        metadata_path = f"{path}.meta.json"
+        with open(metadata_path, "w") as f:
+            json.dump(metadata, f)
+
+        logger.info(f"XGBoost model saved to {path}")
+
+    def load(self, path: str) -> None:
+        """Load a trained model from disk.
+
+        Loads both the XGBoost model file and its associated
+        metadata JSON file (if present).
+
+        Args:
+            path: File path to load the model from.
+
+        Raises:
+            FileNotFoundError: If path or metadata file doesn't exist.
+        """
+        if not os.path.exists(path):
+            raise FileNotFoundError(f"Model file not found: {path}")
+
+        # Load XGBoost model
+        self.model = xgb.XGBRegressor(**self.config)
+        self.model.load_model(path)
+
+        # Load metadata
+        metadata_path = f"{path}.meta.json"
+        if os.path.exists(metadata_path):
+            with open(metadata_path, "r") as f:
+                metadata = json.load(f)
+            self.feature_columns = metadata.get("feature_columns", [])
+            self.residual_std = metadata.get("residual_std", 0.0)
+            self.metrics = metadata.get("metrics", {})
+            self.version = metadata.get("version", self.version)
+            self.strategy = metadata.get("strategy", self.strategy)
+
+        self.is_trained = True
+        logger.info(f"XGBoost model loaded from {path}")
+
+    # ============================================================
+    # VALIDATION
+    # ============================================================
+    def _validate_data(self, data: pd.DataFrame) -> None:
+        """Validate training data.
+
+        Raises:
+            ValueError: If data is invalid.
+        """
+        if data is None or data.empty:
+            raise ValueError("Training data cannot be empty")
+
+        missing = [col for col in REQUIRED_COLUMNS if col not in data.columns]
+        if missing:
+            raise ValueError(
+                f"Training data is missing required columns: {missing}"
+            )
+
+        if len(data) < MIN_TRAINING_ROWS:
+            raise ValueError(
+                f"Training data must have at least {MIN_TRAINING_ROWS} "
+                f"rows, got {len(data)}"
+            )
+
+    # ============================================================
+    # METRICS CALCULATION
+    # ============================================================
+    def _calculate_metrics_from_arrays(
+        self,
+        actual: np.ndarray,
+        predicted: np.ndarray,
+    ) -> Dict[str, float]:
+        """Calculate performance metrics from arrays.
+
+        Computes:
+            - MAE: Mean Absolute Error
+            - RMSE: Root Mean Square Error
+            - MAPE: Mean Absolute Percentage Error
+            - directional_accuracy: % of correct direction predictions
+
+        Args:
+            actual: Actual values.
+            predicted: Predicted values.
+
+        Returns:
+            Dictionary with mae, rmse, mape, directional_accuracy.
+        """
+        mae = float(np.mean(np.abs(predicted - actual)))
+        rmse = float(np.sqrt(np.mean((predicted - actual) ** 2)))
+
+        with np.errstate(divide="ignore", invalid="ignore"):
+            mape_values = np.abs((predicted - actual) / actual) * 100
+            mape_values = mape_values[np.isfinite(mape_values)]
+            mape = float(np.mean(mape_values)) if len(mape_values) > 0 else 0.0
+
+        actual_diff = np.diff(actual)
+        predicted_diff = np.diff(predicted)
+        if len(actual_diff) > 0:
+            correct = np.sum(np.sign(actual_diff) == np.sign(predicted_diff))
+            directional_accuracy = float(correct / len(actual_diff) * 100)
+        else:
+            directional_accuracy = 0.0
+
+        return {
+            "mae": mae,
+            "rmse": rmse,
+            "mape": mape,
+            "directional_accuracy": directional_accuracy,
+        }
+
+    # ============================================================
+    # DUNDER METHODS
+    # ============================================================
+    def __repr__(self) -> str:
+        """Return string representation."""
+        return (
+            f"XGBoostModel("
+            f"strategy='{self.strategy}', "
+            f"version='{self.version}', "
+            f"trained={self.is_trained}, "
+            f"last_mode='{self.last_training_mode}')"
+        )
