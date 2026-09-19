@@ -176,6 +176,14 @@ class Settings(BaseSettings):
     model_performance_aggregation_hour: int = Field(default=7)
     model_performance_aggregation_minute: int = Field(default=15)
 
+    # Correlation calculation job schedule (A1.5): daily at 2:00 AM
+    # UTC. Runs well before the 6:00 retrain so the correlations are
+    # computed on the previous day's freshest macro data. The job
+    # writes one row per (indicator, window) into
+    # btc_macro_correlation via the CorrelationCalculator.
+    correlation_hour: int = Field(default=2)
+    correlation_minute: int = Field(default=0)
+
     # ============================================================
     # BACKTEST PARAMETERS
     # ============================================================
