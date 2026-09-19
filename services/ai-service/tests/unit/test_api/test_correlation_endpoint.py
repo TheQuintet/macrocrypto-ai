@@ -14,7 +14,7 @@ Strategy:
 Test organization:
     - TestCorrelationEndpointHappyPath: successful responses
     - TestCorrelationEndpointDerivedFields: color, arrow,
-      significance, confidence populated correctly
+      significance, confidence, insight populated correctly
     - TestCorrelationEndpointWindowFilter: ?window_days=
     - TestCorrelationEndpointHistory: ?include_history=,
       ?history_limit=, ?history_days=
@@ -195,6 +195,7 @@ class TestCorrelationEndpointHappyPath:
             "is_significant",
             "confidence_level",
             "calculated_at",
+            "insight",
             "history",
         }
         assert set(entry.keys()) == expected
@@ -335,6 +336,65 @@ class TestCorrelationEndpointDerivedFields:
         assert entry["p_value"] is None
         assert entry["is_significant"] is False
         assert entry["confidence_level"] is None
+
+    def test_insight_populated(self, client: TestClient) -> None:
+        """Test that each entry carries a non-empty insight sentence."""
+        repo = _mock_correlation_repo(
+            latest_rows=[
+                _make_latest_row(
+                    indicator_name="inflation",
+                    coefficient=-0.42,
+                    strength="medium",
+                    direction="negative",
+                    p_value=0.03,
+                )
+            ],
+        )
+
+        with patch(
+            "app.api.v1.correlation.CorrelationRepository",
+            return_value=repo,
+        ), patch(
+            "app.api.v1.correlation.session_scope",
+            return_value=_session_scope_mock(),
+        ):
+            response = client.get("/api/v1/correlation/btc")
+
+        entry = response.json()["entries"][0]
+        assert "inflation" in entry["insight"]
+        assert "falls" in entry["insight"]
+        assert "medium" in entry["insight"]
+        assert "confidence" in entry["insight"]
+
+    def test_insight_drops_confidence_when_p_value_none(
+        self, client: TestClient
+    ) -> None:
+        """Test that a None p-value drops the confidence clause."""
+        repo = _mock_correlation_repo(
+            latest_rows=[
+                _make_latest_row(
+                    indicator_name="rates",
+                    coefficient=0.5,
+                    strength="medium",
+                    direction="positive",
+                    p_value=None,
+                )
+            ],
+        )
+
+        with patch(
+            "app.api.v1.correlation.CorrelationRepository",
+            return_value=repo,
+        ), patch(
+            "app.api.v1.correlation.session_scope",
+            return_value=_session_scope_mock(),
+        ):
+            response = client.get("/api/v1/correlation/btc")
+
+        entry = response.json()["entries"][0]
+        assert "rates" in entry["insight"]
+        assert "rises" in entry["insight"]
+        assert "confidence" not in entry["insight"]
 
 
 # ============================================================

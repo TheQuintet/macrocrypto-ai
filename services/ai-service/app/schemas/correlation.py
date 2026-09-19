@@ -11,11 +11,13 @@ Design:
       `app.correlation.calculator.strength_color` and
       `direction_arrow`, so the display logic lives in one place.
       Also includes the statistical significance flag and confidence
-      level derived from the p-value (A1.4).
+      level derived from the p-value (A1.4), and a short
+      human-readable insight sentence (A1.7).
     - `CorrelationHistoryPoint` — one point in a correlation
       history series. Mirrors `CorrelationEntry` minus the
       indicator/window identifiers, which are constant within a
-      series.
+      series. Does not include an insight — history points are
+      just data.
     - `CorrelationResponse` — the envelope returned by
       GET /api/v1/correlation/btc. One entry per (indicator,
       window).
@@ -44,9 +46,11 @@ class CorrelationHistoryPoint(BaseModel):
     """One point in a correlation history series.
 
     Mirrors `CorrelationEntry` minus the (indicator_name,
-    window_days) pair, which is constant within a series. The
-    display fields (strength_color, direction_arrow, is_significant,
-    confidence_level) are populated the same way as on the entry.
+    window_days) pair, which is constant within a series, and minus
+    the insight sentence, which only applies to the current entry.
+    The display fields (strength_color, direction_arrow,
+    is_significant, confidence_level) are populated the same way as
+    on the entry.
 
     Attributes:
         calculated_at: When the correlation was computed (UTC).
@@ -125,6 +129,9 @@ class CorrelationEntry(BaseModel):
         confidence_level: Confidence level as a percentage
             ((1 - p_value) * 100), or None when p_value is None.
         calculated_at: When the correlation was computed (UTC).
+        insight: Short human-readable sentence describing the
+            relationship (A1.7). Empty when the endpoint does not
+            populate it.
         history: Ordered list of historical points for this
             (indicator, window), oldest first. Empty unless
             `?include_history=true` is set.
@@ -175,6 +182,13 @@ class CorrelationEntry(BaseModel):
     calculated_at: datetime = Field(
         ..., description="When the correlation was computed (UTC)."
     )
+    insight: str = Field(
+        "",
+        description=(
+            "Short human-readable sentence describing the "
+            "relationship. Empty when not populated."
+        ),
+    )
     history: List[CorrelationHistoryPoint] = Field(
         default_factory=list,
         description=(
@@ -198,6 +212,11 @@ class CorrelationEntry(BaseModel):
                     "is_significant": True,
                     "confidence_level": 97.0,
                     "calculated_at": "2026-09-14T07:15:00Z",
+                    "insight": (
+                        "When inflation rises, BTC typically falls "
+                        "(medium negative correlation, 97% "
+                        "confidence)."
+                    ),
                     "history": [
                         {
                             "calculated_at": "2026-09-13T07:15:00Z",
@@ -260,6 +279,11 @@ class CorrelationResponse(BaseModel):
                             "is_significant": True,
                             "confidence_level": 97.0,
                             "calculated_at": "2026-09-14T07:15:00Z",
+                            "insight": (
+                                "When inflation rises, BTC typically "
+                                "falls (medium negative correlation, "
+                                "97% confidence)."
+                            ),
                             "history": [],
                         }
                     ],
