@@ -5,6 +5,8 @@ generation pipeline:
     - Reading recent BTC price data (target + BTC regressors)
     - Reading recent macro indicator data (macro regressors)
     - Merging both into a single training/prediction frame
+    - Reading BTC prices for a historical date range or a specific
+      historical timestamp (A5.2)
     - Writing generated predictions to the btc_predictions table
     - Reading stored predictions for the API layer
 
@@ -259,6 +261,117 @@ class PredictionRepository:
         )
 
         return merged
+
+    async def fetch_btc_price_at(
+        self,
+        target_time: datetime,
+        *,
+        tolerance_hours: int = 1,
+    ) -> Optional[float]:
+        """Fetch the BTC close price nearest to a given historical time.
+
+        Used by A5.2's reaction calculation to get "the price 24h
+        before the event" and "the price 24h after the event". The
+        price series is hourly, so an exact match on ``target_time``
+        is not guaranteed; the method returns the closest row within
+        ``tolerance_hours``.
+
+        The search is bounded by ``tolerance_hours`` in each
+        direction. If no row falls within the tolerance, returns
+        None so the caller can record the event as skipped.
+
+        Args:
+            target_time: The historical timestamp to look near. Must
+                be timezone-aware; a naive datetime is interpreted
+                as UTC.
+            tolerance_hours: Maximum distance in hours between
+                ``target_time`` and the returned row's time. Default
+                1 hour.
+
+        Returns:
+            The close price as a float, or None if no row is within
+            tolerance.
+        """
+        if target_time.tzinfo is None:
+            target_time = target_time.replace(tzinfo=timezone.utc)
+
+        lower_bound = target_time - timedelta(hours=tolerance_hours)
+        upper_bound = target_time + timedelta(hours=tolerance_hours)
+
+        stmt = (
+            select(btc_prices.c.close)
+            .where(
+                btc_prices.c.time >= lower_bound,
+                btc_prices.c.time <= upper_bound,
+            )
+            .order_by(btc_prices.c.time.desc())
+            .limit(1)
+        )
+
+        result = await self.session.execute(stmt)
+        value = result.scalar_one_or_none()
+
+        if value is None:
+            logger.debug(
+                f"No BTC price within {tolerance_hours}h of "
+                f"{target_time.isoformat()}"
+            )
+            return None
+
+        return float(value)
+
+    async def fetch_btc_prices_range(
+        self,
+        start: datetime,
+        end: datetime,
+    ) -> pd.DataFrame:
+        """Fetch every BTC price row in the inclusive time range.
+
+        Used by A5.2's volatility calculation, which needs the full
+        series over the reaction window, not just the two endpoints.
+        Returns a DataFrame with columns ``time`` and ``close``,
+        sorted ascending by time.
+
+        Args:
+            start: Earliest timestamp to include. Must be
+                timezone-aware; a naive datetime is interpreted as
+                UTC.
+            end: Latest timestamp to include. Must be
+                timezone-aware; a naive datetime is interpreted as
+                UTC.
+
+        Returns:
+            DataFrame with columns ``time`` (tz-aware datetime) and
+            ``close`` (float). Empty when no rows match.
+        """
+        if start.tzinfo is None:
+            start = start.replace(tzinfo=timezone.utc)
+        if end.tzinfo is None:
+            end = end.replace(tzinfo=timezone.utc)
+
+        stmt = (
+            select(btc_prices.c.time, btc_prices.c.close)
+            .where(
+                btc_prices.c.time >= start,
+                btc_prices.c.time <= end,
+            )
+            .order_by(btc_prices.c.time.asc())
+        )
+
+        result = await self.session.execute(stmt)
+        rows = result.mappings().all()
+
+        logger.debug(
+            f"Fetched {len(rows)} BTC price rows in "
+            f"[{start.isoformat()}, {end.isoformat()}]"
+        )
+
+        return pd.DataFrame(
+            [
+                {"time": r["time"], "close": r["close"]}
+                for r in rows
+            ]
+        )
 
     # ============================================================
     # READS — stored predictions (API layer)

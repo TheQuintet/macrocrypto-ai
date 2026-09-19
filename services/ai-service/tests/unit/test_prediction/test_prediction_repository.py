@@ -12,6 +12,8 @@ Test organization:
     - TestPredictionRow: dataclass behavior
     - TestFetchRecentBtcData: read BTC prices
     - TestFetchRecentMacroData: read macro indicators
+    - TestFetchBtcPriceAt: single-price lookup (A5.2 Group 1)
+    - TestFetchBtcPricesRange: range lookup (A5.2 Group 1)
     - TestFetchTrainingFrame: merge + ffill logic
     - TestSavePredictions: bulk insert
     - TestFetchLatestPredictionTime: idempotency helper
@@ -226,6 +228,156 @@ class TestFetchRecentMacroData:
 
         assert isinstance(df, pd.DataFrame)
         assert df.empty
+
+
+# ============================================================
+# FETCH BTC PRICE AT TESTS (A5.2 Group 1)
+# ============================================================
+class TestFetchBtcPriceAt:
+    """Tests for fetch_btc_price_at() (A5.2 Group 1)."""
+
+    @pytest.mark.asyncio
+    async def test_returns_float(self) -> None:
+        """Test that the method returns a float when a row exists."""
+        target = datetime(2024, 3, 19, 0, 0, tzinfo=timezone.utc)
+        session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = 63_500.0
+        session.execute.return_value = mock_result
+
+        repo = PredictionRepository(session)
+        value = await repo.fetch_btc_price_at(target)
+
+        assert value == 63_500.0
+
+    @pytest.mark.asyncio
+    async def test_returns_none_when_no_row(self) -> None:
+        """Test that None is returned when no row is within tolerance."""
+        target = datetime(2024, 3, 19, 0, 0, tzinfo=timezone.utc)
+        session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+        session.execute.return_value = mock_result
+
+        repo = PredictionRepository(session)
+        value = await repo.fetch_btc_price_at(target)
+
+        assert value is None
+
+    @pytest.mark.asyncio
+    async def test_tolerance_hours_defaults_to_one(self) -> None:
+        """Test that the default tolerance is 1 hour."""
+        target = datetime(2024, 3, 19, 0, 0, tzinfo=timezone.utc)
+        session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = 63_500.0
+        session.execute.return_value = mock_result
+
+        repo = PredictionRepository(session)
+        # Call without tolerance_hours, then with an explicit one.
+        # The default should be 1 (per PRICE_LOOKUP_TOLERANCE_HOURS
+        # at the caller), and the explicit call should accept 6.
+        await repo.fetch_btc_price_at(target)
+        await repo.fetch_btc_price_at(target, tolerance_hours=6)
+
+        # Exactly two SELECTs issued.
+        assert session.execute.call_count == 2
+
+    @pytest.mark.asyncio
+    async def test_execute_is_called(self) -> None:
+        """Test that session.execute is called exactly once."""
+        target = datetime(2024, 3, 19, 0, 0, tzinfo=timezone.utc)
+        session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = 63_500.0
+        session.execute.return_value = mock_result
+
+        repo = PredictionRepository(session)
+        await repo.fetch_btc_price_at(target)
+
+        assert session.execute.call_count == 1
+
+
+# ============================================================
+# FETCH BTC PRICES RANGE TESTS (A5.2 Group 1)
+# ============================================================
+class TestFetchBtcPricesRange:
+    """Tests for fetch_btc_prices_range() (A5.2 Group 1)."""
+
+    @pytest.mark.asyncio
+    async def test_returns_dataframe_with_time_and_close(self) -> None:
+        """Test that the result has the two columns the caller needs."""
+        start = datetime(2024, 3, 19, 0, 0, tzinfo=timezone.utc)
+        end = datetime(2024, 3, 20, 0, 0, tzinfo=timezone.utc)
+        rows = [
+            {
+                "time": datetime(2024, 3, 19, 0, tzinfo=timezone.utc),
+                "close": 63_000.0,
+            },
+            {
+                "time": datetime(2024, 3, 19, 1, tzinfo=timezone.utc),
+                "close": 63_100.0,
+            },
+        ]
+        session = _mock_session_returning(rows)
+        repo = PredictionRepository(session)
+
+        df = await repo.fetch_btc_prices_range(start, end)
+
+        assert isinstance(df, pd.DataFrame)
+        assert len(df) == 2
+        assert set(df.columns) == {"time", "close"}
+
+    @pytest.mark.asyncio
+    async def test_empty_range_returns_empty_dataframe(self) -> None:
+        """Test that an empty range returns an empty DataFrame."""
+        start = datetime(2024, 3, 19, 0, 0, tzinfo=timezone.utc)
+        end = datetime(2024, 3, 20, 0, 0, tzinfo=timezone.utc)
+        session = _mock_session_returning([])
+        repo = PredictionRepository(session)
+
+        df = await repo.fetch_btc_prices_range(start, end)
+
+        assert isinstance(df, pd.DataFrame)
+        assert df.empty
+
+    @pytest.mark.asyncio
+    async def test_ascending_order_is_preserved(self) -> None:
+        """Test that rows come back in the order the DB returned them."""
+        start = datetime(2024, 3, 19, 0, 0, tzinfo=timezone.utc)
+        end = datetime(2024, 3, 20, 0, 0, tzinfo=timezone.utc)
+        rows = [
+            {
+                "time": datetime(2024, 3, 19, 0, tzinfo=timezone.utc),
+                "close": 63_000.0,
+            },
+            {
+                "time": datetime(2024, 3, 19, 1, tzinfo=timezone.utc),
+                "close": 63_100.0,
+            },
+            {
+                "time": datetime(2024, 3, 19, 2, tzinfo=timezone.utc),
+                "close": 63_200.0,
+            },
+        ]
+        session = _mock_session_returning(rows)
+        repo = PredictionRepository(session)
+
+        df = await repo.fetch_btc_prices_range(start, end)
+
+        assert list(df["close"]) == [63_000.0, 63_100.0, 63_200.0]
+
+    @pytest.mark.asyncio
+    async def test_execute_is_called(self) -> None:
+        """Test that session.execute is called exactly once."""
+        start = datetime(2024, 3, 19, 0, 0, tzinfo=timezone.utc)
+        end = datetime(2024, 3, 20, 0, 0, tzinfo=timezone.utc)
+        session = _mock_session_returning([])
+        repo = PredictionRepository(session)
+
+        await repo.fetch_btc_prices_range(start, end)
+
+        assert session.execute.call_count == 1
 
 
 # ============================================================
