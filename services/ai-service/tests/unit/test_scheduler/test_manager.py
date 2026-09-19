@@ -30,6 +30,7 @@ from app.scheduler.manager import (
     JOB_ID_DAILY_ACCURACY,
     JOB_ID_DAILY_BACKTEST,
     JOB_ID_DAILY_CORRELATION,
+    JOB_ID_DAILY_EVENT_IMPACT_UPDATE,
     JOB_ID_DAILY_EXPORT_CLEANUP,
     JOB_ID_DAILY_MODEL_PERFORMANCE_AGGREGATION,
     JOB_ID_DAILY_MULTI_MODEL_PREDICTIONS,
@@ -168,8 +169,20 @@ class TestManagerSetup:
         finally:
             manager.shutdown()
 
-    def test_setup_registers_all_nine_jobs(self) -> None:
-        """Test that setup registers exactly all nine jobs."""
+    def test_setup_registers_daily_event_impact_update_job(self) -> None:
+        """Test that setup registers the A5.5 event impact update job."""
+        manager = SchedulerManager(enabled=False)
+        manager.setup()
+        try:
+            assert (
+                JOB_ID_DAILY_EVENT_IMPACT_UPDATE
+                in manager.get_job_ids()
+            )
+        finally:
+            manager.shutdown()
+
+    def test_setup_registers_all_ten_jobs(self) -> None:
+        """Test that setup registers exactly all ten jobs."""
         manager = SchedulerManager(enabled=False)
         manager.setup()
         try:
@@ -185,6 +198,7 @@ class TestManagerSetup:
                     JOB_ID_DAILY_MODEL_PERFORMANCE_AGGREGATION,
                     JOB_ID_DAILY_CORRELATION,
                     JOB_ID_DAILY_EXPORT_CLEANUP,
+                    JOB_ID_DAILY_EVENT_IMPACT_UPDATE,
                 ]
             )
         finally:
@@ -434,6 +448,7 @@ class TestManagerIntrospection:
             )
             assert JOB_ID_DAILY_CORRELATION in ids
             assert JOB_ID_DAILY_EXPORT_CLEANUP in ids
+            assert JOB_ID_DAILY_EVENT_IMPACT_UPDATE in ids
         finally:
             manager.shutdown()
 
@@ -448,6 +463,25 @@ class TestManagerIntrospection:
         manager.setup()
         try:
             assert manager.get_next_run_time("does_not_exist") is None
+        finally:
+            manager.shutdown()
+
+    def test_get_next_run_time_on_setup_job(self) -> None:
+        """Test that get_next_run_time on a set-up-but-unstarted scheduler
+        returns None rather than raising.
+
+        APScheduler only populates ``Job.next_run_time`` once the
+        scheduler has started. This test pins the behavior of
+        calling the method in that intermediate state.
+        """
+        manager = SchedulerManager(enabled=False)
+        manager.setup()
+        try:
+            # No assertion on the value — either a datetime or None
+            # is acceptable depending on the APScheduler version.
+            # The point is that it must not raise.
+            result = manager.get_next_run_time(JOB_ID_DAILY_RETRAIN)
+            assert result is None or isinstance(result, datetime)
         finally:
             manager.shutdown()
 

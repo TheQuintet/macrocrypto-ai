@@ -4,7 +4,8 @@ Wraps APScheduler's AsyncIOScheduler with:
     - Job registration (daily retrain, hourly 24h prediction,
       daily 7d prediction, daily backtest, daily accuracy,
       daily multi-model predictions, daily model performance
-      aggregation, daily correlation, daily export cleanup)
+      aggregation, daily correlation, daily export cleanup,
+      daily event impact update)
     - Lifecycle (start, shutdown) tied to FastAPI's lifespan
     - Failure handling (retries per settings.scheduler_max_retries)
     - Run history in SchedulerState
@@ -33,6 +34,7 @@ from app.scheduler.jobs import (
     JOB_DAILY_ACCURACY,
     JOB_DAILY_BACKTEST,
     JOB_DAILY_CORRELATION,
+    JOB_DAILY_EVENT_IMPACT_UPDATE,
     JOB_DAILY_EXPORT_CLEANUP,
     JOB_DAILY_MODEL_PERFORMANCE_AGGREGATION,
     JOB_DAILY_MULTI_MODEL_PREDICTIONS,
@@ -42,6 +44,7 @@ from app.scheduler.jobs import (
     daily_accuracy_job,
     daily_backtest_job,
     daily_correlation_job,
+    daily_event_impact_update_job,
     daily_export_cleanup_job,
     daily_model_performance_aggregation_job,
     daily_multi_model_predictions_job,
@@ -71,6 +74,7 @@ JOB_ID_DAILY_MODEL_PERFORMANCE_AGGREGATION = (
 )
 JOB_ID_DAILY_CORRELATION = "daily_correlation"
 JOB_ID_DAILY_EXPORT_CLEANUP = "daily_export_cleanup"
+JOB_ID_DAILY_EVENT_IMPACT_UPDATE = "daily_event_impact_update"
 
 
 # ============================================================
@@ -142,6 +146,7 @@ class SchedulerManager:
         self._register_daily_model_performance_aggregation_job()
         self._register_daily_correlation_job()
         self._register_daily_export_cleanup_job()
+        self._register_daily_event_impact_update_job()
 
         logger.info("Scheduler setup complete")
 
@@ -498,6 +503,53 @@ class SchedulerManager:
             f"tz={settings.retrain_timezone})"
         )
 
+    def _register_daily_event_impact_update_job(self) -> None:
+        """Register the daily event impact update job (4:00 AM UTC).
+
+        Sits after the 3:00 export cleanup and well before the
+        6:00 retrain. Reads every row in ``historical_event_impacts``,
+        recomputes the BTC reaction with A5.2's ``ReactionCalculator``,
+        and updates rows whose reaction changed. Idempotent: a second
+        run the same day is a no-op.
+
+        Schedule choices:
+            - 4:00 AM UTC: the export cleanup (3:00) typically
+              finishes in a few seconds, and the retrain (6:00)
+              does not touch the events table. 4:00 is a quiet
+              window.
+            - misfire_grace_time=1800 (30 min): if the scheduler
+              was down and misses the tick, run anyway.
+        """
+        if self._scheduler is None:
+            raise RuntimeError("Scheduler not set up")
+
+        trigger = CronTrigger(
+            hour=settings.event_impact_hour,
+            minute=settings.event_impact_minute,
+            timezone=settings.retrain_timezone,
+        )
+
+        self._scheduler.add_job(
+            func=self._wrap_job(
+                JOB_DAILY_EVENT_IMPACT_UPDATE,
+                daily_event_impact_update_job,
+            ),
+            trigger=trigger,
+            id=JOB_ID_DAILY_EVENT_IMPACT_UPDATE,
+            name="Daily event impact update",
+            replace_existing=True,
+            max_instances=1,
+            coalesce=True,
+            misfire_grace_time=1800,
+        )
+
+        logger.info(
+            f"Registered job '{JOB_ID_DAILY_EVENT_IMPACT_UPDATE}' "
+            f"(trigger: hour={settings.event_impact_hour} "
+            f"minute={settings.event_impact_minute} "
+            f"tz={settings.retrain_timezone})"
+        )
+
     # ============================================================
     # JOB WRAPPER
     # ============================================================
@@ -606,11 +658,21 @@ class SchedulerManager:
         return [job.id for job in self._scheduler.get_jobs()]
 
     def get_next_run_time(self, job_id: str) -> Optional[datetime]:
-        """Return the next scheduled run time for a job, or None."""
+        """Return the next scheduled run time for a job, or None.
+
+        APScheduler only populates ``Job.next_run_time`` once the
+        scheduler has started. Before ``start()`` — i.e. after
+        ``setup()`` but before the event loop is running — the
+        attribute does not exist on the Job object, so we read it
+        with ``getattr`` and fall back to None. The method is
+        therefore safe to call in any lifecycle state.
+        """
         if self._scheduler is None:
             return None
         job = self._scheduler.get_job(job_id)
-        return job.next_run_time if job else None
+        if job is None:
+            return None
+        return getattr(job, "next_run_time", None)
 
     def is_running(self) -> bool:
         """Return True if the scheduler is running."""

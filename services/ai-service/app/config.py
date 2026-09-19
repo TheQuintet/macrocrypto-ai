@@ -185,6 +185,15 @@ class Settings(BaseSettings):
     correlation_hour: int = Field(default=2)
     correlation_minute: int = Field(default=0)
 
+    # Event impact update job schedule (A5.5): daily at 4:00 AM UTC.
+    # Runs after the 3:00 export cleanup and well before the 6:00
+    # retrain. Reads every row in historical_event_impacts, recomputes
+    # the BTC reaction with A5.2's ReactionCalculator, and updates
+    # rows whose reaction changed. Idempotent: a second run the same
+    # day is a no-op.
+    event_impact_hour: int = Field(default=4)
+    event_impact_minute: int = Field(default=0)
+
     # ============================================================
     # BACKTEST PARAMETERS
     # ============================================================
