@@ -117,6 +117,15 @@ class Settings(BaseSettings):
     retrain_timezone: str = Field(default="UTC")
     walk_forward_days: int = Field(default=30)
 
+    # Scheduler master switch (disabled in tests, enabled in prod)
+    scheduler_enabled: bool = Field(default=True)
+
+    # Retention of in-memory job history entries
+    scheduler_history_max_entries: int = Field(default=100)
+
+    # Retries per job run on failure (0 = no retry)
+    scheduler_max_retries: int = Field(default=1)
+
     # ============================================================
     # PROPERTIES
     # ============================================================
