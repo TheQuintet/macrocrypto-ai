@@ -1,6 +1,7 @@
 """Configuration management for AI Service."""
 
 from enum import Enum
+from pathlib import Path
 from typing import Optional
 
 from pydantic import Field
@@ -202,6 +203,28 @@ class Settings(BaseSettings):
     backtest_model_dir: str = Field(default="models/backtest")
 
     # ============================================================
+    # EXPORT STORAGE (A2.6)
+    # ============================================================
+    # Backend selector. Only "local" is implemented in A2.6.
+    # "s3" is reserved so a future branch can add an S3-compatible
+    # implementation without changing this field's name.
+    export_storage_backend: str = Field(default="local")
+
+    # Directory where locally-stored export files live. Relative
+    # paths are resolved against the current working directory (see
+    # ``export_storage_dir_path``).
+    export_storage_dir: str = Field(default="exports")
+
+    # How long a download link remains valid, in seconds. The A2.6
+    # ticket calls for "7 days" as the example; 604800 = 7 × 24 × 3600.
+    export_link_ttl_seconds: int = Field(default=604800)
+
+    # How long a stored file remains on disk before the cleanup job
+    # deletes it, in seconds. Defaults to the same 7-day window as
+    # the link TTL so a stale link and a stale file expire together.
+    export_file_ttl_seconds: int = Field(default=604800)
+
+    # ============================================================
     # ACCURACY JOB PARAMETERS (T5.4)
     # ============================================================
     # Look-back window for accuracy checks (in days)
@@ -256,6 +279,25 @@ class Settings(BaseSettings):
     def prophet_7d_model_path(self) -> str:
         """Return the full path to the trained 7d Prophet model file."""
         return f"{self.model_save_dir}/{self.prophet_7d_model_filename}"
+
+    @property
+    def export_storage_dir_path(self) -> Path:
+        """Return the export storage directory as an absolute Path.
+
+        Relative paths in ``export_storage_dir`` are resolved
+        against the current working directory, which for the
+        AI Service is the service root. Absolute paths are
+        returned unchanged.
+
+        Returns:
+            The resolved :class:`pathlib.Path` for the storage
+            directory. The path is not created here — creation is
+            ``LocalDiskStorage``'s responsibility.
+        """
+        path = Path(self.export_storage_dir)
+        if not path.is_absolute():
+            path = Path.cwd() / path
+        return path
 
 
 # Global settings instance

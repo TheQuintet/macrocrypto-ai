@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app import __version__, __service_name__
 from app.api.v1 import (
     correlation_router,
+    download_router,
     performance_router,
     predict_router,
 )
@@ -54,8 +55,8 @@ async def lifespan(app: FastAPI):
 
     # ---- Scheduler ----
     # Registers and starts background jobs (retrain, predictions,
-    # backtest, accuracy). Honors settings.scheduler_enabled — a
-    # no-op in tests.
+    # backtest, accuracy, correlation, export cleanup). Honors
+    # settings.scheduler_enabled — a no-op in tests.
     scheduler_manager.setup()
     scheduler_manager.start()
 
@@ -97,6 +98,7 @@ app.include_router(health_router, tags=["health"])
 app.include_router(predict_router)
 app.include_router(performance_router)
 app.include_router(correlation_router)
+app.include_router(download_router)
 
 
 @app.get("/")

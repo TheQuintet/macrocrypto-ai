@@ -21,6 +21,8 @@ Jobs currently registered:
       model_performance (7:15 AM UTC, M7b)
     - daily_correlation_job: compute BTC-vs-macro correlations for
       all indicators × windows (2:00 AM UTC, A1.5)
+    - daily_export_cleanup_job: delete export files older than the
+      configured TTL (3:00 AM UTC, A2.6)
 
 Design:
     - Each job opens its own DB session via session_scope(); the
@@ -67,6 +69,7 @@ from app.database.repositories.threshold_repository import (
     ThresholdBreachRow,
     ThresholdRepository,
 )
+from app.export.storage import get_storage
 from app.prediction.generator import PredictionGenerator
 from app.prediction.market import classify_market_condition_safe
 
@@ -89,6 +92,7 @@ JOB_DAILY_MODEL_PERFORMANCE_AGGREGATION = (
     "daily_model_performance_aggregation"
 )
 JOB_DAILY_CORRELATION = "daily_correlation"
+JOB_DAILY_EXPORT_CLEANUP = "daily_export_cleanup"
 
 
 # ============================================================
@@ -1468,5 +1472,183 @@ async def daily_correlation_job() -> Dict[str, Any]:
             "errors — both source tables appear to be empty or "
             "unavailable. See the previous log lines for details."
         )
+
+    return summary
+
+
+# ============================================================
+# DAILY EXPORT CLEANUP JOB (A2.6)
+# ============================================================
+async def daily_export_cleanup_job() -> Dict[str, Any]:
+    """Delete export files older than the configured TTL.
+
+    Runs daily at 3:00 AM UTC. Iterates the keys currently in
+    storage, checks each one's modification time against
+    ``settings.export_file_ttl_seconds``, and deletes the expired
+    ones. Returns a summary of what was removed.
+
+    Backend scope:
+        Age-based cleanup requires the backend to expose an
+        ``mtime`` method. ``LocalDiskStorage`` does; the in-memory
+        test fake does; a future S3 backend will not (it will
+        expire files via bucket lifecycle policies instead). The
+        job inspects the backend via ``hasattr(storage, "mtime")``
+        and no-ops on any backend that lacks it, logging the
+        reason. That check is where the "which backends support
+        age-based cleanup" decision is enforced.
+
+    Relationship to the download link TTL:
+        ``export_link_ttl_seconds`` and ``export_file_ttl_seconds``
+        both default to 7 days. A download link is considered
+        expired when its file has been deleted, so the download
+        endpoint's "no file found" 404 is what enforces link
+        expiry on this branch. The cleanup job is what produces
+        that state.
+
+    Failure semantics:
+        Per-key deletion errors are caught and counted, not
+        raised. A single locked or permission-denied file should
+        not abort the whole run. The job only raises if the
+        storage backend itself is unreachable — which on this
+        branch means a disk-level error during ``list()``.
+
+    Idempotency:
+        Re-running the job is safe. Files already deleted are
+        simply absent from ``list()``; a missing key is a no-op.
+
+    Returns:
+        Dict with keys: backend (str), scanned (int),
+        deleted (int), skipped_not_expired (int),
+        failed (int), ttl_seconds (int), results (per-key dict),
+        elapsed_seconds (float).
+
+    Raises:
+        RuntimeError: If the storage backend cannot be listed.
+    """
+    import time
+
+    start = time.monotonic()
+    logger.info("Running daily_export_cleanup_job")
+
+    storage = get_storage()
+
+    # ---- 1. Backend check ----
+    # Age-based cleanup requires the backend to expose an ``mtime``
+    # method. ``LocalDiskStorage`` does; a future S3 backend will
+    # not (it will expire files via bucket lifecycle policies
+    # instead), and a minimal test fake can omit it. The check is
+    # deliberately "has mtime" rather than an isinstance against a
+    # concrete class, so any backend which grows the same
+    # capability is picked up automatically.
+    if not hasattr(storage, "mtime"):
+        elapsed = time.monotonic() - start
+        logger.info(
+            f"daily_export_cleanup_job: backend "
+            f"{type(storage).__name__} does not support age-based "
+            f"cleanup on this branch — skipping"
+        )
+        return {
+            "backend": type(storage).__name__,
+            "scanned": 0,
+            "deleted": 0,
+            "skipped_not_expired": 0,
+            "failed": 0,
+            "ttl_seconds": settings.export_file_ttl_seconds,
+            "results": {},
+            "elapsed_seconds": elapsed,
+        }
+
+    ttl_seconds = settings.export_file_ttl_seconds
+    now = time.time()
+    cutoff = now - ttl_seconds
+
+    results: Dict[str, Dict[str, Any]] = {}
+    deleted = 0
+    skipped = 0
+    failed = 0
+
+    # ---- 2. List keys ----
+    try:
+        keys = storage.list()
+    except Exception as e:
+        # If we cannot even list, the whole job is dead. Raise so
+        # the scheduler records the failure and applies retries.
+        raise RuntimeError(
+            f"Cannot list export storage: {e}"
+        ) from e
+
+    logger.info(
+        f"daily_export_cleanup_job: scanning {len(keys)} file(s), "
+        f"TTL={ttl_seconds}s"
+    )
+
+    # ---- 3. Delete expired keys ----
+    for key in keys:
+        try:
+            mtime = storage.mtime(key)
+        except FileNotFoundError:
+            # Raced with a delete — treat as already cleaned.
+            logger.debug(
+                f"daily_export_cleanup_job: {key!r} vanished before stat"
+            )
+            results[key] = {"status": "vanished"}
+            continue
+        except Exception as e:
+            logger.warning(
+                f"daily_export_cleanup_job: could not stat {key!r}: {e}"
+            )
+            results[key] = {"status": "stat_failed", "error": str(e)}
+            failed += 1
+            continue
+
+        if mtime >= cutoff:
+            results[key] = {
+                "status": "kept",
+                "age_seconds": now - mtime,
+            }
+            skipped += 1
+            continue
+
+        try:
+            removed = storage.delete(key)
+        except Exception as e:
+            logger.warning(
+                f"daily_export_cleanup_job: could not delete "
+                f"{key!r}: {e}"
+            )
+            results[key] = {"status": "delete_failed", "error": str(e)}
+            failed += 1
+            continue
+
+        if removed:
+            results[key] = {
+                "status": "deleted",
+                "age_seconds": now - mtime,
+            }
+            deleted += 1
+        else:
+            results[key] = {
+                "status": "already_gone",
+                "age_seconds": now - mtime,
+            }
+
+    elapsed = time.monotonic() - start
+
+    summary = {
+        "backend": type(storage).__name__,
+        "scanned": len(keys),
+        "deleted": deleted,
+        "skipped_not_expired": skipped,
+        "failed": failed,
+        "ttl_seconds": ttl_seconds,
+        "results": results,
+        "elapsed_seconds": elapsed,
+    }
+
+    logger.info(
+        f"daily_export_cleanup_job complete: "
+        f"scanned={len(keys)} deleted={deleted} "
+        f"kept={skipped} failed={failed} in {elapsed:.3f}s"
+    )
 
     return summary

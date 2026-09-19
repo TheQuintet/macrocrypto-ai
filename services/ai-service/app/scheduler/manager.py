@@ -4,7 +4,7 @@ Wraps APScheduler's AsyncIOScheduler with:
     - Job registration (daily retrain, hourly 24h prediction,
       daily 7d prediction, daily backtest, daily accuracy,
       daily multi-model predictions, daily model performance
-      aggregation, daily correlation)
+      aggregation, daily correlation, daily export cleanup)
     - Lifecycle (start, shutdown) tied to FastAPI's lifespan
     - Failure handling (retries per settings.scheduler_max_retries)
     - Run history in SchedulerState
@@ -33,6 +33,7 @@ from app.scheduler.jobs import (
     JOB_DAILY_ACCURACY,
     JOB_DAILY_BACKTEST,
     JOB_DAILY_CORRELATION,
+    JOB_DAILY_EXPORT_CLEANUP,
     JOB_DAILY_MODEL_PERFORMANCE_AGGREGATION,
     JOB_DAILY_MULTI_MODEL_PREDICTIONS,
     JOB_DAILY_RETRAIN,
@@ -41,6 +42,7 @@ from app.scheduler.jobs import (
     daily_accuracy_job,
     daily_backtest_job,
     daily_correlation_job,
+    daily_export_cleanup_job,
     daily_model_performance_aggregation_job,
     daily_multi_model_predictions_job,
     daily_retrain_job,
@@ -68,6 +70,7 @@ JOB_ID_DAILY_MODEL_PERFORMANCE_AGGREGATION = (
     "daily_model_performance_aggregation"
 )
 JOB_ID_DAILY_CORRELATION = "daily_correlation"
+JOB_ID_DAILY_EXPORT_CLEANUP = "daily_export_cleanup"
 
 
 # ============================================================
@@ -138,6 +141,7 @@ class SchedulerManager:
         self._register_daily_multi_model_predictions_job()
         self._register_daily_model_performance_aggregation_job()
         self._register_daily_correlation_job()
+        self._register_daily_export_cleanup_job()
 
         logger.info("Scheduler setup complete")
 
@@ -446,6 +450,51 @@ class SchedulerManager:
             f"Registered job '{JOB_ID_DAILY_CORRELATION}' "
             f"(trigger: hour={settings.correlation_hour} "
             f"minute={settings.correlation_minute} "
+            f"tz={settings.retrain_timezone})"
+        )
+
+    def _register_daily_export_cleanup_job(self) -> None:
+        """Register the daily export cleanup job (3:00 AM UTC).
+
+        Sits after the 2:00 correlation job and well before the
+        6:00 retrain. Deletes export files older than
+        ``settings.export_file_ttl_seconds``. Only
+        ``LocalDiskStorage`` supports age-based cleanup on this
+        branch; the job no-ops on any other backend.
+
+        Schedule choices:
+            - 3:00 AM UTC: the correlation job (2:00) typically
+              finishes in a few seconds, and the retrain (6:00)
+              does not touch storage. 3:00 is a quiet window.
+            - misfire_grace_time=1800 (30 min): if the scheduler
+              was down and misses the tick, run anyway.
+        """
+        if self._scheduler is None:
+            raise RuntimeError("Scheduler not set up")
+
+        trigger = CronTrigger(
+            hour=3,
+            minute=0,
+            timezone=settings.retrain_timezone,
+        )
+
+        self._scheduler.add_job(
+            func=self._wrap_job(
+                JOB_DAILY_EXPORT_CLEANUP,
+                daily_export_cleanup_job,
+            ),
+            trigger=trigger,
+            id=JOB_ID_DAILY_EXPORT_CLEANUP,
+            name="Daily export cleanup",
+            replace_existing=True,
+            max_instances=1,
+            coalesce=True,
+            misfire_grace_time=1800,
+        )
+
+        logger.info(
+            f"Registered job '{JOB_ID_DAILY_EXPORT_CLEANUP}' "
+            f"(trigger: hour=3 minute=0 "
             f"tz={settings.retrain_timezone})"
         )
 
