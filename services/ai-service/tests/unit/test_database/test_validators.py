@@ -9,6 +9,8 @@ Test organization:
     - TestValidateModelPerformanceRows: model performance batch (M7)
     - TestValidateCorrelationRow: single correlation row (A1.1)
     - TestValidateCorrelationRows: correlation batch (A1.1)
+    - TestValidateExportHistoryRow: single export history row (A2.1)
+    - TestValidateExportHistoryRows: export history batch (A2.1)
     - TestValidatorConstants: module constants
 """
 
@@ -23,11 +25,17 @@ from app.database.validators import (
     VALID_CORRELATION_DIRECTIONS,
     VALID_CORRELATION_STRENGTHS,
     VALID_CORRELATION_WINDOWS,
+    VALID_DATA_TYPE_NAMES,
+    VALID_EXPORT_STATUSES,
+    VALID_EXPORT_TIMEFRAMES,
+    VALID_EXPORT_TYPES,
     VALID_HORIZONS,
     VALID_INDICATOR_NAMES,
     VALID_MARKET_CONDITIONS,
     validate_correlation_row,
     validate_correlation_rows,
+    validate_export_history_row,
+    validate_export_history_rows,
     validate_model_performance_row,
     validate_model_performance_rows,
     validate_performance_row,
@@ -107,6 +115,21 @@ def _make_correlation_dict(**overrides) -> Dict[str, Any]:
         "strength": "medium",
         "direction": "negative",
         "p_value": 0.03,
+    }
+    defaults.update(overrides)
+    return defaults
+
+
+def _make_export_history_dict(**overrides) -> Dict[str, Any]:
+    """Build a valid export_history row as a dict."""
+    defaults = {
+        "user_id": "analyst-42",
+        "export_type": "csv",
+        "data_types": ["btc_price"],
+        "timeframe": "90d",
+        "file_name": "macro-crypto-btc_price-90d-2026-09-15.csv",
+        "file_size": 2048,
+        "status": "pending",
     }
     defaults.update(overrides)
     return defaults
@@ -922,6 +945,257 @@ class TestValidateCorrelationRows:
 
 
 # ============================================================
+# EXPORT HISTORY ROW TESTS (A2.1)
+# ============================================================
+class TestValidateExportHistoryRow:
+    """Tests for validate_export_history_row()."""
+
+    def test_valid_dict_passes(self) -> None:
+        """Test that a fully valid dict passes."""
+        validate_export_history_row(_make_export_history_dict())
+
+    def test_valid_object_passes(self) -> None:
+        """Test that a valid object-shaped row passes."""
+        validate_export_history_row(
+            _PerfObj(**_make_export_history_dict())
+        )
+
+    def test_empty_data_types_passes(self) -> None:
+        """Test that an empty data_types list is allowed."""
+        validate_export_history_row(
+            _make_export_history_dict(data_types=[])
+        )
+
+    def test_none_user_id_passes(self) -> None:
+        """Test that a None user_id is allowed (system-triggered)."""
+        validate_export_history_row(
+            _make_export_history_dict(user_id=None)
+        )
+
+    def test_none_file_size_passes(self) -> None:
+        """Test that a None file_size is allowed (pending exports)."""
+        validate_export_history_row(
+            _make_export_history_dict(file_size=None)
+        )
+
+    # ---- export_type ----
+
+    def test_invalid_export_type_raises(self) -> None:
+        """Test that an unknown export_type raises."""
+        with pytest.raises(ValueError, match="invalid export_type"):
+            validate_export_history_row(
+                _make_export_history_dict(export_type="xlsx")
+            )
+
+    def test_all_valid_export_types_pass(self) -> None:
+        """Test that all three valid export types pass."""
+        for t in ("csv", "png", "pdf"):
+            validate_export_history_row(
+                _make_export_history_dict(export_type=t)
+            )
+
+    # ---- timeframe ----
+
+    def test_invalid_timeframe_raises(self) -> None:
+        """Test that an unknown timeframe raises."""
+        with pytest.raises(ValueError, match="invalid timeframe"):
+            validate_export_history_row(
+                _make_export_history_dict(timeframe="7d")
+            )
+
+    def test_all_valid_timeframes_pass(self) -> None:
+        """Test that all four valid timeframes pass."""
+        for tf in ("30d", "90d", "1y", "5y"):
+            validate_export_history_row(
+                _make_export_history_dict(timeframe=tf)
+            )
+
+    # ---- file_name ----
+
+    def test_empty_file_name_raises(self) -> None:
+        """Test that an empty file_name raises."""
+        with pytest.raises(ValueError, match="file_name must be non-empty"):
+            validate_export_history_row(
+                _make_export_history_dict(file_name="")
+            )
+
+    def test_whitespace_file_name_raises(self) -> None:
+        """Test that a whitespace-only file_name raises."""
+        with pytest.raises(ValueError, match="file_name must be non-empty"):
+            validate_export_history_row(
+                _make_export_history_dict(file_name="   ")
+            )
+
+    # ---- status ----
+
+    def test_invalid_status_raises(self) -> None:
+        """Test that an unknown status raises."""
+        with pytest.raises(ValueError, match="invalid status"):
+            validate_export_history_row(
+                _make_export_history_dict(status="running")
+            )
+
+    def test_all_valid_statuses_pass(self) -> None:
+        """Test that all three valid statuses pass."""
+        for s in ("pending", "completed", "failed"):
+            validate_export_history_row(
+                _make_export_history_dict(status=s)
+            )
+
+    # ---- data_types ----
+
+    def test_missing_data_types_raises(self) -> None:
+        """Test that a missing data_types raises."""
+        row = _make_export_history_dict()
+        del row["data_types"]
+        with pytest.raises(ValueError, match="data_types must be set"):
+            validate_export_history_row(row)
+
+    def test_none_data_types_raises(self) -> None:
+        """Test that a None data_types raises."""
+        with pytest.raises(ValueError, match="data_types must be set"):
+            validate_export_history_row(
+                _make_export_history_dict(data_types=None)
+            )
+
+    def test_non_list_data_types_raises(self) -> None:
+        """Test that a non-list data_types raises."""
+        with pytest.raises(ValueError, match="data_types must be a list"):
+            validate_export_history_row(
+                _make_export_history_dict(data_types="btc_price")
+            )
+
+    def test_unknown_data_type_raises(self) -> None:
+        """Test that an unknown data-type string raises."""
+        with pytest.raises(ValueError, match="invalid data_type"):
+            validate_export_history_row(
+                _make_export_history_dict(data_types=["btc_price", "bogus"])
+            )
+
+    def test_duplicate_data_type_raises(self) -> None:
+        """Test that duplicate data-type strings raise."""
+        with pytest.raises(ValueError, match="duplicate data_type"):
+            validate_export_history_row(
+                _make_export_history_dict(
+                    data_types=["btc_price", "btc_price"]
+                )
+            )
+
+    def test_non_string_data_type_raises(self) -> None:
+        """Test that a non-string entry in data_types raises."""
+        with pytest.raises(
+            ValueError, match="data_types entries must be strings"
+        ):
+            validate_export_history_row(
+                _make_export_history_dict(data_types=[123])
+            )
+
+    def test_all_valid_data_types_pass(self) -> None:
+        """Test that every known data-type name passes."""
+        for dt in VALID_DATA_TYPE_NAMES:
+            validate_export_history_row(
+                _make_export_history_dict(data_types=[dt])
+            )
+
+    # ---- user_id ----
+
+    def test_empty_user_id_raises(self) -> None:
+        """Test that an empty user_id raises."""
+        with pytest.raises(ValueError, match="user_id must be a non-empty"):
+            validate_export_history_row(
+                _make_export_history_dict(user_id="")
+            )
+
+    def test_whitespace_user_id_raises(self) -> None:
+        """Test that a whitespace-only user_id raises."""
+        with pytest.raises(ValueError, match="user_id must be a non-empty"):
+            validate_export_history_row(
+                _make_export_history_dict(user_id="   ")
+            )
+
+    def test_non_string_user_id_raises(self) -> None:
+        """Test that a non-string user_id raises."""
+        with pytest.raises(ValueError, match="user_id must be a non-empty"):
+            validate_export_history_row(
+                _make_export_history_dict(user_id=123)
+            )
+
+    # ---- file_size ----
+
+    def test_negative_file_size_raises(self) -> None:
+        """Test that a negative file_size raises."""
+        with pytest.raises(ValueError, match="file_size must be >= 0"):
+            validate_export_history_row(
+                _make_export_history_dict(file_size=-1)
+            )
+
+    def test_zero_file_size_passes(self) -> None:
+        """Test that a zero file_size passes (boundary)."""
+        validate_export_history_row(
+            _make_export_history_dict(file_size=0)
+        )
+
+    def test_boolean_file_size_raises(self) -> None:
+        """Test that a bool file_size raises (bool is an int subclass)."""
+        with pytest.raises(ValueError, match="file_size must be an integer"):
+            validate_export_history_row(
+                _make_export_history_dict(file_size=True)
+            )
+
+    def test_non_integer_file_size_raises(self) -> None:
+        """Test that a non-integer file_size raises."""
+        with pytest.raises(ValueError, match="file_size must be an integer"):
+            validate_export_history_row(
+                _make_export_history_dict(file_size=10.5)
+            )
+
+    # ---- error message ----
+
+    def test_error_message_includes_index(self) -> None:
+        """Test that error messages include the row index."""
+        with pytest.raises(ValueError, match="Row 7"):
+            validate_export_history_row(
+                _make_export_history_dict(export_type="xlsx"), index=7
+            )
+
+
+# ============================================================
+# EXPORT HISTORY BATCH TESTS (A2.1)
+# ============================================================
+class TestValidateExportHistoryRows:
+    """Tests for validate_export_history_rows()."""
+
+    def test_empty_list_passes(self) -> None:
+        """Test that an empty list passes."""
+        validate_export_history_rows([])
+
+    def test_all_valid_rows_pass(self) -> None:
+        """Test that a batch of valid rows passes."""
+        rows = [_make_export_history_dict() for _ in range(5)]
+        validate_export_history_rows(rows)
+
+    def test_single_invalid_row_in_batch_fails(self) -> None:
+        """Test that one invalid row in a batch raises with its index."""
+        rows = [
+            _make_export_history_dict(),
+            _make_export_history_dict(),
+            _make_export_history_dict(export_type="xlsx"),  # index 2
+            _make_export_history_dict(),
+        ]
+        with pytest.raises(ValueError, match="Row 2"):
+            validate_export_history_rows(rows)
+
+    def test_validation_stops_at_first_error(self) -> None:
+        """Test that validation stops at the first invalid row."""
+        rows = [
+            _make_export_history_dict(export_type="xlsx"),  # index 0
+            _make_export_history_dict(timeframe="7d"),  # index 1 — would fail
+        ]
+        with pytest.raises(ValueError, match="Row 0"):
+            validate_export_history_rows(rows)
+
+
+# ============================================================
 # CONSTANTS
 # ============================================================
 class TestValidatorConstants:
@@ -970,4 +1244,31 @@ class TestValidatorConstants:
         assert VALID_CORRELATION_DIRECTIONS == (
             "positive",
             "negative",
+        )
+
+    def test_valid_export_types(self) -> None:
+        """Test that VALID_EXPORT_TYPES contains csv, png, pdf."""
+        assert VALID_EXPORT_TYPES == ("csv", "png", "pdf")
+
+    def test_valid_export_timeframes(self) -> None:
+        """Test that VALID_EXPORT_TIMEFRAMES contains the four labels."""
+        assert VALID_EXPORT_TIMEFRAMES == ("30d", "90d", "1y", "5y")
+
+    def test_valid_export_statuses(self) -> None:
+        """Test that VALID_EXPORT_STATUSES contains the three states."""
+        assert VALID_EXPORT_STATUSES == (
+            "pending",
+            "completed",
+            "failed",
+        )
+
+    def test_valid_data_type_names(self) -> None:
+        """Test that VALID_DATA_TYPE_NAMES contains the six data types."""
+        assert VALID_DATA_TYPE_NAMES == (
+            "btc_price",
+            "predictions",
+            "model_performance",
+            "correlations",
+            "regimes",
+            "events",
         )

@@ -15,6 +15,8 @@ Currently validates:
       horizon enum (M7)
     - Correlation rows: indicator/window/strength/direction enums,
       coefficient and p_value ranges (A1.1)
+    - Export history rows: export_type/timeframe/status enums,
+      data_types contents, optional user_id and file_size (A2.1)
 """
 
 import logging
@@ -38,6 +40,22 @@ VALID_INDICATOR_NAMES = ("inflation", "rates", "gdp", "unemployment")
 VALID_CORRELATION_WINDOWS = (30, 90, 365)
 VALID_CORRELATION_STRENGTHS = ("strong", "medium", "weak")
 VALID_CORRELATION_DIRECTIONS = ("positive", "negative")
+
+# A2.1 — export history enums
+VALID_EXPORT_TYPES = ("csv", "png", "pdf")
+VALID_EXPORT_TIMEFRAMES = ("30d", "90d", "1y", "5y")
+VALID_EXPORT_STATUSES = ("pending", "completed", "failed")
+
+# The set of data-type strings an export may include. Kept as a
+# tuple so it round-trips through `in` checks and error messages.
+VALID_DATA_TYPE_NAMES = (
+    "btc_price",
+    "predictions",
+    "model_performance",
+    "correlations",
+    "regimes",
+    "events",
+)
 
 
 # ============================================================
@@ -515,3 +533,144 @@ def validate_correlation_rows(
         validate_correlation_row(row, index=i)
 
     logger.debug("All correlation rows passed validation")
+
+
+# ============================================================
+# EXPORT HISTORY ROW VALIDATION (A2.1)
+# ============================================================
+def validate_export_history_row(
+    row: Any,
+    index: int = 0,
+) -> None:
+    """Validate a single export_history row.
+
+    The row may be an ``ExportHistoryRow`` dataclass, a dict, or
+    any object with the expected attributes. This keeps the
+    validator decoupled from the repository's concrete row type.
+
+    Checks:
+        - export_type is one of 'csv', 'png', 'pdf'
+        - timeframe is one of '30d', '90d', '1y', '5y'
+        - file_name is non-empty
+        - status is one of 'pending', 'completed', 'failed'
+        - data_types is a list of strings, each from
+          VALID_DATA_TYPE_NAMES; duplicates are rejected
+        - user_id is None or a non-empty string
+        - file_size is None or a non-negative integer
+
+    Args:
+        row: The row to validate (object or dict).
+        index: Row index (for error messages).
+
+    Raises:
+        ValueError: If the row violates any invariant.
+    """
+
+    def _get(name: str) -> Any:
+        """Read a field from a dict or object."""
+        if isinstance(row, dict):
+            return row.get(name)
+        return getattr(row, name, None)
+
+    # ---- 1. export_type ----
+    export_type = _get("export_type")
+    if export_type not in VALID_EXPORT_TYPES:
+        raise ValueError(
+            f"Row {index}: invalid export_type '{export_type}'. "
+            f"Must be one of {VALID_EXPORT_TYPES}."
+        )
+
+    # ---- 2. timeframe ----
+    timeframe = _get("timeframe")
+    if timeframe not in VALID_EXPORT_TIMEFRAMES:
+        raise ValueError(
+            f"Row {index}: invalid timeframe '{timeframe}'. "
+            f"Must be one of {VALID_EXPORT_TIMEFRAMES}."
+        )
+
+    # ---- 3. file_name ----
+    file_name = _get("file_name")
+    if not file_name or not str(file_name).strip():
+        raise ValueError(
+            f"Row {index}: file_name must be non-empty"
+        )
+
+    # ---- 4. status ----
+    status_value = _get("status")
+    if status_value not in VALID_EXPORT_STATUSES:
+        raise ValueError(
+            f"Row {index}: invalid status '{status_value}'. "
+            f"Must be one of {VALID_EXPORT_STATUSES}."
+        )
+
+    # ---- 5. data_types: list of unique known strings ----
+    data_types = _get("data_types")
+    if data_types is None:
+        raise ValueError(
+            f"Row {index}: data_types must be set (use [] for empty)"
+        )
+    if not isinstance(data_types, list):
+        raise ValueError(
+            f"Row {index}: data_types must be a list, "
+            f"got {type(data_types).__name__}"
+        )
+    seen: set = set()
+    for dt in data_types:
+        if not isinstance(dt, str):
+            raise ValueError(
+                f"Row {index}: data_types entries must be strings, "
+                f"got {type(dt).__name__}"
+            )
+        if dt not in VALID_DATA_TYPE_NAMES:
+            raise ValueError(
+                f"Row {index}: invalid data_type '{dt}'. "
+                f"Must be one of {VALID_DATA_TYPE_NAMES}."
+            )
+        if dt in seen:
+            raise ValueError(
+                f"Row {index}: duplicate data_type '{dt}'"
+            )
+        seen.add(dt)
+
+    # ---- 6. user_id: nullable, but non-empty string when set ----
+    user_id = _get("user_id")
+    if user_id is not None:
+        if not isinstance(user_id, str) or not user_id.strip():
+            raise ValueError(
+                f"Row {index}: user_id must be a non-empty string "
+                f"or None, got {user_id!r}"
+            )
+
+    # ---- 7. file_size: nullable, but non-negative integer when set ----
+    file_size = _get("file_size")
+    if file_size is not None:
+        if not isinstance(file_size, int) or isinstance(file_size, bool):
+            raise ValueError(
+                f"Row {index}: file_size must be an integer or None, "
+                f"got {file_size!r}"
+            )
+        if file_size < 0:
+            raise ValueError(
+                f"Row {index}: file_size must be >= 0, "
+                f"got {file_size}"
+            )
+
+
+def validate_export_history_rows(
+    rows: Iterable[Any],
+) -> None:
+    """Validate a batch of export_history rows.
+
+    Fails on the first invalid row and includes its index in the
+    error message. Returns None on success.
+
+    Args:
+        rows: An iterable of export history rows (objects or dicts).
+
+    Raises:
+        ValueError: If any row is invalid.
+    """
+    for i, row in enumerate(rows):
+        validate_export_history_row(row, index=i)
+
+    logger.debug("All export history rows passed validation")

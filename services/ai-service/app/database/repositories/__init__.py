@@ -16,11 +16,17 @@ Available repositories:
       reads per-model aggregate metrics and history (M7)
     - CorrelationRepository: writes btc_macro_correlation rows,
       reads BTC-vs-macro correlations (A1.1)
+    - ExportHistoryRepository: writes export_history rows, reads
+      export request history (A2.1)
 """
 
 from app.database.repositories.correlation_repository import (
     CorrelationRepository,
     CorrelationRow,
+)
+from app.database.repositories.export_history_repository import (
+    ExportHistoryRepository,
+    ExportHistoryRow,
 )
 from app.database.repositories.model_performance_repository import (
     ModelPerformanceRepository,
@@ -50,4 +56,6 @@ __all__ = [
     "ModelPerformanceRow",
     "CorrelationRepository",
     "CorrelationRow",
+    "ExportHistoryRepository",
+    "ExportHistoryRow",
 ]
