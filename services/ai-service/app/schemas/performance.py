@@ -8,6 +8,7 @@ Design:
       (model, horizon) entry
     - `MarketBreakdownEntry` — per-market-condition metrics
     - `ThresholdStatus` — per-metric threshold check result
+      (extended in T5.6 with streak info)
     - `PerformanceEntry` — one (model, horizon) row
     - `PerformanceResponse` — the full envelope with all entries
 
@@ -73,6 +74,11 @@ class MarketBreakdownEntry(BaseModel):
 class ThresholdStatus(BaseModel):
     """Status of one metric against its configured threshold.
 
+    Extended in T5.6 with streak information:
+        - `consecutive_days`: number of consecutive daily breaches
+        - `warning`: True if the streak >= the configured
+          warning threshold
+
     Attributes:
         metric: Metric identifier ('mae_pct', 'rmse_pct', 'mape',
             'directional_accuracy').
@@ -81,6 +87,9 @@ class ThresholdStatus(BaseModel):
         breached: True if the value crossed the threshold.
         breach_direction: 'above' for error metrics, 'below' for
             directional accuracy.
+        consecutive_days: Number of consecutive daily breaches.
+            Zero when not currently breaching.
+        warning: True if `consecutive_days >= warning_streak_days`.
     """
 
     metric: str = Field(..., description="Metric identifier.")
@@ -92,6 +101,35 @@ class ThresholdStatus(BaseModel):
     breach_direction: str = Field(
         ...,
         description="'above' for error metrics, 'below' for accuracy.",
+    )
+    consecutive_days: int = Field(
+        0,
+        description="Number of consecutive daily breaches.",
+    )
+    warning: bool = Field(
+        False,
+        description="True if the streak is at or above the warning threshold.",
+    )
+
+
+# ============================================================
+# STREAK
+# ============================================================
+class StreakSummary(BaseModel):
+    """Per-metric streak summary included in each entry.
+
+    Attributes:
+        metric: Metric identifier.
+        consecutive_days: Consecutive daily breaches.
+        warning: True if a warning is active for this metric.
+    """
+
+    metric: str = Field(..., description="Metric identifier.")
+    consecutive_days: int = Field(
+        0, description="Number of consecutive daily breaches."
+    )
+    warning: bool = Field(
+        False, description="True if a warning is active."
     )
 
 
@@ -112,6 +150,10 @@ class PerformanceEntry(BaseModel):
         recent_breach_count: Number of threshold breaches recorded
             for this (model, horizon) in the window.
         last_updated: Newest forecast_date in the window.
+        warning: True if any metric has a warning active (T5.6).
+        warning_count: Number of metrics with active warnings (T5.6).
+        warning_threshold_days: The streak-day threshold used to
+            decide warnings (T5.6).
     """
 
     model_name: str = Field(..., description="Model identifier.")
@@ -137,6 +179,18 @@ class PerformanceEntry(BaseModel):
     last_updated: Optional[datetime] = Field(
         None, description="Newest forecast_date in the window."
     )
+    warning: bool = Field(
+        False,
+        description="True if any metric has an active warning.",
+    )
+    warning_count: int = Field(
+        0,
+        description="Number of metrics with active warnings.",
+    )
+    warning_threshold_days: int = Field(
+        3,
+        description="Streak-day threshold used to decide warnings.",
+    )
 
 
 # ============================================================
@@ -149,6 +203,8 @@ class PerformanceResponse(BaseModel):
         time_period_days: Look-back window in days.
         generated_at: When this response was produced (UTC).
         entries: One entry per (model, horizon) pair.
+        warnings_count: Total number of warnings across all
+            entries (T5.6). Zero when everything is healthy.
     """
 
     time_period_days: int = Field(
@@ -161,6 +217,10 @@ class PerformanceResponse(BaseModel):
         default_factory=list,
         description="One entry per (model, horizon) pair.",
     )
+    warnings_count: int = Field(
+        0,
+        description="Total number of warnings across all entries.",
+    )
 
     model_config = {
         "json_schema_extra": {
@@ -168,6 +228,7 @@ class PerformanceResponse(BaseModel):
                 {
                     "time_period_days": 30,
                     "generated_at": "2026-09-14T12:00:00Z",
+                    "warnings_count": 1,
                     "entries": [
                         {
                             "model_name": "prophet_fresh",
@@ -178,7 +239,7 @@ class PerformanceResponse(BaseModel):
                                 "mae": 500.0,
                                 "rmse": 700.0,
                                 "mape": 1.2,
-                                "directional_accuracy": 62.5,
+                                "directional_accuracy": None,
                             },
                             "market_breakdown": {
                                 "bull": {
@@ -195,10 +256,15 @@ class PerformanceResponse(BaseModel):
                                     "threshold": 10.0,
                                     "breached": False,
                                     "breach_direction": "above",
+                                    "consecutive_days": 0,
+                                    "warning": False,
                                 }
                             ],
                             "recent_breach_count": 0,
                             "last_updated": "2026-09-14T11:00:00Z",
+                            "warning": False,
+                            "warning_count": 0,
+                            "warning_threshold_days": 3,
                         }
                     ],
                 }

@@ -1,22 +1,29 @@
-"""Threshold checking for model performance metrics.
+"""Threshold checking and streak monitoring for model performance.
 
-This module provides a pure function that compares a model's
-performance metrics against configured thresholds and produces
-a list of breach records.
+This module provides:
+    - A pure threshold checker that compares a model's metrics
+      against configured thresholds and produces breach records
+    - A streak evaluator that turns per-metric breach streaks into
+      warnings (used by T5.6's 3-day escalation rule)
 
-Design:
-    - Pure function; no I/O, no state
-    - Thresholds come from Settings (app/config.py)
-    - MAE and RMSE are normalized to percentages of the mean
-      actual price before comparison (their raw values are in USD)
+Threshold checking:
+    - MAE and RMSE are normalized to percentages of mean actual
+      price before comparison (their raw values are in USD)
     - Directional accuracy is compared as-is (already a percentage)
     - Returns a list of ThresholdCheckResult dataclasses
+
+Streak evaluation (T5.6):
+    - Given a map of metric → consecutive_days, decides which
+      metrics have crossed the warning threshold
+    - Defaults to `settings.threshold_warning_streak_days` (3)
+    - Returns a StreakWarningResult with per-metric details
 
 Thresholds (from Settings):
     - threshold_mae_pct: 10.0 (10% of mean price)
     - threshold_rmse_pct: 15.0
     - threshold_mape: 10.0
     - threshold_directional: 55.0 (percent, minimum)
+    - threshold_warning_streak_days: 3
 
 Metric units used downstream:
     - mae_pct:             percent
@@ -26,7 +33,7 @@ Metric units used downstream:
 """
 
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
 from app.config import settings
@@ -60,7 +67,7 @@ DIRECTION_BELOW = "below"
 
 
 # ============================================================
-# RESULT TYPE
+# RESULT TYPES
 # ============================================================
 @dataclass
 class ThresholdCheckResult:
@@ -103,6 +110,77 @@ class ThresholdCheckResult:
             f"ThresholdCheckResult(metric='{self.metric}', "
             f"value={self.value:.2f}, "
             f"threshold={self.threshold:.2f}, "
+            f"status={status})"
+        )
+
+
+@dataclass
+class StreakInfo:
+    """Streak information for one metric.
+
+    Attributes:
+        metric: Metric identifier.
+        consecutive_days: Number of consecutive days the metric has
+            been breaching. Zero if not currently breaching.
+        warning: True if `consecutive_days >= warning_threshold`.
+    """
+
+    metric: str
+    consecutive_days: int = 0
+    warning: bool = False
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to a JSON-serializable dict."""
+        return {
+            "metric": self.metric,
+            "consecutive_days": self.consecutive_days,
+            "warning": self.warning,
+        }
+
+    def __repr__(self) -> str:
+        """Return string representation."""
+        status = "WARNING" if self.warning else "ok"
+        return (
+            f"StreakInfo(metric='{self.metric}', "
+            f"days={self.consecutive_days}, "
+            f"status={status})"
+        )
+
+
+@dataclass
+class StreakWarningResult:
+    """Aggregated streak warnings for one (model, horizon).
+
+    Attributes:
+        streaks: Mapping of metric identifier → StreakInfo.
+        any_warning: True if at least one metric has a warning.
+        warning_count: Number of metrics currently warning.
+        warning_threshold: The streak-day threshold used for the
+            decision (from settings by default).
+    """
+
+    streaks: Dict[str, StreakInfo] = field(default_factory=dict)
+    any_warning: bool = False
+    warning_count: int = 0
+    warning_threshold: int = 3
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to a JSON-serializable dict."""
+        return {
+            "streaks": {
+                name: info.to_dict()
+                for name, info in self.streaks.items()
+            },
+            "any_warning": self.any_warning,
+            "warning_count": self.warning_count,
+            "warning_threshold": self.warning_threshold,
+        }
+
+    def __repr__(self) -> str:
+        """Return string representation."""
+        status = "WARNING" if self.any_warning else "ok"
+        return (
+            f"StreakWarningResult(warnings={self.warning_count}, "
             f"status={status})"
         )
 
@@ -166,13 +244,12 @@ def check_thresholds(
         List of ThresholdCheckResult — one per metric that had a
         value to check. Metrics with None values are omitted.
     """
-    # Resolve thresholds (argument > settings)
     if thresholds is None:
         thresholds = {
-            METRIC_MAE_PCT: settings.threshold_mae * 100.0,       # 0.10 → 10.0
-            METRIC_RMSE_PCT: settings.threshold_rmse * 100.0,     # 0.15 → 15.0
-            METRIC_MAPE: settings.threshold_mape,                 # 10.0
-            METRIC_DIRECTIONAL: settings.threshold_directional,   # 55.0
+            METRIC_MAE_PCT: settings.threshold_mae * 100.0,
+            METRIC_RMSE_PCT: settings.threshold_rmse * 100.0,
+            METRIC_MAPE: settings.threshold_mape,
+            METRIC_DIRECTIONAL: settings.threshold_directional,
         }
 
     results: List[ThresholdCheckResult] = []
@@ -256,3 +333,96 @@ def filter_breaches(
         Filtered list.
     """
     return [r for r in results if r.breached]
+
+
+# ============================================================
+# STREAK EVALUATION (T5.6)
+# ============================================================
+def evaluate_streaks(
+    consecutive_days_by_metric: Dict[str, int],
+    warning_threshold: Optional[int] = None,
+) -> StreakWarningResult:
+    """Evaluate per-metric breach streaks against the warning rule.
+
+    A metric "warns" when its `consecutive_days` is >= the
+    configured warning threshold (default:
+    `settings.threshold_warning_streak_days`, currently 3).
+
+    Args:
+        consecutive_days_by_metric: Mapping of metric identifier
+            → number of consecutive days it has breached. Metrics
+            not present are treated as having 0 consecutive days.
+        warning_threshold: Optional override. If None, uses the
+            value from settings.
+
+    Returns:
+        StreakWarningResult with one StreakInfo per known metric
+        (i.e., every metric in ALL_METRICS is represented — even
+        those with zero consecutive days, for API stability).
+    """
+    if warning_threshold is None:
+        warning_threshold = settings.threshold_warning_streak_days
+
+    streaks: Dict[str, StreakInfo] = {}
+    warning_count = 0
+
+    for metric in ALL_METRICS:
+        days = int(consecutive_days_by_metric.get(metric, 0))
+        warning = days >= warning_threshold
+        if warning:
+            warning_count += 1
+        streaks[metric] = StreakInfo(
+            metric=metric,
+            consecutive_days=days,
+            warning=warning,
+        )
+
+    result = StreakWarningResult(
+        streaks=streaks,
+        any_warning=warning_count > 0,
+        warning_count=warning_count,
+        warning_threshold=warning_threshold,
+    )
+
+    if warning_count > 0:
+        logger.warning(
+            f"Threshold streak warnings: {warning_count} metric(s) "
+            f"at or above {warning_threshold} consecutive days "
+            f"({[s.metric for s in streaks.values() if s.warning]})"
+        )
+    else:
+        logger.debug(
+            f"Threshold streaks: no metric reached "
+            f"{warning_threshold} consecutive days"
+        )
+
+    return result
+
+
+def consecutive_days_to_metric_map(
+    rows: List[Dict[str, Any]],
+) -> Dict[str, int]:
+    """Turn a list of breach rows into a metric → consecutive_days map.
+
+    Intended to consume the output of
+    `ThresholdRepository.fetch_latest_breaches_batch()` filtered to
+    one (model, horizon).
+
+    Rows with a `consecutive_days` value of 0 (or absent) are
+    skipped. Duplicate metrics keep the max value.
+
+    Args:
+        rows: List of dicts, each with 'metric' and
+            'consecutive_days' keys.
+
+    Returns:
+        Dict of metric → consecutive_days.
+    """
+    result: Dict[str, int] = {}
+    for row in rows:
+        metric = row.get("metric")
+        days = int(row.get("consecutive_days") or 0)
+        if metric is None or days <= 0:
+            continue
+        result[metric] = max(result.get(metric, 0), days)
+    return result

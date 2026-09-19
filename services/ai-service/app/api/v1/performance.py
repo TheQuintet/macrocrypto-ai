@@ -8,6 +8,7 @@ Returns aggregate model performance metrics for BTC predictions:
     - Market-condition breakdown (bull/bear/volatile/neutral)
     - Threshold status (recomputed live via check_thresholds)
     - Recent breach count from threshold_breaches
+    - Per-metric streak info + warning flag (T5.6)
 
 Design:
     - Reads from prediction_performance + threshold_breaches
@@ -20,19 +21,24 @@ Design:
 
 import logging
 from datetime import datetime, timezone
-from typing import List, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
-from app.ai.thresholds import check_thresholds
+from app.ai.thresholds import (
+    StreakWarningResult,
+    check_thresholds,
+    consecutive_days_to_metric_map,
+    evaluate_streaks,
+)
 from app.api.dependencies import get_repository
+from app.database.engine import session_scope
 from app.database.repositories.performance_repository import (
     PerformanceRepository,
 )
 from app.database.repositories.threshold_repository import (
     ThresholdRepository,
 )
-from app.database.engine import session_scope
 from app.schemas.performance import (
     MarketBreakdownEntry,
     PerformanceEntry,
@@ -65,105 +71,6 @@ router = APIRouter(
 # ============================================================
 # HELPERS
 # ============================================================
-async def _build_entry(
-    model_name: str,
-    horizon: str,
-    metrics: dict,
-    samples: int,
-    days: int,
-    perf_repo: PerformanceRepository,
-    threshold_repo: ThresholdRepository,
-) -> PerformanceEntry:
-    """Build one PerformanceEntry for a (model, horizon) pair.
-
-    Args:
-        model_name: Model identifier.
-        horizon: Horizon label.
-        metrics: Dict from fetch_latest_metrics_batch.
-        samples: Number of matched points in the window.
-        days: Look-back window.
-        perf_repo: Performance repository (for market breakdown).
-        threshold_repo: Threshold repository (for breach count).
-
-    Returns:
-        A fully populated PerformanceEntry.
-    """
-    # ---- 1. Market breakdown ----
-    breakdown_rows = await perf_repo.fetch_market_breakdown(
-        horizon=horizon,
-        model_name=model_name,
-        days=days,
-    )
-    market_breakdown = {
-        row["market_condition"]: MarketBreakdownEntry(
-            mae=_as_float(row.get("mae")),
-            rmse=_as_float(row.get("rmse")),
-            mape=_as_float(row.get("mape")),
-            samples=int(row.get("samples") or 0),
-        )
-        for row in breakdown_rows
-    }
-
-    # ---- 2. Threshold status ----
-    # We need mean_actual_price to normalize MAE/RMSE. We compute
-    # it from the same window we're reporting on.
-    mean_actual_price = await _get_mean_actual_price(
-        perf_repo=perf_repo,
-        horizon=horizon,
-        model_name=model_name,
-        days=days,
-    )
-
-    checks = check_thresholds(
-        mae=metrics.get("mae"),
-        rmse=metrics.get("rmse"),
-        mape=metrics.get("mape"),
-        directional_accuracy=None,  # not stored per-row yet
-        mean_actual_price=mean_actual_price,
-    )
-    thresholds = [
-        ThresholdStatus(
-            metric=c.metric,
-            value=c.value,
-            threshold=c.threshold,
-            breached=c.breached,
-            breach_direction=c.breach_direction,
-        )
-        for c in checks
-    ]
-
-    # ---- 3. Recent breach count ----
-    try:
-        recent_breach_count = await threshold_repo.count_breaches(
-            horizon=horizon,
-            model_name=model_name,
-            since_days=days,
-        )
-    except Exception as e:
-        logger.warning(
-            f"Failed to count breaches for {model_name}/{horizon}: {e}"
-        )
-        recent_breach_count = 0
-
-    # ---- 4. Assemble the entry ----
-    return PerformanceEntry(
-        model_name=model_name,
-        model_version=metrics.get("model_version"),
-        horizon=horizon,
-        samples=samples,
-        metrics=PerformanceMetrics(
-            mae=_as_float(metrics.get("mae")),
-            rmse=_as_float(metrics.get("rmse")),
-            mape=_as_float(metrics.get("mape")),
-            directional_accuracy=None,
-        ),
-        market_breakdown=market_breakdown,
-        thresholds=thresholds,
-        recent_breach_count=recent_breach_count,
-        last_updated=metrics.get("forecast_date"),
-    )
-
-
 def _as_float(value) -> Optional[float]:
     """Return a float if value is not None, else None."""
     if value is None:
@@ -216,6 +123,148 @@ async def _get_mean_actual_price(
     return float(value)
 
 
+def _build_threshold_status(
+    checks,
+    streak_map: Dict[str, int],
+) -> List[ThresholdStatus]:
+    """Merge threshold checks with streak info.
+
+    Args:
+        checks: List of ThresholdCheckResult from check_thresholds.
+        streak_map: Metric → consecutive_days from the batch read.
+
+    Returns:
+        List of ThresholdStatus with streak + warning populated.
+    """
+    from app.config import settings
+
+    warning_threshold = settings.threshold_warning_streak_days
+    statuses: List[ThresholdStatus] = []
+
+    for c in checks:
+        days = int(streak_map.get(c.metric, 0))
+        warning = days >= warning_threshold
+
+        statuses.append(
+            ThresholdStatus(
+                metric=c.metric,
+                value=c.value,
+                threshold=c.threshold,
+                breached=c.breached,
+                breach_direction=c.breach_direction,
+                consecutive_days=days,
+                warning=warning,
+            )
+        )
+
+    return statuses
+
+
+async def _build_entry(
+    model_name: str,
+    horizon: str,
+    metrics: dict,
+    samples: int,
+    days: int,
+    perf_repo: PerformanceRepository,
+    threshold_repo: ThresholdRepository,
+    streaks_for_key: List[Dict[str, Any]],
+) -> PerformanceEntry:
+    """Build one PerformanceEntry for a (model, horizon) pair.
+
+    Args:
+        model_name: Model identifier.
+        horizon: Horizon label.
+        metrics: Dict from fetch_latest_metrics_batch.
+        samples: Number of matched points in the window.
+        days: Look-back window.
+        perf_repo: Performance repository (for market breakdown).
+        threshold_repo: Threshold repository (for breach count).
+        streaks_for_key: The batch-read streak rows filtered to
+            this (model, horizon).
+
+    Returns:
+        A fully populated PerformanceEntry.
+    """
+    # ---- 1. Market breakdown ----
+    breakdown_rows = await perf_repo.fetch_market_breakdown(
+        horizon=horizon,
+        model_name=model_name,
+        days=days,
+    )
+    market_breakdown = {
+        row["market_condition"]: MarketBreakdownEntry(
+            mae=_as_float(row.get("mae")),
+            rmse=_as_float(row.get("rmse")),
+            mape=_as_float(row.get("mape")),
+            samples=int(row.get("samples") or 0),
+        )
+        for row in breakdown_rows
+    }
+
+    # ---- 2. Threshold checks + streak info ----
+    mean_actual_price = await _get_mean_actual_price(
+        perf_repo=perf_repo,
+        horizon=horizon,
+        model_name=model_name,
+        days=days,
+    )
+
+    checks = check_thresholds(
+        mae=metrics.get("mae"),
+        rmse=metrics.get("rmse"),
+        mape=metrics.get("mape"),
+        directional_accuracy=None,  # not stored per-row yet
+        mean_actual_price=mean_actual_price,
+    )
+
+    streak_map = consecutive_days_to_metric_map(streaks_for_key)
+    threshold_statuses = _build_threshold_status(checks, streak_map)
+
+    # ---- 3. Aggregate warning state ----
+    streak_result: StreakWarningResult = evaluate_streaks(streak_map)
+    if streak_result.any_warning:
+        logger.warning(
+            f"Performance warning for {model_name}/{horizon}: "
+            f"{streak_result.warning_count} metric(s) at or above "
+            f"{streak_result.warning_threshold} consecutive days"
+        )
+
+    # ---- 4. Recent breach count ----
+    try:
+        recent_breach_count = await threshold_repo.count_breaches(
+            horizon=horizon,
+            model_name=model_name,
+            since_days=days,
+        )
+    except Exception as e:
+        logger.warning(
+            f"Failed to count breaches for {model_name}/{horizon}: {e}"
+        )
+        recent_breach_count = 0
+
+    # ---- 5. Assemble the entry ----
+    return PerformanceEntry(
+        model_name=model_name,
+        model_version=metrics.get("model_version"),
+        horizon=horizon,
+        samples=samples,
+        metrics=PerformanceMetrics(
+            mae=_as_float(metrics.get("mae")),
+            rmse=_as_float(metrics.get("rmse")),
+            mape=_as_float(metrics.get("mape")),
+            directional_accuracy=None,
+        ),
+        market_breakdown=market_breakdown,
+        thresholds=threshold_statuses,
+        recent_breach_count=recent_breach_count,
+        last_updated=metrics.get("forecast_date"),
+        warning=streak_result.any_warning,
+        warning_count=streak_result.warning_count,
+        warning_threshold_days=streak_result.warning_threshold,
+    )
+
+
 # ============================================================
 # ENDPOINT
 # ============================================================
@@ -233,7 +282,8 @@ async def _get_mean_actual_price(
         "Return aggregate performance metrics for all model-horizon "
         "pairs over a configurable look-back window. Includes MAE, "
         "RMSE, MAPE, directional accuracy, market-condition "
-        "breakdown, threshold status, and recent breach count."
+        "breakdown, threshold status, and per-metric streak "
+        "warnings (3-day rule by default)."
     ),
 )
 async def get_btc_performance(
@@ -291,9 +341,21 @@ async def get_btc_performance(
             model_name=model_name,
         )
 
-        # ---- 2. Build one entry per (model, horizon) ----
+        # ---- 2. Fetch latest breaches batch (for streaks) ----
+        streak_rows = await threshold_repo.fetch_latest_breaches_batch(
+            since_days=days,
+        )
+
+        # ---- 3. Group streaks by (model, horizon) ----
+        streaks_by_key: Dict[tuple, List[Dict[str, Any]]] = {}
+        for row in streak_rows:
+            key = (row["model_name"], row["horizon"])
+            streaks_by_key.setdefault(key, []).append(row)
+
+        # ---- 4. Build one entry per (model, horizon) ----
         entries: List[PerformanceEntry] = []
         for row in latest_rows:
+            key = (row["model_name"], row["horizon"])
             try:
                 entry = await _build_entry(
                     model_name=row["model_name"],
@@ -303,6 +365,7 @@ async def get_btc_performance(
                     days=days,
                     perf_repo=perf_repo,
                     threshold_repo=threshold_repo,
+                    streaks_for_key=streaks_by_key.get(key, []),
                 )
                 entries.append(entry)
             except Exception as e:
@@ -312,15 +375,22 @@ async def get_btc_performance(
                     exc_info=True,
                 )
 
+    # ---- 5. Aggregate warnings ----
+    # `warnings_count` is the total number of warned *metrics* across
+    # all entries, not the number of entries that contain a warning.
+    # A single entry with 3 warned metrics contributes 3 here.
+    warnings_count = sum(e.warning_count for e in entries)
+
     response = PerformanceResponse(
         time_period_days=days,
         generated_at=datetime.now(timezone.utc),
         entries=entries,
+        warnings_count=warnings_count,
     )
 
     logger.info(
         f"Returning {len(entries)} performance entries "
-        f"for {days}-day window"
+        f"for {days}-day window ({warnings_count} warnings)"
     )
 
     return response
