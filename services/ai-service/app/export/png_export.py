@@ -23,13 +23,17 @@ Design:
       ``app.export.frames.build_btc_price_frame`` — the same
       builder the CSV exporter uses. One fetch path for the A2
       ticket family.
-    - matplotlib is used with the ``Agg`` backend, which is
-      headless-safe (no display required, correct for a server
-      process and for CI). Every figure is closed in a ``finally``
-      block so long-running processes do not leak figures.
+    - The Figure construction and the PNG save step live in
+      ``app.export.chart``, shared with the PDF exporter (A2.4).
+      This module stays a thin format-specific wrapper.
+    - matplotlib is used with the ``Agg`` backend, selected in
+      ``app.export.chart``. Agg is headless-safe (no display
+      required, correct for a server process and for CI), and
+      ``chart.save_figure_png`` closes every figure in a
+      ``finally`` block so long-running processes do not leak.
     - Output resolution is fixed at 300 DPI, matching the A2.3
       acceptance criterion. The PNG's ``pHYs`` chunk carries the
-      resolution; ``matplotlib.savefig(dpi=300)`` writes it.
+      resolution; ``savefig(dpi=300)`` writes it.
 
 File naming follows the A2.3 criterion exactly:
 
@@ -48,29 +52,24 @@ Usage:
         # result.file_name follows the naming convention
 """
 
-import io
 import logging
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
-import matplotlib
-
-# Agg is the headless backend. It must be selected before pyplot
-# is imported anywhere, and it must not be re-selected at import
-# time of a module that another module might already have used to
-# pull in pyplot. Importing pyplot *after* use("Agg") is the
-# documented-safe order.
-matplotlib.use("Agg")
-
-import matplotlib.pyplot as plt  # noqa: E402  (after matplotlib.use)
-import pandas as pd  # noqa: E402
+import pandas as pd
 
 from app.database.repositories.prediction_repository import (
     PredictionRepository,
 )
+from app.export.chart import (
+    CHART_DATA_SOURCE,
+    CHART_DPI,
+    CHART_FIGSIZE_INCHES,
+    build_chart_figure,
+    save_figure_png,
+)
 from app.export.frames import (
-    SUPPORTED_DATA_TYPES,
     TIMEFRAME_HOURS,
     build_btc_price_frame,
 )
@@ -81,16 +80,10 @@ logger = logging.getLogger(__name__)
 # ============================================================
 # CONSTANTS
 # ============================================================
-# A2.3 acceptance criterion: "High resolution (300 DPI)".
-CHART_DPI = 300
-
-# Figure size in inches. At 300 DPI this is 3600 × 1800 px, which
-# is a comfortable print resolution without being wasteful.
-CHART_FIGSIZE_INCHES = (12.0, 6.0)
-
-# The data-source label that appears in the footer. Kept here so
-# A2.5 can override it when the full metadata block lands.
-CHART_DATA_SOURCE = "BTC price: btc_prices (Data Ingestion Service)"
+# The three chart constants now live in ``app.export.chart`` and
+# are re-exported here so existing importers — including A2.3's
+# own test module — keep working unchanged. The values are
+# identical; ``__all__`` still lists all three.
 
 
 # ============================================================
@@ -217,8 +210,9 @@ class PngExporter:
             1. Validate the timeframe.
             2. Build the BTC price frame via the shared
                ``frames.build_btc_price_frame``.
-            3. Plot: one line, legend, axis labels, title, footer.
-            4. Save to a 300 DPI PNG byte buffer.
+            3. Build the Figure via ``chart.build_chart_figure``.
+            4. Save to a 300 DPI PNG byte buffer via
+               ``chart.save_figure_png``.
 
         Args:
             request: The chart request.
@@ -255,7 +249,7 @@ class PngExporter:
                 f"timeframe={request.timeframe}"
             )
 
-        # ---- 3. Plot ----
+        # ---- 3. Build the Figure, then save ----
         content = self._render_png(
             frame=frame,
             timeframe=request.timeframe,
@@ -289,8 +283,10 @@ class PngExporter:
     ) -> bytes:
         """Render the frame to PNG bytes.
 
-        The figure is always closed in a ``finally`` block so a
-        long-running process does not accumulate figures.
+        Thin wrapper over ``chart.build_chart_figure`` +
+        ``chart.save_figure_png``. The figure is closed inside
+        ``save_figure_png``'s ``finally`` block, so no leak is
+        possible even if ``savefig`` raises.
 
         Args:
             frame: A frame from ``frames.build_btc_price_frame``.
@@ -302,64 +298,12 @@ class PngExporter:
         Returns:
             PNG bytes.
         """
-        # The frame's ``time`` column has already been stringified
-        # by ``frames.stringify_timestamps``. Parse it back to
-        # datetimes so matplotlib can lay out the x-axis sensibly.
-        times = pd.to_datetime(frame["time"], utc=True)
-        closes = frame["close"].astype(float).tolist()
-
-        fig, ax = plt.subplots(
-            figsize=CHART_FIGSIZE_INCHES,
-            dpi=CHART_DPI,
+        fig = build_chart_figure(
+            frame=frame,
+            timeframe=timeframe,
+            title=title,
         )
-
-        try:
-            ax.plot(
-                times,
-                closes,
-                label="BTC close",
-                linewidth=1.5,
-                color="#1f77b4",
-            )
-
-            ax.set_xlabel("Time (UTC)")
-            ax.set_ylabel("Price (USD)")
-            ax.set_title(
-                title if title else f"BTC price — {timeframe}"
-            )
-            ax.legend(loc="best")
-            ax.grid(True, alpha=0.3)
-
-            # Rotate the x tick labels so the dense timestamps
-            # do not overlap on the 30d/90d charts.
-            fig.autofmt_xdate(rotation=30)
-
-            # Footer line: data source + render time. A2.5 will
-            # replace this with a structured citations block.
-            render_time = datetime.now(timezone.utc).strftime(
-                "%Y-%m-%d %H:%M UTC"
-            )
-            fig.text(
-                0.01,
-                0.01,
-                f"Source: {CHART_DATA_SOURCE} | Rendered: {render_time}",
-                fontsize=8,
-                color="#555555",
-            )
-
-            # Reserve the bottom margin for the footer.
-            fig.tight_layout(rect=(0.0, 0.03, 1.0, 1.0))
-
-            buf = io.BytesIO()
-            fig.savefig(
-                buf,
-                format="png",
-                dpi=CHART_DPI,
-                bbox_inches="tight",
-            )
-            return buf.getvalue()
-        finally:
-            plt.close(fig)
+        return save_figure_png(fig)
 
     @staticmethod
     def _filename(timeframe: str) -> str:
@@ -382,8 +326,8 @@ class PngExporter:
 
 
 __all__ = [
-    "CHART_DPI",
     "CHART_DATA_SOURCE",
+    "CHART_DPI",
     "CHART_FIGSIZE_INCHES",
     "ChartRequest",
     "ChartResult",

@@ -9,18 +9,22 @@ recording the export in ``export_history`` is the caller's job —
 see ``app.export.service``.
 
 A2.2 ships the CSV generator. A2.3 ships the PNG chart generator.
-PDF lands in A2.4.
+A2.4 ships the PDF chart generator.
 
 Available modules:
-    - frames: shared per-data-type frame builders used by both
-      exporters. Both formats read the same source frames.
+    - frames: shared per-data-type frame builders used by every
+      exporter. All formats read the same source frames.
+    - chart: shared chart construction and figure serialization,
+      used by the PNG and PDF exporters.
     - csv_export: ``CsvExporter`` — builds a CSV byte payload from
       one or more requested data types over a chosen timeframe.
     - png_export: ``PngExporter`` — renders a single chart of BTC
       price over the chosen timeframe as a 300 DPI PNG.
-    - service: ``generate_csv_export`` and ``generate_png_export`` —
-      session-owning wrappers that record the export in
-      ``export_history``.
+    - pdf_export: ``PdfExporter`` — renders the same chart as a
+      single-page vector PDF.
+    - service: ``generate_csv_export``, ``generate_png_export``,
+      and ``generate_pdf_export`` — session-owning wrappers that
+      record the export in ``export_history``.
 """
 
 from app.export.csv_export import (
@@ -29,6 +33,11 @@ from app.export.csv_export import (
     CsvExporter,
     ExportRequest,
     ExportResult,
+)
+from app.export.pdf_export import (
+    PdfExporter,
+    PdfRequest,
+    PdfResult,
 )
 from app.export.png_export import (
     ChartRequest,
@@ -47,4 +56,8 @@ __all__ = [
     "PngExporter",
     "ChartRequest",
     "ChartResult",
+    # PDF exporter (A2.4)
+    "PdfExporter",
+    "PdfRequest",
+    "PdfResult",
 ]
