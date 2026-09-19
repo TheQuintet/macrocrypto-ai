@@ -7,8 +7,10 @@ Each job is a self-contained async function that:
 
 Jobs currently registered:
     - daily_retrain_job: retrain all 6 models (6:00 AM UTC)
-    - hourly_prediction_job: generate 24h BTC predictions once per hour
+    - hourly_prediction_job: generate 24h BTC predictions (hourly)
     - daily_7d_prediction_job: generate 7d BTC predictions (6:30 AM UTC)
+    - daily_backtest_job: walk-forward backtest all 6 models
+      (6:45 AM UTC)
 
 Design:
     - Each job opens its own DB session via session_scope(); the
@@ -21,9 +23,9 @@ Design:
 """
 
 import logging
-from typing import Any, Dict
+from typing import Any, Callable, Dict, List, Tuple
 
-from app.ai.comparison import build_default_engine
+from app.ai.backtest import BacktestResult, WalkForwardBacktester
 from app.ai.models import (
     LightGBMModel,
     ProphetModel,
@@ -32,6 +34,10 @@ from app.ai.models import (
 from app.ai.orchestrator import RetrainingOrchestrator
 from app.config import settings
 from app.database.engine import session_scope
+from app.database.repositories.performance_repository import (
+    PerformanceRepository,
+    PerformanceRow,
+)
 from app.database.repositories.prediction_repository import (
     PredictionRepository,
 )
@@ -43,9 +49,77 @@ logger = logging.getLogger(__name__)
 # ============================================================
 # JOB NAME CONSTANTS
 # ============================================================
+# Stable identifiers used by SchedulerManager to register and
+# track jobs. They appear in run history and log lines, so don't
+# rename them without a migration plan.
 JOB_DAILY_RETRAIN = "daily_retrain"
 JOB_HOURLY_PREDICTION = "hourly_prediction"
 JOB_DAILY_7D_PREDICTION = "daily_7d_prediction"
+JOB_DAILY_BACKTEST = "daily_backtest"
+
+
+# ============================================================
+# BACKTEST VARIANT SPECS
+# ============================================================
+# Every (model variant, horizon) combination that the daily
+# backtest runs. The variant name matches the keys used by
+# `_variant_factory()` and by the model registry built in
+# `_build_model_registry()`.
+#
+# Tuple layout: (variant_name, horizon_label, horizon_hours)
+#
+# 6 variants × 2 horizons = 12 backtests per daily run.
+BACKTEST_VARIANTS: List[Tuple[str, str, int]] = [
+    ("prophet_fresh", "24h", 24),
+    ("prophet_fresh", "7d", 168),
+    ("prophet_warm", "24h", 24),
+    ("prophet_warm", "7d", 168),
+    ("xgboost_fresh", "24h", 24),
+    ("xgboost_fresh", "7d", 168),
+    ("xgboost_incremental", "24h", 24),
+    ("xgboost_incremental", "7d", 168),
+    ("lightgbm_fresh", "24h", 24),
+    ("lightgbm_fresh", "7d", 168),
+    ("lightgbm_incremental", "24h", 24),
+    ("lightgbm_incremental", "7d", 168),
+]
+
+
+def _variant_factory(variant_name: str) -> Callable[[], Any]:
+    """Return a factory for the given model variant name.
+
+    The backtester needs a way to construct a *fresh* model
+    instance on every iteration, because each iteration retrains
+    from scratch (or warm-starts from the previous iteration's
+    output). Passing a live instance would reuse stale state.
+
+    This helper centralizes the variant → class mapping so the
+    backtest job never has to know about ProphetModel vs
+    XGBoostModel vs LightGBMModel directly.
+
+    Args:
+        variant_name: One of the names appearing in BACKTEST_VARIANTS.
+
+    Returns:
+        A zero-arg callable returning a fresh ForecastModel instance.
+
+    Raises:
+        ValueError: If variant_name is unknown.
+    """
+    if variant_name == "prophet_fresh":
+        return lambda: ProphetModel(strategy="fresh")
+    if variant_name == "prophet_warm":
+        return lambda: ProphetModel(strategy="warm")
+    if variant_name == "xgboost_fresh":
+        return lambda: XGBoostModel(strategy="fresh")
+    if variant_name == "xgboost_incremental":
+        return lambda: XGBoostModel(strategy="incremental")
+    if variant_name == "lightgbm_fresh":
+        return lambda: LightGBMModel(strategy="fresh")
+    if variant_name == "lightgbm_incremental":
+        return lambda: LightGBMModel(strategy="incremental")
+
+    raise ValueError(f"Unknown variant: {variant_name}")
 
 
 # ============================================================
@@ -63,7 +137,9 @@ def _build_model_registry() -> Dict[str, Any]:
         6. lightgbm_incremental — LightGBM, incremental
 
     The registry is built fresh on each call so the orchestrator
-    works with a clean set of untrained instances.
+    works with a clean set of untrained instances. Reusing a
+    registry across runs would let previously trained models
+    leak state into the next retraining cycle.
 
     Returns:
         Dictionary mapping model name → ForecastModel instance.
@@ -109,9 +185,9 @@ async def daily_retrain_job() -> Dict[str, Any]:
     start = time.monotonic()
     logger.info("Running daily_retrain_job")
 
-    # ---- 1. Fetch training data ----
-    # 90 days of history (2160 hours) — enough for weekly seasonality
-    # and tree-model lag features.
+    # ---- 1. Fetch 90 days of training data ----
+    # 2160 hours = 90 days. Chosen to comfortably fit weekly
+    # seasonality (7 × 90 / 7 = 90 full weeks) plus lag features.
     history_hours = 2160
 
     async with session_scope() as session:
@@ -125,6 +201,7 @@ async def daily_retrain_job() -> Dict[str, Any]:
             "Cannot retrain: training data is empty or unavailable"
         )
 
+    # 60 rows is the service-wide floor across all model adapters.
     if len(training_frame) < 60:
         raise RuntimeError(
             f"Cannot retrain: insufficient training data "
@@ -136,7 +213,7 @@ async def daily_retrain_job() -> Dict[str, Any]:
         f"({history_hours}h)"
     )
 
-    # ---- 2. Build the registry and orchestrator ----
+    # ---- 2. Build a fresh registry + orchestrator ----
     models = _build_model_registry()
     model_save_dir = settings.model_save_dir
 
@@ -146,6 +223,8 @@ async def daily_retrain_job() -> Dict[str, Any]:
     )
 
     # ---- 3. Retrain all models ----
+    # The orchestrator isolates per-model failures, so one bad
+    # model does not prevent the others from being saved.
     results = orchestrator.retrain_all(data=training_frame)
 
     # ---- 4. Summarize ----
@@ -170,7 +249,8 @@ async def daily_retrain_job() -> Dict[str, Any]:
     )
 
     if failed > 0:
-        # Surface partial failures so the manager can retry
+        # Surface partial failures so the manager can retry and
+        # the run history reflects a non-clean state.
         failed_names = [
             name
             for name, r in results.items()
@@ -181,6 +261,244 @@ async def daily_retrain_job() -> Dict[str, Any]:
         )
 
     return summary
+
+
+# ============================================================
+# DAILY BACKTEST JOB
+# ============================================================
+async def daily_backtest_job() -> Dict[str, Any]:
+    """Run walk-forward backtests for all 6 models × 2 horizons.
+
+    Runs daily at 6:45 AM UTC, after the 6:00 retrain and the
+    6:30 7d prediction. Steps:
+        1. Open a DB session and fetch 120 days of training data.
+        2. For each of the 12 (variant, horizon) pairs:
+            a. Run WalkForwardBacktester
+            b. Convert the BacktestResult + raw predictions to
+               PerformanceRow instances
+            c. Persist them via PerformanceRepository
+        3. Aggregate and return a summary.
+
+    Idempotency note: the job is NOT deduplicating on run. If it
+    runs twice in the same day, it will write two sets of rows. The
+    scheduler's daily cron plus the max_instances=1 setting makes
+    double-runs unlikely; if this becomes a concern, add a check
+    against fetch_latest_forecast_date() at the start.
+
+    Returns:
+        Dict with keys: variants_attempted, variants_succeeded,
+        variants_failed, total_rows_written, results (per-variant),
+        elapsed_seconds.
+
+    Raises:
+        RuntimeError: If training data cannot be fetched, or if
+            every variant fails.
+    """
+    import time
+
+    start = time.monotonic()
+    logger.info("Running daily_backtest_job")
+
+    # ---- 1. Fetch training + actuals data ----
+    # 2880 hours = 120 days. The 30-day walk-forward window
+    # requires 30 × 168 = 5040 hours of contiguous data in the
+    # worst case (7d horizon), plus 60 rows of warmup for lags.
+    # 120 days gives us plenty of buffer.
+    history_hours = settings.backtest_history_hours
+
+    async with session_scope() as session:
+        pred_repo = PredictionRepository(session)
+        training_frame = await pred_repo.fetch_training_frame(
+            hours=history_hours
+        )
+
+    if training_frame is None or training_frame.empty:
+        raise RuntimeError(
+            "Cannot backtest: training data is empty or unavailable"
+        )
+
+    # Worst case requirement: 30 iterations × 168 hours + 60 warmup
+    required_rows = (
+        settings.backtest_iterations * 168 + 60
+    )
+    if len(training_frame) < required_rows:
+        raise RuntimeError(
+            f"Cannot backtest: insufficient training data "
+            f"({len(training_frame)} rows, need at least {required_rows})"
+        )
+
+    logger.info(
+        f"Fetched {len(training_frame)} rows of training data "
+        f"({history_hours}h) for backtesting"
+    )
+
+    # ---- 2. Run all 12 backtests ----
+    # Each variant is independent: one failing variant does not
+    # abort the others. Failures are captured in `results[key]`.
+    results: Dict[str, Dict[str, Any]] = {}
+    variants_succeeded = 0
+    variants_failed = 0
+    total_rows_written = 0
+
+    async with session_scope() as session:
+        perf_repo = PerformanceRepository(session)
+
+        for variant_name, horizon, horizon_hours in BACKTEST_VARIANTS:
+            key = f"{variant_name}_{horizon}"
+            logger.info(f"Backtesting {key}")
+
+            try:
+                # The backtester walks forward one horizon step at
+                # a time, retraining a fresh model on each slice.
+                bt = WalkForwardBacktester(
+                    horizon=horizon,
+                    horizon_hours=horizon_hours,
+                )
+
+                factory = _variant_factory(variant_name)
+                backtest_result = await bt.run(
+                    model_name=variant_name,
+                    build_model=factory,
+                    training_data=training_frame,
+                    actuals=training_frame,
+                )
+
+                if not backtest_result.succeeded:
+                    raise RuntimeError(
+                        f"Backtest failed: {backtest_result.error}"
+                    )
+
+                # Convert per-iteration matched points into rows
+                # and persist them.
+                rows = _result_to_rows(backtest_result)
+                written = await perf_repo.save_performance_rows(rows)
+
+                results[key] = {
+                    "status": "success",
+                    "horizon": horizon,
+                    "iterations_succeeded": backtest_result.iterations_succeeded,
+                    "iterations_failed": backtest_result.iterations_failed,
+                    "total_matched_points": backtest_result.total_matched_points,
+                    "mae": backtest_result.mae,
+                    "rmse": backtest_result.rmse,
+                    "mape": backtest_result.mape,
+                    "directional_accuracy": (
+                        backtest_result.directional_accuracy
+                    ),
+                    "rows_written": written,
+                    "elapsed_seconds": backtest_result.elapsed_seconds,
+                    "error": None,
+                }
+                variants_succeeded += 1
+                total_rows_written += written
+
+            except Exception as e:
+                logger.error(
+                    f"Backtest {key} failed: {e}",
+                    exc_info=True,
+                )
+                results[key] = {
+                    "status": "failed",
+                    "error": str(e),
+                }
+                variants_failed += 1
+
+    elapsed = time.monotonic() - start
+
+    summary = {
+        "variants_attempted": len(BACKTEST_VARIANTS),
+        "variants_succeeded": variants_succeeded,
+        "variants_failed": variants_failed,
+        "total_rows_written": total_rows_written,
+        "results": results,
+        "elapsed_seconds": elapsed,
+    }
+
+    logger.info(
+        f"daily_backtest_job complete: "
+        f"{variants_succeeded}/{len(BACKTEST_VARIANTS)} variants "
+        f"succeeded, {total_rows_written} rows written, "
+        f"in {elapsed:.3f}s"
+    )
+
+    # Only fail the whole job if EVERY variant failed. Partial
+    # success is acceptable — the successes produced useful rows.
+    if variants_succeeded == 0:
+        raise RuntimeError(
+            f"All {len(BACKTEST_VARIANTS)} backtest variants failed"
+        )
+
+    return summary
+
+
+def _result_to_rows(result: BacktestResult) -> List[PerformanceRow]:
+    """Convert a BacktestResult to PerformanceRow instances.
+
+    Each iteration's matched (prediction, actual) pairs become one
+    row per point. The iteration's aggregate metrics (mae/rmse/mape)
+    are repeated on every row of that iteration.
+
+    Design note — why we repeat the aggregate metrics:
+        The prediction_performance table is read by T5.5's endpoint
+        with queries like "give me the latest 7d Prophet MAE". If
+        the metrics only lived in a separate batch table, every
+        read would need a join or a subquery. Repeating the
+        metrics on each row makes the common query a trivial
+        SELECT ... ORDER BY forecast_date DESC LIMIT 1.
+
+        The storage cost is negligible: ~35k rows/day × 3 floats.
+        If it ever becomes a concern, partition by created_at and
+        archive old partitions.
+
+    Design note — why prediction_id is None:
+        Backtest rows are hypothetical: the predictions were
+        produced and immediately compared, never stored in
+        btc_predictions. There is no real prediction to reference,
+        so the FK is NULL. Migration 005 relaxed the NOT NULL
+        constraint precisely for this case.
+
+    Args:
+        result: The BacktestResult to convert.
+
+    Returns:
+        List of PerformanceRow instances, one per matched point.
+    """
+    rows: List[PerformanceRow] = []
+
+    for it in result.iteration_results:
+        # Skip iterations that failed during training or matching —
+        # they have no matched_data and should not contribute rows.
+        if it.error is not None:
+            continue
+
+        # Each entry in matched_data is
+        # (forecast_timestamp, predicted_price, actual_price).
+        for forecast_ts, predicted, actual in it.matched_data:
+            rows.append(
+                PerformanceRow(
+                    horizon=result.horizon,
+                    model_name=result.model_name,
+                    # Version is hardcoded for now; M7 will pull it
+                    # from the MLflow run metadata.
+                    model_version="1.0.0",
+                    forecast_date=forecast_ts,
+                    predicted_price=predicted,
+                    actual_price=actual,
+                    # Aggregate metrics for the iteration this
+                    # point belongs to. Repeated on every row of
+                    # the iteration — see design note above.
+                    mae=it.mae,
+                    rmse=it.rmse,
+                    mape=it.mape,
+                    # Both populated by later tickets:
+                    #   - market_condition → T5.3
+                    #   - prediction_id    → production evaluations
+                    market_condition=None,
+                    prediction_id=None,
+                )
+            )
+
+    return rows
 
 
 # ============================================================
@@ -211,7 +529,6 @@ async def hourly_prediction_job() -> Dict[str, Any]:
     """
     logger.info("Running hourly_prediction_job")
 
-    # ---- 1. Load the trained model ----
     model_path = settings.prophet_24h_model_path
     logger.debug(f"Loading Prophet model from '{model_path}'")
 
@@ -223,7 +540,6 @@ async def hourly_prediction_job() -> Dict[str, Any]:
             f"Loaded model from '{model_path}' is not marked as trained"
         )
 
-    # ---- 2. Run generation in a fresh session ----
     async with session_scope() as session:
         repository = PredictionRepository(session)
 
@@ -237,7 +553,6 @@ async def hourly_prediction_job() -> Dict[str, Any]:
 
         result = await generator.generate()
 
-    # ---- 3. Evaluate the outcome ----
     if not result.succeeded:
         raise RuntimeError(
             f"Prediction generation failed: {result.error}"
@@ -290,7 +605,6 @@ async def daily_7d_prediction_job() -> Dict[str, Any]:
     """
     logger.info("Running daily_7d_prediction_job")
 
-    # ---- 1. Load the trained model ----
     model_path = settings.prophet_7d_model_path
     logger.debug(f"Loading Prophet model from '{model_path}'")
 
@@ -302,7 +616,6 @@ async def daily_7d_prediction_job() -> Dict[str, Any]:
             f"Loaded model from '{model_path}' is not marked as trained"
         )
 
-    # ---- 2. Run generation in a fresh session ----
     async with session_scope() as session:
         repository = PredictionRepository(session)
 
@@ -310,14 +623,14 @@ async def daily_7d_prediction_job() -> Dict[str, Any]:
             model=model,
             repository=repository,
             horizon="7d",
-            horizon_hours=168,  # 7 * 24
+            horizon_hours=168,
             confidence=0.85,
-            history_hours=2160,  # 90 days of history
+            # 90 days of history to observe multiple weekly cycles
+            history_hours=2160,
         )
 
         result = await generator.generate()
 
-    # ---- 3. Evaluate the outcome ----
     if not result.succeeded:
         raise RuntimeError(
             f"Prediction generation failed: {result.error}"

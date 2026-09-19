@@ -10,8 +10,11 @@ Public API:
     - dispose_engine: clean shutdown helper
     - metadata: SQLAlchemy MetaData (shared root for all tables)
     - btc_prices, macro_indicators, btc_predictions: Core tables
+    - prediction_performance: Core table for evaluation metrics
     - PredictionRepository, PredictionRow: prediction read/write repo
+    - PerformanceRepository, PerformanceRow: performance read/write repo
     - validate_prediction_row, validate_prediction_rows: validators
+    - validate_performance_row, validate_performance_rows: validators
     - run_migrations: apply pending SQL migrations
 """
 
@@ -26,16 +29,22 @@ from app.database.tables import (
     btc_prices,
     macro_indicators,
     metadata,
+    prediction_performance,
 )
 from app.database.repositories import (
+    PerformanceRepository,
+    PerformanceRow,
     PredictionRepository,
     PredictionRow,
 )
 from app.database.validators import (
+    validate_performance_row,
+    validate_performance_rows,
     validate_prediction_row,
     validate_prediction_rows,
     VALID_CONFIDENCE_LEVELS,
     VALID_HORIZONS,
+    VALID_MARKET_CONDITIONS,
 )
 from app.database.migrations_runner import run_migrations
 
@@ -48,11 +57,17 @@ __all__ = [
     "btc_prices",
     "macro_indicators",
     "btc_predictions",
+    "prediction_performance",
     "PredictionRepository",
     "PredictionRow",
+    "PerformanceRepository",
+    "PerformanceRow",
     "validate_prediction_row",
     "validate_prediction_rows",
+    "validate_performance_row",
+    "validate_performance_rows",
     "VALID_HORIZONS",
     "VALID_CONFIDENCE_LEVELS",
+    "VALID_MARKET_CONDITIONS",
     "run_migrations",
 ]

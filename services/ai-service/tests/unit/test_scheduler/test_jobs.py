@@ -1,13 +1,14 @@
 """Unit tests for the scheduler jobs module.
 
-These tests mock the Prophet model, the repository, and the
-generator to isolate the job orchestration logic (model load,
-session opening, result evaluation).
+These tests mock the Prophet model, the repository, the generator,
+and the backtester to isolate the job orchestration logic.
 
 Test organization:
     - TestDailyRetrainJob: daily retrain of all 6 models
+    - TestDailyBacktestJob: daily walk-forward backtest of all 12 (T5.2)
     - TestHourlyPredictionJob: 24h job happy path + failure paths
     - TestDaily7dPredictionJob: 7d job happy path + failure paths
+    - TestBacktestVariantSpecs: variant registry + factory helper
     - TestJobConstants: module constants
 """
 
@@ -19,12 +20,18 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from app.ai.backtest import BacktestResult, IterationResult
 from app.prediction.generator import GenerationResult
 from app.scheduler.jobs import (
+    BACKTEST_VARIANTS,
     JOB_DAILY_7D_PREDICTION,
+    JOB_DAILY_BACKTEST,
     JOB_DAILY_RETRAIN,
     JOB_HOURLY_PREDICTION,
+    _result_to_rows,
+    _variant_factory,
     daily_7d_prediction_job,
+    daily_backtest_job,
     daily_retrain_job,
     hourly_prediction_job,
 )
@@ -71,7 +78,7 @@ def _session_scope_mock() -> MagicMock:
 
 
 def _make_training_frame(n: int = 100) -> pd.DataFrame:
-    """Build a synthetic training frame for the retrain job."""
+    """Build a synthetic training frame for the retrain/backtest jobs."""
     dates = pd.date_range("2024-01-01", periods=n, freq="h")
     return pd.DataFrame(
         {
@@ -111,6 +118,51 @@ def _all_success_results() -> Dict[str, Dict[str, Any]]:
         }
         for name in names
     }
+
+
+def _make_backtest_result(succeeded: bool = True) -> BacktestResult:
+    """Build a BacktestResult for tests."""
+    result = BacktestResult(
+        model_name="prophet_fresh",
+        horizon="24h",
+        horizon_hours=24,
+        iterations=2,
+        iterations_succeeded=2 if succeeded else 0,
+        iterations_failed=0 if succeeded else 2,
+        total_matched_points=48 if succeeded else 0,
+        mae=100.0 if succeeded else 0.0,
+        rmse=120.0 if succeeded else 0.0,
+        mape=1.5 if succeeded else 0.0,
+        directional_accuracy=60.0 if succeeded else 0.0,
+        elapsed_seconds=0.5,
+        error=None if succeeded else "All iterations failed",
+    )
+    if succeeded:
+        now = datetime.now(timezone.utc)
+        for i in range(2):
+            it = IterationResult(
+                iteration=i,
+                train_cutoff=now,
+                forecast_start=now,
+                forecast_end=now,
+                matched_points=24,
+                mae=100.0,
+                rmse=120.0,
+                mape=1.5,
+                directional_accuracy=60.0,
+                matched_data=[
+                    (
+                        datetime.fromtimestamp(
+                            now.timestamp() + h * 3600, tz=timezone.utc
+                        ),
+                        50_000.0 + h,
+                        50_100.0 + h,
+                    )
+                    for h in range(24)
+                ],
+            )
+            result.iteration_results.append(it)
+    return result
 
 
 # ============================================================
@@ -326,6 +378,182 @@ class TestDailyRetrainJob:
             "lightgbm_incremental",
         }
         assert set(call_kwargs["models"].keys()) == expected_names
+
+
+# ============================================================
+# DAILY BACKTEST JOB
+# ============================================================
+class TestDailyBacktestJob:
+    """Tests for daily_backtest_job()."""
+
+    @pytest.mark.asyncio
+    async def test_happy_path(self) -> None:
+        """Test that a successful backtest run returns a summary."""
+        # 30 iterations * 168 hours + 60 = 5100 rows needed
+        frame = _make_training_frame(6000)
+
+        mock_pred_repo = MagicMock()
+        mock_pred_repo.fetch_training_frame = AsyncMock(return_value=frame)
+
+        mock_perf_repo = MagicMock()
+        mock_perf_repo.save_performance_rows = AsyncMock(return_value=48)
+
+        mock_bt = MagicMock()
+        mock_bt.run = AsyncMock(return_value=_make_backtest_result(True))
+
+        with patch(
+            "app.scheduler.jobs.PredictionRepository",
+            return_value=mock_pred_repo,
+        ), patch(
+            "app.scheduler.jobs.PerformanceRepository",
+            return_value=mock_perf_repo,
+        ), patch(
+            "app.scheduler.jobs.WalkForwardBacktester",
+            return_value=mock_bt,
+        ), patch(
+            "app.scheduler.jobs.session_scope",
+            return_value=_session_scope_mock(),
+        ):
+            result = await daily_backtest_job()
+
+        assert result["variants_attempted"] == len(BACKTEST_VARIANTS)
+        assert result["variants_succeeded"] == len(BACKTEST_VARIANTS)
+        assert result["variants_failed"] == 0
+        assert result["total_rows_written"] > 0
+
+    @pytest.mark.asyncio
+    async def test_raises_when_empty_data(self) -> None:
+        """Test that empty training data raises."""
+        mock_pred_repo = MagicMock()
+        mock_pred_repo.fetch_training_frame = AsyncMock(
+            return_value=pd.DataFrame()
+        )
+
+        with patch(
+            "app.scheduler.jobs.PredictionRepository",
+            return_value=mock_pred_repo,
+        ), patch(
+            "app.scheduler.jobs.session_scope",
+            return_value=_session_scope_mock(),
+        ):
+            with pytest.raises(RuntimeError, match="empty or unavailable"):
+                await daily_backtest_job()
+
+    @pytest.mark.asyncio
+    async def test_raises_when_insufficient_data(self) -> None:
+        """Test that too few rows raises."""
+        small = _make_training_frame(100)
+
+        mock_pred_repo = MagicMock()
+        mock_pred_repo.fetch_training_frame = AsyncMock(return_value=small)
+
+        with patch(
+            "app.scheduler.jobs.PredictionRepository",
+            return_value=mock_pred_repo,
+        ), patch(
+            "app.scheduler.jobs.session_scope",
+            return_value=_session_scope_mock(),
+        ):
+            with pytest.raises(RuntimeError, match="insufficient"):
+                await daily_backtest_job()
+
+    @pytest.mark.asyncio
+    async def test_raises_when_all_variants_fail(self) -> None:
+        """Test that all-variant failure raises."""
+        frame = _make_training_frame(6000)
+
+        mock_pred_repo = MagicMock()
+        mock_pred_repo.fetch_training_frame = AsyncMock(return_value=frame)
+
+        mock_perf_repo = MagicMock()
+        mock_perf_repo.save_performance_rows = AsyncMock(return_value=0)
+
+        mock_bt = MagicMock()
+        mock_bt.run = AsyncMock(return_value=_make_backtest_result(False))
+
+        with patch(
+            "app.scheduler.jobs.PredictionRepository",
+            return_value=mock_pred_repo,
+        ), patch(
+            "app.scheduler.jobs.PerformanceRepository",
+            return_value=mock_perf_repo,
+        ), patch(
+            "app.scheduler.jobs.WalkForwardBacktester",
+            return_value=mock_bt,
+        ), patch(
+            "app.scheduler.jobs.session_scope",
+            return_value=_session_scope_mock(),
+        ):
+            with pytest.raises(RuntimeError, match="All .* variants failed"):
+                await daily_backtest_job()
+
+
+# ============================================================
+# BACKTEST VARIANT SPECS
+# ============================================================
+class TestBacktestVariantSpecs:
+    """Tests for BACKTEST_VARIANTS and _variant_factory()."""
+
+    def test_twelve_variants(self) -> None:
+        """Test that there are 12 (6 models × 2 horizons) variants."""
+        assert len(BACKTEST_VARIANTS) == 12
+
+    def test_six_unique_models(self) -> None:
+        """Test that the 6 model names appear twice (once per horizon)."""
+        names = [v[0] for v in BACKTEST_VARIANTS]
+        assert len(set(names)) == 6
+        for name in set(names):
+            assert names.count(name) == 2
+
+    def test_two_horizons(self) -> None:
+        """Test that every variant uses 24h or 7d."""
+        horizons = {v[1] for v in BACKTEST_VARIANTS}
+        assert horizons == {"24h", "7d"}
+
+    def test_horizon_hours_consistent(self) -> None:
+        """Test that horizon='24h' → 24 and horizon='7d' → 168."""
+        for _, horizon, hours in BACKTEST_VARIANTS:
+            if horizon == "24h":
+                assert hours == 24
+            else:
+                assert hours == 168
+
+    def test_variant_factory_returns_callable(self) -> None:
+        """Test that _variant_factory returns a zero-arg callable."""
+        for name, _, _ in BACKTEST_VARIANTS:
+            factory = _variant_factory(name)
+            model = factory()
+            assert model is not None
+            assert hasattr(model, "train")
+
+    def test_variant_factory_unknown_raises(self) -> None:
+        """Test that an unknown name raises ValueError."""
+        with pytest.raises(ValueError, match="Unknown variant"):
+            _variant_factory("bogus_model")
+
+    def test_result_to_rows_produces_one_row_per_point(self) -> None:
+        """Test that _result_to_rows yields one row per matched point."""
+        result = _make_backtest_result(True)
+        rows = _result_to_rows(result)
+        # 2 iterations × 24 matched points = 48 rows
+        assert len(rows) == 48
+
+    def test_result_to_rows_skips_failed_iterations(self) -> None:
+        """Test that failed iterations produce no rows."""
+        result = _make_backtest_result(True)
+        # Manually break one iteration
+        result.iteration_results[0].error = "boom"
+        rows = _result_to_rows(result)
+        # Only iteration 1's 24 points remain
+        assert len(rows) == 24
+
+    def test_result_to_rows_repeats_iteration_metrics(self) -> None:
+        """Test that metrics are repeated on every row of an iteration."""
+        result = _make_backtest_result(True)
+        rows = _result_to_rows(result)
+        # All rows from iteration 0 have the same mae
+        for row in rows[:24]:
+            assert row.mae == 100.0
 
 
 # ============================================================
@@ -605,3 +833,7 @@ class TestJobConstants:
     def test_daily_7d_job_name(self) -> None:
         """Test that JOB_DAILY_7D_PREDICTION has the expected value."""
         assert JOB_DAILY_7D_PREDICTION == "daily_7d_prediction"
+
+    def test_daily_backtest_job_name(self) -> None:
+        """Test that JOB_DAILY_BACKTEST has the expected value."""
+        assert JOB_DAILY_BACKTEST == "daily_backtest"
