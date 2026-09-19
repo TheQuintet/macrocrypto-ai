@@ -5,6 +5,8 @@ Test organization:
     - TestValidatePredictionRows: prediction batch validation
     - TestValidatePerformanceRow: single performance row validation
     - TestValidatePerformanceRows: performance batch validation
+    - TestValidateModelPerformanceRow: single model performance row (M7)
+    - TestValidateModelPerformanceRows: model performance batch (M7)
     - TestValidatorConstants: module constants
 """
 
@@ -18,6 +20,8 @@ from app.database.validators import (
     VALID_CONFIDENCE_LEVELS,
     VALID_HORIZONS,
     VALID_MARKET_CONDITIONS,
+    validate_model_performance_row,
+    validate_model_performance_rows,
     validate_performance_row,
     validate_performance_rows,
     validate_prediction_row,
@@ -64,6 +68,22 @@ def _make_perf_dict(**overrides) -> Dict[str, Any]:
         "rmse": 500.0,
         "mape": 0.99,
         "market_condition": "bull",
+    }
+    defaults.update(overrides)
+    return defaults
+
+
+def _make_model_perf_dict(**overrides) -> Dict[str, Any]:
+    """Build a valid model_performance row as a dict."""
+    defaults = {
+        "model_name": "prophet_fresh",
+        "horizon": "24h",
+        "mae": 100.0,
+        "rmse": 120.0,
+        "mape": 1.5,
+        "directional_accuracy": 62.0,
+        "sample_size": 480,
+        "calculated_at": datetime.now(timezone.utc),
     }
     defaults.update(overrides)
     return defaults
@@ -389,6 +409,239 @@ class TestValidatePerformanceRows:
         ]
         with pytest.raises(ValueError, match="Row 2"):
             validate_performance_rows(rows)
+
+
+# ============================================================
+# MODEL PERFORMANCE ROW TESTS (M7)
+# ============================================================
+class TestValidateModelPerformanceRow:
+    """Tests for validate_model_performance_row()."""
+
+    def test_valid_dict_passes(self) -> None:
+        """Test that a fully valid dict passes."""
+        validate_model_performance_row(_make_model_perf_dict())
+
+    def test_valid_object_passes(self) -> None:
+        """Test that a valid object-shaped row passes."""
+        validate_model_performance_row(
+            _PerfObj(**_make_model_perf_dict())
+        )
+
+    def test_all_metrics_null_passes(self) -> None:
+        """Test that a row with all metric fields None still passes."""
+        validate_model_performance_row(
+            _make_model_perf_dict(
+                mae=None, rmse=None, mape=None, directional_accuracy=None
+            )
+        )
+
+    # ---- model_name ----
+
+    def test_empty_model_name_fails(self) -> None:
+        """Test that an empty model_name fails."""
+        with pytest.raises(ValueError, match="model_name must be non-empty"):
+            validate_model_performance_row(
+                _make_model_perf_dict(model_name="")
+            )
+
+    def test_whitespace_model_name_fails(self) -> None:
+        """Test that a whitespace-only model_name fails."""
+        with pytest.raises(ValueError, match="model_name must be non-empty"):
+            validate_model_performance_row(
+                _make_model_perf_dict(model_name="   ")
+            )
+
+    # ---- horizon ----
+
+    def test_invalid_horizon_fails(self) -> None:
+        """Test that an invalid horizon fails."""
+        with pytest.raises(ValueError, match="invalid horizon"):
+            validate_model_performance_row(
+                _make_model_perf_dict(horizon="1h")
+            )
+
+    def test_7d_horizon_passes(self) -> None:
+        """Test that '7d' horizon passes."""
+        validate_model_performance_row(
+            _make_model_perf_dict(horizon="7d")
+        )
+
+    # ---- sample_size ----
+
+    def test_missing_sample_size_fails(self) -> None:
+        """Test that a missing sample_size fails."""
+        row = _make_model_perf_dict()
+        del row["sample_size"]
+        with pytest.raises(ValueError, match="sample_size must be set"):
+            validate_model_performance_row(row)
+
+    def test_non_integer_sample_size_fails(self) -> None:
+        """Test that a non-integer sample_size fails."""
+        with pytest.raises(ValueError, match="sample_size must be an integer"):
+            validate_model_performance_row(
+                _make_model_perf_dict(sample_size=10.5)
+            )
+
+    def test_boolean_sample_size_fails(self) -> None:
+        """Test that a bool sample_size fails (bool is an int subclass)."""
+        with pytest.raises(ValueError, match="sample_size must be an integer"):
+            validate_model_performance_row(
+                _make_model_perf_dict(sample_size=True)
+            )
+
+    def test_zero_sample_size_fails(self) -> None:
+        """Test that a zero sample_size fails."""
+        with pytest.raises(ValueError, match="sample_size must be positive"):
+            validate_model_performance_row(
+                _make_model_perf_dict(sample_size=0)
+            )
+
+    def test_negative_sample_size_fails(self) -> None:
+        """Test that a negative sample_size fails."""
+        with pytest.raises(ValueError, match="sample_size must be positive"):
+            validate_model_performance_row(
+                _make_model_perf_dict(sample_size=-5)
+            )
+
+    # ---- calculated_at ----
+
+    def test_missing_calculated_at_fails(self) -> None:
+        """Test that a missing calculated_at fails."""
+        row = _make_model_perf_dict()
+        del row["calculated_at"]
+        with pytest.raises(ValueError, match="calculated_at must be set"):
+            validate_model_performance_row(row)
+
+    def test_none_calculated_at_fails(self) -> None:
+        """Test that a None calculated_at fails."""
+        with pytest.raises(ValueError, match="calculated_at must be set"):
+            validate_model_performance_row(
+                _make_model_perf_dict(calculated_at=None)
+            )
+
+    # ---- metrics ----
+
+    def test_negative_mae_fails(self) -> None:
+        """Test that a negative MAE fails."""
+        with pytest.raises(ValueError, match="mae must be >= 0"):
+            validate_model_performance_row(
+                _make_model_perf_dict(mae=-1.0)
+            )
+
+    def test_negative_rmse_fails(self) -> None:
+        """Test that a negative RMSE fails."""
+        with pytest.raises(ValueError, match="rmse must be >= 0"):
+            validate_model_performance_row(
+                _make_model_perf_dict(rmse=-1.0)
+            )
+
+    def test_negative_mape_fails(self) -> None:
+        """Test that a negative MAPE fails."""
+        with pytest.raises(ValueError, match="mape must be >= 0"):
+            validate_model_performance_row(
+                _make_model_perf_dict(mape=-1.0)
+            )
+
+    def test_non_finite_mae_fails(self) -> None:
+        """Test that an infinite MAE fails."""
+        with pytest.raises(ValueError, match="mae must be finite when set"):
+            validate_model_performance_row(
+                _make_model_perf_dict(mae=float("inf"))
+            )
+
+    def test_zero_metrics_pass(self) -> None:
+        """Test that zero metrics are valid."""
+        validate_model_performance_row(
+            _make_model_perf_dict(mae=0.0, rmse=0.0, mape=0.0)
+        )
+
+    # ---- directional_accuracy ----
+
+    def test_directional_accuracy_below_0_fails(self) -> None:
+        """Test that directional_accuracy < 0 fails."""
+        with pytest.raises(
+            ValueError, match="directional_accuracy must be in"
+        ):
+            validate_model_performance_row(
+                _make_model_perf_dict(directional_accuracy=-0.1)
+            )
+
+    def test_directional_accuracy_above_100_fails(self) -> None:
+        """Test that directional_accuracy > 100 fails."""
+        with pytest.raises(
+            ValueError, match="directional_accuracy must be in"
+        ):
+            validate_model_performance_row(
+                _make_model_perf_dict(directional_accuracy=100.1)
+            )
+
+    def test_directional_accuracy_exactly_0_passes(self) -> None:
+        """Test that directional_accuracy == 0 passes (boundary)."""
+        validate_model_performance_row(
+            _make_model_perf_dict(directional_accuracy=0.0)
+        )
+
+    def test_directional_accuracy_exactly_100_passes(self) -> None:
+        """Test that directional_accuracy == 100 passes (boundary)."""
+        validate_model_performance_row(
+            _make_model_perf_dict(directional_accuracy=100.0)
+        )
+
+    def test_non_finite_directional_accuracy_fails(self) -> None:
+        """Test that an infinite directional_accuracy fails."""
+        with pytest.raises(
+            ValueError, match="directional_accuracy must be finite"
+        ):
+            validate_model_performance_row(
+                _make_model_perf_dict(
+                    directional_accuracy=float("inf")
+                )
+            )
+
+    # ---- error message ----
+
+    def test_error_message_includes_index(self) -> None:
+        """Test that error messages include the row index."""
+        with pytest.raises(ValueError, match="Row 7"):
+            validate_model_performance_row(
+                _make_model_perf_dict(horizon="bogus"), index=7
+            )
+
+
+# ============================================================
+# MODEL PERFORMANCE BATCH TESTS (M7)
+# ============================================================
+class TestValidateModelPerformanceRows:
+    """Tests for validate_model_performance_rows()."""
+
+    def test_empty_list_passes(self) -> None:
+        """Test that an empty list passes."""
+        validate_model_performance_rows([])
+
+    def test_all_valid_rows_pass(self) -> None:
+        """Test that a batch of valid rows passes."""
+        rows = [_make_model_perf_dict() for _ in range(5)]
+        validate_model_performance_rows(rows)
+
+    def test_single_invalid_row_in_batch_fails(self) -> None:
+        """Test that one invalid row in a batch raises with its index."""
+        rows = [
+            _make_model_perf_dict(),
+            _make_model_perf_dict(),
+            _make_model_perf_dict(sample_size=0),  # index 2
+            _make_model_perf_dict(),
+        ]
+        with pytest.raises(ValueError, match="Row 2"):
+            validate_model_performance_rows(rows)
+
+    def test_validation_stops_at_first_error(self) -> None:
+        """Test that validation stops at the first invalid row."""
+        rows = [
+            _make_model_perf_dict(horizon="bogus"),  # index 0 — fails
+            _make_model_perf_dict(mae=-1.0),  # index 1 — would fail too
+        ]
+        with pytest.raises(ValueError, match="Row 0"):
+            validate_model_performance_rows(rows)
 
 
 # ============================================================
