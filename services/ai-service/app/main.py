@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app import __version__, __service_name__
-from app.api.v1 import predict_router
+from app.api.v1 import performance_router, predict_router
 from app.cache.redis_client import close_redis, ping_redis
 from app.config import settings
 from app.health import router as health_router
@@ -49,8 +49,9 @@ async def lifespan(app: FastAPI):
         )
 
     # ---- Scheduler ----
-    # Registers and starts background jobs (hourly prediction).
-    # Honors settings.scheduler_enabled — a no-op in tests.
+    # Registers and starts background jobs (retrain, predictions,
+    # backtest, accuracy). Honors settings.scheduler_enabled — a
+    # no-op in tests.
     scheduler_manager.setup()
     scheduler_manager.start()
 
@@ -90,6 +91,7 @@ app.add_middleware(
 # Register routes
 app.include_router(health_router, tags=["health"])
 app.include_router(predict_router)
+app.include_router(performance_router)
 
 
 @app.get("/")
