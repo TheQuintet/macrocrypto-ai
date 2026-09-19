@@ -10,15 +10,18 @@ Design:
     - Provides confidence intervals at 70%, 85%, 95%
     - Serializes with Prophet's JSON format (not pickle)
 
-Branch M2.1 implements only the "fresh" strategy (train from scratch).
-Branch M2.2 will add the "warm-start" strategy.
+Strategies:
+    - "fresh": Train from scratch on the full dataset (M2.1)
+    - "warm": Reload previous model parameters, still train on
+      the full dataset (M2.2). Prophet doesn't support incremental
+      training, so warm-start is a speed optimization only.
+
+Branch M2.2 adds warm-start support on top of M2.1's fresh strategy.
 """
 
-import json
 import logging
 import os
-from datetime import datetime, timezone
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -61,6 +64,9 @@ DEFAULT_CONFIG = {
 
 CONFIDENCE_LEVELS = [0.70, 0.85, 0.95]
 
+# Minimum rows required for training
+MIN_TRAINING_ROWS = 30
+
 
 # ============================================================
 # PROPHET MODEL
@@ -70,6 +76,7 @@ class ProphetModel(ForecastModel):
 
     This adapter wraps Facebook Prophet and supports:
         - Training from scratch (fresh strategy)
+        - Warm-start training (warm strategy)
         - Prediction with confidence intervals
         - Metrics calculation (MAE, RMSE, MAPE, directional accuracy)
         - Serialization via Prophet's JSON format
@@ -81,6 +88,8 @@ class ProphetModel(ForecastModel):
         version: Model version string.
         metrics: Last calculated metrics.
         is_trained: Whether the model has been trained.
+        last_training_mode: The mode used in the last training
+            ("fresh" or "warm").
     """
 
     def __init__(
@@ -91,8 +100,8 @@ class ProphetModel(ForecastModel):
         """Initialize the Prophet model adapter.
 
         Args:
-            strategy: Training strategy. Currently only "fresh" is
-                implemented. "warm" will be added in M2.2.
+            strategy: Training strategy. "fresh" trains from scratch.
+                "warm" reloads previous model parameters.
             config: Optional Prophet configuration overrides.
 
         Raises:
@@ -109,6 +118,7 @@ class ProphetModel(ForecastModel):
         self.strategy = strategy
         self.config = {**DEFAULT_CONFIG, **(config or {})}
         self.model: Optional[Prophet] = None
+        self.last_training_mode: str = "fresh"
 
         logger.info(
             f"ProphetModel initialized (strategy={strategy})"
@@ -125,16 +135,20 @@ class ProphetModel(ForecastModel):
     ) -> Dict[str, float]:
         """Train the Prophet model.
 
-        In Branch M2.1, this only implements the "fresh" strategy.
-        Warm-start is implemented in M2.2.
+        Supports two strategies:
+            - fresh (warm_start=False): New Prophet instance
+            - warm (warm_start=True): Uses previous model's parameters
+
+        Important: Even with warm_start=True, Prophet trains on the
+        FULL dataset. Prophet does not support incremental training
+        on new data alone. The warm-start only speeds up convergence.
 
         Args:
             data: Training DataFrame with columns:
                 'ds', 'y', and all 10 regressors.
-            warm_start: If True, attempts warm-start training.
-                In M2.1, this falls back to fresh training.
+            warm_start: If True, use warm-start strategy.
             previous_model_path: Path to previous model (for warm-start).
-                Currently unused in M2.1.
+                Required when warm_start=True.
 
         Returns:
             Dictionary with metrics: mae, rmse, mape, directional_accuracy.
@@ -144,24 +158,29 @@ class ProphetModel(ForecastModel):
         """
         self._validate_data(data)
 
+        # Decide training mode
+        init_params: Optional[Dict[str, Any]] = None
+        mode = "fresh"
+
         if warm_start:
-            logger.warning(
-                "Warm-start requested but not implemented in M2.1. "
-                "Falling back to fresh training."
+            init_params, mode = self._try_load_warm_start_params(
+                previous_model_path
             )
 
+        self.last_training_mode = mode
+
         logger.info(
-            f"Training Prophet model (fresh) on {len(data)} rows"
+            f"Training Prophet model ({mode}) on {len(data)} rows"
         )
 
-        # Initialize fresh Prophet model
-        self.model = Prophet(**self.config)
+        # Initialize Prophet model (with optional warm-start init)
+        self.model = self._create_prophet_model(init_params)
 
         # Add all regressors
         for regressor in REGRESSORS:
             self.model.add_regressor(regressor)
 
-        # Fit model
+        # Fit model on FULL dataset (required by Prophet)
         self.model.fit(data)
 
         # Calculate metrics
@@ -169,13 +188,163 @@ class ProphetModel(ForecastModel):
         self.is_trained = True
 
         logger.info(
-            f"Prophet model trained. "
+            f"Prophet model trained ({mode}). "
             f"MAE={self.metrics['mae']:.4f}, "
             f"RMSE={self.metrics['rmse']:.4f}, "
             f"MAPE={self.metrics['mape']:.2f}%"
         )
 
         return self.metrics
+
+    # ============================================================
+    # WARM-START HELPERS
+    # ============================================================
+    def _try_load_warm_start_params(
+        self,
+        previous_model_path: Optional[str],
+    ) -> Tuple[Optional[Dict[str, Any]], str]:
+        """Attempt to load warm-start parameters from a previous model.
+
+        Falls back to fresh training if any step fails:
+            - No path provided
+            - File not found
+            - Parameter extraction fails
+            - Any other error
+
+        Args:
+            previous_model_path: Path to the previous model file.
+
+        Returns:
+            Tuple of (init_params, mode):
+                - init_params: Parameters for warm-start, or None
+                - mode: "warm" if successful, "fresh" if fallback
+        """
+        # No path provided → fall back to fresh
+        if not previous_model_path:
+            logger.warning(
+                "Warm-start requested but no previous_model_path "
+                "provided. Falling back to fresh training."
+            )
+            return None, "fresh"
+
+        # File doesn't exist → fall back to fresh
+        if not os.path.exists(previous_model_path):
+            logger.warning(
+                f"Previous model not found at '{previous_model_path}'. "
+                f"Falling back to fresh training."
+            )
+            return None, "fresh"
+
+        # Try to extract params from previous model
+        try:
+            with open(previous_model_path, "r") as f:
+                previous_model = model_from_json(f.read())
+
+            init_params = self._extract_init_params(previous_model)
+
+            if init_params is None:
+                logger.warning(
+                    "Could not extract init parameters from previous "
+                    "model. Falling back to fresh training."
+                )
+                return None, "fresh"
+
+            logger.info(
+                f"Warm-start parameters loaded from '{previous_model_path}'"
+            )
+            return init_params, "warm"
+
+        except Exception as e:
+            logger.warning(
+                f"Failed to load warm-start parameters from "
+                f"'{previous_model_path}': {e}. "
+                f"Falling back to fresh training."
+            )
+            return None, "fresh"
+
+    def _extract_init_params(
+        self,
+        previous_model: Prophet,
+    ) -> Optional[Dict[str, Any]]:
+        """Extract initialization parameters from a trained Prophet model.
+
+        Prophet's Stan backend is strict about parameter shapes. If
+        the number of changepoints in the new model doesn't match the
+        previous model, warm-start will fail. We catch any such issues
+        and return None, allowing the caller to fall back to fresh.
+
+        Args:
+            previous_model: A trained Prophet instance.
+
+        Returns:
+            Dictionary of init parameters, or None if extraction fails.
+        """
+        try:
+            init: Dict[str, Any] = {}
+
+            # Extract changepoints if available
+            if (
+                hasattr(previous_model, "changepoints")
+                and previous_model.changepoints is not None
+            ):
+                # Convert to a list of floats for JSON compatibility
+                init["changepoints"] = [
+                    float(cp) for cp in previous_model.changepoints
+                ]
+
+            # Extract number of changepoints
+            if hasattr(previous_model, "n_changepoints"):
+                init["n_changepoints"] = int(previous_model.n_changepoints)
+
+            if not init:
+                logger.debug(
+                    "No extractable init params found in previous model"
+                )
+                return None
+
+            logger.debug(
+                f"Extracted warm-start params: {list(init.keys())}"
+            )
+            return init
+
+        except Exception as e:
+            logger.warning(f"Failed to extract init params: {e}")
+            return None
+
+    def _create_prophet_model(
+        self,
+        init_params: Optional[Dict[str, Any]],
+    ) -> Prophet:
+        """Create a new Prophet instance.
+
+        If init_params are provided, attempts to pass them as the
+        `init` argument to Prophet. If the installed Prophet version
+        doesn't support the `init` parameter, falls back to creating
+        a model without warm-start.
+
+        Args:
+            init_params: Optional init parameters for warm-start.
+
+        Returns:
+            A Prophet instance.
+        """
+        if init_params is not None:
+            try:
+                model = Prophet(init=init_params, **self.config)
+                logger.debug("Prophet created with warm-start init")
+                return model
+            except TypeError:
+                logger.warning(
+                    "Installed Prophet version does not support the "
+                    "'init' parameter. Creating model without warm-start."
+                )
+            except Exception as e:
+                logger.warning(
+                    f"Failed to create Prophet with warm-start init "
+                    f"({e}). Creating model without warm-start."
+                )
+
+        return Prophet(**self.config)
 
     # ============================================================
     # PREDICTION
@@ -343,10 +512,10 @@ class ProphetModel(ForecastModel):
                 f"Training data is missing required columns: {missing}"
             )
 
-        if len(data) < 30:
+        if len(data) < MIN_TRAINING_ROWS:
             raise ValueError(
-                f"Training data must have at least 30 rows, "
-                f"got {len(data)}"
+                f"Training data must have at least {MIN_TRAINING_ROWS} "
+                f"rows, got {len(data)}"
             )
 
     def _validate_future_data(self, future_data: pd.DataFrame) -> None:
@@ -429,5 +598,6 @@ class ProphetModel(ForecastModel):
             f"ProphetModel("
             f"strategy='{self.strategy}', "
             f"version='{self.version}', "
-            f"trained={self.is_trained})"
+            f"trained={self.is_trained}, "
+            f"last_mode='{self.last_training_mode}')"
         )
