@@ -8,13 +8,13 @@ to. It uses SQLAlchemy Core (not ORM) because:
       — those live in later branches (T1.3, T3.2, T5.1)
 
 Tables:
-    - btc_prices:        Source — hourly BTC OHLCV + market metrics
-                         (written by Data Ingestion Service)
-    - macro_indicators:  Source — macro features (CPI, rates, etc.)
-                         (written by Data Ingestion Service)
-    - btc_predictions:   Target — hourly predictions from the AI Service
-                         (unified table, filtered by `horizon` and
-                         `model_name`; 24h today, 7d and multi-model later)
+    - btc_prices:              Source — hourly BTC OHLCV + market metrics
+                               (written by Data Ingestion Service)
+    - macro_indicators:        Source — macro features (CPI, rates, etc.)
+                               (written by Data Ingestion Service)
+    - btc_predictions:         Target — hourly predictions from the AI Service
+                               (unified table; 24h and 7d horizons)
+    - prediction_performance:  Target — per-point evaluation metrics (T5.1)
 
 Naming:
     Table names are pulled from Settings so they can be overridden
@@ -24,6 +24,7 @@ Naming:
 import logging
 
 from sqlalchemy import (
+    BigInteger,
     Column,
     DateTime,
     Float,
@@ -97,12 +98,15 @@ macro_indicators = Table(
 # Unified predictions table. Filtered by `horizon` ('24h' or '7d')
 # and `model_name` ('prophet', 'xgboost', 'lightgbm', ...).
 #
-# This is the schema T1.2 writes to. T1.3 will add the hypertable
-# DDL, indexes, and a migration file. The columns here are the
-# minimum required for T1.2's writes to succeed.
+# The `id` column was added in migration 003 as a surrogate key
+# for foreign-key references from prediction_performance.
+# BIGSERIAL in the migration implies NOT NULL + a sequence default,
+# so the DB always populates it — nullable=False matches reality.
 btc_predictions = Table(
     settings.db_table_predictions,
     metadata,
+    # Surrogate identifier (added in migration 003)
+    Column("id", BigInteger, nullable=False, unique=True),
     # Time the prediction is for (the forecast timestamp)
     Column("time", DateTime(timezone=True), primary_key=True),
     # Metadata
@@ -120,14 +124,72 @@ btc_predictions = Table(
 
 
 # ============================================================
-# INDEXES
+# TARGET TABLE: prediction_performance
 # ============================================================
-# T1.3 will define the canonical indexes as part of the migration.
-# This lightweight index helps the common read pattern used in T1.2:
-# "give me the latest predictions for a given horizon and model".
+# Per-evaluated-point metrics for stored predictions (T5.1).
+# One row per (prediction, actual price observed at forecast time).
+# Rolling metrics (mae, rmse, mape) are nullable and populated by
+# T5.2's backtesting pipeline. `market_condition` is populated by
+# T5.3's classification logic.
+prediction_performance = Table(
+    "prediction_performance",
+    metadata,
+    # Surrogate primary key
+    Column("id", BigInteger, primary_key=True),
+    # FK to btc_predictions.id
+    Column("prediction_id", BigInteger, nullable=False),
+    # Denormalized from btc_predictions for query performance
+    Column("horizon", String(8), nullable=False),
+    Column("model_name", String(64), nullable=False),
+    Column("model_version", String(64), nullable=False),
+    # Evaluation
+    Column("forecast_date", DateTime(timezone=True), nullable=False),
+    Column("predicted_price", Float, nullable=False),
+    Column("actual_price", Float, nullable=False),
+    # Rolling metrics (nullable — populated by T5.2)
+    Column("mae", Float, nullable=True),
+    Column("rmse", Float, nullable=True),
+    Column("mape", Float, nullable=True),
+    # Classification (nullable — populated by T5.3)
+    Column("market_condition", String(16), nullable=True),
+    # Housekeeping
+    Column("created_at", DateTime(timezone=True), server_default=text("now()")),
+)
+
+
+# ============================================================
+# INDEXES — btc_predictions
+# ============================================================
+# The composite read index is attached to the Core Table so
+# queries benefit from it. Other indexes are created by the
+# migrations only.
 Index(
     "idx_btc_predictions_horizon_model_time",
     btc_predictions.c.horizon,
     btc_predictions.c.model_name,
     btc_predictions.c.prediction_time,
 )
+
+
+# ============================================================
+# INDEXES — prediction_performance
+# ============================================================
+# The common read index for T5.5's endpoint: "latest metrics for
+# a horizon + model, over the last N days".
+Index(
+    "idx_prediction_performance_horizon_model_date",
+    prediction_performance.c.horizon,
+    prediction_performance.c.model_name,
+    prediction_performance.c.forecast_date,
+)
+
+
+# ============================================================
+# CONVENIENCE: table name constants
+# ============================================================
+# These are imported by repositories and tests so they don't
+# repeat string literals.
+TABLE_BTC_PRICES = settings.db_table_btc_prices
+TABLE_MACRO_INDICATORS = settings.db_table_macro_indicators
+TABLE_BTC_PREDICTIONS = settings.db_table_predictions
+TABLE_PREDICTION_PERFORMANCE = "prediction_performance"

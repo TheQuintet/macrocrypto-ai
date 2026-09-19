@@ -10,11 +10,12 @@ the same checks.
 
 Currently validates:
     - Prediction rows: bounds ordering, finiteness, enum membership
+    - Performance rows: metric non-negativity, market condition enum
 """
 
 import logging
 import math
-from typing import Iterable
+from typing import Any, Iterable, Optional
 
 from app.database.repositories.prediction_repository import PredictionRow
 
@@ -26,6 +27,7 @@ logger = logging.getLogger(__name__)
 # ============================================================
 VALID_HORIZONS = ("24h", "7d")
 VALID_CONFIDENCE_LEVELS = (0.70, 0.85, 0.95)
+VALID_MARKET_CONDITIONS = ("bull", "bear", "volatile", "neutral")
 
 
 # ============================================================
@@ -112,3 +114,137 @@ def validate_prediction_rows(
         validate_prediction_row(row, index=i)
 
     logger.debug("All prediction rows passed validation")
+
+
+# ============================================================
+# PERFORMANCE ROW VALIDATION
+# ============================================================
+def validate_performance_row(
+    row: Any,
+    index: int = 0,
+) -> None:
+    """Validate a single prediction_performance row.
+
+    The row may be a ``PerformanceRow`` dataclass, a dict, or any
+    object with the expected attributes. This keeps the validator
+    decoupled from the repository's concrete row type.
+
+    Checks:
+        - prediction_id is a positive integer
+        - horizon is one of '24h', '7d'
+        - model_name and model_version are non-empty
+        - forecast_date is present
+        - predicted_price and actual_price are finite and > 0
+        - mae, rmse, mape (if present) are finite and >= 0
+        - market_condition (if present) is one of the valid enum values
+
+    Args:
+        row: The row to validate (object or dict).
+        index: Row index (for error messages).
+
+    Raises:
+        ValueError: If the row violates any invariant.
+    """
+
+    def _get(name: str) -> Any:
+        """Read a field from a dict or object."""
+        if isinstance(row, dict):
+            return row.get(name)
+        return getattr(row, name, None)
+
+    # ---- 1. prediction_id ----
+    prediction_id = _get("prediction_id")
+    if prediction_id is None or not isinstance(prediction_id, int):
+        raise ValueError(
+            f"Row {index}: prediction_id must be an integer, "
+            f"got {prediction_id!r}"
+        )
+    if prediction_id <= 0:
+        raise ValueError(
+            f"Row {index}: prediction_id must be positive, "
+            f"got {prediction_id}"
+        )
+
+    # ---- 2. horizon ----
+    horizon = _get("horizon")
+    if horizon not in VALID_HORIZONS:
+        raise ValueError(
+            f"Row {index}: invalid horizon '{horizon}'. "
+            f"Must be one of {VALID_HORIZONS}."
+        )
+
+    # ---- 3. model_name / model_version ----
+    for field_name in ("model_name", "model_version"):
+        value = _get(field_name)
+        if not value or not str(value).strip():
+            raise ValueError(
+                f"Row {index}: {field_name} must be non-empty"
+            )
+
+    # ---- 4. forecast_date ----
+    forecast_date = _get("forecast_date")
+    if forecast_date is None:
+        raise ValueError(
+            f"Row {index}: forecast_date must be set"
+        )
+
+    # ---- 5. Prices: finite and positive ----
+    for field_name in ("predicted_price", "actual_price"):
+        value = _get(field_name)
+        if value is None or not math.isfinite(value):
+            raise ValueError(
+                f"Row {index}: {field_name} must be a finite number, "
+                f"got {value!r}"
+            )
+        if value <= 0:
+            raise ValueError(
+                f"Row {index}: {field_name} must be positive, "
+                f"got {value}"
+            )
+
+    # ---- 6. Metrics: nullable, but non-negative when present ----
+    for field_name in ("mae", "rmse", "mape"):
+        value = _get(field_name)
+        if value is None:
+            continue
+        if not math.isfinite(value):
+            raise ValueError(
+                f"Row {index}: {field_name} must be finite when set, "
+                f"got {value!r}"
+            )
+        if value < 0:
+            raise ValueError(
+                f"Row {index}: {field_name} must be >= 0, "
+                f"got {value}"
+            )
+
+    # ---- 7. market_condition: nullable, but must be in enum ----
+    market_condition = _get("market_condition")
+    if market_condition is not None and market_condition not in (
+        VALID_MARKET_CONDITIONS
+    ):
+        raise ValueError(
+            f"Row {index}: invalid market_condition "
+            f"'{market_condition}'. Must be one of "
+            f"{VALID_MARKET_CONDITIONS} or None."
+        )
+
+
+def validate_performance_rows(
+    rows: Iterable[Any],
+) -> None:
+    """Validate a batch of prediction_performance rows.
+
+    Fails on the first invalid row and includes its index in the
+    error message. Returns None on success.
+
+    Args:
+        rows: An iterable of performance rows (objects or dicts).
+
+    Raises:
+        ValueError: If any row is invalid.
+    """
+    for i, row in enumerate(rows):
+        validate_performance_row(row, index=i)
+
+    logger.debug("All performance rows passed validation")
