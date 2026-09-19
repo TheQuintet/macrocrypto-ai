@@ -4,7 +4,7 @@ Test organization:
     - TestProphetConfigBase: Base dataclass behavior
     - TestProphet24hDefaults: 24h-specific defaults
     - TestProphet24hSerialization: JSON round-trip + save/load
-    - TestProphet24hKwargs: build_prophet_kwargs() helper
+    - TestProphet24hKwargs: build_prophet_24h_kwargs() helper
     - TestProphet24hValidation: validate() error paths
     - TestProphet24hIntegration: builds a real ProphetModel adapter
     - TestProphet24hConstants: module constants
@@ -21,7 +21,7 @@ from app.ai import (
     Prophet24hConfig,
     ProphetConfig,
     ProphetModel,
-    build_prophet_kwargs,
+    build_prophet_24h_kwargs,
     PROPHET_24H_CONFIG,
 )
 from app.ai.configs.base import PROPHET_REGRESSORS
@@ -254,16 +254,16 @@ class TestProphet24hSerialization:
 # KWARGS HELPER TESTS
 # ============================================================
 class TestProphet24hKwargs:
-    """Tests for build_prophet_kwargs()."""
+    """Tests for build_prophet_24h_kwargs()."""
 
     def test_returns_dict(self) -> None:
-        """Test that build_prophet_kwargs returns a dict."""
-        kwargs = build_prophet_kwargs()
+        """Test that build_prophet_24h_kwargs returns a dict."""
+        kwargs = build_prophet_24h_kwargs()
         assert isinstance(kwargs, dict)
 
     def test_keys_match_prophet_hyperparams(self) -> None:
         """Test that returned keys are the Prophet hyperparameters."""
-        kwargs = build_prophet_kwargs()
+        kwargs = build_prophet_24h_kwargs()
         expected = {
             "changepoint_prior_scale",
             "seasonality_prior_scale",
@@ -278,7 +278,7 @@ class TestProphet24hKwargs:
 
     def test_excludes_horizon_metadata(self) -> None:
         """Test that horizon metadata is not in the kwargs."""
-        kwargs = build_prophet_kwargs()
+        kwargs = build_prophet_24h_kwargs()
         assert "horizon_label" not in kwargs
         assert "horizon_hours" not in kwargs
         assert "regressors" not in kwargs
@@ -288,7 +288,7 @@ class TestProphet24hKwargs:
     def test_values_match_config(self) -> None:
         """Test that kwargs values match the config values."""
         config = Prophet24hConfig()
-        kwargs = build_prophet_kwargs(config)
+        kwargs = build_prophet_24h_kwargs(config)
         assert kwargs["seasonality_mode"] == config.seasonality_mode
         assert kwargs["daily_seasonality"] == config.daily_seasonality
         assert kwargs["weekly_seasonality"] == config.weekly_seasonality
@@ -299,18 +299,18 @@ class TestProphet24hKwargs:
 
     def test_uses_singleton_by_default(self) -> None:
         """Test that the default argument is the module singleton."""
-        kwargs = build_prophet_kwargs()
+        kwargs = build_prophet_24h_kwargs()
         assert kwargs == PROPHET_24H_CONFIG.to_prophet_kwargs()
 
     def test_custom_config_override(self) -> None:
         """Test that a custom config changes the returned kwargs."""
         custom = Prophet24hConfig(changepoint_prior_scale=0.42)
-        kwargs = build_prophet_kwargs(custom)
+        kwargs = build_prophet_24h_kwargs(custom)
         assert kwargs["changepoint_prior_scale"] == 0.42
 
     def test_build_adapter_config_is_alias(self) -> None:
         """Test that build_adapter_config returns the same result."""
-        assert build_adapter_config() == build_prophet_kwargs()
+        assert build_adapter_config() == build_prophet_24h_kwargs()
 
 
 # ============================================================
@@ -371,8 +371,8 @@ class TestProphet24hIntegration:
     """Integration test: config flows into a real ProphetModel adapter."""
 
     def test_config_kwargs_accepted_by_adapter(self) -> None:
-        """Test that build_prophet_kwargs() output works with ProphetModel."""
-        kwargs = build_prophet_kwargs()
+        """Test that build_prophet_24h_kwargs() output works with ProphetModel."""
+        kwargs = build_prophet_24h_kwargs()
         model = ProphetModel(strategy="fresh", config=kwargs)
 
         # The adapter merges kwargs on top of its own DEFAULT_CONFIG
@@ -402,7 +402,7 @@ class TestProphet24hIntegration:
         # Build the config-driven adapter
         model = ProphetModel(
             strategy="fresh",
-            config=build_prophet_kwargs(),
+            config=build_prophet_24h_kwargs(),
         )
 
         # Synthetic hourly data

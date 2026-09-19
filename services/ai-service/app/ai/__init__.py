@@ -23,8 +23,11 @@ from app.ai.models import ProphetModel, XGBoostModel, LightGBMModel
 from app.ai.configs import (
     ProphetConfig,
     Prophet24hConfig,
-    build_prophet_kwargs,
+    Prophet7dConfig,
+    build_prophet_24h_kwargs,
+    build_prophet_7d_kwargs,
     PROPHET_24H_CONFIG,
+    PROPHET_7D_CONFIG,
 )
 
 __all__ = [
@@ -40,6 +43,9 @@ __all__ = [
     "LightGBMModel",
     "ProphetConfig",
     "Prophet24hConfig",
-    "build_prophet_kwargs",
+    "Prophet7dConfig",
+    "build_prophet_24h_kwargs",
+    "build_prophet_7d_kwargs",
     "PROPHET_24H_CONFIG",
+    "PROPHET_7D_CONFIG",
 ]
