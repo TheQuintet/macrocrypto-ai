@@ -2,7 +2,7 @@
 
 Wraps APScheduler's AsyncIOScheduler with:
     - Job registration (daily retrain, hourly 24h prediction,
-      daily 7d prediction, daily backtest)
+      daily 7d prediction, daily backtest, daily accuracy)
     - Lifecycle (start, shutdown) tied to FastAPI's lifespan
     - Failure handling (retries per settings.scheduler_max_retries)
     - Run history in SchedulerState
@@ -28,10 +28,12 @@ from apscheduler.triggers.cron import CronTrigger
 from app.config import settings
 from app.scheduler.jobs import (
     JOB_DAILY_7D_PREDICTION,
+    JOB_DAILY_ACCURACY,
     JOB_DAILY_BACKTEST,
     JOB_DAILY_RETRAIN,
     JOB_HOURLY_PREDICTION,
     daily_7d_prediction_job,
+    daily_accuracy_job,
     daily_backtest_job,
     daily_retrain_job,
     hourly_prediction_job,
@@ -52,6 +54,7 @@ JOB_ID_DAILY_RETRAIN = "daily_retrain"
 JOB_ID_HOURLY_PREDICTION = "hourly_prediction"
 JOB_ID_DAILY_7D_PREDICTION = "daily_7d_prediction"
 JOB_ID_DAILY_BACKTEST = "daily_backtest"
+JOB_ID_DAILY_ACCURACY = "daily_accuracy"
 
 
 # ============================================================
@@ -84,8 +87,6 @@ class SchedulerManager:
         self.enabled = (
             settings.scheduler_enabled if enabled is None else enabled
         )
-        # Use explicit None check — `state or default` would silently
-        # replace an empty (falsy) SchedulerState.
         self.state = (
             state
             if state is not None
@@ -120,6 +121,7 @@ class SchedulerManager:
         self._register_hourly_prediction_job()
         self._register_daily_7d_prediction_job()
         self._register_daily_backtest_job()
+        self._register_daily_accuracy_job()
 
         logger.info("Scheduler setup complete")
 
@@ -143,7 +145,7 @@ class SchedulerManager:
         if self._scheduler is None:
             self.setup()
 
-        assert self._scheduler is not None  # for type checkers
+        assert self._scheduler is not None
 
         self._scheduler.start()
         self._started = True
@@ -170,22 +172,20 @@ class SchedulerManager:
             raise RuntimeError("Scheduler not set up")
 
         trigger = CronTrigger(
-            hour=settings.retrain_hour,      # 6
-            minute=settings.retrain_minute,  # 0
+            hour=settings.retrain_hour,
+            minute=settings.retrain_minute,
             timezone=settings.retrain_timezone,
         )
 
         self._scheduler.add_job(
-            func=self._wrap_job(
-                JOB_DAILY_RETRAIN, daily_retrain_job
-            ),
+            func=self._wrap_job(JOB_DAILY_RETRAIN, daily_retrain_job),
             trigger=trigger,
             id=JOB_ID_DAILY_RETRAIN,
             name="Daily model retraining",
             replace_existing=True,
             max_instances=1,
             coalesce=True,
-            misfire_grace_time=1800,  # 30 min grace — retrain is heavy
+            misfire_grace_time=1800,
         )
 
         logger.info(
@@ -275,13 +275,44 @@ class SchedulerManager:
             replace_existing=True,
             max_instances=1,
             coalesce=True,
-            misfire_grace_time=1800,  # 30 min grace — backtest is heavy
+            misfire_grace_time=1800,
         )
 
         logger.info(
             f"Registered job '{JOB_ID_DAILY_BACKTEST}' "
             f"(trigger: hour={settings.backtest_hour} "
             f"minute={settings.backtest_minute} "
+            f"tz={settings.retrain_timezone})"
+        )
+
+    def _register_daily_accuracy_job(self) -> None:
+        """Register the daily accuracy check job (7:00 AM UTC)."""
+        if self._scheduler is None:
+            raise RuntimeError("Scheduler not set up")
+
+        trigger = CronTrigger(
+            hour=settings.accuracy_hour,
+            minute=settings.accuracy_minute,
+            timezone=settings.retrain_timezone,
+        )
+
+        self._scheduler.add_job(
+            func=self._wrap_job(
+                JOB_DAILY_ACCURACY, daily_accuracy_job
+            ),
+            trigger=trigger,
+            id=JOB_ID_DAILY_ACCURACY,
+            name="Daily accuracy threshold check",
+            replace_existing=True,
+            max_instances=1,
+            coalesce=True,
+            misfire_grace_time=300,
+        )
+
+        logger.info(
+            f"Registered job '{JOB_ID_DAILY_ACCURACY}' "
+            f"(trigger: hour={settings.accuracy_hour} "
+            f"minute={settings.accuracy_minute} "
             f"tz={settings.retrain_timezone})"
         )
 
@@ -366,10 +397,8 @@ class SchedulerManager:
                                 error=str(e),
                             )
                         )
-                        # Never re-raise — APScheduler shouldn't see it
                         return
 
-                    # Retrying — record the attempt as RETRIED
                     self.state.record(
                         JobRunRecord(
                             job_name=job_name,

@@ -11,10 +11,12 @@ Public API:
     - metadata: SQLAlchemy MetaData (shared root for all tables)
     - btc_prices, macro_indicators, btc_predictions: Core tables
     - prediction_performance: Core table for evaluation metrics
+    - threshold_breaches: Core table for threshold breach history
+    - TABLE_* constants: canonical table names
     - PredictionRepository, PredictionRow: prediction read/write repo
     - PerformanceRepository, PerformanceRow: performance read/write repo
-    - validate_prediction_row, validate_prediction_rows: validators
-    - validate_performance_row, validate_performance_rows: validators
+    - ThresholdRepository, ThresholdBreachRow: breach read/write repo
+    - Validators for prediction and performance rows
     - run_migrations: apply pending SQL migrations
 """
 
@@ -30,12 +32,20 @@ from app.database.tables import (
     macro_indicators,
     metadata,
     prediction_performance,
+    threshold_breaches,
+    TABLE_BTC_PREDICTIONS,
+    TABLE_BTC_PRICES,
+    TABLE_MACRO_INDICATORS,
+    TABLE_PREDICTION_PERFORMANCE,
+    TABLE_THRESHOLD_BREACHES,
 )
 from app.database.repositories import (
     PerformanceRepository,
     PerformanceRow,
     PredictionRepository,
     PredictionRow,
+    ThresholdBreachRow,
+    ThresholdRepository,
 )
 from app.database.validators import (
     validate_performance_row,
@@ -58,10 +68,18 @@ __all__ = [
     "macro_indicators",
     "btc_predictions",
     "prediction_performance",
+    "threshold_breaches",
+    "TABLE_BTC_PRICES",
+    "TABLE_MACRO_INDICATORS",
+    "TABLE_BTC_PREDICTIONS",
+    "TABLE_PREDICTION_PERFORMANCE",
+    "TABLE_THRESHOLD_BREACHES",
     "PredictionRepository",
     "PredictionRow",
     "PerformanceRepository",
     "PerformanceRow",
+    "ThresholdRepository",
+    "ThresholdBreachRow",
     "validate_prediction_row",
     "validate_prediction_rows",
     "validate_performance_row",

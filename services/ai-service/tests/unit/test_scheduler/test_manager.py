@@ -27,6 +27,7 @@ import pytest
 
 from app.scheduler.manager import (
     JOB_ID_DAILY_7D_PREDICTION,
+    JOB_ID_DAILY_ACCURACY,
     JOB_ID_DAILY_BACKTEST,
     JOB_ID_DAILY_RETRAIN,
     JOB_ID_HOURLY_PREDICTION,
@@ -104,8 +105,17 @@ class TestManagerSetup:
         finally:
             manager.shutdown()
 
-    def test_setup_registers_all_four_jobs(self) -> None:
-        """Test that setup registers exactly all four jobs."""
+    def test_setup_registers_daily_accuracy_job(self) -> None:
+        """Test that setup registers the daily accuracy check job."""
+        manager = SchedulerManager(enabled=False)
+        manager.setup()
+        try:
+            assert JOB_ID_DAILY_ACCURACY in manager.get_job_ids()
+        finally:
+            manager.shutdown()
+
+    def test_setup_registers_all_five_jobs(self) -> None:
+        """Test that setup registers exactly all five jobs."""
         manager = SchedulerManager(enabled=False)
         manager.setup()
         try:
@@ -116,6 +126,7 @@ class TestManagerSetup:
                     JOB_ID_HOURLY_PREDICTION,
                     JOB_ID_DAILY_7D_PREDICTION,
                     JOB_ID_DAILY_BACKTEST,
+                    JOB_ID_DAILY_ACCURACY,
                 ]
             )
         finally:
@@ -358,6 +369,7 @@ class TestManagerIntrospection:
             assert JOB_ID_HOURLY_PREDICTION in ids
             assert JOB_ID_DAILY_7D_PREDICTION in ids
             assert JOB_ID_DAILY_BACKTEST in ids
+            assert JOB_ID_DAILY_ACCURACY in ids
         finally:
             manager.shutdown()
 

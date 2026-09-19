@@ -11,6 +11,8 @@ Jobs currently registered:
     - daily_7d_prediction_job: generate 7d BTC predictions (6:30 AM UTC)
     - daily_backtest_job: walk-forward backtest all 6 models
       (6:45 AM UTC)
+    - daily_accuracy_job: check metrics against thresholds, record
+      breaches (7:00 AM UTC)
 
 Design:
     - Each job opens its own DB session via session_scope(); the
@@ -23,7 +25,7 @@ Design:
 """
 
 import logging
-from typing import Any, Callable, Dict, List, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from app.ai.backtest import BacktestResult, WalkForwardBacktester
 from app.ai.models import (
@@ -32,6 +34,10 @@ from app.ai.models import (
     XGBoostModel,
 )
 from app.ai.orchestrator import RetrainingOrchestrator
+from app.ai.thresholds import (
+    check_thresholds,
+    filter_breaches,
+)
 from app.config import settings
 from app.database.engine import session_scope
 from app.database.repositories.performance_repository import (
@@ -40,6 +46,10 @@ from app.database.repositories.performance_repository import (
 )
 from app.database.repositories.prediction_repository import (
     PredictionRepository,
+)
+from app.database.repositories.threshold_repository import (
+    ThresholdBreachRow,
+    ThresholdRepository,
 )
 from app.prediction.generator import PredictionGenerator
 from app.prediction.market import classify_market_condition_safe
@@ -57,6 +67,7 @@ JOB_DAILY_RETRAIN = "daily_retrain"
 JOB_HOURLY_PREDICTION = "hourly_prediction"
 JOB_DAILY_7D_PREDICTION = "daily_7d_prediction"
 JOB_DAILY_BACKTEST = "daily_backtest"
+JOB_DAILY_ACCURACY = "daily_accuracy"
 
 
 # ============================================================
@@ -83,6 +94,18 @@ BACKTEST_VARIANTS: List[Tuple[str, str, int]] = [
     ("lightgbm_fresh", "7d", 168),
     ("lightgbm_incremental", "24h", 24),
     ("lightgbm_incremental", "7d", 168),
+]
+
+
+# ============================================================
+# ACCURACY CHECK MATRIX
+# ============================================================
+# (model_name, horizon) pairs that the daily accuracy check
+# evaluates. Matches the 12 backtest variants so every model that
+# produced metrics is checked against thresholds.
+ACCURACY_CHECK_MATRIX: List[Tuple[str, str]] = [
+    (name, horizon)
+    for name, horizon, _ in BACKTEST_VARIANTS
 ]
 
 
@@ -514,6 +537,280 @@ def _result_to_rows(result: BacktestResult) -> List[PerformanceRow]:
                     prediction_id=None,
                 )
             )
+
+    return rows
+
+
+# ============================================================
+# DAILY ACCURACY JOB
+# ============================================================
+async def daily_accuracy_job() -> Dict[str, Any]:
+    """Check model metrics against thresholds and record breaches.
+
+    Runs daily at 7:00 AM UTC, after the backtest (6:45) has
+    written fresh metrics. Steps:
+        1. Open a DB session.
+        2. For each of the 12 (model, horizon) pairs:
+            a. Read the latest aggregated metrics
+            b. Check against thresholds
+            c. Record any breaches in threshold_breaches
+        3. Return a summary with breach counts per model.
+
+    No email/pager notifications yet — that comes in T5.6 along
+    with the 3-day streak escalation rule.
+
+    Returns:
+        Dict with keys: models_checked, breaches_detected,
+        breach_summary (dict keyed by "model_horizon"),
+        results (per-model dict), elapsed_seconds.
+
+    Raises:
+        RuntimeError: If no metrics could be checked.
+    """
+    import time
+
+    start = time.monotonic()
+    logger.info("Running daily_accuracy_job")
+
+    results: Dict[str, Dict[str, Any]] = {}
+    total_breaches = 0
+    models_checked = 0
+    models_failed = 0
+    breach_summary: Dict[str, Dict[str, bool]] = {}
+
+    async with session_scope() as session:
+        perf_repo = PerformanceRepository(session)
+        threshold_repo = ThresholdRepository(session)
+
+        for model_name, horizon in ACCURACY_CHECK_MATRIX:
+            key = f"{model_name}_{horizon}"
+            logger.debug(f"Checking thresholds for {key}")
+
+            try:
+                # ---- 1. Read the latest aggregated metrics ----
+                metrics = await perf_repo.fetch_latest_metrics(
+                    horizon=horizon,
+                    model_name=model_name,
+                )
+
+                if metrics is None:
+                    logger.debug(
+                        f"No metrics found for {key} — skipping"
+                    )
+                    results[key] = {
+                        "status": "no_metrics",
+                    }
+                    continue
+
+                # ---- 2. Compute mean actual price for normalization ----
+                # We need it to convert MAE/RMSE from USD to %.
+                # Use the (predictions, actuals) we already stored.
+                mean_actual_price = await _get_mean_actual_price(
+                    perf_repo,
+                    horizon=horizon,
+                    model_name=model_name,
+                    lookback_days=settings.accuracy_lookback_days,
+                )
+
+                # ---- 3. Check thresholds ----
+                checks = check_thresholds(
+                    mae=metrics.get("mae"),
+                    rmse=metrics.get("rmse"),
+                    mape=metrics.get("mape"),
+                    directional_accuracy=None,
+                    mean_actual_price=mean_actual_price,
+                )
+
+                breached = filter_breaches(checks)
+
+                # ---- 4. Record breaches ----
+                if breached:
+                    breach_rows = await _build_breach_rows(
+                        threshold_repo,
+                        horizon=horizon,
+                        model_name=model_name,
+                        checks=breached,
+                        model_version=metrics.get("model_version"),
+                    )
+                    written = await threshold_repo.save_breaches(
+                        breach_rows
+                    )
+                    total_breaches += written
+                else:
+                    written = 0
+
+                # ---- 5. Track per-model status ----
+                breach_summary[key] = {
+                    c.metric: c.breached for c in checks
+                }
+
+                results[key] = {
+                    "status": "success",
+                    "metrics": {
+                        "mae": metrics.get("mae"),
+                        "rmse": metrics.get("rmse"),
+                        "mape": metrics.get("mape"),
+                    },
+                    "mean_actual_price": mean_actual_price,
+                    "checks": [c.to_dict() for c in checks],
+                    "breaches_written": written,
+                }
+                models_checked += 1
+
+            except Exception as e:
+                logger.error(
+                    f"Accuracy check for {key} failed: {e}",
+                    exc_info=True,
+                )
+                results[key] = {
+                    "status": "failed",
+                    "error": str(e),
+                }
+                models_failed += 1
+
+    elapsed = time.monotonic() - start
+
+    summary = {
+        "models_checked": models_checked,
+        "models_failed": models_failed,
+        "breaches_detected": total_breaches,
+        "breach_summary": breach_summary,
+        "results": results,
+        "elapsed_seconds": elapsed,
+    }
+
+    logger.info(
+        f"daily_accuracy_job complete: "
+        f"{models_checked} models checked, "
+        f"{total_breaches} breaches recorded, "
+        f"in {elapsed:.3f}s"
+    )
+
+    if models_checked == 0 and models_failed > 0:
+        raise RuntimeError(
+            f"All {models_failed} accuracy checks failed"
+        )
+
+    return summary
+
+
+async def _get_mean_actual_price(
+    perf_repo: PerformanceRepository,
+    horizon: str,
+    model_name: str,
+    lookback_days: int,
+) -> Optional[float]:
+    """Return the mean actual price over the recent evaluation window.
+
+    Used to normalize MAE/RMSE from USD to % of mean price.
+
+    Args:
+        perf_repo: The performance repository.
+        horizon: Horizon label.
+        model_name: Model identifier.
+        lookback_days: How far back to average.
+
+    Returns:
+        Mean actual price, or None if no rows exist.
+    """
+    # Query the underlying table directly for a simple AVG.
+    from datetime import datetime, timedelta, timezone
+
+    from sqlalchemy import func, select
+
+    from app.database.tables import prediction_performance
+
+    since = datetime.now(timezone.utc) - timedelta(days=lookback_days)
+
+    stmt = select(
+        func.avg(prediction_performance.c.actual_price)
+    ).where(
+        prediction_performance.c.horizon == horizon,
+        prediction_performance.c.model_name == model_name,
+        prediction_performance.c.forecast_date >= since,
+    )
+
+    result = await perf_repo.session.execute(stmt)
+    value = result.scalar_one_or_none()
+
+    if value is None:
+        return None
+
+    return float(value)
+
+
+async def _build_breach_rows(
+    threshold_repo: ThresholdRepository,
+    horizon: str,
+    model_name: str,
+    checks: List[Any],
+    model_version: Optional[str] = None,
+) -> List[ThresholdBreachRow]:
+    """Build ThresholdBreachRow instances with consecutive-day counters.
+
+    For each breach, look up the previous breach of the same metric
+    and increment `consecutive_days` if the last breach was on the
+    previous day. Otherwise start a new streak.
+
+    Args:
+        threshold_repo: The threshold repository.
+        horizon: Horizon label.
+        model_name: Model identifier.
+        checks: The filtered (breached) ThresholdCheckResult list.
+        model_version: Optional model version string.
+
+    Returns:
+        List of ThresholdBreachRow instances.
+    """
+    from datetime import datetime, timezone
+
+    rows: List[ThresholdBreachRow] = []
+    now = datetime.now(timezone.utc)
+
+    for check in checks:
+        consecutive = 1
+
+        try:
+            previous = await threshold_repo.fetch_latest_breach(
+                horizon=horizon,
+                model_name=model_name,
+                metric=check.metric,
+            )
+
+            if previous is not None:
+                prev_detected = previous["detected_at"]
+                # `detected_at` is a datetime; make it tz-aware
+                if prev_detected.tzinfo is None:
+                    prev_detected = prev_detected.replace(
+                        tzinfo=timezone.utc
+                    )
+                # If the last breach was on the previous calendar day,
+                # extend the streak
+                days_between = (now.date() - prev_detected.date()).days
+                if days_between == 1:
+                    consecutive = int(previous["consecutive_days"]) + 1
+                elif days_between == 0:
+                    # Same day — keep the previous streak (idempotency)
+                    consecutive = int(previous["consecutive_days"])
+        except Exception as e:
+            logger.warning(
+                f"Failed to look up prior breach for "
+                f"{horizon}/{model_name}/{check.metric}: {e}"
+            )
+
+        rows.append(
+            ThresholdBreachRow(
+                horizon=horizon,
+                model_name=model_name,
+                metric=check.metric,
+                metric_unit=check.metric_unit,
+                value=check.value,
+                threshold=check.threshold,
+                breach_direction=check.breach_direction,
+                consecutive_days=consecutive,
+                model_version=model_version,
+            )
+        )
 
     return rows
 
