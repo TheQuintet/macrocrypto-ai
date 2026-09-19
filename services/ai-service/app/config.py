@@ -167,6 +167,15 @@ class Settings(BaseSettings):
     multi_model_prediction_hour: int = Field(default=6)
     multi_model_prediction_minute: int = Field(default=15)
 
+    # Model-performance aggregation job schedule (M7b): daily at
+    # 7:15 AM UTC, after the 6:45 backtest has written fresh rows to
+    # prediction_performance and after the 7:00 accuracy check has
+    # read the same source. This job copies the latest aggregate
+    # metrics into model_performance for the M8 multi-model
+    # performance API to read from.
+    model_performance_aggregation_hour: int = Field(default=7)
+    model_performance_aggregation_minute: int = Field(default=15)
+
     # ============================================================
     # BACKTEST PARAMETERS
     # ============================================================
