@@ -13,6 +13,9 @@ Jobs currently registered:
       (6:45 AM UTC)
     - daily_accuracy_job: check metrics against thresholds, record
       breaches (7:00 AM UTC)
+    - daily_multi_model_predictions_job: generate and store
+      predictions for the 5 non-prophet_fresh variants (6:15 AM UTC,
+      M6b)
 
 Design:
     - Each job opens its own DB session via session_scope(); the
@@ -68,6 +71,7 @@ JOB_HOURLY_PREDICTION = "hourly_prediction"
 JOB_DAILY_7D_PREDICTION = "daily_7d_prediction"
 JOB_DAILY_BACKTEST = "daily_backtest"
 JOB_DAILY_ACCURACY = "daily_accuracy"
+JOB_DAILY_MULTI_MODEL_PREDICTIONS = "daily_multi_model_predictions"
 
 
 # ============================================================
@@ -84,6 +88,34 @@ JOB_DAILY_ACCURACY = "daily_accuracy"
 BACKTEST_VARIANTS: List[Tuple[str, str, int]] = [
     ("prophet_fresh", "24h", 24),
     ("prophet_fresh", "7d", 168),
+    ("prophet_warm", "24h", 24),
+    ("prophet_warm", "7d", 168),
+    ("xgboost_fresh", "24h", 24),
+    ("xgboost_fresh", "7d", 168),
+    ("xgboost_incremental", "24h", 24),
+    ("xgboost_incremental", "7d", 168),
+    ("lightgbm_fresh", "24h", 24),
+    ("lightgbm_fresh", "7d", 168),
+    ("lightgbm_incremental", "24h", 24),
+    ("lightgbm_incremental", "7d", 168),
+]
+
+
+# ============================================================
+# MULTI-MODEL PREDICTION SPECS (M6b)
+# ============================================================
+# Every (variant, horizon) pair that the M6b prediction job
+# generates and stores. This list deliberately EXCLUDES
+# `prophet_fresh` because those predictions are already written
+# by hourly_prediction_job (24h) and daily_7d_prediction_job (7d).
+# Duplicating them here would produce two competing batches for the
+# same key with slightly different timestamps, which would make the
+# comparison endpoint's "latest batch" lookup non-deterministic.
+#
+# Tuple layout: (variant_name, horizon_label, horizon_hours)
+#
+# 5 variants × 2 horizons = 10 generator runs per daily run.
+MULTI_MODEL_VARIANTS: List[Tuple[str, str, int]] = [
     ("prophet_warm", "24h", 24),
     ("prophet_warm", "7d", 168),
     ("xgboost_fresh", "24h", 24),
@@ -144,6 +176,52 @@ def _variant_factory(variant_name: str) -> Callable[[], Any]:
         return lambda: LightGBMModel(strategy="incremental")
 
     raise ValueError(f"Unknown variant: {variant_name}")
+
+
+def _load_variant_model(variant_name: str) -> Any:
+    """Load a trained model variant from disk.
+
+    The daily retrain job saves every variant to
+    `{settings.model_save_dir}/{variant_name}.pkl` (see
+    RetrainingOrchestrator._retrain_single). This helper mirrors
+    that path exactly, so the two jobs always agree on where a
+    given variant lives.
+
+    Args:
+        variant_name: One of the names appearing in MULTI_MODEL_VARIANTS.
+
+    Returns:
+        A loaded ForecastModel instance, marked as trained.
+
+    Raises:
+        ValueError: If variant_name is unknown.
+        FileNotFoundError: If the saved artifact does not exist.
+        RuntimeError: If the loaded model does not report as trained.
+    """
+    if variant_name == "prophet_warm":
+        model = ProphetModel(strategy="warm")
+    elif variant_name == "xgboost_fresh":
+        model = XGBoostModel(strategy="fresh")
+    elif variant_name == "xgboost_incremental":
+        model = XGBoostModel(strategy="incremental")
+    elif variant_name == "lightgbm_fresh":
+        model = LightGBMModel(strategy="fresh")
+    elif variant_name == "lightgbm_incremental":
+        model = LightGBMModel(strategy="incremental")
+    else:
+        raise ValueError(f"Unknown variant: {variant_name}")
+
+    save_path = f"{settings.model_save_dir}/{variant_name}.pkl"
+    logger.debug(f"Loading model '{variant_name}' from '{save_path}'")
+    model.load(save_path)
+
+    if not model.is_model_trained():
+        raise RuntimeError(
+            f"Loaded model '{variant_name}' from '{save_path}' is not "
+            f"marked as trained"
+        )
+
+    return model
 
 
 # ============================================================
@@ -964,5 +1042,144 @@ async def daily_7d_prediction_job() -> Dict[str, Any]:
         f"daily_7d_prediction_job completed: "
         f"{result.rows_saved} rows saved in {result.elapsed_seconds:.3f}s"
     )
+
+    return summary
+
+
+# ============================================================
+# DAILY MULTI-MODEL PREDICTION JOB (M6b)
+# ============================================================
+async def daily_multi_model_predictions_job() -> Dict[str, Any]:
+    """Generate and store predictions for the 5 non-prophet variants.
+
+    Runs daily at 6:15 AM UTC, after the 6:00 retrain has saved all
+    six model artifacts to disk and before the 6:30 7d Prophet
+    prediction. The purpose is to populate `btc_predictions` with
+    rows from every model variant, so the M6a comparison endpoint
+    has real multi-model data to compare.
+
+    prophet_fresh is deliberately excluded: its 24h batch is
+    produced by hourly_prediction_job and its 7d batch by
+    daily_7d_prediction_job. Duplicating those here would create
+    competing batches for the same (horizon, model_name) key with
+    different `prediction_time` values, and the comparison
+    endpoint's "latest batch" lookup would become non-deterministic.
+
+    Steps:
+        1. For each (variant, horizon) in MULTI_MODEL_VARIANTS:
+            a. Load the trained model from
+               `{settings.model_save_dir}/{variant}.pkl`
+            b. Open a DB session
+            c. Build a PredictionGenerator for the horizon
+            d. Run generate() and let the generator write rows
+        2. Aggregate results and return a summary.
+
+    Failure isolation: each (variant, horizon) pair is wrapped in
+    its own try/except, so a missing or corrupt artifact for one
+    variant does not prevent the others from being written. The
+    job raises only if every pair failed.
+
+    Idempotency note: the generator writes a fresh batch each run
+    with a new `prediction_time`, and the comparison endpoint
+    always reads the latest batch. Re-running this job is therefore
+    safe — it just produces a newer batch that supersedes the
+    previous one.
+
+    Returns:
+        Dict with keys: variants_attempted (int),
+        variants_succeeded (int), variants_failed (int),
+        total_rows_saved (int), results (per-key dict),
+        elapsed_seconds.
+
+    Raises:
+        RuntimeError: If every (variant, horizon) pair failed.
+    """
+    import time
+
+    start = time.monotonic()
+    logger.info("Running daily_multi_model_predictions_job")
+
+    results: Dict[str, Dict[str, Any]] = {}
+    succeeded = 0
+    failed = 0
+    total_rows_saved = 0
+
+    for variant_name, horizon, horizon_hours in MULTI_MODEL_VARIANTS:
+        key = f"{variant_name}_{horizon}"
+        logger.info(f"Generating predictions for {key}")
+
+        try:
+            # ---- 1. Load the trained model ----
+            model = _load_variant_model(variant_name)
+
+            # ---- 2. Generate predictions in a fresh session ----
+            async with session_scope() as session:
+                repository = PredictionRepository(session)
+                generator = PredictionGenerator(
+                    model=model,
+                    repository=repository,
+                    horizon=horizon,
+                    horizon_hours=horizon_hours,
+                    confidence=0.85,
+                )
+                gen_result = await generator.generate()
+
+            if not gen_result.succeeded:
+                raise RuntimeError(
+                    f"Prediction generation failed: {gen_result.error}"
+                )
+
+            results[key] = {
+                "status": "success",
+                "variant": variant_name,
+                "horizon": horizon,
+                "model_name": gen_result.model_name,
+                "prediction_time": gen_result.prediction_time.isoformat(),
+                "rows_generated": gen_result.rows_generated,
+                "rows_saved": gen_result.rows_saved,
+                "elapsed_seconds": gen_result.elapsed_seconds,
+                "error": None,
+            }
+            succeeded += 1
+            total_rows_saved += gen_result.rows_saved
+
+        except Exception as e:
+            logger.error(
+                f"Multi-model prediction for {key} failed: {e}",
+                exc_info=True,
+            )
+            results[key] = {
+                "status": "failed",
+                "variant": variant_name,
+                "horizon": horizon,
+                "error": str(e),
+            }
+            failed += 1
+
+    elapsed = time.monotonic() - start
+
+    summary = {
+        "variants_attempted": len(MULTI_MODEL_VARIANTS),
+        "variants_succeeded": succeeded,
+        "variants_failed": failed,
+        "total_rows_saved": total_rows_saved,
+        "results": results,
+        "elapsed_seconds": elapsed,
+    }
+
+    logger.info(
+        f"daily_multi_model_predictions_job complete: "
+        f"{succeeded}/{len(MULTI_MODEL_VARIANTS)} pairs succeeded, "
+        f"{total_rows_saved} rows saved, in {elapsed:.3f}s"
+    )
+
+    # Only fail the whole job if EVERY pair failed. Partial success
+    # is acceptable — the successes produced real rows that the
+    # comparison endpoint can use.
+    if succeeded == 0:
+        raise RuntimeError(
+            f"All {len(MULTI_MODEL_VARIANTS)} multi-model prediction "
+            f"pairs failed"
+        )
 
     return summary

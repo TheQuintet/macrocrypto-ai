@@ -158,6 +158,15 @@ class Settings(BaseSettings):
     accuracy_hour: int = Field(default=7)
     accuracy_minute: int = Field(default=0)
 
+    # Multi-model prediction job schedule (M6b): daily at 6:15 AM UTC,
+    # after the 6:00 retrain (so all variants are fresh on disk) and
+    # before the 6:30 7d Prophet prediction. The job writes batches
+    # for the 5 non-prophet_fresh variants; the 24h Prophet batch is
+    # handled by hourly_prediction_job and the 7d Prophet batch by
+    # daily_7d_prediction_job, so this job does not duplicate them.
+    multi_model_prediction_hour: int = Field(default=6)
+    multi_model_prediction_minute: int = Field(default=15)
+
     # ============================================================
     # BACKTEST PARAMETERS
     # ============================================================
