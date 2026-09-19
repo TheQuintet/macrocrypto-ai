@@ -17,6 +17,7 @@ Tables:
     - prediction_performance:  Target — per-point evaluation metrics (T5.1)
     - threshold_breaches:      Target — threshold breach history (T5.4)
     - model_performance:       Target — per-model aggregate metrics (M7)
+    - btc_macro_correlation:   Target — BTC-vs-macro correlation metrics (A1.1)
 
 Naming:
     Table names are pulled from Settings so they can be overridden
@@ -243,6 +244,48 @@ model_performance = Table(
 
 
 # ============================================================
+# TARGET TABLE: btc_macro_correlation
+# ============================================================
+# One row per (indicator_name, window_days, calculated_at).
+# Stores the Pearson correlation between BTC price and each
+# macroeconomic indicator over a rolling window.
+#
+# Populated by A1.2's calculation logic; A1.3 derives the
+# strength and direction labels, A1.4 computes the p-value and
+# significance, and A1.6 exposes it via an API endpoint.
+#
+# The composite primary key is (indicator_name, window_days,
+# calculated_at) — a natural key. Unlike prediction_performance
+# and model_performance, there is no surrogate id because the
+# three business columns uniquely identify a row.
+btc_macro_correlation = Table(
+    "btc_macro_correlation",
+    metadata,
+    # Business key: which macro indicator
+    #   'inflation' — CPI-based
+    #   'rates'     — interest rate
+    #   'gdp'       — gross domestic product growth
+    #   'unemployment' — unemployment rate
+    Column("indicator_name", String(32), primary_key=True),
+    # Which rolling window (30 / 90 / 365 days)
+    Column("window_days", Integer, primary_key=True),
+    # When the calculation was computed (the timestamp of the run)
+    Column("calculated_at", DateTime(timezone=True), primary_key=True),
+    # Pearson correlation coefficient in [-1, 1]
+    Column("correlation_coefficient", Float, nullable=False),
+    # Derived label: 'strong', 'medium', or 'weak' (A1.3)
+    Column("strength", String(16), nullable=False),
+    # Derived label: 'positive' or 'negative' (A1.3)
+    Column("direction", String(16), nullable=False),
+    # Statistical significance (A1.4). Nullable so that A1.2 can
+    # write rows before significance is computed.
+    Column("p_value", Float, nullable=True),
+    # Housekeeping
+    Column("created_at", DateTime(timezone=True), server_default=text("now()")),
+)
+
+
+# ============================================================
 # INDEXES — btc_predictions
 # ============================================================
 # The composite read index is attached to the Core Table so
@@ -314,6 +357,35 @@ Index(
 
 
 # ============================================================
+# INDEXES — btc_macro_correlation
+# ============================================================
+# Single-column indexes for the three most common filter columns.
+Index(
+    "idx_btc_macro_correlation_indicator_name",
+    btc_macro_correlation.c.indicator_name,
+)
+Index(
+    "idx_btc_macro_correlation_window_days",
+    btc_macro_correlation.c.window_days,
+)
+Index(
+    "idx_btc_macro_correlation_calculated_at",
+    btc_macro_correlation.c.calculated_at,
+)
+
+# Composite index for the primary read pattern:
+# "give me the latest N rows for this (indicator, window)".
+# DESC on calculated_at because readers almost always want the
+# newest first (the A1.6 API returns the most recent correlation).
+Index(
+    "idx_btc_macro_correlation_indicator_window_calc",
+    btc_macro_correlation.c.indicator_name,
+    btc_macro_correlation.c.window_days,
+    btc_macro_correlation.c.calculated_at.desc(),
+)
+
+
+# ============================================================
 # CONVENIENCE: table name constants
 # ============================================================
 # These are imported by repositories and tests so they don't
@@ -324,3 +396,4 @@ TABLE_BTC_PREDICTIONS = settings.db_table_predictions
 TABLE_PREDICTION_PERFORMANCE = "prediction_performance"
 TABLE_THRESHOLD_BREACHES = "threshold_breaches"
 TABLE_MODEL_PERFORMANCE = "model_performance"
+TABLE_BTC_MACRO_CORRELATION = "btc_macro_correlation"

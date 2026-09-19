@@ -7,6 +7,8 @@ Test organization:
     - TestValidatePerformanceRows: performance batch validation
     - TestValidateModelPerformanceRow: single model performance row (M7)
     - TestValidateModelPerformanceRows: model performance batch (M7)
+    - TestValidateCorrelationRow: single correlation row (A1.1)
+    - TestValidateCorrelationRows: correlation batch (A1.1)
     - TestValidatorConstants: module constants
 """
 
@@ -18,8 +20,14 @@ import pytest
 from app.database.repositories.prediction_repository import PredictionRow
 from app.database.validators import (
     VALID_CONFIDENCE_LEVELS,
+    VALID_CORRELATION_DIRECTIONS,
+    VALID_CORRELATION_STRENGTHS,
+    VALID_CORRELATION_WINDOWS,
     VALID_HORIZONS,
+    VALID_INDICATOR_NAMES,
     VALID_MARKET_CONDITIONS,
+    validate_correlation_row,
+    validate_correlation_rows,
     validate_model_performance_row,
     validate_model_performance_rows,
     validate_performance_row,
@@ -84,6 +92,21 @@ def _make_model_perf_dict(**overrides) -> Dict[str, Any]:
         "directional_accuracy": 62.0,
         "sample_size": 480,
         "calculated_at": datetime.now(timezone.utc),
+    }
+    defaults.update(overrides)
+    return defaults
+
+
+def _make_correlation_dict(**overrides) -> Dict[str, Any]:
+    """Build a valid btc_macro_correlation row as a dict."""
+    defaults = {
+        "indicator_name": "inflation",
+        "window_days": 90,
+        "calculated_at": datetime.now(timezone.utc),
+        "correlation_coefficient": -0.42,
+        "strength": "medium",
+        "direction": "negative",
+        "p_value": 0.03,
     }
     defaults.update(overrides)
     return defaults
@@ -645,6 +668,260 @@ class TestValidateModelPerformanceRows:
 
 
 # ============================================================
+# CORRELATION ROW TESTS (A1.1)
+# ============================================================
+class TestValidateCorrelationRow:
+    """Tests for validate_correlation_row()."""
+
+    def test_valid_dict_passes(self) -> None:
+        """Test that a fully valid dict passes."""
+        validate_correlation_row(_make_correlation_dict())
+
+    def test_valid_object_passes(self) -> None:
+        """Test that a valid object-shaped row passes."""
+        validate_correlation_row(
+            _PerfObj(**_make_correlation_dict())
+        )
+
+    def test_none_p_value_passes(self) -> None:
+        """Test that None p_value passes (A1.4 not yet run)."""
+        validate_correlation_row(
+            _make_correlation_dict(p_value=None)
+        )
+
+    # ---- indicator_name ----
+
+    def test_invalid_indicator_raises(self) -> None:
+        """Test that an invalid indicator name raises."""
+        with pytest.raises(ValueError, match="invalid indicator_name"):
+            validate_correlation_row(
+                _make_correlation_dict(indicator_name="bogus")
+            )
+
+    def test_all_valid_indicators_pass(self) -> None:
+        """Test that all four valid indicator names pass."""
+        for name in ("inflation", "rates", "gdp", "unemployment"):
+            validate_correlation_row(
+                _make_correlation_dict(indicator_name=name)
+            )
+
+    # ---- window_days ----
+
+    def test_invalid_window_raises(self) -> None:
+        """Test that an invalid window raises."""
+        with pytest.raises(ValueError, match="invalid window_days"):
+            validate_correlation_row(
+                _make_correlation_dict(window_days=45)
+            )
+
+    def test_all_valid_windows_pass(self) -> None:
+        """Test that all three valid windows pass."""
+        for window in (30, 90, 365):
+            validate_correlation_row(
+                _make_correlation_dict(window_days=window)
+            )
+
+    # ---- calculated_at ----
+
+    def test_missing_calculated_at_raises(self) -> None:
+        """Test that a missing calculated_at raises."""
+        row = _make_correlation_dict()
+        del row["calculated_at"]
+        with pytest.raises(ValueError, match="calculated_at must be set"):
+            validate_correlation_row(row)
+
+    def test_none_calculated_at_raises(self) -> None:
+        """Test that a None calculated_at raises."""
+        with pytest.raises(ValueError, match="calculated_at must be set"):
+            validate_correlation_row(
+                _make_correlation_dict(calculated_at=None)
+            )
+
+    # ---- correlation_coefficient ----
+
+    def test_coefficient_above_one_raises(self) -> None:
+        """Test that a coefficient > 1 raises."""
+        with pytest.raises(
+            ValueError, match="correlation_coefficient must be in"
+        ):
+            validate_correlation_row(
+                _make_correlation_dict(correlation_coefficient=1.01)
+            )
+
+    def test_coefficient_below_minus_one_raises(self) -> None:
+        """Test that a coefficient < -1 raises."""
+        with pytest.raises(
+            ValueError, match="correlation_coefficient must be in"
+        ):
+            validate_correlation_row(
+                _make_correlation_dict(correlation_coefficient=-1.01)
+            )
+
+    def test_none_coefficient_raises(self) -> None:
+        """Test that a None coefficient raises."""
+        with pytest.raises(
+            ValueError, match="correlation_coefficient must be a finite"
+        ):
+            validate_correlation_row(
+                _make_correlation_dict(correlation_coefficient=None)
+            )
+
+    def test_nan_coefficient_raises(self) -> None:
+        """Test that a NaN coefficient raises."""
+        with pytest.raises(
+            ValueError, match="correlation_coefficient must be a finite"
+        ):
+            validate_correlation_row(
+                _make_correlation_dict(
+                    correlation_coefficient=float("nan")
+                )
+            )
+
+    def test_inf_coefficient_raises(self) -> None:
+        """Test that an infinite coefficient raises."""
+        with pytest.raises(
+            ValueError, match="correlation_coefficient must be a finite"
+        ):
+            validate_correlation_row(
+                _make_correlation_dict(
+                    correlation_coefficient=float("inf")
+                )
+            )
+
+    def test_boundary_coefficient_minus_one_passes(self) -> None:
+        """Test that -1.0 is a valid coefficient (boundary)."""
+        validate_correlation_row(
+            _make_correlation_dict(correlation_coefficient=-1.0)
+        )
+
+    def test_boundary_coefficient_plus_one_passes(self) -> None:
+        """Test that +1.0 is a valid coefficient (boundary)."""
+        validate_correlation_row(
+            _make_correlation_dict(correlation_coefficient=1.0)
+        )
+
+    def test_boundary_coefficient_zero_passes(self) -> None:
+        """Test that 0.0 is a valid coefficient."""
+        validate_correlation_row(
+            _make_correlation_dict(correlation_coefficient=0.0)
+        )
+
+    # ---- strength ----
+
+    def test_invalid_strength_raises(self) -> None:
+        """Test that an invalid strength raises."""
+        with pytest.raises(ValueError, match="invalid strength"):
+            validate_correlation_row(
+                _make_correlation_dict(strength="enormous")
+            )
+
+    def test_all_valid_strengths_pass(self) -> None:
+        """Test that all three valid strengths pass."""
+        for s in ("strong", "medium", "weak"):
+            validate_correlation_row(
+                _make_correlation_dict(strength=s)
+            )
+
+    # ---- direction ----
+
+    def test_invalid_direction_raises(self) -> None:
+        """Test that an invalid direction raises."""
+        with pytest.raises(ValueError, match="invalid direction"):
+            validate_correlation_row(
+                _make_correlation_dict(direction="neutral")
+            )
+
+    def test_all_valid_directions_pass(self) -> None:
+        """Test that both valid directions pass."""
+        for d in ("positive", "negative"):
+            validate_correlation_row(
+                _make_correlation_dict(direction=d)
+            )
+
+    # ---- p_value ----
+
+    def test_p_value_above_one_raises(self) -> None:
+        """Test that a p_value > 1 raises."""
+        with pytest.raises(ValueError, match="p_value must be in"):
+            validate_correlation_row(
+                _make_correlation_dict(p_value=1.5)
+            )
+
+    def test_p_value_below_zero_raises(self) -> None:
+        """Test that a p_value < 0 raises."""
+        with pytest.raises(ValueError, match="p_value must be in"):
+            validate_correlation_row(
+                _make_correlation_dict(p_value=-0.1)
+            )
+
+    def test_boundary_p_value_zero_passes(self) -> None:
+        """Test that p_value == 0 passes (boundary)."""
+        validate_correlation_row(
+            _make_correlation_dict(p_value=0.0)
+        )
+
+    def test_boundary_p_value_one_passes(self) -> None:
+        """Test that p_value == 1 passes (boundary)."""
+        validate_correlation_row(
+            _make_correlation_dict(p_value=1.0)
+        )
+
+    def test_nan_p_value_raises(self) -> None:
+        """Test that a NaN p_value raises."""
+        with pytest.raises(
+            ValueError, match="p_value must be finite when set"
+        ):
+            validate_correlation_row(
+                _make_correlation_dict(p_value=float("nan"))
+            )
+
+    # ---- error message ----
+
+    def test_error_message_includes_index(self) -> None:
+        """Test that error messages include the row index."""
+        with pytest.raises(ValueError, match="Row 7"):
+            validate_correlation_row(
+                _make_correlation_dict(indicator_name="bogus"), index=7
+            )
+
+
+# ============================================================
+# CORRELATION BATCH TESTS (A1.1)
+# ============================================================
+class TestValidateCorrelationRows:
+    """Tests for validate_correlation_rows()."""
+
+    def test_empty_list_passes(self) -> None:
+        """Test that an empty list passes."""
+        validate_correlation_rows([])
+
+    def test_all_valid_rows_pass(self) -> None:
+        """Test that a batch of valid rows passes."""
+        rows = [_make_correlation_dict() for _ in range(5)]
+        validate_correlation_rows(rows)
+
+    def test_single_invalid_row_in_batch_fails(self) -> None:
+        """Test that one invalid row in a batch raises with its index."""
+        rows = [
+            _make_correlation_dict(),
+            _make_correlation_dict(),
+            _make_correlation_dict(indicator_name="bogus"),  # index 2
+            _make_correlation_dict(),
+        ]
+        with pytest.raises(ValueError, match="Row 2"):
+            validate_correlation_rows(rows)
+
+    def test_validation_stops_at_first_error(self) -> None:
+        """Test that validation stops at the first invalid row."""
+        rows = [
+            _make_correlation_dict(indicator_name="bogus"),  # index 0
+            _make_correlation_dict(window_days=45),  # index 1 — would fail
+        ]
+        with pytest.raises(ValueError, match="Row 0"):
+            validate_correlation_rows(rows)
+
+
+# ============================================================
 # CONSTANTS
 # ============================================================
 class TestValidatorConstants:
@@ -665,4 +942,32 @@ class TestValidatorConstants:
             "bear",
             "volatile",
             "neutral",
+        )
+
+    def test_valid_indicator_names(self) -> None:
+        """Test that VALID_INDICATOR_NAMES contains the four labels."""
+        assert VALID_INDICATOR_NAMES == (
+            "inflation",
+            "rates",
+            "gdp",
+            "unemployment",
+        )
+
+    def test_valid_correlation_windows(self) -> None:
+        """Test that VALID_CORRELATION_WINDOWS contains 30, 90, 365."""
+        assert VALID_CORRELATION_WINDOWS == (30, 90, 365)
+
+    def test_valid_correlation_strengths(self) -> None:
+        """Test that VALID_CORRELATION_STRENGTHS contains three labels."""
+        assert VALID_CORRELATION_STRENGTHS == (
+            "strong",
+            "medium",
+            "weak",
+        )
+
+    def test_valid_correlation_directions(self) -> None:
+        """Test that VALID_CORRELATION_DIRECTIONS contains two labels."""
+        assert VALID_CORRELATION_DIRECTIONS == (
+            "positive",
+            "negative",
         )
