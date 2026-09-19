@@ -19,6 +19,7 @@ Tables:
     - model_performance:       Target — per-model aggregate metrics (M7)
     - btc_macro_correlation:   Target — BTC-vs-macro correlation metrics (A1.1)
     - export_history:          Target — export request history (A2.1)
+    - historical_event_impacts: Target — historical event impact data (A5.1)
 
 Naming:
     Table names are pulled from Settings so they can be overridden
@@ -30,6 +31,7 @@ import logging
 from sqlalchemy import (
     BigInteger,
     Column,
+    Date,
     DateTime,
     Float,
     Index,
@@ -364,6 +366,74 @@ export_history = Table(
 
 
 # ============================================================
+# TARGET TABLE: historical_event_impacts
+# ============================================================
+# One row per historical event and the BTC reaction to it. The
+# row records the event's identity (event_name, event_date), its
+# classified significance (impact_level), and the price reaction
+# over the 48-hour window centered on the event date
+# (btc_price_before, btc_price_after, price_change_percent,
+# volatility, direction).
+#
+# Populated by A5.2's reaction calculation; A5.3 aggregates the
+# per-event rows into per-event-type metrics; A5.4 exposes both
+# via an API endpoint; A5.5 runs the update as a scheduled job.
+#
+# Design notes:
+#   - event_date is a DATE, not a TIMESTAMPTZ. Events happen on a
+#     calendar day, and the BTC price window that defines the
+#     reaction is measured in days relative to it. Using a date
+#     avoids timezone ambiguity: "the FOMC meeting of 2024-03-20"
+#     is a date, not a moment.
+#   - UNIQUE (event_name, event_date) enforces the natural key.
+#     The same event does not happen twice on the same day; if a
+#     loader re-processes the same event (e.g. after correcting
+#     the price window), it must UPSERT rather than INSERT. This
+#     makes A5.5's daily job idempotent by construction.
+#   - btc_price_before and btc_price_after are NOT NULL with a
+#     positive-value CHECK. An event with no price before or
+#     after its window is not a valid row; A5.2 should skip it
+#     rather than write a row with NULLs.
+#   - volatility is the standard deviation of percentage returns
+#     over the window, so it is non-negative by definition. The
+#     CHECK enforces that.
+#   - direction has no CHECK in the migration beyond the enum
+#     values ('up', 'down', 'neutral'). It is derived from
+#     price_change_percent, but the table stores both because
+#     a threshold can move a near-zero change into "neutral"
+#     without changing the exact percentage.
+historical_event_impacts = Table(
+    "historical_event_impacts",
+    metadata,
+    # Surrogate primary key
+    Column("id", BigInteger, primary_key=True),
+    # Event identity — the natural key is (event_name, event_date)
+    Column("event_name", String(64), nullable=False),
+    Column("event_date", Date, nullable=False),
+    # Classified significance: 'high', 'medium', or 'low'
+    Column("impact_level", String(16), nullable=False),
+    # Price before the event (24h before the event date)
+    Column("btc_price_before", Float, nullable=False),
+    # Price after the event (24h after the event date)
+    Column("btc_price_after", Float, nullable=False),
+    # Percentage change from before to after (signed)
+    Column("price_change_percent", Float, nullable=False),
+    # Standard deviation of percentage returns over the window
+    # (non-negative by definition)
+    Column("volatility", Float, nullable=False),
+    # Derived direction: 'up', 'down', or 'neutral'
+    Column("direction", String(16), nullable=False),
+    # Housekeeping
+    Column(
+        "created_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+    ),
+)
+
+
+# ============================================================
 # INDEXES — btc_predictions
 # ============================================================
 # The composite read index is attached to the Core Table so
@@ -489,6 +559,23 @@ Index(
 
 
 # ============================================================
+# INDEXES — historical_event_impacts
+# ============================================================
+# Index on event_name for "all reactions to event type X".
+Index(
+    "idx_historical_event_impacts_event_name",
+    historical_event_impacts.c.event_name,
+)
+
+# Index on event_date for "all events in this date range". DESC
+# because readers almost always want the newest events first.
+Index(
+    "idx_historical_event_impacts_event_date",
+    historical_event_impacts.c.event_date.desc(),
+)
+
+
+# ============================================================
 # CONVENIENCE: table name constants
 # ============================================================
 # These are imported by repositories and tests so they don't
@@ -501,3 +588,4 @@ TABLE_THRESHOLD_BREACHES = "threshold_breaches"
 TABLE_MODEL_PERFORMANCE = "model_performance"
 TABLE_BTC_MACRO_CORRELATION = "btc_macro_correlation"
 TABLE_EXPORT_HISTORY = "export_history"
+TABLE_HISTORICAL_EVENT_IMPACTS = "historical_event_impacts"

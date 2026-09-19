@@ -17,10 +17,13 @@ Currently validates:
       coefficient and p_value ranges (A1.1)
     - Export history rows: export_type/timeframe/status enums,
       data_types contents, optional user_id and file_size (A2.1)
+    - Historical event impact rows: event_name/impact_level/direction
+      enums, positive prices, non-negative volatility (A5.1)
 """
 
 import logging
 import math
+from datetime import date
 from typing import Any, Iterable, Optional
 
 from app.database.repositories.prediction_repository import PredictionRow
@@ -62,6 +65,10 @@ VALID_DATA_TYPE_NAMES = (
     "events",
     "chart",
 )
+
+# A5.1 — historical event impact enums
+VALID_IMPACT_LEVELS = ("high", "medium", "low")
+VALID_EVENT_DIRECTIONS = ("up", "down", "neutral")
 
 
 # ============================================================
@@ -680,3 +687,159 @@ def validate_export_history_rows(
         validate_export_history_row(row, index=i)
 
     logger.debug("All export history rows passed validation")
+
+
+# ============================================================
+# HISTORICAL EVENT IMPACT ROW VALIDATION (A5.1)
+# ============================================================
+def validate_historical_event_impact_row(
+    row: Any,
+    index: int = 0,
+) -> None:
+    """Validate a single historical_event_impacts row.
+
+    The row may be a dataclass, a dict, or any object with the
+    expected attributes. This keeps the validator decoupled from
+    the repository's concrete row type.
+
+    Checks:
+        - event_name is a non-empty string
+        - event_date is a date (not a datetime)
+        - impact_level is one of 'high', 'medium', 'low'
+        - btc_price_before is finite and > 0
+        - btc_price_after is finite and > 0
+        - price_change_percent is finite (sign is meaningful —
+          negative means BTC fell, so no non-negativity check)
+        - volatility is finite and >= 0
+        - direction is one of 'up', 'down', 'neutral'
+
+    Note: this validator does NOT check that `direction` is
+    consistent with the sign of `price_change_percent`. That
+    consistency depends on a threshold that lives in the A5.2
+    calculation, not in this module. The table stores both fields
+    because a near-zero change can be classified as neutral even
+    though the exact percentage is not zero.
+
+    Args:
+        row: The row to validate (object or dict).
+        index: Row index (for error messages).
+
+    Raises:
+        ValueError: If the row violates any invariant.
+    """
+
+    def _get(name: str) -> Any:
+        """Read a field from a dict or object."""
+        if isinstance(row, dict):
+            return row.get(name)
+        return getattr(row, name, None)
+
+    # ---- 1. event_name ----
+    event_name = _get("event_name")
+    if not event_name or not str(event_name).strip():
+        raise ValueError(
+            f"Row {index}: event_name must be non-empty"
+        )
+
+    # ---- 2. event_date ----
+    event_date = _get("event_date")
+    if event_date is None:
+        raise ValueError(
+            f"Row {index}: event_date must be set"
+        )
+    # Accept a datetime.date, but not a datetime.datetime (which is
+    # a subclass of date). Storing a timestamp in a DATE column
+    # would silently truncate; better to reject the wrong type.
+    from datetime import datetime as _datetime
+    if isinstance(event_date, _datetime):
+        raise ValueError(
+            f"Row {index}: event_date must be a date, not a datetime"
+        )
+    if not isinstance(event_date, date):
+        raise ValueError(
+            f"Row {index}: event_date must be a date, "
+            f"got {type(event_date).__name__}"
+        )
+
+    # ---- 3. impact_level ----
+    impact_level = _get("impact_level")
+    if impact_level not in VALID_IMPACT_LEVELS:
+        raise ValueError(
+            f"Row {index}: invalid impact_level '{impact_level}'. "
+            f"Must be one of {VALID_IMPACT_LEVELS}."
+        )
+
+    # ---- 4. btc_price_before: finite and > 0 ----
+    before = _get("btc_price_before")
+    if before is None or not math.isfinite(before):
+        raise ValueError(
+            f"Row {index}: btc_price_before must be a finite number, "
+            f"got {before!r}"
+        )
+    if before <= 0:
+        raise ValueError(
+            f"Row {index}: btc_price_before must be positive, "
+            f"got {before}"
+        )
+
+    # ---- 5. btc_price_after: finite and > 0 ----
+    after = _get("btc_price_after")
+    if after is None or not math.isfinite(after):
+        raise ValueError(
+            f"Row {index}: btc_price_after must be a finite number, "
+            f"got {after!r}"
+        )
+    if after <= 0:
+        raise ValueError(
+            f"Row {index}: btc_price_after must be positive, "
+            f"got {after}"
+        )
+
+    # ---- 6. price_change_percent: finite (sign is meaningful) ----
+    change = _get("price_change_percent")
+    if change is None or not math.isfinite(change):
+        raise ValueError(
+            f"Row {index}: price_change_percent must be a finite "
+            f"number, got {change!r}"
+        )
+
+    # ---- 7. volatility: finite and >= 0 ----
+    volatility = _get("volatility")
+    if volatility is None or not math.isfinite(volatility):
+        raise ValueError(
+            f"Row {index}: volatility must be a finite number, "
+            f"got {volatility!r}"
+        )
+    if volatility < 0:
+        raise ValueError(
+            f"Row {index}: volatility must be >= 0, "
+            f"got {volatility}"
+        )
+
+    # ---- 8. direction ----
+    direction = _get("direction")
+    if direction not in VALID_EVENT_DIRECTIONS:
+        raise ValueError(
+            f"Row {index}: invalid direction '{direction}'. "
+            f"Must be one of {VALID_EVENT_DIRECTIONS}."
+        )
+
+
+def validate_historical_event_impact_rows(
+    rows: Iterable[Any],
+) -> None:
+    """Validate a batch of historical_event_impacts rows.
+
+    Fails on the first invalid row and includes its index in the
+    error message. Returns None on success.
+
+    Args:
+        rows: An iterable of event impact rows (objects or dicts).
+
+    Raises:
+        ValueError: If any row is invalid.
+    """
+    for i, row in enumerate(rows):
+        validate_historical_event_impact_row(row, index=i)
+
+    logger.debug("All historical event impact rows passed validation")

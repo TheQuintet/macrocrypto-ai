@@ -11,6 +11,8 @@ Test organization:
     - TestValidateCorrelationRows: correlation batch (A1.1)
     - TestValidateExportHistoryRow: single export history row (A2.1)
     - TestValidateExportHistoryRows: export history batch (A2.1)
+    - TestValidateHistoricalEventImpactRow: single event impact row (A5.1)
+    - TestValidateHistoricalEventImpactRows: event impact batch (A5.1)
     - TestValidatorConstants: module constants
 """
 
@@ -26,16 +28,20 @@ from app.database.validators import (
     VALID_CORRELATION_STRENGTHS,
     VALID_CORRELATION_WINDOWS,
     VALID_DATA_TYPE_NAMES,
+    VALID_EVENT_DIRECTIONS,
     VALID_EXPORT_STATUSES,
     VALID_EXPORT_TIMEFRAMES,
     VALID_EXPORT_TYPES,
     VALID_HORIZONS,
+    VALID_IMPACT_LEVELS,
     VALID_INDICATOR_NAMES,
     VALID_MARKET_CONDITIONS,
     validate_correlation_row,
     validate_correlation_rows,
     validate_export_history_row,
     validate_export_history_rows,
+    validate_historical_event_impact_row,
+    validate_historical_event_impact_rows,
     validate_model_performance_row,
     validate_model_performance_rows,
     validate_performance_row,
@@ -130,6 +136,24 @@ def _make_export_history_dict(**overrides) -> Dict[str, Any]:
         "file_name": "macro-crypto-btc_price-90d-2026-09-15.csv",
         "file_size": 2048,
         "status": "pending",
+    }
+    defaults.update(overrides)
+    return defaults
+
+
+def _make_event_impact_dict(**overrides) -> Dict[str, Any]:
+    """Build a valid historical_event_impacts row as a dict."""
+    from datetime import date as _date
+
+    defaults = {
+        "event_name": "FOMC",
+        "event_date": _date(2024, 3, 20),
+        "impact_level": "high",
+        "btc_price_before": 63000.0,
+        "btc_price_after": 65500.0,
+        "price_change_percent": 3.97,
+        "volatility": 0.021,
+        "direction": "up",
     }
     defaults.update(overrides)
     return defaults
@@ -937,7 +961,8 @@ class TestValidateCorrelationRows:
     def test_validation_stops_at_first_error(self) -> None:
         """Test that validation stops at the first invalid row."""
         rows = [
-            _make_correlation_dict(indicator_name="bogus"),  # index 0            _make_correlation_dict(window_days=45),  # index 1 — would fail
+            _make_correlation_dict(indicator_name="bogus"),  # index 0
+            _make_correlation_dict(window_days=45),  # index 1 — would fail
         ]
         with pytest.raises(ValueError, match="Row 0"):
             validate_correlation_rows(rows)
@@ -1195,6 +1220,254 @@ class TestValidateExportHistoryRows:
 
 
 # ============================================================
+# HISTORICAL EVENT IMPACT ROW TESTS (A5.1)
+# ============================================================
+class TestValidateHistoricalEventImpactRow:
+    """Tests for validate_historical_event_impact_row()."""
+
+    def test_valid_dict_passes(self) -> None:
+        """Test that a fully valid dict passes."""
+        validate_historical_event_impact_row(_make_event_impact_dict())
+
+    def test_valid_object_passes(self) -> None:
+        """Test that a valid object-shaped row passes."""
+        validate_historical_event_impact_row(
+            _PerfObj(**_make_event_impact_dict())
+        )
+
+    def test_negative_change_passes(self) -> None:
+        """Test that a negative price change passes (sign is
+        meaningful — negative means BTC fell)."""
+        validate_historical_event_impact_row(
+            _make_event_impact_dict(price_change_percent=-3.5)
+        )
+
+    def test_zero_change_passes(self) -> None:
+        """Test that a zero price change passes (boundary)."""
+        validate_historical_event_impact_row(
+            _make_event_impact_dict(price_change_percent=0.0)
+        )
+
+    # ---- event_name ----
+
+    def test_empty_event_name_raises(self) -> None:
+        """Test that an empty event_name raises."""
+        with pytest.raises(ValueError, match="event_name must be non-empty"):
+            validate_historical_event_impact_row(
+                _make_event_impact_dict(event_name="")
+            )
+
+    def test_whitespace_event_name_raises(self) -> None:
+        """Test that a whitespace-only event_name raises."""
+        with pytest.raises(ValueError, match="event_name must be non-empty"):
+            validate_historical_event_impact_row(
+                _make_event_impact_dict(event_name="   ")
+            )
+
+    # ---- event_date ----
+
+    def test_none_event_date_raises(self) -> None:
+        """Test that a None event_date raises."""
+        with pytest.raises(ValueError, match="event_date must be set"):
+            validate_historical_event_impact_row(
+                _make_event_impact_dict(event_date=None)
+            )
+
+    def test_datetime_event_date_raises(self) -> None:
+        """Test that a datetime (instead of date) raises.
+
+        A datetime is a subclass of date, so an isinstance check
+        alone would accept it. The validator rejects it explicitly
+        to catch accidental timestamp columns.
+        """
+        from datetime import datetime
+        with pytest.raises(
+            ValueError, match="event_date must be a date, not a datetime"
+        ):
+            validate_historical_event_impact_row(
+                _make_event_impact_dict(
+                    event_date=datetime(2024, 3, 20, 12, 0, 0)
+                )
+            )
+
+    def test_string_event_date_raises(self) -> None:
+        """Test that a string event_date raises."""
+        with pytest.raises(ValueError, match="event_date must be a date"):
+            validate_historical_event_impact_row(
+                _make_event_impact_dict(event_date="2024-03-20")
+            )
+
+    # ---- impact_level ----
+
+    def test_invalid_impact_level_raises(self) -> None:
+        """Test that an unknown impact_level raises."""
+        with pytest.raises(ValueError, match="invalid impact_level"):
+            validate_historical_event_impact_row(
+                _make_event_impact_dict(impact_level="extreme")
+            )
+
+    def test_all_valid_impact_levels_pass(self) -> None:
+        """Test that all three valid impact levels pass."""
+        for level in ("high", "medium", "low"):
+            validate_historical_event_impact_row(
+                _make_event_impact_dict(impact_level=level)
+            )
+
+    # ---- btc_price_before ----
+
+    def test_nan_price_before_raises(self) -> None:
+        """Test that a NaN btc_price_before raises."""
+        with pytest.raises(
+            ValueError, match="btc_price_before must be a finite"
+        ):
+            validate_historical_event_impact_row(
+                _make_event_impact_dict(
+                    btc_price_before=float("nan")
+                )
+            )
+
+    def test_zero_price_before_raises(self) -> None:
+        """Test that a zero btc_price_before raises."""
+        with pytest.raises(
+            ValueError, match="btc_price_before must be positive"
+        ):
+            validate_historical_event_impact_row(
+                _make_event_impact_dict(btc_price_before=0.0)
+            )
+
+    def test_negative_price_before_raises(self) -> None:
+        """Test that a negative btc_price_before raises."""
+        with pytest.raises(
+            ValueError, match="btc_price_before must be positive"
+        ):
+            validate_historical_event_impact_row(
+                _make_event_impact_dict(btc_price_before=-1.0)
+            )
+
+    # ---- btc_price_after ----
+
+    def test_zero_price_after_raises(self) -> None:
+        """Test that a zero btc_price_after raises."""
+        with pytest.raises(
+            ValueError, match="btc_price_after must be positive"
+        ):
+            validate_historical_event_impact_row(
+                _make_event_impact_dict(btc_price_after=0.0)
+            )
+
+    def test_infinite_price_after_raises(self) -> None:
+        """Test that an infinite btc_price_after raises."""
+        with pytest.raises(
+            ValueError, match="btc_price_after must be a finite"
+        ):
+            validate_historical_event_impact_row(
+                _make_event_impact_dict(
+                    btc_price_after=float("inf")
+                )
+            )
+
+    # ---- price_change_percent ----
+
+    def test_nan_price_change_raises(self) -> None:
+        """Test that a NaN price_change_percent raises."""
+        with pytest.raises(
+            ValueError, match="price_change_percent must be a finite"
+        ):
+            validate_historical_event_impact_row(
+                _make_event_impact_dict(
+                    price_change_percent=float("nan")
+                )
+            )
+
+    # ---- volatility ----
+
+    def test_nan_volatility_raises(self) -> None:
+        """Test that a NaN volatility raises."""
+        with pytest.raises(
+            ValueError, match="volatility must be a finite"
+        ):
+            validate_historical_event_impact_row(
+                _make_event_impact_dict(volatility=float("nan"))
+            )
+
+    def test_negative_volatility_raises(self) -> None:
+        """Test that a negative volatility raises."""
+        with pytest.raises(
+            ValueError, match="volatility must be >= 0"
+        ):
+            validate_historical_event_impact_row(
+                _make_event_impact_dict(volatility=-0.01)
+            )
+
+    def test_zero_volatility_passes(self) -> None:
+        """Test that a zero volatility passes (boundary)."""
+        validate_historical_event_impact_row(
+            _make_event_impact_dict(volatility=0.0)
+        )
+
+    # ---- direction ----
+
+    def test_invalid_direction_raises(self) -> None:
+        """Test that an unknown direction raises."""
+        with pytest.raises(ValueError, match="invalid direction"):
+            validate_historical_event_impact_row(
+                _make_event_impact_dict(direction="sideways")
+            )
+
+    def test_all_valid_directions_pass(self) -> None:
+        """Test that all three valid directions pass."""
+        for d in ("up", "down", "neutral"):
+            validate_historical_event_impact_row(
+                _make_event_impact_dict(direction=d)
+            )
+
+    # ---- error message ----
+
+    def test_error_message_includes_index(self) -> None:
+        """Test that error messages include the row index."""
+        with pytest.raises(ValueError, match="Row 7"):
+            validate_historical_event_impact_row(
+                _make_event_impact_dict(impact_level="bogus"), index=7
+            )
+
+
+# ============================================================
+# HISTORICAL EVENT IMPACT BATCH TESTS (A5.1)
+# ============================================================
+class TestValidateHistoricalEventImpactRows:
+    """Tests for validate_historical_event_impact_rows()."""
+
+    def test_empty_list_passes(self) -> None:
+        """Test that an empty list passes."""
+        validate_historical_event_impact_rows([])
+
+    def test_all_valid_rows_pass(self) -> None:
+        """Test that a batch of valid rows passes."""
+        rows = [_make_event_impact_dict() for _ in range(5)]
+        validate_historical_event_impact_rows(rows)
+
+    def test_single_invalid_row_in_batch_fails(self) -> None:
+        """Test that one invalid row in a batch raises with its index."""
+        rows = [
+            _make_event_impact_dict(),
+            _make_event_impact_dict(),
+            _make_event_impact_dict(impact_level="bogus"),  # index 2
+            _make_event_impact_dict(),
+        ]
+        with pytest.raises(ValueError, match="Row 2"):
+            validate_historical_event_impact_rows(rows)
+
+    def test_validation_stops_at_first_error(self) -> None:
+        """Test that validation stops at the first invalid row."""
+        rows = [
+            _make_event_impact_dict(direction="bogus"),  # index 0
+            _make_event_impact_dict(volatility=-1.0),  # index 1 — would fail
+        ]
+        with pytest.raises(ValueError, match="Row 0"):
+            validate_historical_event_impact_rows(rows)
+
+
+# ============================================================
 # CONSTANTS
 # ============================================================
 class TestValidatorConstants:
@@ -1278,3 +1551,11 @@ class TestValidatorConstants:
             "events",
             "chart",
         )
+
+    def test_valid_impact_levels(self) -> None:
+        """Test that VALID_IMPACT_LEVELS contains high, medium, low."""
+        assert VALID_IMPACT_LEVELS == ("high", "medium", "low")
+
+    def test_valid_event_directions(self) -> None:
+        """Test that VALID_EVENT_DIRECTIONS contains up, down, neutral."""
+        assert VALID_EVENT_DIRECTIONS == ("up", "down", "neutral")
