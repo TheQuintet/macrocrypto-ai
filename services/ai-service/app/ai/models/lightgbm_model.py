@@ -23,6 +23,7 @@ Strategies:
 import json
 import logging
 import os
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
 import lightgbm as lgb
@@ -83,6 +84,9 @@ Z_SCORES = {
 # Minimum rows needed for training (must account for max lag)
 MIN_TRAINING_ROWS = max(LAG_DAYS) + 30
 
+# Minimum new rows needed for incremental training
+MIN_INCREMENTAL_ROWS = 1
+
 
 # ============================================================
 # LIGHTGBM MODEL
@@ -92,6 +96,7 @@ class LightGBMModel(ForecastModel):
 
     This adapter wraps LightGBM and supports:
         - Training from scratch (fresh strategy)
+        - Incremental training on new data (incremental strategy)
         - Feature engineering (lag features for time series)
         - Prediction with confidence intervals (approximated)
         - Metrics calculation (MAE, RMSE, MAPE, directional accuracy)
@@ -109,6 +114,8 @@ class LightGBMModel(ForecastModel):
         feature_columns: List of feature column names used in training.
         residual_std: Standard deviation of training residuals
             (used for confidence interval approximation).
+        last_training_timestamp: Timestamp of the last training data
+            point (used to filter new data during incremental training).
     """
 
     def __init__(
@@ -120,7 +127,7 @@ class LightGBMModel(ForecastModel):
 
         Args:
             strategy: Training strategy. "fresh" trains from scratch.
-                "incremental" will be added in M4.2.
+                "incremental" continues from a previous model.
             config: Optional LightGBM configuration overrides.
 
         Raises:
@@ -141,6 +148,9 @@ class LightGBMModel(ForecastModel):
         self.feature_columns: List[str] = []
         self.residual_std: float = 0.0
 
+        # NEW in M4.2: Track last training timestamp
+        self.last_training_timestamp: Optional[datetime] = None
+
         logger.info(
             f"LightGBMModel initialized (strategy={strategy})"
         )
@@ -154,18 +164,24 @@ class LightGBMModel(ForecastModel):
         warm_start: bool = False,
         previous_model_path: Optional[str] = None,
     ) -> Dict[str, float]:
-        """Train the LightGBM model from scratch.
+        """Train the LightGBM model.
 
-        In M4.1, only "fresh" training is fully implemented.
-        Incremental training will be added in M4.2.
+        Supports two strategies:
+            - fresh (warm_start=False): Train from scratch on full data
+            - incremental (warm_start=True): Continue training on new data
+
+        For incremental training:
+            1. Load previous model from disk
+            2. Filter data to only rows after last_training_timestamp
+            3. Continue training with `init_model` parameter
+            4. Fall back to fresh if anything fails
 
         Args:
             data: Training DataFrame with columns:
                 'ds', 'y', and all 10 base features.
-            warm_start: If True, attempts incremental training.
-                In M4.1, this falls back to fresh training.
-            previous_model_path: Path to previous model (for incremental).
-                Currently unused in M4.1.
+            warm_start: If True, use incremental training.
+            previous_model_path: Path to previous model file.
+                Required when warm_start=True.
 
         Returns:
             Dictionary with metrics: mae, rmse, mape, directional_accuracy.
@@ -175,16 +191,32 @@ class LightGBMModel(ForecastModel):
         """
         self._validate_data(data)
 
+        # Decide training mode
         if warm_start:
-            logger.warning(
-                "Incremental training requested but not implemented in M4.1. "
-                "Falling back to fresh training."
-            )
+            mode = self._try_incremental_train(data, previous_model_path)
+        else:
+            mode = "fresh"
+            self._fresh_train(data)
 
-        # Prepare features (add lag features)
+        # Update timestamp
+        self.last_training_timestamp = self._extract_max_timestamp(data)
+
+        logger.info(
+            f"LightGBM model trained ({mode}) on {len(data)} rows. "
+            f"MAE={self.metrics['mae']:.4f}, "
+            f"RMSE={self.metrics['rmse']:.4f}, "
+            f"MAPE={self.metrics['mape']:.2f}%"
+        )
+
+        return self.metrics
+
+    def _fresh_train(self, data: pd.DataFrame) -> None:
+        """Train from scratch on the full dataset.
+
+        Args:
+            data: Full training data.
+        """
         prepared = self._prepare_features(data)
-
-        # Split features and target
         X = prepared[self.feature_columns]
         y = prepared["y"]
 
@@ -195,8 +227,6 @@ class LightGBMModel(ForecastModel):
 
         # Initialize fresh LightGBM model
         self.model = lgb.LGBMRegressor(**self.config)
-
-        # Fit model
         self.model.fit(X, y)
 
         # Calculate residual std for confidence intervals
@@ -211,14 +241,187 @@ class LightGBMModel(ForecastModel):
         self.is_trained = True
         self.last_training_mode = "fresh"
 
-        logger.info(
-            f"LightGBM model trained (fresh). "
-            f"MAE={self.metrics['mae']:.4f}, "
-            f"RMSE={self.metrics['rmse']:.4f}, "
-            f"MAPE={self.metrics['mape']:.2f}%"
+    def _try_incremental_train(
+        self,
+        data: pd.DataFrame,
+        previous_model_path: Optional[str],
+    ) -> str:
+        """Attempt incremental training. Falls back to fresh if anything fails.
+
+        Args:
+            data: Full training data.
+            previous_model_path: Path to previous model.
+
+        Returns:
+            The mode used ("fresh" or "incremental").
+        """
+        # No path provided → fall back to fresh
+        if not previous_model_path:
+            logger.warning(
+                "Incremental training requested but no previous_model_path "
+                "provided. Falling back to fresh training."
+            )
+            self._fresh_train(data)
+            return "fresh"
+
+        # File doesn't exist → fall back to fresh
+        if not os.path.exists(previous_model_path):
+            logger.warning(
+                f"Previous model not found at '{previous_model_path}'. "
+                f"Falling back to fresh training."
+            )
+            self._fresh_train(data)
+            return "fresh"
+
+        # Try to load previous model and incremental train
+        try:
+            self._load_previous_model(previous_model_path)
+            return self._incremental_train(data)
+        except Exception as e:
+            logger.warning(
+                f"Incremental training failed: {e}. "
+                f"Falling back to fresh training."
+            )
+            self._fresh_train(data)
+            return "fresh"
+
+    def _load_previous_model(self, path: str) -> None:
+        """Load a previous model from disk.
+
+        Args:
+            path: Path to the previous model file.
+        """
+        booster = lgb.Booster(model_file=path)
+
+        # Wrap in sklearn-compatible interface
+        self.model = lgb.LGBMRegressor(**self.config)
+        self.model._Booster = booster
+        self.model._n_features = booster.num_feature()
+        self.model.fitted_ = True
+
+        # Load metadata if available
+        metadata_path = f"{path}.meta.json"
+        if os.path.exists(metadata_path):
+            with open(metadata_path, "r") as f:
+                metadata = json.load(f)
+            self.feature_columns = metadata.get("feature_columns", [])
+            self.residual_std = metadata.get("residual_std", 0.0)
+            self.metrics = metadata.get("metrics", {})
+            self.version = metadata.get("version", self.version)
+            self.last_training_mode = metadata.get(
+                "last_training_mode", "fresh"
+            )
+
+            # Load last training timestamp if available
+            timestamp_str = metadata.get("last_training_timestamp")
+            if timestamp_str:
+                try:
+                    self.last_training_timestamp = datetime.fromisoformat(
+                        timestamp_str
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to parse timestamp: {e}")
+
+        logger.info(f"Loaded previous LightGBM model from '{path}'")
+
+    def _incremental_train(self, data: pd.DataFrame) -> str:
+        """Train incrementally on new data only.
+
+        Args:
+            data: Full training data (will be filtered to new rows).
+
+        Returns:
+            The mode used ("incremental" or "fresh" if no new data).
+        """
+        # Prepare features on full data (to compute lag features)
+        prepared = self._prepare_features(
+            data, update_feature_columns=False
         )
 
-        return self.metrics
+        # Filter to new data only
+        new_data = self._filter_new_data(prepared)
+
+        if len(new_data) < MIN_INCREMENTAL_ROWS:
+            logger.warning(
+                f"No new data since last training "
+                f"({self.last_training_timestamp}). "
+                f"Keeping previous model unchanged."
+            )
+            # Mark as trained and keep existing metrics
+            self.is_trained = True
+            self.last_training_mode = "incremental"
+            return "incremental"
+
+        X_new = new_data[self.feature_columns]
+        y_new = new_data["y"]
+
+        logger.info(
+            f"Training LightGBM model (incremental) on {len(X_new)} new rows"
+        )
+
+        # Continue training from previous model using init_model
+        self.model.fit(X_new, y_new, init_model=self.model.booster_)
+
+        # Recalculate metrics on the full prepared dataset
+        X_full = prepared[self.feature_columns]
+        y_full = prepared["y"]
+        predictions = self.model.predict(X_full)
+        residuals = y_full.values - predictions
+        self.residual_std = float(np.std(residuals))
+        self.metrics = self._calculate_metrics_from_arrays(
+            y_full.values, predictions
+        )
+
+        self.is_trained = True
+        self.last_training_mode = "incremental"
+
+        return "incremental"
+
+    def _filter_new_data(self, prepared: pd.DataFrame) -> pd.DataFrame:
+        """Filter prepared data to only rows after last training timestamp.
+
+        Args:
+            prepared: Prepared DataFrame with features.
+
+        Returns:
+            Filtered DataFrame with only new rows.
+        """
+        if self.last_training_timestamp is None:
+            return prepared
+
+        # Convert 'ds' column to datetime if needed
+        prepared = prepared.copy()
+        prepared["ds"] = pd.to_datetime(prepared["ds"])
+
+        last_ts = pd.Timestamp(self.last_training_timestamp)
+
+        filtered = prepared[prepared["ds"] > last_ts].reset_index(drop=True)
+
+        logger.debug(
+            f"Filtered {len(prepared)} rows to {len(filtered)} new rows "
+            f"(after {last_ts})"
+        )
+
+        return filtered
+
+    def _extract_max_timestamp(self, data: pd.DataFrame) -> Optional[datetime]:
+        """Extract the maximum timestamp from the data.
+
+        Args:
+            data: DataFrame with 'ds' column.
+
+        Returns:
+            Max timestamp, or None if 'ds' is missing.
+        """
+        if "ds" not in data.columns or data.empty:
+            return None
+
+        try:
+            max_ts = pd.to_datetime(data["ds"]).max()
+            return max_ts.to_pydatetime()
+        except Exception as e:
+            logger.warning(f"Failed to extract max timestamp: {e}")
+            return None
 
     # ============================================================
     # FEATURE ENGINEERING
@@ -402,6 +605,8 @@ class LightGBMModel(ForecastModel):
             - metrics: for reference
             - version: for tracking
             - strategy: for tracking
+            - last_training_mode: for incremental tracking
+            - last_training_timestamp: for incremental filtering
 
         Args:
             path: File path to save the model.
@@ -427,6 +632,12 @@ class LightGBMModel(ForecastModel):
             "metrics": self.metrics,
             "version": self.version,
             "strategy": self.strategy,
+            "last_training_mode": self.last_training_mode,
+            "last_training_timestamp": (
+                self.last_training_timestamp.isoformat()
+                if self.last_training_timestamp
+                else None
+            ),
         }
         metadata_path = f"{path}.meta.json"
         with open(metadata_path, "w") as f:
@@ -468,6 +679,19 @@ class LightGBMModel(ForecastModel):
             self.metrics = metadata.get("metrics", {})
             self.version = metadata.get("version", self.version)
             self.strategy = metadata.get("strategy", self.strategy)
+            self.last_training_mode = metadata.get(
+                "last_training_mode", "fresh"
+            )
+
+            # Load last training timestamp if present
+            timestamp_str = metadata.get("last_training_timestamp")
+            if timestamp_str:
+                try:
+                    self.last_training_timestamp = datetime.fromisoformat(
+                        timestamp_str
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to parse timestamp: {e}")
 
         self.is_trained = True
         logger.info(f"LightGBM model loaded from {path}")

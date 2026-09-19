@@ -5,6 +5,7 @@ These tests use real LightGBM with synthetic datasets.
 Test organization:
     - TestLightGBMModelInitialization: Constructor behavior
     - TestLightGBMModelTrain: Fresh training (M4.1)
+    - TestLightGBMModelIncremental: Incremental training (M4.2)
     - TestLightGBMModelPredict: Prediction
     - TestLightGBMModelConfidence: Confidence intervals
     - TestLightGBMModelMetrics: Metrics retrieval
@@ -13,6 +14,7 @@ Test organization:
     - TestLightGBMModelConstants: Module constants
 """
 
+from datetime import datetime, timezone
 from typing import Any
 
 import numpy as np
@@ -177,6 +179,11 @@ class TestLightGBMModelInitialization:
         model = LightGBMModel()
         assert model.feature_columns == []
 
+    def test_initial_last_training_timestamp_is_none(self) -> None:
+        """Test that last_training_timestamp starts as None."""
+        model = LightGBMModel()
+        assert model.last_training_timestamp is None
+
     def test_repr(self) -> None:
         """Test __repr__ format."""
         model = LightGBMModel()
@@ -238,6 +245,17 @@ class TestLightGBMModelTrain:
         model.train(training_data)
         assert model.last_training_mode == "fresh"
 
+    def test_train_sets_last_training_timestamp(
+        self, training_data: pd.DataFrame
+    ) -> None:
+        """Test that training sets last_training_timestamp."""
+        model = LightGBMModel()
+        model.train(training_data)
+        assert model.last_training_timestamp is not None
+        # Should equal the max timestamp in training data
+        expected = pd.to_datetime(training_data["ds"]).max().to_pydatetime()
+        assert model.last_training_timestamp == expected
+
     def test_train_with_empty_data_raises(self) -> None:
         """Test that empty data raises ValueError."""
         model = LightGBMModel()
@@ -269,16 +287,187 @@ class TestLightGBMModelTrain:
         with pytest.raises(ValueError, match=f"at least {MIN_TRAINING_ROWS}"):
             model.train(small_data)
 
-    def test_train_with_warm_start_falls_back_to_fresh(
+
+# ============================================================
+# INCREMENTAL TRAINING TESTS (M4.2)
+# ============================================================
+class TestLightGBMModelIncremental:
+    """Tests for incremental training (M4.2)."""
+
+    def test_incremental_without_path_falls_back_to_fresh(
         self, training_data: pd.DataFrame
     ) -> None:
-        """Test that warm_start=True falls back to fresh in M4.1."""
-        model = LightGBMModel()
+        """Test that incremental without path falls back to fresh."""
+        model = LightGBMModel(strategy="incremental")
         metrics = model.train(training_data, warm_start=True)
 
         assert model.is_trained is True
         assert "mae" in metrics
         assert model.last_training_mode == "fresh"
+
+    def test_incremental_with_missing_file_falls_back_to_fresh(
+        self, training_data: pd.DataFrame
+    ) -> None:
+        """Test that incremental with missing file falls back to fresh."""
+        model = LightGBMModel(strategy="incremental")
+        metrics = model.train(
+            training_data,
+            warm_start=True,
+            previous_model_path="/tmp/does_not_exist.txt",
+        )
+
+        assert model.is_trained is True
+        assert "mae" in metrics
+        assert model.last_training_mode == "fresh"
+
+    def test_incremental_with_valid_previous_model(
+        self,
+        training_data: pd.DataFrame,
+        tmp_path: Any,
+    ) -> None:
+        """Test incremental training with valid previous model.
+
+        We create a previous model trained on the first 70 rows,
+        then incrementally train on the full dataset (100 rows).
+        The model should only use new data (rows 71-100).
+        """
+        # Train and save first model on a subset (first 70 rows)
+        first_subset = training_data.iloc[:70].copy().reset_index(drop=True)
+        first_model = LightGBMModel(strategy="fresh")
+        first_model.train(first_subset)
+
+        path = str(tmp_path / "lightgbm_model.txt")
+        first_model.save(path)
+
+        # Now create second model and incrementally train
+        second_model = LightGBMModel(strategy="incremental")
+        metrics = second_model.train(
+            training_data,
+            warm_start=True,
+            previous_model_path=path,
+        )
+
+        assert second_model.is_trained is True
+        assert "mae" in metrics
+        assert second_model.last_training_mode == "incremental"
+
+    def test_incremental_preserves_feature_columns(
+        self,
+        training_data: pd.DataFrame,
+        tmp_path: Any,
+    ) -> None:
+        """Test that incremental training preserves feature columns."""
+        first_subset = training_data.iloc[:70].copy().reset_index(drop=True)
+        first_model = LightGBMModel(strategy="fresh")
+        first_model.train(first_subset)
+
+        path = str(tmp_path / "lightgbm_model.txt")
+        first_model.save(path)
+
+        second_model = LightGBMModel(strategy="incremental")
+        second_model.train(
+            training_data,
+            warm_start=True,
+            previous_model_path=path,
+        )
+
+        assert second_model.feature_columns == ALL_FEATURES
+
+    def test_incremental_with_no_new_data_skips_training(
+        self,
+        training_data: pd.DataFrame,
+        tmp_path: Any,
+    ) -> None:
+        """Test that incremental with no new data keeps previous model."""
+        # Train and save a model on the full dataset
+        first_model = LightGBMModel(strategy="fresh")
+        first_model.train(training_data)
+
+        path = str(tmp_path / "lightgbm_model.txt")
+        first_model.save(path)
+
+        # Incrementally train on the SAME data (no new rows)
+        second_model = LightGBMModel(strategy="incremental")
+        metrics = second_model.train(
+            training_data,  # same data
+            warm_start=True,
+            previous_model_path=path,
+        )
+
+        assert second_model.is_trained is True
+        # Metrics should be carried over from previous model
+        assert "mae" in metrics
+        # Mode should be "incremental" (even though it didn't add trees)
+        assert second_model.last_training_mode == "incremental"
+
+    def test_incremental_metrics_are_reasonable(
+        self,
+        training_data: pd.DataFrame,
+        tmp_path: Any,
+    ) -> None:
+        """Test incremental training produces finite, non-negative metrics."""
+        first_subset = training_data.iloc[:70].copy().reset_index(drop=True)
+        first_model = LightGBMModel(strategy="fresh")
+        first_model.train(first_subset)
+
+        path = str(tmp_path / "lightgbm_model.txt")
+        first_model.save(path)
+
+        second_model = LightGBMModel(strategy="incremental")
+        metrics = second_model.train(
+            training_data,
+            warm_start=True,
+            previous_model_path=path,
+        )
+
+        for key, value in metrics.items():
+            assert np.isfinite(value), f"{key} is not finite"
+            assert value >= 0, f"{key} is negative"
+
+    def test_incremental_with_corrupted_file_falls_back_to_fresh(
+        self,
+        training_data: pd.DataFrame,
+        tmp_path: Any,
+    ) -> None:
+        """Test that corrupted previous model file falls back to fresh."""
+        path = str(tmp_path / "corrupted.txt")
+        with open(path, "w") as f:
+            f.write("not valid model data")
+
+        model = LightGBMModel(strategy="incremental")
+        metrics = model.train(
+            training_data,
+            warm_start=True,
+            previous_model_path=path,
+        )
+
+        assert model.is_trained is True
+        assert "mae" in metrics
+        # Should have fallen back to fresh
+        assert model.last_training_mode == "fresh"
+
+    def test_incremental_updates_timestamp(
+        self,
+        training_data: pd.DataFrame,
+        tmp_path: Any,
+    ) -> None:
+        """Test that incremental training updates last_training_timestamp."""
+        first_subset = training_data.iloc[:70].copy().reset_index(drop=True)
+        first_model = LightGBMModel(strategy="fresh")
+        first_model.train(first_subset)
+
+        path = str(tmp_path / "lightgbm_model.txt")
+        first_model.save(path)
+
+        second_model = LightGBMModel(strategy="incremental")
+        second_model.train(
+            training_data,
+            warm_start=True,
+            previous_model_path=path,
+        )
+
+        expected = pd.to_datetime(training_data["ds"]).max().to_pydatetime()
+        assert second_model.last_training_timestamp == expected
 
 
 # ============================================================
@@ -512,6 +701,32 @@ class TestLightGBMModelSerialization:
         new_model.load(path)
 
         assert new_model.residual_std == trained_model.residual_std
+
+    def test_load_restores_last_training_timestamp(
+        self, trained_model: LightGBMModel, tmp_path: Any
+    ) -> None:
+        """Test that loading restores the last_training_timestamp."""
+        path = str(tmp_path / "lightgbm_model.txt")
+        trained_model.save(path)
+
+        new_model = LightGBMModel()
+        new_model.load(path)
+
+        assert new_model.last_training_timestamp == (
+            trained_model.last_training_timestamp
+        )
+
+    def test_load_restores_last_training_mode(
+        self, trained_model: LightGBMModel, tmp_path: Any
+    ) -> None:
+        """Test that loading restores last_training_mode."""
+        path = str(tmp_path / "lightgbm_model.txt")
+        trained_model.save(path)
+
+        new_model = LightGBMModel()
+        new_model.load(path)
+
+        assert new_model.last_training_mode == trained_model.last_training_mode
 
 
 # ============================================================
