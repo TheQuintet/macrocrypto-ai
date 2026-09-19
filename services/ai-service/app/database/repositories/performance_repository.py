@@ -387,6 +387,71 @@ class PerformanceRepository:
 
         return latest_rows
 
+    async def fetch_best_model_by_mae(
+        self,
+        horizon: str,
+        days: int = 30,
+        model_names: Optional[List[str]] = None,
+    ) -> Optional[str]:
+        """Return the model with the lowest MAE in the recent window.
+
+        Averages MAE per model over the look-back window, then picks
+        the model with the smallest mean MAE. Models with no MAE
+        rows in the window are excluded.
+
+        Called by the M6a multi-model comparison endpoint to surface
+        "best model overall" alongside the per-model batches. The
+        returned name may not be one of the models in the comparison
+        — it reflects the overall best in the window, which is what
+        the schema documents.
+
+        Args:
+            horizon: Horizon label ('24h' or '7d').
+            days: Look-back window in days.
+            model_names: Optional list of model names to restrict
+                the search to. If None, all models with recent MAE
+                data are considered.
+
+        Returns:
+            Model name with the lowest mean MAE, or None if no
+            model has MAE data in the window.
+        """
+        since = datetime.now(timezone.utc) - timedelta(days=days)
+
+        # Build the WHERE clause before adding GROUP BY / ORDER BY /
+        # LIMIT — SQLAlchemy 2.x requires this ordering.
+        stmt = select(
+            prediction_performance.c.model_name,
+            func.avg(prediction_performance.c.mae).label("mean_mae"),
+        ).where(
+            prediction_performance.c.horizon == horizon,
+            prediction_performance.c.forecast_date >= since,
+            prediction_performance.c.mae.isnot(None),
+        )
+
+        if model_names:
+            stmt = stmt.where(
+                prediction_performance.c.model_name.in_(model_names)
+            )
+
+        stmt = (
+            stmt.group_by(prediction_performance.c.model_name)
+            .order_by(func.avg(prediction_performance.c.mae).asc())
+            .limit(1)
+        )
+
+        result = await self.session.execute(stmt)
+        row = result.mappings().first()
+
+        if row is None:
+            logger.debug(
+                f"No MAE data found for "
+                f"(horizon={horizon}, days={days})"
+            )
+            return None
+
+        return str(row["model_name"])
+
     async def fetch_market_breakdown(
         self,
         horizon: str,

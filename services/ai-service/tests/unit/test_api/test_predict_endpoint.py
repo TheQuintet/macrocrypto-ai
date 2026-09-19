@@ -15,10 +15,11 @@ Test organization:
     - TestPredictEndpointValidation: query-param validation
     - TestPredictEndpointErrors: error responses
     - TestPredictEndpointCaching: cache hit / miss / write behavior
+    - TestMultiModelComparison: ?models= multi-model path (M6a)
 """
 
 from datetime import datetime, timedelta, timezone
-from typing import Any, List, Optional
+from typing import Any, Dict, List, Optional
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -40,6 +41,7 @@ def _make_rows(
     horizon: str = "24h",
     model_name: str = "prophet",
     confidence: float = 0.85,
+    start_hour_offset: int = 0,
 ) -> List[PredictionRow]:
     """Build a batch of prediction rows.
 
@@ -51,7 +53,7 @@ def _make_rows(
 
     return [
         PredictionRow(
-            time=base_ts + timedelta(hours=i),
+            time=base_ts + timedelta(hours=start_hour_offset + i),
             prediction_time=prediction_time,
             horizon=horizon,
             model_name=model_name,
@@ -72,6 +74,47 @@ def _make_mock_repository(
     repo = MagicMock()
     repo.fetch_latest_predictions = AsyncMock(return_value=rows or [])
     repo.fetch_latest_close_price = AsyncMock(return_value=current_price)
+    return repo
+
+
+def _make_comparison_repository(
+    batches: Optional[Dict[str, List[PredictionRow]]] = None,
+    current_price: Optional[float] = 50_000.0,
+    best_model: Optional[str] = None,
+) -> MagicMock:
+    """Build a mock PredictionRepository for the multi-model path.
+
+    The multi-model handler reads `repository.session` to construct
+    a PerformanceRepository, so this helper wires up a mock session
+    whose `execute()` returns a result whose `.mappings().first()`
+    yields the best-model row (or None).
+
+    Args:
+        batches: Return value of fetch_latest_predictions_batch().
+        current_price: Return value of fetch_latest_close_price().
+        best_model: Model name returned by fetch_best_model_by_mae().
+            None simulates "no MAE data".
+    """
+    repo = MagicMock()
+    repo.fetch_latest_predictions_batch = AsyncMock(
+        return_value=batches or {}
+    )
+    repo.fetch_latest_close_price = AsyncMock(return_value=current_price)
+
+    # Mock session: PerformanceRepository.fetch_best_model_by_mae
+    # calls `await session.execute(stmt)` then `.mappings().first()`.
+    if best_model is not None:
+        row = {"model_name": best_model, "mean_mae": 100.0}
+    else:
+        row = None
+
+    result = MagicMock()
+    result.mappings.return_value.first.return_value = row
+
+    session = AsyncMock()
+    session.execute.return_value = result
+    repo.session = session
+
     return repo
 
 
@@ -481,3 +524,221 @@ class TestPredictEndpointCaching:
 
         assert response.status_code == 404
         assert fake_redis.set_calls == 0
+
+
+# ============================================================
+# MULTI-MODEL COMPARISON (M6a)
+# ============================================================
+class TestMultiModelComparison:
+    """Tests for the ?models= multi-model path."""
+
+    def test_missing_models_param_uses_single_model_path(
+        self, client: TestClient
+    ) -> None:
+        """Test that omitting ?models= returns the original shape."""
+        rows = _make_rows(24)
+        repo = _make_mock_repository(rows=rows)
+        app.dependency_overrides[get_repository] = _override_repo(repo)
+
+        try:
+            response = client.get("/api/v1/predict/btc")
+        finally:
+            app.dependency_overrides.clear()
+
+        assert response.status_code == 200
+        data = response.json()
+        # Original response shape
+        assert "model_name" in data
+        assert "predictions" in data
+        # No comparison envelope
+        assert "comparison" not in data
+        assert "models" not in data
+
+    def test_single_model_in_list_uses_single_model_path(
+        self, client: TestClient
+    ) -> None:
+        """Test that ?models=prophet returns the original single-model shape."""
+        rows = _make_rows(24, model_name="prophet")
+        repo = _make_mock_repository(rows=rows)
+        app.dependency_overrides[get_repository] = _override_repo(repo)
+
+        try:
+            response = client.get("/api/v1/predict/btc?models=prophet")
+        finally:
+            app.dependency_overrides.clear()
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["model_name"] == "prophet"
+        assert "comparison" not in data
+
+    def test_two_models_returns_comparison(
+        self, client: TestClient
+    ) -> None:
+        """Test that ?models=a,b returns a ComparisonResponse envelope."""
+        batches = {
+            "prophet": _make_rows(3, model_name="prophet"),
+            "xgboost_fresh": _make_rows(
+                3, model_name="xgboost_fresh"
+            ),
+        }
+        repo = _make_comparison_repository(
+            batches=batches, best_model="prophet"
+        )
+        app.dependency_overrides[get_repository] = _override_repo(repo)
+
+        try:
+            response = client.get(
+                "/api/v1/predict/btc?models=prophet,xgboost_fresh"
+            )
+        finally:
+            app.dependency_overrides.clear()
+
+        assert response.status_code == 200
+        data = response.json()
+        assert "models" in data
+        assert "comparison" in data
+        assert set(data["models"].keys()) == {"prophet", "xgboost_fresh"}
+        assert data["comparison"]["best_model"] == "prophet"
+
+    def test_comparison_has_consensus(
+        self, client: TestClient
+    ) -> None:
+        """Test that consensus is populated for 2+ overlapping models."""
+        batches = {
+            "a": _make_rows(3, model_name="a"),
+            "b": _make_rows(3, model_name="b"),
+        }
+        repo = _make_comparison_repository(batches=batches)
+        app.dependency_overrides[get_repository] = _override_repo(repo)
+
+        try:
+            response = client.get("/api/v1/predict/btc?models=a,b")
+        finally:
+            app.dependency_overrides.clear()
+
+        data = response.json()
+        assert data["comparison"]["timestamps_compared"] == 3
+        assert data["comparison"]["models_compared"] == ["a", "b"]
+        assert len(data["comparison"]["models_missing"]) == 0
+
+    def test_agreement_score_is_one_for_identical_models(
+        self, client: TestClient
+    ) -> None:
+        """Test that identical predictions yield agreement 1.0."""
+        batches = {
+            "a": _make_rows(3, model_name="a"),
+            "b": _make_rows(3, model_name="b"),
+        }
+        repo = _make_comparison_repository(batches=batches)
+        app.dependency_overrides[get_repository] = _override_repo(repo)
+
+        try:
+            response = client.get("/api/v1/predict/btc?models=a,b")
+        finally:
+            app.dependency_overrides.clear()
+
+        assert response.json()["comparison"]["agreement_score"] == 1.0
+
+    def test_unknown_model_lands_in_missing(
+        self, client: TestClient
+    ) -> None:
+        """Test that an unknown model name appears in missing_models."""
+        batches = {
+            "prophet": _make_rows(3, model_name="prophet"),
+        }
+        repo = _make_comparison_repository(batches=batches)
+        app.dependency_overrides[get_repository] = _override_repo(repo)
+
+        try:
+            response = client.get(
+                "/api/v1/predict/btc?models=prophet,ghost"
+            )
+        finally:
+            app.dependency_overrides.clear()
+
+        assert response.status_code == 200
+        data = response.json()
+        assert "ghost" in data["missing_models"]
+        assert "ghost" in data["comparison"]["models_missing"]
+
+    def test_empty_models_param_returns_422(
+        self, client: TestClient
+    ) -> None:
+        """Test that ?models= (empty) returns 422."""
+        repo = _make_comparison_repository()
+        app.dependency_overrides[get_repository] = _override_repo(repo)
+
+        try:
+            response = client.get("/api/v1/predict/btc?models=")
+        finally:
+            app.dependency_overrides.clear()
+
+        assert response.status_code == 422
+
+    def test_empty_segment_returns_422(self, client: TestClient) -> None:
+        """Test that a doubled comma returns 422."""
+        repo = _make_comparison_repository()
+        app.dependency_overrides[get_repository] = _override_repo(repo)
+
+        try:
+            response = client.get(
+                "/api/v1/predict/btc?models=a,,b"
+            )
+        finally:
+            app.dependency_overrides.clear()
+
+        assert response.status_code == 422
+
+    def test_duplicate_model_returns_422(self, client: TestClient) -> None:
+        """Test that duplicate model names return 422."""
+        repo = _make_comparison_repository()
+        app.dependency_overrides[get_repository] = _override_repo(repo)
+
+        try:
+            response = client.get(
+                "/api/v1/predict/btc?models=prophet,prophet"
+            )
+        finally:
+            app.dependency_overrides.clear()
+
+        assert response.status_code == 422
+
+    def test_no_batches_returns_404(self, client: TestClient) -> None:
+        """Test that an empty batch dict yields 404."""
+        repo = _make_comparison_repository(batches={})
+        app.dependency_overrides[get_repository] = _override_repo(repo)
+
+        try:
+            response = client.get(
+                "/api/v1/predict/btc?models=prophet,xgboost_fresh"
+            )
+        finally:
+            app.dependency_overrides.clear()
+
+        assert response.status_code == 404
+
+    def test_comparison_cached(
+        self, client: TestClient, fake_redis
+    ) -> None:
+        """Test that the multi-model response is cached under one key."""
+        batches = {
+            "a": _make_rows(3, model_name="a"),
+            "b": _make_rows(3, model_name="b"),
+        }
+        repo = _make_comparison_repository(batches=batches)
+        app.dependency_overrides[get_repository] = _override_repo(repo)
+
+        try:
+            first = client.get("/api/v1/predict/btc?models=a,b")
+            # Second call with same models in different order — should
+            # hit the same cache key (sorted internally).
+            second = client.get("/api/v1/predict/btc?models=b,a")
+        finally:
+            app.dependency_overrides.clear()
+
+        assert first.status_code == 200
+        assert second.status_code == 200
+        assert second.json() == first.json()
+        # Repo only hit once (second call came from cache)
+        assert repo.fetch_latest_predictions_batch.call_count == 1
