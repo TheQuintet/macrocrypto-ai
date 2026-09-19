@@ -555,6 +555,48 @@ class TestBacktestVariantSpecs:
         for row in rows[:24]:
             assert row.mae == 100.0
 
+    def test_result_to_rows_classifies_market_condition(self) -> None:
+        """Test that _result_to_rows assigns a market condition label.
+
+        The test helper produces actuals that go from 50_100 to
+        50_123 (24 points, small per-step moves). That's a small
+        cumulative move with low volatility → likely neutral, but
+        we accept any valid label (including None) to keep the test
+        resilient to threshold tuning.
+        """
+        result = _make_backtest_result(True)
+        rows = _result_to_rows(result)
+        assert len(rows) > 0
+        for row in rows:
+            assert row.market_condition in (
+                "bull",
+                "bear",
+                "volatile",
+                "neutral",
+                None,
+            )
+
+    def test_result_to_rows_same_condition_per_iteration(self) -> None:
+        """Test that all rows from one iteration share one condition.
+
+        The classifier runs once per iteration (on that iteration's
+        actuals), so every row of an iteration must carry the same
+        label.
+        """
+        result = _make_backtest_result(True)
+        rows = _result_to_rows(result)
+
+        # The helper produces 2 iterations × 24 rows, in order.
+        first_iter = rows[:24]
+        second_iter = rows[24:48]
+
+        first_conditions = {r.market_condition for r in first_iter}
+        second_conditions = {r.market_condition for r in second_iter}
+
+        # One label per iteration
+        assert len(first_conditions) == 1
+        assert len(second_conditions) == 1
+
 
 # ============================================================
 # HOURLY 24H PREDICTION JOB

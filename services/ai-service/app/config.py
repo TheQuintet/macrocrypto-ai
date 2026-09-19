@@ -111,6 +111,16 @@ class Settings(BaseSettings):
     threshold_directional: float = Field(default=55.0)
 
     # ============================================================
+    # MARKET CONDITION THRESHOLDS (T5.3)
+    # ============================================================
+    # Bull market: cumulative return > +20% over the forecast window
+    market_bull_threshold_pct: float = Field(default=20.0)
+    # Bear market: cumulative return < -20% over the forecast window
+    market_bear_threshold_pct: float = Field(default=20.0)
+    # Volatile market: std of percentage returns > 5% (decimal form)
+    market_volatility_threshold: float = Field(default=0.05)
+
+    # ============================================================
     # SCHEDULING
     # ============================================================
     retrain_hour: int = Field(default=6)
