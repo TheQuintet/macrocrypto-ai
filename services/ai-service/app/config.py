@@ -100,6 +100,7 @@ class Settings(BaseSettings):
     # Model artifact storage
     model_save_dir: str = Field(default="models")
     prophet_24h_model_filename: str = Field(default="prophet_24h.json")
+    prophet_7d_model_filename: str = Field(default="prophet_7d.json")
 
     # ============================================================
     # PERFORMANCE THRESHOLDS
@@ -125,6 +126,10 @@ class Settings(BaseSettings):
 
     # Retries per job run on failure (0 = no retry)
     scheduler_max_retries: int = Field(default=1)
+
+    # 7d prediction job schedule (daily at 6:30 AM UTC, after retrain)
+    prediction_7d_hour: int = Field(default=6)
+    prediction_7d_minute: int = Field(default=30)
 
     # ============================================================
     # PROPERTIES
@@ -170,6 +175,11 @@ class Settings(BaseSettings):
     def prophet_24h_model_path(self) -> str:
         """Return the full path to the trained 24h Prophet model file."""
         return f"{self.model_save_dir}/{self.prophet_24h_model_filename}"
+
+    @property
+    def prophet_7d_model_path(self) -> str:
+        """Return the full path to the trained 7d Prophet model file."""
+        return f"{self.model_save_dir}/{self.prophet_7d_model_filename}"
 
 
 # Global settings instance

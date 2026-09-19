@@ -1,7 +1,7 @@
 """Scheduler lifecycle manager.
 
 Wraps APScheduler's AsyncIOScheduler with:
-    - Job registration (currently: hourly prediction)
+    - Job registration (hourly 24h prediction, daily 7d prediction)
     - Lifecycle (start, shutdown) tied to FastAPI's lifespan
     - Failure handling (retries per settings.scheduler_max_retries)
     - Run history in SchedulerState
@@ -25,7 +25,12 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 
 from app.config import settings
-from app.scheduler.jobs import JOB_HOURLY_PREDICTION, hourly_prediction_job
+from app.scheduler.jobs import (
+    JOB_DAILY_7D_PREDICTION,
+    JOB_HOURLY_PREDICTION,
+    daily_7d_prediction_job,
+    hourly_prediction_job,
+)
 from app.scheduler.state import (
     JobRunRecord,
     JobRunStatus,
@@ -39,6 +44,7 @@ logger = logging.getLogger(__name__)
 # JOB IDS
 # ============================================================
 JOB_ID_HOURLY_PREDICTION = "hourly_prediction"
+JOB_ID_DAILY_7D_PREDICTION = "daily_7d_prediction"
 
 
 # ============================================================
@@ -104,6 +110,7 @@ class SchedulerManager:
         )
 
         self._register_hourly_prediction_job()
+        self._register_daily_7d_prediction_job()
 
         logger.info("Scheduler setup complete")
 
@@ -166,14 +173,45 @@ class SchedulerManager:
             id=JOB_ID_HOURLY_PREDICTION,
             name="Hourly 24h prediction generation",
             replace_existing=True,
-            max_instances=1,       # never overlap the same job
-            coalesce=True,         # collapse missed runs into one
-            misfire_grace_time=300,  # 5 min grace for a missed tick
+            max_instances=1,
+            coalesce=True,
+            misfire_grace_time=300,
         )
 
         logger.info(
             f"Registered job '{JOB_ID_HOURLY_PREDICTION}' "
             f"(trigger: minute=0, tz={settings.retrain_timezone})"
+        )
+
+    def _register_daily_7d_prediction_job(self) -> None:
+        """Register the daily 7d prediction job (6:30 AM UTC)."""
+        if self._scheduler is None:
+            raise RuntimeError("Scheduler not set up")
+
+        trigger = CronTrigger(
+            hour=settings.prediction_7d_hour,
+            minute=settings.prediction_7d_minute,
+            timezone=settings.retrain_timezone,
+        )
+
+        self._scheduler.add_job(
+            func=self._wrap_job(
+                JOB_DAILY_7D_PREDICTION, daily_7d_prediction_job
+            ),
+            trigger=trigger,
+            id=JOB_ID_DAILY_7D_PREDICTION,
+            name="Daily 7d prediction generation",
+            replace_existing=True,
+            max_instances=1,
+            coalesce=True,
+            misfire_grace_time=300,
+        )
+
+        logger.info(
+            f"Registered job '{JOB_ID_DAILY_7D_PREDICTION}' "
+            f"(trigger: hour={settings.prediction_7d_hour} "
+            f"minute={settings.prediction_7d_minute} "
+            f"tz={settings.retrain_timezone})"
         )
 
     # ============================================================
