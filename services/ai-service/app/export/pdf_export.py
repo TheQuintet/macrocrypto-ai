@@ -2,8 +2,9 @@
 
 Renders a single-page, vector-quality PDF containing the same BTC
 price chart the PNG exporter (A2.3) produces: one close-price line
-over the export window, legend, axis labels, title, and a footer
-line naming the data source and the render time.
+over the export window, legend, axis labels, title, and a citations
+footer naming the data sources, the methodology, and the access
+time (A2.5).
 
 The output is true vector PDF — every plot element is emitted as a
 PDF drawing operation, not rasterized. This is the "vector quality"
@@ -23,6 +24,9 @@ Design:
     - The Figure construction and the PDF save step live in
       ``app.export.chart``, shared with the PNG exporter. This
       module stays a thin format-specific wrapper.
+    - The citations block is built here via
+      ``app.export.metadata.build_metadata`` and carried on the
+      returned ``PdfResult.metadata`` (A2.5).
     - matplotlib's PDF backend produces the vector output. No
       additional dependency is required for the single-page chart;
       ``reportlab`` is only needed for multi-page report assembly,
@@ -43,6 +47,7 @@ Usage:
             PdfRequest(timeframe="90d", user_id="analyst-42")
         )
         # result.content is the PDF bytes
+        # result.metadata is the citations block
         # result.file_name follows the naming convention
 """
 
@@ -63,6 +68,10 @@ from app.export.chart import (
 from app.export.frames import (
     TIMEFRAME_HOURS,
     build_btc_price_frame,
+)
+from app.export.metadata import (
+    ExportMetadata,
+    build_metadata,
 )
 
 logger = logging.getLogger(__name__)
@@ -130,6 +139,8 @@ class PdfResult:
             scope. Kept as a field so a future branch can populate
             it without changing the public shape.
         content: The PDF bytes.
+        metadata: The citations block that was rendered into the
+            chart footer (A2.5).
     """
 
     file_name: str
@@ -138,6 +149,7 @@ class PdfResult:
     rows_plotted: int
     content: bytes
     pages: int = 1
+    metadata: Optional[ExportMetadata] = None
 
     def to_dict(self) -> Dict[str, Any]:
         """Return a JSON-serialisable dict.
@@ -145,13 +157,16 @@ class PdfResult:
         ``content`` is deliberately omitted — it can be large, and
         the caller already holds it.
         """
-        return {
+        d: Dict[str, Any] = {
             "file_name": self.file_name,
             "file_size": self.file_size,
             "timeframe": self.timeframe,
             "rows_plotted": self.rows_plotted,
             "pages": self.pages,
         }
+        if self.metadata is not None:
+            d["metadata"] = self.metadata.to_dict()
+        return d
 
     def __repr__(self) -> str:  # pragma: no cover - trivial
         return (
@@ -205,15 +220,17 @@ class PdfExporter:
             1. Validate the timeframe.
             2. Build the BTC price frame via the shared
                ``frames.build_btc_price_frame``.
-            3. Build the Figure via ``chart.build_chart_figure``.
-            4. Save to a vector PDF byte buffer via
+            3. Build the citations block via
+               ``metadata.build_metadata``.
+            4. Build the Figure via ``chart.build_chart_figure``.
+            5. Save to a vector PDF byte buffer via
                ``chart.save_figure_pdf``.
 
         Args:
             request: The PDF request.
 
         Returns:
-            PdfResult with the PDF bytes.
+            PdfResult with the PDF bytes and citations metadata.
 
         Raises:
             ValueError: If the timeframe is unknown, or if the
@@ -244,11 +261,15 @@ class PdfExporter:
                 f"timeframe={request.timeframe}"
             )
 
-        # ---- 3. Build the Figure, then save ----
+        # ---- 3. Citations block (A2.5) ----
+        export_metadata = build_metadata(data_types=["chart"])
+
+        # ---- 4. Build the Figure, then save ----
         content = self._render_pdf(
             frame=frame,
             timeframe=request.timeframe,
             title=request.title,
+            metadata=export_metadata,
         )
 
         file_name = self._filename(timeframe=request.timeframe)
@@ -266,6 +287,7 @@ class PdfExporter:
             rows_plotted=rows_plotted,
             content=content,
             pages=1,
+            metadata=export_metadata,
         )
 
     # ============================================================
@@ -276,6 +298,7 @@ class PdfExporter:
         frame: pd.DataFrame,
         timeframe: str,
         title: Optional[str],
+        metadata: Optional[ExportMetadata] = None,
     ) -> bytes:
         """Render the frame to vector PDF bytes.
 
@@ -290,6 +313,9 @@ class PdfExporter:
             timeframe: The timeframe label, used in the default
                 title and the footer.
             title: Optional title override.
+            metadata: Citations block to render into the footer.
+                When None, ``build_chart_figure`` builds a default
+                block internally.
 
         Returns:
             PDF bytes beginning with ``%PDF-``.
@@ -298,6 +324,7 @@ class PdfExporter:
             frame=frame,
             timeframe=timeframe,
             title=title,
+            metadata=metadata,
         )
         return save_figure_pdf(fig)
 

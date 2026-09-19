@@ -3,21 +3,21 @@
 Builds a single CSV byte payload from one or more of the four
 data types the A2 ticket family covers:
 
-    - btc_price        — BTC OHLC close + volume + volatility +
-                         dominance + active_addresses + price_lag_7d,
-                         one row per hourly observation
-    - macro            — macro indicator readings (cpi, interest_rate,
-                         m2_growth, dxy, treasury_yield), one row per
-                         hourly observation after forward-fill
-    - predictions      — latest stored prediction batch per
-                         (horizon, model_name, confidence), one row
-                         per forecast point
-    - correlations     — latest correlation per (indicator, window),
-                         one row per pair
-    - regimes          — regime label per hourly BTC observation,
-                         computed on the fly from a rolling window
-                         of closes via
-                         ``app.prediction.market.classify_market_condition_safe``
+    - btc_price    — BTC OHLC close + volume + volatility +
+                     dominance + active_addresses + price_lag_7d,
+                     one row per hourly observation
+    - macro        — macro indicator readings (cpi, interest_rate,
+                     m2_growth, dxy, treasury_yield), one row per
+                     hourly observation after forward-fill
+    - predictions  — latest stored prediction batch per
+                     (horizon, model_name, confidence), one row
+                     per forecast point
+    - correlations — latest correlation per (indicator, window),
+                     one row per pair
+    - regimes      — regime label per hourly BTC observation,
+                     computed on the fly from a rolling window
+                     of closes via
+                     ``app.prediction.market.classify_market_condition_safe``
 
 Data types are selected by the caller via ``ExportRequest.data_types``.
 When multiple types are requested, the resulting CSV carries a leading
@@ -31,23 +31,14 @@ Design:
       not write files, does not call the ``export_history`` repository,
       does not open its own DB session. The caller owns the session
       (see ``app.export.service``) and owns persistence.
-    - The per-data-type frame builders live in ``app.export.frames``
-      and are shared with the PNG exporter (A2.3). This module stays
-      a thin CSV renderer on top of those frames, so the fetch path
-      for any given data type exists in exactly one place across the
-      A2 ticket family.
-    - Timeframe → hour conversion is a static map defined in
-      ``app.export.frames`` and re-exported here. The acceptance
-      criteria call for 30d / 90d / 1y / 5y; every downstream fetch
-      takes ``hours``, so we convert once and never again.
-    - Regime labels are computed on the fly, per row, from a rolling
-      window of the BTC close series. There is no ``regimes`` table;
-      ``prediction_performance.market_condition`` stores a regime
-      label but only where a walk-forward backtest produced one. The
-      on-the-fly approach produces a complete series over the export
-      window, matches the A1.7 precedent of computing derived labels
-      at read time, and does not couple the export to a table owned
-      by a different feature area.
+    - The per-data-type frame builders live in
+      ``app.export.frames`` and are shared with the PNG and PDF
+      exporters. This module stays a thin CSV renderer on top of
+      those frames.
+    - The citations block (A2.5) is emitted as a comment header.
+      Lines start with ``#`` so ``pandas.read_csv(..., comment="#")``
+      ignores them on re-import. The block names the data sources,
+      the methodology reference, and the access timestamp.
     - Empty frames are a hard error. The A2.2 acceptance criteria
       require "data validation before export"; a requested data type
       that yields zero rows raises ``ValueError`` rather than
@@ -76,6 +67,7 @@ Usage:
             )
         )
         # result.content is the CSV bytes
+        # result.metadata is the citations block
         # result.file_name follows the naming convention
 """
 
@@ -106,6 +98,10 @@ from app.export.frames import (
     build_macro_frame,
     build_predictions_frame,
     build_regimes_frame,
+)
+from app.export.metadata import (
+    ExportMetadata,
+    build_metadata,
 )
 
 logger = logging.getLogger(__name__)
@@ -162,8 +158,10 @@ class ExportResult:
         data_types: The data types that were requested (echoed).
         timeframe: The timeframe that was requested (echoed).
         rows_written: Total number of data rows in the CSV
-            (excluding the header).
+            (excluding the comment header and the column header).
         content: The CSV bytes, UTF-8 encoded.
+        metadata: The citations block that was prepended to the CSV
+            as a comment header (A2.5).
     """
 
     file_name: str
@@ -172,6 +170,7 @@ class ExportResult:
     timeframe: str
     rows_written: int
     content: bytes
+    metadata: Optional[ExportMetadata] = None
 
     def to_dict(self) -> Dict[str, Any]:
         """Return a JSON-serialisable dict.
@@ -179,13 +178,16 @@ class ExportResult:
         ``content`` is deliberately omitted — it can be large, and
         the caller already holds it.
         """
-        return {
+        d: Dict[str, Any] = {
             "file_name": self.file_name,
             "file_size": self.file_size,
             "data_types": list(self.data_types),
             "timeframe": self.timeframe,
             "rows_written": self.rows_written,
         }
+        if self.metadata is not None:
+            d["metadata"] = self.metadata.to_dict()
+        return d
 
     def __repr__(self) -> str:  # pragma: no cover - trivial
         return (
@@ -239,19 +241,22 @@ class CsvExporter:
 
         Steps:
             1. Validate the request (timeframe, data types).
-            2. For each requested data type, build a DataFrame via
+            2. Build a citations block via
+               ``metadata.build_metadata``.
+            3. For each requested data type, build a DataFrame via
                ``app.export.frames``.
-            3. Concatenate the frames (single type → unchanged;
+            4. Concatenate the frames (single type → unchanged;
                multiple types → sections distinguishable by the
                ``data_type`` column).
-            4. Re-validate: no requested type may yield zero rows.
-            5. Render to CSV bytes and compute the filename.
+            5. Re-validate: no requested type may yield zero rows.
+            6. Render to CSV bytes (with the citations comment
+               header) and compute the filename.
 
         Args:
             request: The export request.
 
         Returns:
-            ExportResult with the CSV bytes.
+            ExportResult with the CSV bytes and citations metadata.
 
         Raises:
             ValueError: If the timeframe is unknown, if data_types
@@ -281,7 +286,12 @@ class CsvExporter:
             f"timeframe={request.timeframe} hours={hours}"
         )
 
-        # ---- 2. Build one frame per requested type ----
+        # ---- 2. Citations block (A2.5) ----
+        export_metadata = build_metadata(
+            data_types=list(request.data_types)
+        )
+
+        # ---- 3. Build one frame per requested type ----
         frames: List[pd.DataFrame] = []
         for data_type in request.data_types:
             frame = await self._build_frame(
@@ -291,21 +301,21 @@ class CsvExporter:
             )
             frames.append(frame)
 
-        # ---- 3. Concatenate ----
+        # ---- 4. Concatenate ----
         if len(frames) == 1:
             combined = frames[0]
         else:
             combined = pd.concat(frames, ignore_index=True, sort=False)
 
-        # ---- 4. Validate non-empty ----
+        # ---- 5. Validate non-empty ----
         if combined.empty:
             raise ValueError(
                 f"Export produced zero rows for types="
                 f"{request.data_types} timeframe={request.timeframe}"
             )
 
-        # ---- 5. Render ----
-        content = self.to_csv(combined)
+        # ---- 6. Render ----
+        content = self.to_csv(combined, metadata=export_metadata)
         rows_written = len(combined)
         file_name = self._filename(
             data_types=request.data_types,
@@ -324,6 +334,7 @@ class CsvExporter:
             timeframe=request.timeframe,
             rows_written=rows_written,
             content=content,
+            metadata=export_metadata,
         )
 
     # ============================================================
@@ -338,7 +349,7 @@ class CsvExporter:
         """Dispatch to the per-type builder for the given data type.
 
         Delegates to ``app.export.frames``, which is shared with
-        the PNG exporter (A2.3). Each builder returns a DataFrame
+        the PNG and PDF exporters. Each builder returns a DataFrame
         with a leading ``data_type`` column whose value equals the
         requested type.
 
@@ -438,19 +449,32 @@ class CsvExporter:
         return _frames_stringify(df)
 
     @staticmethod
-    def to_csv(df: pd.DataFrame) -> bytes:
+    def to_csv(
+        df: pd.DataFrame,
+        *,
+        metadata: Optional[ExportMetadata] = None,
+    ) -> bytes:
         """Render a frame to CSV bytes.
 
-        UTC-naive, UTF-8 encoded, no index column. The header row is
-        always present.
+        UTF-8 encoded, no index column, header row always present.
+        When ``metadata`` is provided, its citations block is
+        prepended as ``#``-prefixed comment lines. ``pandas.read_csv``
+        ignores those lines when called with ``comment="#"``.
 
         Args:
             df: The frame to render.
+            metadata: Optional citations block to prepend.
 
         Returns:
             CSV bytes.
         """
         buf = io.StringIO()
+
+        if metadata is not None:
+            for line in metadata.to_comment_lines():
+                buf.write(line)
+                buf.write("\n")
+
         df.to_csv(buf, index=False)
         return buf.getvalue().encode("utf-8")
 
@@ -490,11 +514,12 @@ __all__ = [
     "CsvExporter",
     "ExportRequest",
     "ExportResult",
-    "SUPPORTED_DATA_TYPES",
-    "TIMEFRAME_DAYS",
-    "TIMEFRAME_HOURS",
+    # Re-exported from app.export.frames for backward compatibility:
     "PREDICTION_CONFIDENCE",
     "PREDICTION_HORIZONS",
     "PREDICTION_MODELS",
     "REGIME_ROLLING_WINDOW_HOURS",
+    "SUPPORTED_DATA_TYPES",
+    "TIMEFRAME_DAYS",
+    "TIMEFRAME_HOURS",
 ]

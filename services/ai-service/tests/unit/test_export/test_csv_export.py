@@ -10,6 +10,15 @@ Covers:
       error cases (bad timeframe, empty data_types, unsupported
       type, empty result frame)
 
+Note on reading `build()` payloads:
+
+    Since A2.5, the payload produced by `CsvExporter.build` begins
+    with a citations comment header (lines starting with ``#``).
+    Tests that parse the payload must pass ``comment="#"`` to
+    ``pandas.read_csv``. ``CsvExporter.to_csv`` called directly
+    without a ``metadata`` argument produces a bare CSV and does
+    not need the hint — see ``TestToCsv::test_round_trips_via_read_csv``.
+
 The exporter is a pure in-memory generator over injected
 repositories, so the tests use tiny fake repos that return canned
 DataFrames. No session, no database, no I/O.
@@ -450,7 +459,7 @@ class TestBuildBtcPrice:
         assert result.rows_written == 3
         assert result.file_name.startswith("macro-crypto-btc_price-30d-")
         assert pred_repo.btc_hours_called == TIMEFRAME_HOURS["30d"]
-        back = pd.read_csv(io.BytesIO(result.content))
+        back = pd.read_csv(io.BytesIO(result.content), comment="#")
         assert list(back.columns)[0] == "data_type"
         assert back["data_type"].iloc[0] == "btc_price"
 
@@ -601,7 +610,7 @@ class TestBuildRegimes:
 
         assert result.rows_written == 100
         assert result.file_name.startswith("macro-crypto-regimes-30d-")
-        back = pd.read_csv(io.BytesIO(result.content))
+        back = pd.read_csv(io.BytesIO(result.content), comment="#")
         assert "regime" in back.columns
         # The last row has a full rolling window — it must have a
         # label. The specific label depends on the classifier's
@@ -618,7 +627,7 @@ class TestBuildRegimes:
         result = await exporter.build(
             ExportRequest(data_types=["regimes"], timeframe="30d")
         )
-        back = pd.read_csv(io.BytesIO(result.content))
+        back = pd.read_csv(io.BytesIO(result.content), comment="#")
         # Both rows exist even though the classifier returns None.
         assert len(back) == 2
 
@@ -653,7 +662,7 @@ class TestBuildMultiType:
 
         assert result.rows_written == 6
         assert result.file_name.startswith("macro-crypto-multi-30d-")
-        back = pd.read_csv(io.BytesIO(result.content))
+        back = pd.read_csv(io.BytesIO(result.content), comment="#")
         assert set(back["data_type"].unique()) == {"btc_price", "macro"}
 
     @pytest.mark.asyncio
@@ -685,7 +694,7 @@ class TestBuildMultiType:
         )
 
         assert result.rows_written == 5
-        back = pd.read_csv(io.BytesIO(result.content))
+        back = pd.read_csv(io.BytesIO(result.content), comment="#")
         assert set(back["data_type"].unique()) == {
             "btc_price",
             "macro",
