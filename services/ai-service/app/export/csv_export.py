@@ -31,9 +31,15 @@ Design:
       not write files, does not call the ``export_history`` repository,
       does not open its own DB session. The caller owns the session
       (see ``app.export.service``) and owns persistence.
-    - Timeframe → hour conversion is a static map. The acceptance
+    - The per-data-type frame builders live in ``app.export.frames``
+      and are shared with the PNG exporter (A2.3). This module stays
+      a thin CSV renderer on top of those frames, so the fetch path
+      for any given data type exists in exactly one place across the
+      A2 ticket family.
+    - Timeframe → hour conversion is a static map defined in
+      ``app.export.frames`` and re-exported here. The acceptance
       criteria call for 30d / 90d / 1y / 5y; every downstream fetch
-      takes ``hours``, so we convert once here and never again.
+      takes ``hours``, so we convert once and never again.
     - Regime labels are computed on the fly, per row, from a rolling
       window of the BTC close series. There is no ``regimes`` table;
       ``prediction_performance.market_condition`` stores a regime
@@ -87,64 +93,22 @@ from app.database.repositories.correlation_repository import (
 from app.database.repositories.prediction_repository import (
     PredictionRepository,
 )
-from app.prediction.market import classify_market_condition_safe
+from app.export.frames import (
+    PREDICTION_CONFIDENCE,
+    PREDICTION_HORIZONS,
+    PREDICTION_MODELS,
+    REGIME_ROLLING_WINDOW_HOURS,
+    SUPPORTED_DATA_TYPES,
+    TIMEFRAME_DAYS,
+    TIMEFRAME_HOURS,
+    build_btc_price_frame,
+    build_correlations_frame,
+    build_macro_frame,
+    build_predictions_frame,
+    build_regimes_frame,
+)
 
 logger = logging.getLogger(__name__)
-
-
-# ============================================================
-# CONSTANTS
-# ============================================================
-# Timeframe label → hours. Every repository fetch in this module
-# takes `hours`; the conversion happens exactly once, here.
-TIMEFRAME_HOURS: Dict[str, int] = {
-    "30d": 30 * 24,
-    "90d": 90 * 24,
-    "1y": 365 * 24,
-    "5y": 5 * 365 * 24,
-}
-
-# Timeframe label → days. Used for the correlation lookback, which
-# is expressed in days rather than hours.
-TIMEFRAME_DAYS: Dict[str, int] = {
-    "30d": 30,
-    "90d": 90,
-    "1y": 365,
-    "5y": 5 * 365,
-}
-
-# The data types this exporter can produce. Matches the
-# VALID_DATA_TYPE_NAMES tuple in app.database.validators, minus
-# "model_performance" and "events", which belong to later tickets
-# (M8 / A5) and are not part of the A2.2 acceptance criteria.
-SUPPORTED_DATA_TYPES = (
-    "btc_price",
-    "macro",
-    "predictions",
-    "correlations",
-    "regimes",
-)
-
-# Rolling window size (in hours) used to compute a regime label for
-# each row of the btc_price series. 30 days is the shortest window
-# at which the A1.2 correlation calculator considers a series
-# meaningful, so it is a defensible floor for a regime label too.
-REGIME_ROLLING_WINDOW_HOURS = 30 * 24
-
-# Predictions frame defaults. The A2.2 acceptance criteria say
-# "prediction data export" without specifying a model or horizon,
-# so we emit the latest batch for every (horizon, model_name) pair
-# we know about, at the default 0.85 confidence.
-PREDICTION_HORIZONS = ("24h", "7d")
-PREDICTION_MODELS = (
-    "prophet_fresh",
-    "prophet_warm",
-    "xgboost_fresh",
-    "xgboost_incremental",
-    "lightgbm_fresh",
-    "lightgbm_incremental",
-)
-PREDICTION_CONFIDENCE = 0.85
 
 
 # ============================================================
@@ -275,8 +239,8 @@ class CsvExporter:
 
         Steps:
             1. Validate the request (timeframe, data types).
-            2. For each requested data type, build a DataFrame and
-               tag it with a leading ``data_type`` column.
+            2. For each requested data type, build a DataFrame via
+               ``app.export.frames``.
             3. Concatenate the frames (single type → unchanged;
                multiple types → sections distinguishable by the
                ``data_type`` column).
@@ -363,7 +327,7 @@ class CsvExporter:
         )
 
     # ============================================================
-    # PER-DATA-TYPE BUILDERS
+    # PER-DATA-TYPE DISPATCH
     # ============================================================
     async def _build_frame(
         self,
@@ -373,10 +337,10 @@ class CsvExporter:
     ) -> pd.DataFrame:
         """Dispatch to the per-type builder for the given data type.
 
-        Each builder returns a DataFrame with a leading
-        ``data_type`` column whose value equals the requested type.
-        The leading column lets the concatenated CSV remain
-        self-describing when multiple types are requested.
+        Delegates to ``app.export.frames``, which is shared with
+        the PNG exporter (A2.3). Each builder returns a DataFrame
+        with a leading ``data_type`` column whose value equals the
+        requested type.
 
         Args:
             data_type: One of ``SUPPORTED_DATA_TYPES``.
@@ -404,215 +368,74 @@ class CsvExporter:
         raise ValueError(f"Unsupported data type {data_type!r}")
 
     async def _build_btc_price_frame(self, hours: int) -> pd.DataFrame:
-        """Build the BTC price data frame.
+        """Delegate to ``frames.build_btc_price_frame``.
 
-        Wraps ``PredictionRepository.fetch_recent_btc_data``. The
-        repository already returns columns: time, close, volume,
-        volatility, dominance, active_addresses, price_lag_7d.
-
-        Args:
-            hours: Number of most recent hours to fetch.
-
-        Returns:
-            DataFrame tagged with ``data_type='btc_price'``.
+        Kept as a thin method for internal-shape compatibility; the
+        shared logic lives in ``app.export.frames``.
         """
-        df = await self._prediction_repo.fetch_recent_btc_data(
-            hours=hours
-        )
-        df = self._tag(df, "btc_price")
-        return self._stringify_timestamps(df)
+        return await build_btc_price_frame(self._prediction_repo, hours)
 
     async def _build_macro_frame(self, hours: int) -> pd.DataFrame:
-        """Build the macroeconomic indicator data frame.
+        """Delegate to ``frames.build_macro_frame``.
 
-        Wraps ``PredictionRepository.fetch_recent_macro_data``. The
-        repository returns columns: time, cpi, interest_rate,
-        m2_growth, dxy, treasury_yield.
-
-        Args:
-            hours: Number of most recent hours to fetch.
-
-        Returns:
-            DataFrame tagged with ``data_type='macro'``.
+        Kept as a thin method for internal-shape compatibility; the
+        shared logic lives in ``app.export.frames``.
         """
-        df = await self._prediction_repo.fetch_recent_macro_data(
-            hours=hours
-        )
-        df = self._tag(df, "macro")
-        return self._stringify_timestamps(df)
+        return await build_macro_frame(self._prediction_repo, hours)
 
     async def _build_predictions_frame(self, hours: int) -> pd.DataFrame:
-        """Build the prediction data frame.
+        """Delegate to ``frames.build_predictions_frame``.
 
-        Emits the latest stored batch for every
-        (horizon, model_name) pair at the default confidence. Pairs
-        with no stored rows are omitted from the output; they do
-        not raise. The export only fails when *every* pair is
-        missing, which ``build()`` catches as an empty frame.
-
-        The ``hours`` argument is accepted for signature parity with
-        the other builders but is not used — the latest-batch lookup
-        in ``PredictionRepository.fetch_latest_predictions`` is
-        already scoped by horizon, and the horizon (24h or 7d)
-        bounds the batch length.
-
-        Args:
-            hours: Unused. Accepted for a uniform dispatch signature.
-
-        Returns:
-            DataFrame tagged with ``data_type='predictions'``.
+        Kept as a thin method for internal-shape compatibility; the
+        shared logic lives in ``app.export.frames``.
         """
-        rows: List[Dict[str, Any]] = []
-
-        for horizon in PREDICTION_HORIZONS:
-            for model_name in PREDICTION_MODELS:
-                batch = (
-                    await self._prediction_repo.fetch_latest_predictions(
-                        horizon=horizon,
-                        model_name=model_name,
-                        confidence=PREDICTION_CONFIDENCE,
-                    )
-                )
-                for p in batch:
-                    rows.append(
-                        {
-                            "model_name": p.model_name,
-                            "horizon": p.horizon,
-                            "confidence": p.confidence,
-                            "prediction_time": p.prediction_time,
-                            "forecast_time": p.time,
-                            "predicted_price": p.predicted_price,
-                            "lower_bound": p.lower_bound,
-                            "upper_bound": p.upper_bound,
-                        }
-                    )
-
-        df = pd.DataFrame(rows)
-        df = self._tag(df, "predictions")
-        return self._stringify_timestamps(df)
+        return await build_predictions_frame(self._prediction_repo, hours)
 
     async def _build_correlations_frame(self, days: int) -> pd.DataFrame:
-        """Build the correlation data frame.
+        """Delegate to ``frames.build_correlations_frame``.
 
-        Emits the latest row per (indicator, window) across all
-        windows. The ``days`` argument is accepted for signature
-        parity with the other builders but is not used — the
-        repository's "latest per indicator" query already returns
-        one row per pair regardless of how recent the row is.
-
-        Args:
-            days: Unused. Accepted for a uniform dispatch signature.
-
-        Returns:
-            DataFrame tagged with ``data_type='correlations'``.
+        Kept as a thin method for internal-shape compatibility; the
+        shared logic lives in ``app.export.frames``.
         """
-        rows = await self._correlation_repo.fetch_latest_per_indicator()
-
-        df = pd.DataFrame(rows)
-        df = self._tag(df, "correlations")
-        return self._stringify_timestamps(df)
+        return await build_correlations_frame(
+            self._correlation_repo, days
+        )
 
     async def _build_regimes_frame(self, hours: int) -> pd.DataFrame:
-        """Build the regime data frame.
+        """Delegate to ``frames.build_regimes_frame``.
 
-        Regime labels are computed on the fly per row from a rolling
-        window of the BTC close series. Each row's label describes
-        the market condition over the preceding
-        ``REGIME_ROLLING_WINDOW_HOURS`` hours, as classified by
-        ``classify_market_condition_safe``. There is no ``regimes``
-        table; the labels live only in this export.
-
-        Rows before the rolling window has filled are still
-        emitted, with a ``None`` label — the A2.2 acceptance
-        criteria call for regime data over the requested timeframe,
-        not for a minimum history requirement.
-
-        Args:
-            hours: Number of most recent hours to fetch.
-
-        Returns:
-            DataFrame tagged with ``data_type='regimes'`` with
-            columns: time, close, regime.
+        Kept as a thin method for internal-shape compatibility; the
+        shared logic lives in ``app.export.frames``.
         """
-        btc_df = await self._prediction_repo.fetch_recent_btc_data(
-            hours=hours
-        )
-
-        if btc_df.empty:
-            return self._tag(btc_df, "regimes")
-
-        # Rolling classification is applied on the close series in
-        # time order. The repository already sorts ascending.
-        closes = btc_df["close"].tolist()
-        labels: List[Optional[str]] = []
-        for i in range(len(closes)):
-            window_start = max(0, i + 1 - REGIME_ROLLING_WINDOW_HOURS)
-            window = closes[window_start : i + 1]
-            labels.append(classify_market_condition_safe(window))
-
-        out = pd.DataFrame(
-            {
-                "time": btc_df["time"].tolist(),
-                "close": closes,
-                "regime": labels,
-            }
-        )
-        out = self._tag(out, "regimes")
-        return self._stringify_timestamps(out)
+        return await build_regimes_frame(self._prediction_repo, hours)
 
     # ============================================================
     # HELPERS
     # ============================================================
     @staticmethod
     def _tag(df: pd.DataFrame, data_type: str) -> pd.DataFrame:
-        """Insert a leading ``data_type`` column.
+        """Backwards-compatible alias for ``frames.tag``.
 
-        A no-op when ``df`` is empty. The column is inserted at
-        position 0 so it reads first in the CSV.
-
-        Args:
-            df: The frame to tag.
-            data_type: The value to write into every row.
-
-        Returns:
-            The tagged frame (a new object; ``df`` is not mutated).
+        ``build()`` no longer calls this directly — the shared
+        builders in ``app.export.frames`` tag their own frames. The
+        alias is kept so that any existing caller (or test) that
+        reaches for ``CsvExporter._tag`` continues to work.
         """
-        if df.empty:
-            # Return as-is but ensure the column exists so the
-            # concatenated CSV has a stable header.
-            out = df.copy()
-            out.insert(0, "data_type", pd.Series(dtype="object"))
-            return out
+        from app.export.frames import tag as _frames_tag
 
-        out = df.copy()
-        out.insert(0, "data_type", data_type)
-        return out
+        return _frames_tag(df, data_type)
 
     @staticmethod
     def _stringify_timestamps(df: pd.DataFrame) -> pd.DataFrame:
-        """Convert any datetime-typed column to ISO 8601 strings.
+        """Backwards-compatible alias for ``frames.stringify_timestamps``.
 
-        ``pandas.to_csv`` renders datetimes in a format that is
-        readable but not always parseable without hints on
-        re-import. ISO 8601 strings round-trip cleanly through
-        ``pandas.read_csv``.
-
-        Args:
-            df: The frame to normalise.
-
-        Returns:
-            The frame with datetime columns converted to strings.
+        See ``_tag`` for why the alias exists.
         """
-        if df.empty:
-            return df
+        from app.export.frames import (
+            stringify_timestamps as _frames_stringify,
+        )
 
-        out = df.copy()
-        for col in out.columns:
-            if pd.api.types.is_datetime64_any_dtype(out[col]):
-                out[col] = out[col].apply(
-                    lambda v: v.isoformat() if v is not None else None
-                )
-        return out
+        return _frames_stringify(df)
 
     @staticmethod
     def to_csv(df: pd.DataFrame) -> bytes:

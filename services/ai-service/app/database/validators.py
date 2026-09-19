@@ -48,6 +48,11 @@ VALID_EXPORT_STATUSES = ("pending", "completed", "failed")
 
 # The set of data-type strings an export may include. Kept as a
 # tuple so it round-trips through `in` checks and error messages.
+#
+# Note: 'chart' is a storage-level label that PNG exports (A2.3)
+# record in export_history. It is not a stream a data exporter
+# produces; the exporter-side stream list lives in
+# app.export.frames.SUPPORTED_DATA_TYPES.
 VALID_DATA_TYPE_NAMES = (
     "btc_price",
     "predictions",
@@ -55,6 +60,7 @@ VALID_DATA_TYPE_NAMES = (
     "correlations",
     "regimes",
     "events",
+    "chart",
 )
 
 
