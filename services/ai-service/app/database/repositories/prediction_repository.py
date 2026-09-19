@@ -6,6 +6,7 @@ generation pipeline:
     - Reading recent macro indicator data (macro regressors)
     - Merging both into a single training/prediction frame
     - Writing generated predictions to the btc_predictions table
+    - Reading stored predictions for the API layer
 
 Design:
     - Takes an AsyncSession in the constructor. Callers wire the
@@ -82,9 +83,9 @@ class PredictionRow:
 class PredictionRepository:
     """Repository for reading source data and writing predictions.
 
-    All methods are async and take/return DataFrames or row counts.
-    The repository does not commit — the caller controls transactions
-    via session_scope().
+    All methods are async and take/return DataFrames, rows, or
+    scalars. The repository does not commit — the caller controls
+    transactions via session_scope().
 
     Example:
         async with session_scope() as session:
@@ -101,7 +102,7 @@ class PredictionRepository:
         self.session = session
 
     # ============================================================
-    # READS
+    # READS — source data
     # ============================================================
     async def fetch_recent_btc_data(self, hours: int) -> pd.DataFrame:
         """Fetch the last `hours` of BTC price data.
@@ -258,6 +259,129 @@ class PredictionRepository:
         )
 
         return merged
+
+    # ============================================================
+    # READS — stored predictions (API layer)
+    # ============================================================
+    async def fetch_latest_predictions(
+        self,
+        horizon: str = "24h",
+        model_name: str = "prophet",
+        confidence: float = 0.85,
+    ) -> List[PredictionRow]:
+        """Fetch the most recent prediction batch for the given key.
+
+        A "batch" is all rows sharing the same `prediction_time` for
+        a given (horizon, model_name, confidence). The generator
+        writes each forecast run as a batch of N rows (24 for a
+        daily horizon, 168 for a weekly one).
+
+        Returns an empty list if no rows exist for the given key.
+
+        Args:
+            horizon: Horizon label ('24h' or '7d').
+            model_name: Model identifier ('prophet', 'xgboost', ...).
+            confidence: Confidence level (0.70, 0.85, 0.95).
+
+        Returns:
+            List of PredictionRow instances ordered by `time` ascending.
+            Empty if there are no matching rows.
+        """
+        from sqlalchemy import func
+
+        # Subquery: latest prediction_time for this key
+        latest_ts_stmt = select(
+            func.max(btc_predictions.c.prediction_time)
+        ).where(
+            btc_predictions.c.horizon == horizon,
+            btc_predictions.c.model_name == model_name,
+            btc_predictions.c.confidence == confidence,
+        )
+
+        result = await self.session.execute(latest_ts_stmt)
+        latest_ts = result.scalar_one_or_none()
+
+        if latest_ts is None:
+            logger.debug(
+                f"No predictions found for "
+                f"(horizon={horizon}, model={model_name}, "
+                f"confidence={confidence})"
+            )
+            return []
+
+        # Fetch all rows in that batch
+        stmt = (
+            select(
+                btc_predictions.c.time,
+                btc_predictions.c.prediction_time,
+                btc_predictions.c.horizon,
+                btc_predictions.c.model_name,
+                btc_predictions.c.confidence,
+                btc_predictions.c.predicted_price,
+                btc_predictions.c.lower_bound,
+                btc_predictions.c.upper_bound,
+            )
+            .where(
+                btc_predictions.c.horizon == horizon,
+                btc_predictions.c.model_name == model_name,
+                btc_predictions.c.confidence == confidence,
+                btc_predictions.c.prediction_time == latest_ts,
+            )
+            .order_by(btc_predictions.c.time.asc())
+        )
+
+        result = await self.session.execute(stmt)
+        rows = result.mappings().all()
+
+        logger.debug(
+            f"Fetched {len(rows)} prediction rows for "
+            f"(horizon={horizon}, model={model_name}, "
+            f"confidence={confidence}, prediction_time={latest_ts})"
+        )
+
+        return [
+            PredictionRow(
+                time=r["time"],
+                prediction_time=r["prediction_time"],
+                horizon=r["horizon"],
+                model_name=r["model_name"],
+                confidence=r["confidence"],
+                predicted_price=r["predicted_price"],
+                lower_bound=r["lower_bound"],
+                upper_bound=r["upper_bound"],
+            )
+            for r in rows
+        ]
+
+    async def fetch_latest_close_price(self) -> Optional[float]:
+        """Fetch the most recent BTC close price.
+
+        Reads from the Data Ingestion Service's `btc_prices` table.
+
+        Returns:
+            The latest close price as a float, or None if the table
+            is empty or unavailable.
+        """
+        stmt = (
+            select(btc_prices.c.close)
+            .order_by(btc_prices.c.time.desc())
+            .limit(1)
+        )
+
+        try:
+            result = await self.session.execute(stmt)
+            value = result.scalar_one_or_none()
+        except Exception as e:
+            logger.warning(
+                f"Failed to fetch latest close price from btc_prices: {e}"
+            )
+            return None
+
+        if value is None:
+            logger.debug("btc_prices is empty — no current price available")
+            return None
+
+        return float(value)
 
     # ============================================================
     # WRITES
