@@ -9,6 +9,8 @@ Design:
     - `MarketBreakdownEntry` — per-market-condition metrics
     - `ThresholdStatus` — per-metric threshold check result
       (extended in T5.6 with streak info)
+    - `ModelHistoryPoint` — one row of aggregate metrics from the
+      model_performance table (M8)
     - `PerformanceEntry` — one (model, horizon) row
     - `PerformanceResponse` — the full envelope with all entries
 
@@ -134,6 +136,52 @@ class StreakSummary(BaseModel):
 
 
 # ============================================================
+# MODEL HISTORY (M8)
+# ============================================================
+class ModelHistoryPoint(BaseModel):
+    """One point in a model's historical performance series.
+
+    Mirrors a single row of the `model_performance` table: the
+    aggregate metrics for one (model, horizon) computed at a
+    specific point in time (the run's `calculated_at` timestamp).
+
+    Attributes:
+        calculated_at: When the aggregation was computed (UTC).
+        mae: Mean Absolute Error in USD, or None if not computed.
+        rmse: Root Mean Square Error in USD, or None.
+        mape: Mean Absolute Percentage Error in percent, or None.
+        directional_accuracy: Directional accuracy in percent
+            (0-100), or None.
+        sample_size: Number of evaluated points that contributed to
+            this aggregate.
+    """
+
+    calculated_at: datetime = Field(
+        ...,
+        description="When the aggregation was computed (UTC).",
+    )
+    mae: Optional[float] = Field(
+        None, description="MAE in USD."
+    )
+    rmse: Optional[float] = Field(
+        None, description="RMSE in USD."
+    )
+    mape: Optional[float] = Field(
+        None, description="MAPE in percent."
+    )
+    directional_accuracy: Optional[float] = Field(
+        None,
+        description="Directional accuracy in percent (0-100).",
+    )
+    sample_size: int = Field(
+        0,
+        description=(
+            "Number of evaluated points contributing to this aggregate."
+        ),
+    )
+
+
+# ============================================================
 # ENTRY
 # ============================================================
 class PerformanceEntry(BaseModel):
@@ -154,6 +202,9 @@ class PerformanceEntry(BaseModel):
         warning_count: Number of metrics with active warnings (T5.6).
         warning_threshold_days: The streak-day threshold used to
             decide warnings (T5.6).
+        history: Ordered list of historical aggregate points from
+            the model_performance table (M8). Populated only when
+            `?include_history=true`; empty otherwise.
     """
 
     model_name: str = Field(..., description="Model identifier.")
@@ -191,6 +242,13 @@ class PerformanceEntry(BaseModel):
         3,
         description="Streak-day threshold used to decide warnings.",
     )
+    history: List[ModelHistoryPoint] = Field(
+        default_factory=list,
+        description=(
+            "Historical aggregate points from model_performance, "
+            "ordered oldest-first. Empty unless ?include_history=true."
+        ),
+    )
 
 
 # ============================================================
@@ -205,6 +263,10 @@ class PerformanceResponse(BaseModel):
         entries: One entry per (model, horizon) pair.
         warnings_count: Total number of warnings across all
             entries (T5.6). Zero when everything is healthy.
+        best_model: Name of the model with the lowest mean MAE over
+            the window, per model_performance. None when there is
+            no MAE data. Additive field added in M8 — existing
+            clients that ignore it are unaffected.
     """
 
     time_period_days: int = Field(
@@ -221,6 +283,13 @@ class PerformanceResponse(BaseModel):
         0,
         description="Total number of warnings across all entries.",
     )
+    best_model: Optional[str] = Field(
+        None,
+        description=(
+            "Model with the lowest mean MAE over the window, per "
+            "model_performance. None when there is no MAE data."
+        ),
+    )
 
     model_config = {
         "json_schema_extra": {
@@ -229,6 +298,7 @@ class PerformanceResponse(BaseModel):
                     "time_period_days": 30,
                     "generated_at": "2026-09-14T12:00:00Z",
                     "warnings_count": 1,
+                    "best_model": "prophet_fresh",
                     "entries": [
                         {
                             "model_name": "prophet_fresh",
@@ -265,6 +335,16 @@ class PerformanceResponse(BaseModel):
                             "warning": False,
                             "warning_count": 0,
                             "warning_threshold_days": 3,
+                            "history": [
+                                {
+                                    "calculated_at": "2026-09-13T07:15:00Z",
+                                    "mae": 480.0,
+                                    "rmse": 690.0,
+                                    "mape": 1.1,
+                                    "directional_accuracy": 61.5,
+                                    "sample_size": 1,
+                                }
+                            ],
                         }
                     ],
                 }
