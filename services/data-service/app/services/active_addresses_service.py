@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 ACTIVE_ADDRESSES_INDICATOR = "active_addresses"
 
-TIMESPAN = "all"  # Collect all historical data available from Blockchain.com
+HISTORICAL_START_YEAR = 2009
 
 
 class ActiveAddressesService:
@@ -40,6 +40,48 @@ class ActiveAddressesService:
         if self._owns_collector:
             await self.collector.close()
 
+    async def _collect_historical_records(self) -> list[dict[str, Any]]:
+        """
+        Collect daily active-address data using bounded yearly windows.
+
+        Blockchain.com's `timespan=all` response is sparse for historical
+        data. Bounded `1year` requests with an explicit start date provide
+        daily observations where the source has data.
+        """
+
+        current_year = datetime.now(timezone.utc).year
+        records: list[dict[str, Any]] = []
+
+        for year in range(
+            HISTORICAL_START_YEAR,
+            current_year + 1,
+        ):
+            start = f"{year}-01-01"
+
+            batch = await self.collector.get_active_addresses(
+                timespan="1year",
+                start=start,
+            )
+
+            records.extend(batch)
+
+            logger.info(
+                "Collected %d active-address records for window starting %s",
+                len(batch),
+                start,
+            )
+
+        # Deduplicate overlapping yearly-window boundaries by UTC date.
+        # The latest record for a duplicated date is retained.
+        records = list(
+            {
+                record["time"].date(): record
+                for record in records
+            }.values()
+        )
+
+        return records
+
     async def calculate(self) -> list[dict[str, Any]]:
         """
         Collect daily active-address observations.
@@ -48,9 +90,7 @@ class ActiveAddressesService:
             Active-address records ready for persistence.
         """
 
-        records = await self.collector.get_active_addresses(
-            timespan=TIMESPAN,
-        )
+        records = await self._collect_historical_records()
 
         if not records:
             logger.warning(
@@ -104,3 +144,4 @@ class ActiveAddressesService:
         )
 
         return result
+
