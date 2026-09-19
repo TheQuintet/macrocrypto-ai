@@ -5,6 +5,7 @@ generator to isolate the job orchestration logic (model load,
 session opening, result evaluation).
 
 Test organization:
+    - TestDailyRetrainJob: daily retrain of all 6 models
     - TestHourlyPredictionJob: 24h job happy path + failure paths
     - TestDaily7dPredictionJob: 7d job happy path + failure paths
     - TestJobConstants: module constants
@@ -14,13 +15,17 @@ from datetime import datetime, timezone
 from typing import Any, Dict
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import numpy as np
+import pandas as pd
 import pytest
 
 from app.prediction.generator import GenerationResult
 from app.scheduler.jobs import (
     JOB_DAILY_7D_PREDICTION,
+    JOB_DAILY_RETRAIN,
     JOB_HOURLY_PREDICTION,
     daily_7d_prediction_job,
+    daily_retrain_job,
     hourly_prediction_job,
 )
 
@@ -63,6 +68,264 @@ def _session_scope_mock() -> MagicMock:
     cm.__aenter__ = AsyncMock(return_value=MagicMock())
     cm.__aexit__ = AsyncMock(return_value=False)
     return cm
+
+
+def _make_training_frame(n: int = 100) -> pd.DataFrame:
+    """Build a synthetic training frame for the retrain job."""
+    dates = pd.date_range("2024-01-01", periods=n, freq="h")
+    return pd.DataFrame(
+        {
+            "ds": dates,
+            "y": np.linspace(50_000, 51_000, n),
+            "cpi": [3.2] * n,
+            "interest_rate": [4.5] * n,
+            "m2_growth": [2.8] * n,
+            "dxy": [102.5] * n,
+            "treasury_yield": [4.2] * n,
+            "volume": [25_000_000_000] * n,
+            "volatility": [0.15] * n,
+            "dominance": [52.5] * n,
+            "active_addresses": [850_000] * n,
+            "price_lag_7d": [50_000] * n,
+        }
+    )
+
+
+def _all_success_results() -> Dict[str, Dict[str, Any]]:
+    """Build a retrain result dict with all 6 models succeeding."""
+    names = [
+        "prophet_fresh",
+        "prophet_warm",
+        "xgboost_fresh",
+        "xgboost_incremental",
+        "lightgbm_fresh",
+        "lightgbm_incremental",
+    ]
+    return {
+        name: {
+            "model_name": name,
+            "status": "success",
+            "metrics": {"mae": 100.0},
+            "error": None,
+            "duration_seconds": 0.1,
+        }
+        for name in names
+    }
+
+
+# ============================================================
+# DAILY RETRAIN JOB
+# ============================================================
+class TestDailyRetrainJob:
+    """Tests for daily_retrain_job()."""
+
+    @pytest.mark.asyncio
+    async def test_happy_path(self) -> None:
+        """Test that a successful retrain returns a summary dict."""
+        frame = _make_training_frame(100)
+
+        mock_repo = MagicMock()
+        mock_repo.fetch_training_frame = AsyncMock(return_value=frame)
+
+        mock_orchestrator = MagicMock()
+        mock_orchestrator.retrain_all = MagicMock(
+            return_value=_all_success_results()
+        )
+
+        with patch(
+            "app.scheduler.jobs.PredictionRepository",
+            return_value=mock_repo,
+        ), patch(
+            "app.scheduler.jobs.RetrainingOrchestrator",
+            return_value=mock_orchestrator,
+        ), patch(
+            "app.scheduler.jobs.session_scope",
+            return_value=_session_scope_mock(),
+        ):
+            result = await daily_retrain_job()
+
+        assert result["models_retrained"] == 6
+        assert result["models_succeeded"] == 6
+        assert result["models_failed"] == 0
+        assert "elapsed_seconds" in result
+
+    @pytest.mark.asyncio
+    async def test_raises_when_training_frame_empty(self) -> None:
+        """Test that an empty training frame raises RuntimeError."""
+        mock_repo = MagicMock()
+        mock_repo.fetch_training_frame = AsyncMock(
+            return_value=pd.DataFrame()
+        )
+
+        with patch(
+            "app.scheduler.jobs.PredictionRepository",
+            return_value=mock_repo,
+        ), patch(
+            "app.scheduler.jobs.session_scope",
+            return_value=_session_scope_mock(),
+        ):
+            with pytest.raises(RuntimeError, match="empty or unavailable"):
+                await daily_retrain_job()
+
+    @pytest.mark.asyncio
+    async def test_raises_when_training_frame_none(self) -> None:
+        """Test that a None training frame raises RuntimeError."""
+        mock_repo = MagicMock()
+        mock_repo.fetch_training_frame = AsyncMock(return_value=None)
+
+        with patch(
+            "app.scheduler.jobs.PredictionRepository",
+            return_value=mock_repo,
+        ), patch(
+            "app.scheduler.jobs.session_scope",
+            return_value=_session_scope_mock(),
+        ):
+            with pytest.raises(RuntimeError, match="empty or unavailable"):
+                await daily_retrain_job()
+
+    @pytest.mark.asyncio
+    async def test_raises_when_insufficient_rows(self) -> None:
+        """Test that too few training rows raises RuntimeError."""
+        small = _make_training_frame(30)  # below 60-row floor
+
+        mock_repo = MagicMock()
+        mock_repo.fetch_training_frame = AsyncMock(return_value=small)
+
+        with patch(
+            "app.scheduler.jobs.PredictionRepository",
+            return_value=mock_repo,
+        ), patch(
+            "app.scheduler.jobs.session_scope",
+            return_value=_session_scope_mock(),
+        ):
+            with pytest.raises(RuntimeError, match="insufficient"):
+                await daily_retrain_job()
+
+    @pytest.mark.asyncio
+    async def test_raises_when_some_models_fail(self) -> None:
+        """Test that partial retrain failure raises RuntimeError."""
+        frame = _make_training_frame(100)
+
+        mock_repo = MagicMock()
+        mock_repo.fetch_training_frame = AsyncMock(return_value=frame)
+
+        # 5 succeed, 1 fails
+        results = _all_success_results()
+        results["xgboost_fresh"]["status"] = "failed"
+        results["xgboost_fresh"]["error"] = "boom"
+
+        mock_orchestrator = MagicMock()
+        mock_orchestrator.retrain_all = MagicMock(return_value=results)
+
+        with patch(
+            "app.scheduler.jobs.PredictionRepository",
+            return_value=mock_repo,
+        ), patch(
+            "app.scheduler.jobs.RetrainingOrchestrator",
+            return_value=mock_orchestrator,
+        ), patch(
+            "app.scheduler.jobs.session_scope",
+            return_value=_session_scope_mock(),
+        ):
+            with pytest.raises(RuntimeError, match="1 model"):
+                await daily_retrain_job()
+
+    @pytest.mark.asyncio
+    async def test_uses_settings_model_save_dir(self) -> None:
+        """Test that the orchestrator is constructed with model_save_dir."""
+        from app.config import settings
+
+        frame = _make_training_frame(100)
+
+        mock_repo = MagicMock()
+        mock_repo.fetch_training_frame = AsyncMock(return_value=frame)
+
+        mock_orchestrator = MagicMock()
+        mock_orchestrator.retrain_all = MagicMock(
+            return_value=_all_success_results()
+        )
+
+        with patch(
+            "app.scheduler.jobs.PredictionRepository",
+            return_value=mock_repo,
+        ), patch(
+            "app.scheduler.jobs.RetrainingOrchestrator",
+            return_value=mock_orchestrator,
+        ) as mock_orch_class, patch(
+            "app.scheduler.jobs.session_scope",
+            return_value=_session_scope_mock(),
+        ):
+            await daily_retrain_job()
+
+        call_kwargs = mock_orch_class.call_args.kwargs
+        assert call_kwargs["model_save_dir"] == settings.model_save_dir
+        # All 6 models registered
+        assert len(call_kwargs["models"]) == 6
+
+    @pytest.mark.asyncio
+    async def test_fetches_90_days_of_history(self) -> None:
+        """Test that the retrain job fetches 2160 hours of history."""
+        frame = _make_training_frame(100)
+
+        mock_repo = MagicMock()
+        mock_repo.fetch_training_frame = AsyncMock(return_value=frame)
+
+        mock_orchestrator = MagicMock()
+        mock_orchestrator.retrain_all = MagicMock(
+            return_value=_all_success_results()
+        )
+
+        with patch(
+            "app.scheduler.jobs.PredictionRepository",
+            return_value=mock_repo,
+        ), patch(
+            "app.scheduler.jobs.RetrainingOrchestrator",
+            return_value=mock_orchestrator,
+        ), patch(
+            "app.scheduler.jobs.session_scope",
+            return_value=_session_scope_mock(),
+        ):
+            await daily_retrain_job()
+
+        # Verify fetch_training_frame was called with hours=2160
+        call_kwargs = mock_repo.fetch_training_frame.call_args.kwargs
+        assert call_kwargs["hours"] == 2160
+
+    @pytest.mark.asyncio
+    async def test_registers_all_six_models(self) -> None:
+        """Test that the orchestrator receives all 6 model variants."""
+        frame = _make_training_frame(100)
+
+        mock_repo = MagicMock()
+        mock_repo.fetch_training_frame = AsyncMock(return_value=frame)
+
+        mock_orchestrator = MagicMock()
+        mock_orchestrator.retrain_all = MagicMock(
+            return_value=_all_success_results()
+        )
+
+        with patch(
+            "app.scheduler.jobs.PredictionRepository",
+            return_value=mock_repo,
+        ), patch(
+            "app.scheduler.jobs.RetrainingOrchestrator",
+            return_value=mock_orchestrator,
+        ) as mock_orch_class, patch(
+            "app.scheduler.jobs.session_scope",
+            return_value=_session_scope_mock(),
+        ):
+            await daily_retrain_job()
+
+        call_kwargs = mock_orch_class.call_args.kwargs
+        expected_names = {
+            "prophet_fresh",
+            "prophet_warm",
+            "xgboost_fresh",
+            "xgboost_incremental",
+            "lightgbm_fresh",
+            "lightgbm_incremental",
+        }
+        assert set(call_kwargs["models"].keys()) == expected_names
 
 
 # ============================================================
@@ -318,7 +581,6 @@ class TestDaily7dPredictionJob:
         ):
             await daily_7d_prediction_job()
 
-        # Assert PredictionGenerator was called with 7d parameters
         call_kwargs = mock_gen_class.call_args.kwargs
         assert call_kwargs["horizon"] == "7d"
         assert call_kwargs["horizon_hours"] == 168
@@ -331,6 +593,10 @@ class TestDaily7dPredictionJob:
 # ============================================================
 class TestJobConstants:
     """Tests for module constants."""
+
+    def test_daily_retrain_job_name(self) -> None:
+        """Test that JOB_DAILY_RETRAIN has the expected value."""
+        assert JOB_DAILY_RETRAIN == "daily_retrain"
 
     def test_hourly_job_name(self) -> None:
         """Test that JOB_HOURLY_PREDICTION has the expected value."""
