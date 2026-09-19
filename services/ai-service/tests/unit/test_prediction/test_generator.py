@@ -10,6 +10,7 @@ no real database or model is needed. They verify:
     - Future frame construction (24 rows, hourly, forward-filled)
     - PredictionRow conversion (correct field mapping)
     - GenerationResult serialization
+    - Cache invalidation after save (success + failure)
 
 Test organization:
     - TestGenerationResult: dataclass behavior
@@ -17,11 +18,12 @@ Test organization:
     - TestGeneratorFutureFrame: _build_future_frame logic
     - TestGeneratorRowConversion: _predictions_to_rows logic
     - TestGeneratorGenerate: end-to-end generate() with mocks
+    - TestGeneratorCacheInvalidation: cache invalidation paths
 """
 
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Optional
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import numpy as np
 import pandas as pd
@@ -602,3 +604,78 @@ class TestGeneratorGenerate:
         serialized = json.dumps(d, default=str)
         assert isinstance(serialized, str)
         assert len(serialized) > 0
+
+
+# ============================================================
+# CACHE INVALIDATION TESTS
+# ============================================================
+class TestGeneratorCacheInvalidation:
+    """Tests for the cache invalidation hook in generate()."""
+
+    @pytest.mark.asyncio
+    async def test_invalidates_cache_after_save(
+        self,
+        mock_repository: MagicMock,
+    ) -> None:
+        """Test that the cache is invalidated after a successful save."""
+        g = PredictionGenerator(
+            model=FakeModel(name="prophet"),
+            repository=mock_repository,
+            horizon="24h",
+            confidence=0.85,
+        )
+
+        with patch(
+            "app.cache.prediction_cache.invalidate_prediction_cache",
+            new_callable=AsyncMock,
+        ) as mock_invalidate:
+            result = await g.generate()
+
+        assert result.succeeded is True
+        mock_invalidate.assert_called_once_with(
+            horizon="24h",
+            model_name="prophet",
+            confidence=0.85,
+        )
+
+    @pytest.mark.asyncio
+    async def test_invalidation_failure_does_not_break_generation(
+        self,
+        mock_repository: MagicMock,
+    ) -> None:
+        """Test that a cache invalidation failure does not fail the run."""
+        g = PredictionGenerator(
+            model=FakeModel(),
+            repository=mock_repository,
+        )
+
+        with patch(
+            "app.cache.prediction_cache.invalidate_prediction_cache",
+            new_callable=AsyncMock,
+            side_effect=Exception("redis down"),
+        ):
+            result = await g.generate()
+
+        # The generation succeeded despite the invalidation error
+        assert result.succeeded is True
+        assert result.rows_saved == 24
+
+    @pytest.mark.asyncio
+    async def test_invalidation_not_called_on_failure(
+        self,
+        mock_repository: MagicMock,
+    ) -> None:
+        """Test that invalidation is skipped when generation fails."""
+        g = PredictionGenerator(
+            model=FakeModel(trained=False),
+            repository=mock_repository,
+        )
+
+        with patch(
+            "app.cache.prediction_cache.invalidate_prediction_cache",
+            new_callable=AsyncMock,
+        ) as mock_invalidate:
+            result = await g.generate()
+
+        assert result.succeeded is False
+        mock_invalidate.assert_not_called()

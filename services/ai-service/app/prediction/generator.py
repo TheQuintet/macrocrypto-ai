@@ -6,6 +6,7 @@ end-to-end flow for generating a batch of forecasts:
     2. Build a future frame for the target horizon
     3. Call the forecast model's predict()
     4. Persist predictions to the database (via repository)
+    5. Invalidate the response cache for the affected key
 
 The generator is model-agnostic — it depends only on the
 ForecastModel interface. The same class works with Prophet today
@@ -17,6 +18,8 @@ Design:
     - Fails loudly on missing model or insufficient data
     - Returns a structured GenerationResult
     - Does not commit — the caller controls the transaction
+    - Cache invalidation is best-effort: failures are logged but
+      do not affect the generation result
 """
 
 import logging
@@ -201,7 +204,8 @@ class PredictionGenerator:
         """Run one prediction generation cycle.
 
         Fetches history, builds a future frame, calls the model,
-        persists predictions, and returns a structured result.
+        persists predictions, invalidates the response cache, and
+        returns a structured result.
 
         Never raises on data/model errors — instead returns a
         GenerationResult with `error` set. Only raises on truly
@@ -277,7 +281,10 @@ class PredictionGenerator:
             saved = await self.repository.save_predictions(rows)
             result.rows_saved = saved
 
-            # ---- 7. Compute elapsed ----
+            # ---- 7. Invalidate the response cache (best-effort) ----
+            await self._invalidate_cache()
+
+            # ---- 8. Compute elapsed ----
             elapsed = (
                 datetime.now(timezone.utc) - start
             ).total_seconds()
@@ -307,6 +314,28 @@ class PredictionGenerator:
             )
 
             return result
+
+    async def _invalidate_cache(self) -> None:
+        """Invalidate the response cache for this generator's key.
+
+        Best-effort: failures are logged but never raised. Imported
+        locally to avoid a hard dependency between the prediction
+        package and the cache package.
+        """
+        try:
+            from app.cache.prediction_cache import (
+                invalidate_prediction_cache,
+            )
+
+            await invalidate_prediction_cache(
+                horizon=self.horizon,
+                model_name=self.model.get_name(),
+                confidence=self.confidence,
+            )
+        except Exception as e:
+            logger.warning(
+                f"Cache invalidation failed after prediction save: {e}"
+            )
 
     # ============================================================
     # FUTURE FRAME BUILDING
