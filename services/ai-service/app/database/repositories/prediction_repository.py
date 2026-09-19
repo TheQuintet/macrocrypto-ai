@@ -391,6 +391,10 @@ class PredictionRepository:
     ) -> int:
         """Bulk-insert prediction rows into btc_predictions.
 
+        Supports all horizons (`'24h'`, `'7d'`) and all models
+        (`'prophet'`, and later `'xgboost'`/`'lightgbm'`). The
+        `horizon` and `model_name` are taken from each PredictionRow.
+
         Validates all rows before insertion. Does not commit — the
         caller controls the transaction via session_scope().
 
