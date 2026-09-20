@@ -113,7 +113,7 @@ def test_btc_historical_timestamps_are_utc(btc_records):
         for record in btc_records
         if (
             record.time.tzinfo is None
-            or record.time.utcoffset() != timedelta(0)
+            or record.time.astimezone(timezone.utc).utcoffset() != timedelta(0)
         )
     ]
 
@@ -132,10 +132,10 @@ def test_btc_historical_timestamps_are_midnight_utc(btc_records):
         record.time
         for record in btc_records
         if (
-            record.time.hour != 0
-            or record.time.minute != 0
-            or record.time.second != 0
-            or record.time.microsecond != 0
+            record.time.astimezone(timezone.utc).hour != 0
+            or record.time.astimezone(timezone.utc).minute != 0
+            or record.time.astimezone(timezone.utc).second != 0
+            or record.time.astimezone(timezone.utc).microsecond != 0
         )
     ]
 

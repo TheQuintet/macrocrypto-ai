@@ -112,7 +112,7 @@ def test_btc_dominance_timestamps_are_utc(btc_dominance_records):
     non_utc_records = [
         record
         for record in btc_dominance_records
-        if record.time.utcoffset() != timedelta(0)
+        if record.time.astimezone(timezone.utc).utcoffset() != timedelta(0)
     ]
 
     assert not non_utc_records, (

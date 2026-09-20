@@ -183,8 +183,8 @@ def test_macro_indicator_timestamps_are_utc(
     non_utc_records = [
         record
         for record in macro_indicator_records
-        if record.time.utcoffset() is None
-        or record.time.utcoffset().total_seconds() != 0
+        if record.time.astimezone(timezone.utc).utcoffset() is None
+        or record.time.astimezone(timezone.utc).utcoffset().total_seconds() != 0
     ]
 
     assert not non_utc_records, (
