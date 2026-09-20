@@ -77,11 +77,16 @@ The QA process uses frequency-aware gap validation so that expected publication 
 
 ### A. Known Historical Gaps
 
-| Feature             | Gap Start  | Gap End    | Gap Length | Finding                        |
-| ------------------- | ---------- | ---------- | ---------: | ------------------------------ |
-| `cpi`               | 2025-09-01 | 2025-11-01 |    61 days | Upstream source coverage gap   |
-| `unemployment`      | 2025-09-01 | 2025-11-01 |    61 days | Upstream source coverage gap   |
-| `high_yield_spread` | 2021-03-20 | 2023-09-18 |   914 days | Historical source coverage gap |
+| **Feature**         | **Gap Start** | **Gap End** | **Gap Length** | **Finding**                    |
+| ------------------- | ------------- | ----------- | -------------- | ------------------------------ |
+| `btc_dominance`     | 2023-07-23    | 2023-07-26  | 4 days         | Upstream source coverage gap   |
+| `gold_spot`         | 2021-09-14    | 2021-09-19  | 6 calendar days| Upstream source coverage gap   |
+| `active_addresses`  | 2026-08-17    | 2026-08-23  | 7 days         | Upstream source coverage gap   |
+| `cpi`               | 2025-09-02    | 2025-10-31  | 60 days        | Upstream source coverage gap   |
+| `dxy`               | 2020-11-26    | 2020-11-29  | 4 days         | Upstream source coverage gap   |
+| `dxy`               | 2020-12-24    | 2020-12-27  | 4 days         | Upstream source coverage gap   |
+| `unemployment`      | 2025-09-02    | 2025-10-31  | 60 days        | Upstream source coverage gap   |
+| `high_yield_spread` | 2021-03-20    | 2023-09-18  | 913 days       | Historical source coverage gap |
 
 These gaps were confirmed during validation and are not treated as database collection or aggregation failures.
 
@@ -295,7 +300,12 @@ These decisions are not implemented by modifying the canonical BAML series durin
 
 ---
 
-## 9. Final Outcome & Approval Request
+## 9. Known Limitations for Downstream Stages
+Macro release-lag alignment: Macro features (cpi, federal_funds_rate, m2_money_supply, ...etc.) are currently aligned on observation date rather than actual release date. Training directly on observation-date alignment introduces look-ahead bias and requires proper release-date shifting as a planned step in the preprocessing stage prior to model training.
+
+---
+
+## 10. Final Outcome & Approval Request
 
 The **Data Quality Assurance and Validation Stage is complete**.
 
