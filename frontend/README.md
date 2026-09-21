@@ -30,6 +30,31 @@ Open [http://localhost:3000](http://localhost:3000) in your browser. Vite hot-re
 
 To stop the server, press `Ctrl+C` in the terminal.
 
+### Connect to the API Gateway
+
+Start the backend services from the repository root:
+
+```bash
+docker compose up -d api-gateway
+```
+
+Then configure the frontend:
+
+```bash
+cp .env.example .env.local
+```
+
+Set this value in `.env.local`:
+
+```dotenv
+VITE_API_GATEWAY_BASE_URL=http://localhost:8000
+```
+
+All data and alert HTTP requests then use the gateway. Leave the value empty
+for a frontend-only run with simulated data. `VITE_API_BASE_URL` and
+`VITE_ALERT_API_BASE_URL` remain available only for direct downstream-service
+development; the gateway URL takes precedence when both are set.
+
 ## Scripts
 
 | Command | What it does |

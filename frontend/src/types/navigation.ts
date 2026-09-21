@@ -1,6 +1,11 @@
 import type { LucideIcon } from 'lucide-react'
 
-export type NavItemId = 'dashboard' | 'macro' | 'forecasts' | 'alerts'
+export type NavItemId =
+  | 'dashboard'
+  | 'macro'
+  | 'calendar'
+  | 'forecasts'
+  | 'alerts'
 
 export type PageCopy = {
   title: string
@@ -12,4 +17,6 @@ export type SidebarNavItem = {
   label: string
   path: string
   icon: LucideIcon
+  /** Rendered as a nested sub-menu under this item. */
+  children?: SidebarNavItem[]
 }

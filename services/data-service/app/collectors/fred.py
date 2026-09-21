@@ -6,9 +6,12 @@ Collects:
 - Federal Funds Rate
 - M2 Money Supply
 - US Dollar Index (DXY)
+- Volatility Index (VIX)
 - 10-Year Treasury Yield
 - GDP
 - Unemployment Rate
+- US High Yield Index Option-Adjusted Spread
+- NASDAQ Composite Index
 
 This collector only retrieves data.
 Storage, calculations, and trend analysis
@@ -167,6 +170,13 @@ class FREDCollector:
             settings.FRED_DXY_SERIES
         )
 
+    async def get_vix(self) -> Dict[str, Any]:
+        """
+        Get Volatility Index (VIX) data.
+        """
+
+        return await self._get_series(settings.FRED_VIX_SERIES)
+
     async def get_ten_year_treasury(self) -> Dict[str, Any]:
         """
         Get 10-Year Treasury Yield data.
@@ -194,6 +204,24 @@ class FREDCollector:
             settings.FRED_UNEMPLOYMENT_SERIES
         )
 
+    # async def get_gold_spot_price(self) -> dict[str, Any]:
+    #     """Fetch Gold Spot Price from FRED."""
+    #     return await self._get_series(settings.FRED_GOLD_SPOT_SERIES)
+
+
+    # async def get_active_addresses(self) -> dict[str, Any]:
+    #     """Fetch Bitcoin Active Addresses from FRED."""
+    #     return await self._get_series(settings.FRED_ACTIVE_ADDRESSES_SERIES)
+
+
+    async def get_high_yield_spread(self) -> dict[str, Any]:
+        """Fetch US High Yield Index Option-Adjusted Spread from FRED."""
+        return await self._get_series(settings.FRED_HIGH_YIELD_SPREAD_SERIES)
+
+    async def get_nasdaq_composite(self) -> dict[str, Any]:
+        """Fetch NASDAQ Composite Index from FRED."""
+        return await self._get_series(settings.FRED_NASDAQ_COMPOSITE_SERIES)
+
     async def get_all_indicators(self) -> Dict[str, Any]:
         """
         Fetch all configured FRED economic indicators.
@@ -216,6 +244,8 @@ class FREDCollector:
 
             "dxy": await self.get_dxy(),
 
+            "vix": await self.get_vix(),
+
             "ten_year_treasury": (
                 await self.get_ten_year_treasury()
             ),
@@ -224,7 +254,14 @@ class FREDCollector:
 
             "unemployment": (
                 await self.get_unemployment()
+            ),          
+            
+            "high_yield_spread": (
+                await self.get_high_yield_spread()
             ),
+            "nasdaq_composite": (
+                await self.get_nasdaq_composite()
+            )
         }
 
     async def close(self):

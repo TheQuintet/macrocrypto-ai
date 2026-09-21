@@ -232,7 +232,6 @@ async def test_periodic_macro_collection_production_mode(
 
     assert calls == 2
 
-
 @pytest.mark.asyncio
 async def test_periodic_macro_collection_logs_completion(
     monkeypatch,
@@ -246,6 +245,15 @@ async def test_periodic_macro_collection_logs_completion(
         scheduler.settings,
         "MACRO_UPDATE_INTERVAL_MINUTES",
         1,
+    )
+
+    async def fake_update_all_indicators(self):
+        return {"status": "success"}
+
+    monkeypatch.setattr(
+        scheduler.IndicatorService,
+        "update_all_indicators",
+        fake_update_all_indicators,
     )
 
     calls = 0
@@ -277,7 +285,6 @@ async def test_periodic_macro_collection_logs_completion(
         "Macro/FRED scheduled job completed" in record.message
         for record in caplog.records
     )
-
 
 @pytest.mark.asyncio
 async def test_periodic_macro_collection_handles_cancellation(

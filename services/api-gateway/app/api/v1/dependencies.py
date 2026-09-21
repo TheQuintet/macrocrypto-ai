@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.security import get_current_user, get_current_active_user, get_current_admin_user
-from app.models.database import get_db
+from app.core.database import get_db
 from app.models.user import User
 
 # ============================================

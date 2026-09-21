@@ -26,6 +26,3 @@ EXPOSE 8001
 # Production command
 # For development, docker-compose overrides this with --reload
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8001"]
-
-# For local debugging and wouldn't be used in production
-# CMD ["python", "-m", "debugpy", "--listen", "0.0.0.0:5678", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8001"]

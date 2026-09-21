@@ -270,7 +270,7 @@ export const MacroAlertList: React.FC<MacroAlertListProps> = ({ userId }) => {
       setIsLoading(true);
       setError(null);
       try {
-        const data = await macroAlertApi.getSubscriptions();
+        const data = await macroAlertApi.getSubscriptions(userId);
         setSubscriptions(data);
       } catch {
         console.error('[MacroAlertList] Error');
@@ -281,7 +281,7 @@ export const MacroAlertList: React.FC<MacroAlertListProps> = ({ userId }) => {
     };
 
     loadSubscriptions();
-  }, []);
+  }, [userId]);
 
   const handleToggle = async (eventType: EventType, subscribed: boolean) => {
     try {
@@ -332,7 +332,7 @@ export const MacroAlertList: React.FC<MacroAlertListProps> = ({ userId }) => {
   const handleRefresh = () => {
     setIsLoading(true);
     setError(null);
-    macroAlertApi.getSubscriptions()
+    macroAlertApi.getSubscriptions(userId)
       .then((data: MacroSubscription[]) => {
         setSubscriptions(data);
         showToast.info('Refreshed');

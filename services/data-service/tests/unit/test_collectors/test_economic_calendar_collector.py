@@ -183,6 +183,12 @@ async def test_get_all_events_returns_all_macro_events():
             ],
             [
                 {
+                    "event_type": "vix",
+                    "event_date": test_date,
+                }
+            ],
+            [
+                {
                     "event_type": "gdp",
                     "event_date": test_date,
                 }
@@ -193,6 +199,37 @@ async def test_get_all_events_returns_all_macro_events():
                     "event_date": test_date,
                 }
             ],
+                        [
+                {
+                    "event_type": "dxy",
+                    "event_date": test_date,
+                }
+            ],
+            [
+                {
+                    "event_type": "nasdaq",
+                    "event_date": test_date,
+                }
+            ],
+            [
+                {
+                    "event_type": "m2_money_supply",
+                    "event_date": test_date,
+                }
+            ],
+            [
+                {
+                    "event_type": "high_yield_spread",
+                    "event_date": test_date,
+                }
+            ],
+            [
+                {
+                    "event_type": "ten_year_treasury",
+                    "event_date": test_date,
+                }
+            ],
+            
         ]
     )
 
@@ -200,7 +237,7 @@ async def test_get_all_events_returns_all_macro_events():
         days=365
     )
 
-    assert len(events) == 4
+    assert len(events) == 10
 
     event_types = {
         event["event_type"]
@@ -210,8 +247,14 @@ async def test_get_all_events_returns_all_macro_events():
     assert event_types == {
         "fed",
         "cpi",
+        "vix",
         "gdp",
         "employment",
+        "dxy",
+        "nasdaq",
+        "m2_money_supply",
+        "high_yield_spread",
+        "ten_year_treasury",
     }
 
     await collector.close()

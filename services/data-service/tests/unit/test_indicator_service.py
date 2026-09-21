@@ -205,14 +205,17 @@ async def test_update_all_indicators():
 
     result = await service.update_all_indicators()
 
-    assert len(result) == 7
+    assert len(result) == 10
     assert "cpi" in result
     assert "federal_funds_rate" in result
     assert "m2_money_supply" in result
     assert "dxy" in result
+    assert "vix" in result
     assert "ten_year_treasury" in result
     assert "gdp" in result
     assert "unemployment" in result
+    assert "high_yield_spread" in result
+    assert "nasdaq_composite" in result
 
 
 @pytest.mark.asyncio

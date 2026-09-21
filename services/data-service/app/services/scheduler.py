@@ -33,6 +33,10 @@ from datetime import datetime, timedelta, timezone
 from app.config import settings
 from app.database.session import SessionLocal
 from app.services.economic_calendar_service import EconomicCalendarService
+from app.services.indicator_service import IndicatorService
+from app.services.equity_corr_service import EquityCorrService
+from app.services.active_addresses_service import ActiveAddressesService
+from app.services.gold_spot_service import GoldSpotService
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -76,249 +80,148 @@ async def wait_until_next_run(
     await asyncio.sleep(wait_seconds)
 
 
-# ============================================================
-# MACRO / FRED SCHEDULER
-# ============================================================
-async def periodic_macro_collection():
-    """
-    Scheduled macro/FRED data collection.
 
-    QA/development:
-        MACRO_UPDATE_INTERVAL_MINUTES > 0
-        runs every N minutes.
-
-    Production:
-        MACRO_UPDATE_INTERVAL_MINUTES = 0
-        runs once daily at the configured UTC time.
-
-    Responsibilities:
-        - Wait for the configured schedule.
-        - Run the existing macro/FRED collection workflow.
-        - Handle scheduler errors without stopping the loop.
-    """
-
-    logger.info(
-        "📊 Macro/FRED scheduler started"
-    )
+async def periodic_macro_collection(cache_client=None):
+    logger.info("📊 Macro/FRED scheduler started")
 
     if settings.MACRO_UPDATE_INTERVAL_MINUTES > 0:
-
         logger.info(
-            "Macro QA interval mode enabled: "
-            "running every %s minute(s)",
+            "Macro QA interval mode enabled: running every %s minute(s)",
             settings.MACRO_UPDATE_INTERVAL_MINUTES,
         )
-
     else:
-
         logger.info(
-            "Macro production schedule mode enabled: "
-            "running daily at %02d:%02d UTC",
+            "Macro production schedule mode enabled: running daily at %02d:%02d UTC",
             settings.MACRO_UPDATE_HOUR_UTC,
             settings.MACRO_UPDATE_MINUTE_UTC,
         )
 
     while True:
-
         try:
-
-            # ==================================================
-            # WAIT FOR NEXT MACRO EXECUTION
-            # ==================================================
-
             if settings.MACRO_UPDATE_INTERVAL_MINUTES > 0:
-
                 await asyncio.sleep(
-                    settings.MACRO_UPDATE_INTERVAL_MINUTES
-                    * 60
+                    settings.MACRO_UPDATE_INTERVAL_MINUTES * 60
                 )
-
             else:
-
                 await wait_until_next_run(
                     settings.MACRO_UPDATE_HOUR_UTC,
                     settings.MACRO_UPDATE_MINUTE_UTC,
                     "macro/FRED update",
                 )
 
-            logger.info(
-                "📊 Macro/FRED scheduler woke up"
-            )
+            logger.info("📊 Macro/FRED scheduler woke up")
 
-            # ==================================================
-            # MACRO/FRED COLLECTION
-            # ==================================================
-            #
-            # Keep the existing macro/FRED indicator workflow
-            # here when it is connected to this scheduler.
-            #
-            # Economic calendar collection is intentionally NOT
-            # handled here. It has its own scheduler:
-            #
-            # periodic_economic_calendar_collection()
-            #
+            db = SessionLocal()
+            equity_corr_service = None
+            active_addresses_service = None
+            gold_spot_service = None
 
-            logger.info(
-                "📊 Macro/FRED scheduled job completed"
-            )
+            try:
+                service = IndicatorService(
+                    db,
+                    cache_client=cache_client,
+                )
+
+                result = await service.update_all_indicators()
+
+                logger.info(
+                    "📊 Macro/FRED collection result: %s",
+                    result,
+                )
+
+                # ==================================================
+                # DERIVED EQUITY CORRELATION
+                # ==================================================
+
+                equity_corr_service = EquityCorrService(db)
+
+                equity_corr_records = (
+                    await equity_corr_service.calculate()
+                )
+
+                if equity_corr_records:
+                    equity_corr_service.repository.create_many(
+                        equity_corr_records
+                    )
+
+                    logger.info(
+                        "📈 equity_corr calculation completed: "
+                        "%d records persisted",
+                        len(equity_corr_records),
+                    )
+                else:
+                    logger.warning(
+                        "📈 equity_corr calculation produced no records"
+                    )    
+
+                # Active address from blockchain.com is a derived feature that is not part of the FRED collection.
+                active_addresses_service = ActiveAddressesService(db)
+
+                active_addresses_records = (
+                    await active_addresses_service.calculate()
+                )
+
+                if active_addresses_records:
+                    active_addresses_service.repository.create_many(
+                        active_addresses_records
+                    )
+
+                    logger.info(
+                        "📈 Active addresses calculation completed: " \
+                        "📈 Persisted %d active_addresses records",
+                        len(active_addresses_records),
+                    )
+
+                else:
+                    logger.warning(
+                        "📈 Active addresses calculation produced no records"
+                    )
+
+                # Gold spot from Yahoo Finance
+                gold_spot_service = GoldSpotService(db)
+
+                gold_spot_records = (
+                    await gold_spot_service.collect()
+                )
+
+                if gold_spot_records:
+                    gold_spot_service.repository.create_many(
+                        gold_spot_records
+                    )
+
+                    logger.info(
+                        "🪙 Gold spot data acquisition completed: "
+                        "Persisted %d gold_spot records",
+                        len(gold_spot_records),
+                    )
+
+                else:
+                    logger.warning(
+                        "🪙 Gold spot data acquisition produced no records"
+                    )   
+
+            finally:
+                if equity_corr_service:
+                    await equity_corr_service.close()
+                if active_addresses_service:
+                    await active_addresses_service.close()
+                if gold_spot_service:
+                    await gold_spot_service.close()
+
+                db.close()
+
+            logger.info("📊 Macro/FRED scheduled job completed")
 
         except asyncio.CancelledError:
-
-            logger.info(
-                "Macro/FRED scheduler cancelled"
-            )
-
+            logger.info("Macro/FRED scheduler cancelled")
             raise
 
         except Exception:
-
-            logger.exception(
-                "🔥 Macro/FRED scheduler failed"
-            )
+            logger.exception("🔥 Macro/FRED scheduler failed")
 # ============================================================
 # ECONOMIC CALENDAR SCHEDULER
 # ============================================================
 
-
-# async def periodic_economic_calendar_collection():
-#     """
-#     Scheduled economic calendar data collection.
-
-#     Production:
-#         Runs once per day using the configured macro UTC schedule.
-
-#     Development/QA:
-#         When MACRO_UPDATE_INTERVAL_MINUTES > 0, runs at the
-#         configured interval.
-
-#     Workflow:
-#         1. Wait for the next scheduled execution.
-#         2. Create a database session.
-#         3. Collect economic calendar events from FRED.
-#         4. Persist only new events.
-#         5. Close the collector and database session.
-#         6. Continue until cancelled.
-#     """
-
-#     logger.info(
-#         "📅 Economic calendar scheduler started"
-#     )
-
-#     if settings.MACRO_UPDATE_INTERVAL_MINUTES > 0:
-
-#         logger.info(
-#             "Economic calendar QA interval mode enabled: "
-#             "running every %s minute(s)",
-#             settings.MACRO_UPDATE_INTERVAL_MINUTES,
-#         )
-
-#     else:
-
-#         logger.info(
-#             "Economic calendar production schedule enabled: "
-#             "running daily at %02d:%02d UTC",
-#             settings.MACRO_UPDATE_HOUR_UTC,
-#             settings.MACRO_UPDATE_MINUTE_UTC,
-#         )
-
-#     while True:
-
-#         try:
-
-#             # ==================================================
-#             # WAIT FOR NEXT EXECUTION
-#             # ==================================================
-
-#             if settings.MACRO_UPDATE_INTERVAL_MINUTES > 0:
-
-#                 await asyncio.sleep(
-#                     settings.MACRO_UPDATE_INTERVAL_MINUTES * 60
-#                 )
-
-#             else:
-
-#                 await wait_until_next_run(
-#                     settings.MACRO_UPDATE_HOUR_UTC,
-#                     settings.MACRO_UPDATE_MINUTE_UTC,
-#                     "economic calendar update",
-#                 )
-
-#             logger.info(
-#                 "📅 Economic calendar scheduler woke up"
-#             )
-
-#             # ==================================================
-#             # DATABASE SESSION
-#             # ==================================================
-
-#             db = SessionLocal()
-#             service = None
-
-#             try:
-
-#                 service = EconomicCalendarService(db)
-
-#                 logger.info(
-#                     "📅 Starting scheduled economic calendar "
-#                     "collection (lookback=%s days)",
-#                     settings.FRED_CALENDAR_LOOKBACK_DAYS,
-#                 )
-
-#                 events = await service.collect_events(
-#                     days=settings.FRED_CALENDAR_LOOKBACK_DAYS
-#                 )
-
-#                 logger.info(
-#                     "📅 Economic calendar update completed: "
-#                     "%d new events stored",
-#                     len(events),
-#                 )
-
-#             except Exception:
-
-#                 logger.exception(
-#                     "🔥 Economic calendar scheduled collection failed"
-#                 )
-
-#             finally:
-
-#                 if service:
-
-#                     try:
-#                         await service.close()
-
-#                     except Exception:
-
-#                         logger.exception(
-#                             "⚠️ Failed to close economic calendar service"
-#                         )
-
-#                 try:
-#                     db.close()
-
-#                 except Exception:
-
-#                     logger.exception(
-#                         "⚠️ Failed to close economic calendar database session"
-#                     )
-
-#             logger.info(
-#                 "📅 Economic calendar scheduled job completed"
-#             )
-
-#         except asyncio.CancelledError:
-
-#             logger.info(
-#                 "Economic calendar scheduler cancelled"
-#             )
-
-#             raise
-
-#         except Exception:
-
-#             logger.exception(
-#                 "🔥 Economic calendar scheduler failed"
-#             )
 
 async def periodic_economic_calendar_collection():
     """

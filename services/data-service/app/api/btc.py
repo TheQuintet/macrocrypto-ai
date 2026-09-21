@@ -3,7 +3,7 @@
 import logging
 from fastapi import APIRouter, Request, Depends, HTTPException, Response
 from typing import Optional
-
+from sqlalchemy.orm import Session
 from app.api.dependencies import jwt_auth
 from app.api.schemas.price_response import (
     BtcPriceHistoryResponse,
@@ -15,6 +15,9 @@ from app.services.price_history_service import (
     PriceHistoryService,
     PriceHistoryValidationError,
 )
+from app.services.btc_dominance_service import BTCDominanceService
+from app.api.schemas.btc_dominance_response import BTCDominanceResponse
+from app.database.session import SessionLocal
 
 # Setup logging
 logger = logging.getLogger(__name__)
@@ -23,6 +26,13 @@ router = APIRouter(
     prefix="/api/v1/btc",
     tags=["Bitcoin"]
 )
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 
 @router.get(
@@ -69,7 +79,7 @@ async def get_btc_price(
                 logger.info("✅ Returning BTC price from Redis cache")
                 return PriceResponse(**cached_snapshot)
         except Exception as error:
-            logger.warning(f"⚠️ Cache read failed: {error}")
+            logger.warning(f"⚠ Cache read failed: {error}")
 
     # --------------------------------------------
     # 2. Cache miss - fetch from data processor
@@ -114,7 +124,7 @@ async def get_btc_price(
             await cache_client.set(cache_key, cache_data, ttl=5)
             logger.info("💾 BTC price cached in Redis")
         except Exception as error:
-            logger.warning(f"⚠️ Cache write failed: {error}")
+            logger.warning(f"⚠ Cache write failed: {error}")
 
     return response
 
@@ -130,6 +140,7 @@ async def get_btc_history(
     response: Response,
     range: str = "7d",
     interval: str = "1h",
+    max_points: int | None = None,
     _: str | None = Depends(jwt_auth),
 ):
     """
@@ -141,10 +152,12 @@ async def get_btc_history(
     Query parameters:
     - range: 24h, 7d, 30d, or 90d (default 7d)
     - interval: 1m, 5m, 1h, 1d, 1w, or 1y (default 1h)
+    - max_points: maximum number of returned points; 0 means unlimited
     """
 
     cache_client = request.app.state.cache_client
-    cache_key = f"btc_price_history:{range}:{interval}"
+    # cache_key = f"btc_price_history:{range}:{interval}"
+    cache_key = f"btc_price_history:{range}:{interval}:{max_points}"
 
     if cache_client and cache_client.is_connected:
         try:
@@ -153,7 +166,7 @@ async def get_btc_history(
                 logger.info("✅ Returning BTC history from Redis cache")
                 return BtcPriceHistoryResponse(**cached)
         except Exception as error:
-            logger.warning(f"⚠️ History cache read failed: {error}")
+            logger.warning(f"⚠ History cache read failed: {error}")
 
     service = PriceHistoryService()
 
@@ -161,6 +174,7 @@ async def get_btc_history(
         response = await service.get_history(
             range_value=range,
             interval=interval,
+            max_points=max_points,
         )
     except PriceHistoryValidationError as error:
         raise HTTPException(
@@ -190,9 +204,46 @@ async def get_btc_history(
             )
             logger.info("💾 BTC history cached in Redis")
         except Exception as error:
-            logger.warning(f"⚠️ History cache write failed: {error}")
+            logger.warning(f"⚠ History cache write failed: {error}")
 
     return response
+
+
+@router.get(
+    "/dominance",
+    response_model=BTCDominanceResponse,
+    summary="Get Bitcoin market dominance",
+    description=(
+        "Returns the latest Bitcoin market dominance percentage "
+        "from CoinGecko."
+    ),
+)
+@limiter.limit(f"{settings.RATE_LIMIT_REQUESTS}/minute")
+async def get_btc_dominance(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    service = BTCDominanceService(
+        db=db,
+        cache_client=request.app.state.cache_client,
+    )
+
+    try:
+        result = await service.get_dominance()
+
+        if result is None:
+            raise HTTPException(
+                status_code=404,
+                detail="BTC dominance data is not available",
+            )
+
+        return result
+
+    finally:
+        await service.close()
+
+
+
 
 @router.get(
     "/status",

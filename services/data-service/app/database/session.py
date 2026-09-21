@@ -5,6 +5,7 @@ from app.models.btc_price import Base
 # Import models so SQLAlchemy registers them with Base.metadata
 from app.models.btc_price import BTCPrice
 from app.models.macro_indicator import MacroIndicator
+from app.models.btc_dominance import BTCDominance
 from app.models.macro_regime import MacroRegime
 from app.models.regime_performance import RegimePerformance
 from app.models.current_regime import CurrentRegime
@@ -77,6 +78,21 @@ def init_db():
                     """
                     SELECT create_hypertable(
                         'macro_indicators',
+                        'time',
+                        chunk_time_interval => INTERVAL '1 year',
+                        if_not_exists => TRUE,
+                        migrate_data => TRUE
+                    )
+                    """
+                )
+            )
+
+            # Create btc_dominance hypertable
+            connection.execute(
+                text(
+                    """
+                    SELECT create_hypertable(
+                        'btc_dominance',
                         'time',
                         chunk_time_interval => INTERVAL '1 year',
                         if_not_exists => TRUE,

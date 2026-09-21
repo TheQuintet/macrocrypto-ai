@@ -29,12 +29,24 @@ function toSubscriptionMap(
   )
 }
 
-async function loadMacroEvents(): Promise<MacroEventsSnapshot> {
+async function loadMacroEvents(userId: string): Promise<MacroEventsSnapshot> {
   const [events, subscriptions] = await Promise.all([
     macroAlertApi.getUpcomingEvents(),
-    macroAlertApi.getSubscriptions(),
+    macroAlertApi.getSubscriptions(userId),
   ])
-  return { events, subscriptions: toSubscriptionMap(subscriptions) }
+  const subscribedTypes = new Set(
+    subscriptions
+      .filter((subscription) => subscription.subscribed)
+      .map((subscription) => subscription.event_type),
+  )
+
+  return {
+    events: events.map((event) => ({
+      ...event,
+      subscribed: subscribedTypes.has(event.event_type),
+    })),
+    subscriptions: toSubscriptionMap(subscriptions),
+  }
 }
 
 /** Upcoming macro events plus this user's subscriptions, shared by page and table. */
@@ -54,7 +66,7 @@ export function useMacroEvents(userId: string) {
   useEffect(() => {
     let active = true
 
-    loadMacroEvents()
+    loadMacroEvents(userId)
       .then((snapshot) => {
         if (active) applySnapshot(snapshot)
       })
@@ -68,19 +80,19 @@ export function useMacroEvents(userId: string) {
     return () => {
       active = false
     }
-  }, [applySnapshot])
+  }, [applySnapshot, userId])
 
   const fetch = useCallback(async () => {
     setIsLoading(true)
     setError(null)
     try {
-      applySnapshot(await loadMacroEvents())
+      applySnapshot(await loadMacroEvents(userId))
     } catch {
       setError('Failed to load events')
     } finally {
       setIsLoading(false)
     }
-  }, [applySnapshot])
+  }, [applySnapshot, userId])
 
   const subscribe = useCallback(
     async (eventId: string, subscribed: boolean) => {

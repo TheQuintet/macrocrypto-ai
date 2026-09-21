@@ -129,21 +129,15 @@ app = FastAPI(
     and Platform Users.
 
     ### Features:
-    - **Authentication**: JWT-based authentication with access/refresh tokens
-    - **Predictions**: BTC price predictions from multiple AI models
-    - **Market Data**: Real-time and historical market data
-    - **Alerts**: Price, prediction, and macro event alerts
-    - **Exports**: Data export in CSV, PNG, and PDF formats
-    - **WebSocket**: Real-time price updates
+    - **Data Service Proxy**: BTC market data, historical prices, service status,
+    macroeconomic indicators, and macroeconomic regime data.
+    - **Alert Service Proxy**: Price alerts, prediction alerts, macroeconomic event
+    subscriptions, macro alerts, and notification management.
 
     ### Rate Limits:
     - Guest: 10 requests per minute
     - User: 100 requests per minute
     - Admin: 1000 requests per minute
-
-    ### Authentication:
-    Use `/api/v1/auth/login` to get an access token.
-    Include the token in the `Authorization: Bearer <token>` header.
     """,
     lifespan=lifespan,
     docs_url="/docs",
@@ -165,13 +159,13 @@ app.add_middleware(
     allow_headers=settings.CORS_ALLOW_HEADERS,
 )
 
-# --- Trusted Host Middleware ---
-# Disable in test environment to prevent "Invalid host header" errors
-if not settings.DEBUG and not os.getenv("TESTING"):
-    app.add_middleware(
-        TrustedHostMiddleware,
-        allowed_hosts=["api.macrocrypto.ai", "localhost", "127.0.0.1"],
-    )
+# # --- Trusted Host Middleware ---
+# # Disable in test environment to prevent "Invalid host header" errors
+# if not settings.DEBUG and not os.getenv("TESTING"):
+#     app.add_middleware(
+#         TrustedHostMiddleware,
+#         allowed_hosts=["api.macrocrypto.ai", "localhost", "127.0.0.1"],
+#     )
 
 
 # ============================================
@@ -179,7 +173,7 @@ if not settings.DEBUG and not os.getenv("TESTING"):
 # ============================================
 
 from app.api.v1.router import router as api_v1_router
-from app.api.v1.websocket import router as websocket_router
+# from app.api.v1.websocket import router as websocket_router
 
 # Include v1 API router
 # The router has prefix="/api/v1" and auth has prefix="/auth"
@@ -187,18 +181,18 @@ from app.api.v1.websocket import router as websocket_router
 app.include_router(api_v1_router)
 
 # Include WebSocket router (no prefix, handled in router)
-app.include_router(websocket_router)
+# app.include_router(websocket_router)
 
 
 # ============================================
 # RATE LIMIT MIDDLEWARE
 # ============================================
 
-from app.core.rate_limiter import RateLimitMiddleware
+# from app.core.rate_limiter import RateLimitMiddleware
 
-# Add rate limit middleware (after CORS, before routers)
-# Note: Order matters - rate limiting should be applied after CORS
-app.add_middleware(RateLimitMiddleware)
+# # Add rate limit middleware (after CORS, before routers)
+# # Note: Order matters - rate limiting should be applied after CORS
+# app.add_middleware(RateLimitMiddleware)
 
 
 # ============================================
@@ -272,93 +266,93 @@ async def generic_exception_handler(request: Request, exc: Exception):
 # CUSTOM OPENAPI SCHEMA
 # ============================================
 
-def custom_openapi():
-    """Generate custom OpenAPI schema with enhanced documentation."""
-    if app.openapi_schema:
-        return app.openapi_schema
+# def custom_openapi():
+#     """Generate custom OpenAPI schema with enhanced documentation."""
+#     if app.openapi_schema:
+#         return app.openapi_schema
 
-    openapi_schema = get_openapi(
-        title=settings.SERVICE_NAME,
-        version=app.version,
-        description="""
-        ## API Gateway for MacroCrypto AI
+#     openapi_schema = get_openapi(
+#         title=settings.SERVICE_NAME,
+#         version=app.version,
+#         description="""
+#         ## API Gateway for MacroCrypto AI
 
-        This service provides REST API endpoints for BTC Traders, Investment Analysts,
-        and Platform Users.
+#         This service provides REST API endpoints for BTC Traders, Investment Analysts,
+#         and Platform Users.
 
-        ### Features:
-        - **Authentication**: JWT-based authentication with access/refresh tokens
-        - **Predictions**: BTC price predictions from multiple AI models
-        - **Market Data**: Real-time and historical market data
-        - **Exports**: Data export in CSV, PNG, and PDF formats
-        - **WebSocket**: Real-time price updates
+#         ### Features:
+#         - **Authentication**: JWT-based authentication with access/refresh tokens
+#         - **Predictions**: BTC price predictions from multiple AI models
+#         - **Market Data**: Real-time and historical market data
+#         - **Exports**: Data export in CSV, PNG, and PDF formats
+#         - **WebSocket**: Real-time price updates
 
-        ### Rate Limits:
-        | Role | Requests per Minute |
-        |------|---------------------|
-        | Guest | 10 |
-        | User | 100 |
-        | Admin | 1000 |
+#         ### Rate Limits:
+#         | Role | Requests per Minute |
+#         |------|---------------------|
+#         | Guest | 10 |
+#         | User | 100 |
+#         | Admin | 1000 |
 
-        ### Authentication:
-        1. Register a user: `POST /api/v1/auth/register`
-        2. Login to get tokens: `POST /api/v1/auth/login`
-        3. Include token in requests: `Authorization: Bearer <access_token>`
-        4. Refresh token when expired: `POST /api/v1/auth/refresh`
+#         ### Authentication:
+#         1. Register a user: `POST /api/v1/auth/register`
+#         2. Login to get tokens: `POST /api/v1/auth/login`
+#         3. Include token in requests: `Authorization: Bearer <access_token>`
+#         4. Refresh token when expired: `POST /api/v1/auth/refresh`
 
-        ### Error Codes:
-        | Code | Description |
-        |------|-------------|
-        | 400 | Bad Request - Invalid parameters |
-        | 401 | Unauthorized - Missing or invalid token |
-        | 403 | Forbidden - Insufficient permissions |
-        | 404 | Not Found - Resource not found |
-        | 422 | Unprocessable Entity - Validation error |
-        | 429 | Too Many Requests - Rate limit exceeded |
-        | 500 | Internal Server Error |
-        | 503 | Service Unavailable |
-        | 504 | Gateway Timeout |
+#         ### Error Codes:
+#         | Code | Description |
+#         |------|-------------|
+#         | 400 | Bad Request - Invalid parameters |
+#         | 401 | Unauthorized - Missing or invalid token |
+#         | 403 | Forbidden - Insufficient permissions |
+#         | 404 | Not Found - Resource not found |
+#         | 422 | Unprocessable Entity - Validation error |
+#         | 429 | Too Many Requests - Rate limit exceeded |
+#         | 500 | Internal Server Error |
+#         | 503 | Service Unavailable |
+#         | 504 | Gateway Timeout |
 
-        ### WebSocket:
-        Connect to `ws://localhost:8000/ws` for real-time price updates.
-        Optional token parameter for authenticated connections.
-        """,
-        routes=app.routes,
-    )
+#         ### WebSocket:
+#         Connect to `ws://localhost:8000/ws` for real-time price updates.
+#         Optional token parameter for authenticated connections.
+#         """,
+#         routes=app.routes,
+#     )
 
-    # Add security scheme
-    openapi_schema["components"]["securitySchemes"] = {
-        "bearerAuth": {
-            "type": "http",
-            "scheme": "bearer",
-            "bearerFormat": "JWT",
-            "description": "Enter your JWT token in the format: Bearer <token>",
-        }
-    }
+#     # Add security scheme
+#     openapi_schema["components"]["securitySchemes"] = {
+#         "bearerAuth": {
+#             "type": "http",
+#             "scheme": "bearer",
+#             "bearerFormat": "JWT",
+#             "description": "Enter your JWT token in the format: Bearer <token>",
+#         }
+#     }
 
-    # Add security requirement to all endpoints except auth and health
-    for path in openapi_schema["paths"]:
-        if not any(x in path for x in ["/auth", "/health", "/ready", "/version", "/ws", "/docs", "/openapi.json"]):
-            for method in openapi_schema["paths"][path]:
-                openapi_schema["paths"][path][method]["security"] = [{"bearerAuth": []}]
+#     # Add security requirement to all endpoints except auth and health
+#     for path in openapi_schema["paths"]:
+#         if not any(x in path for x in ["/auth", "/health", "/ready", "/version", "/ws", "/docs", "/openapi.json"]):
+#             for method in openapi_schema["paths"][path]:
+#                 openapi_schema["paths"][path][method]["security"] = [{"bearerAuth": []}]
 
-    # Add tags with descriptions
-    openapi_schema["tags"] = [
-        {"name": "Authentication", "description": "User registration, login, and token management"},
-        {"name": "Predictions", "description": "BTC price predictions and accuracy metrics"},
-        {"name": "Market Data", "description": "Historical prices, indicators, correlation, and regimes"},
-        {"name": "Recommendations", "description": "Trade recommendations for BTC"},
-        {"name": "Exports", "description": "Export data in CSV, PNG, and PDF formats"},
-        {"name": "WebSocket", "description": "Real-time price updates"},
-        {"name": "Health", "description": "Service health and readiness checks"},
-        {"name": "Root", "description": "Service information endpoints"},
-    ]
+#     # Add tags with descriptions
+#     openapi_schema["tags"] = [
+#         {"name": "Authentication", "description": "User registration, login, and token management"},
+#         {"name": "Predictions", "description": "BTC price predictions and accuracy metrics"},
+#         {"name": "Market Data", "description": "Historical prices, indicators, correlation, and regimes"},
+#         {"name": "Recommendations", "description": "Trade recommendations for BTC"},
+#         {"name": "Exports", "description": "Export data in CSV, PNG, and PDF formats"},
+#         {"name": "WebSocket", "description": "Real-time price updates"},
+#         {"name": "Health", "description": "Service health and readiness checks"},
+#         {"name": "Root", "description": "Service information endpoints"},
+#     ]
 
-    app.openapi_schema = openapi_schema
-    return app.openapi_schema
+#     app.openapi_schema = openapi_schema
+#     return app.openapi_schema
 
 
-app.openapi = custom_openapi
+# app.openapi = custom_openapi
 
 
 # ============================================
