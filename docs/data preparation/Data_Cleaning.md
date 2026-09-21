@@ -1,6 +1,6 @@
 # Data Cleaning Policy & Execution Report — Stage 3
 
-**Status:** Initial Draft for Team Review  
+**Status:** Finalized & Operational  
 **Date:** September 2026  
 **Input Artifact:** `app/data/ml_btc_daily_raw.csv` (3,321 rows × 32 columns)  
 **Output Artifact:** `app/data/ml_btc_daily_cleaned.csv`  
@@ -49,11 +49,12 @@ Features are processed according to their source release cadence to prevent data
 | **Business-Day Markets** | `btc_dominance`, `gold_spot`, `dxy`, `ten_year_treasury`, `vix`, `nasdaq_composite`, `equity_corr`, `high_yield_credit_stress_proxy` | Forward-fill to calendar days; add staleness counters. | Traditional markets close on weekends and holidays; the last known close provides the valid state for a daily ML row. |
 | **Structural Gap Series** | `high_yield_spread` | Left untouched as NaN; add `high_yield_spread_is_missing` flag. | Multi-year structural gap (913 days); forward-filling would fabricate false economic stability across major credit shifts. |
 | **Sparse On-Chain** | `active_addresses` | Forward-fill up to 5 days; mask (NaN) beyond 5 days. | Source is inherently irregular; fill within tolerance, mask extended gaps. |
-| **Monthly / Quarterly Macro** | `cpi`, `federal_funds_rate`, `m2_money_supply`, `unemployment`, `gdp` | As-of join on official release dates; add release lag counters. | Prevents look-ahead bias by respecting publication lags. |
+| **Monthly / Quarterly Macro** | `cpi`, `federal_funds_rate`, `m2_money_supply`, `unemployment`, `gdp` | Point-in-time as-of join on official release dates; add release lag counters. | Prevents look-ahead bias by respecting official publication lags. |
 
 ### 3.2 Staleness Indicators & Imputation Flags
 For forward-filled and imputed features, companion columns are generated to provide explicit data-freshness metrics for downstream tree-based models (XGBoost, LightGBM):
 * **`{feature}_days_since_last_observation`**: Counts integer calendar days since the last fresh market observation (`0` for fresh updates, incrementing upwards during holidays/weekends).
+* **`{feature}_days_since_release`**: Counts integer calendar days between market observation and official macroeconomic vintage release dates.
 * **`{feature}_is_imputed`**: Binary flag (`0`/`1`) marking interpolated or carried values.
 
 ---
@@ -75,12 +76,14 @@ Certain segments contain structural gaps requiring specialized handling rather t
 
 ---
 
-## 5. Macroeconomic Vintage & Point-in-Time Alignment Status
+## 5. Macroeconomic Vintage & Point-in-Time Alignment Execution
 
-* **Status:** Raw vintage release dataset successfully acquired and stored.
-* **Dataset Location:** `app/data/macro_raw_with_vintages.csv`
-* **Details:** Official publication and revision dates (`realtime_start`) are tracked for all macroeconomic features (`cpi`, `unemployment`, `federal_funds_rate`, `m2_money_supply`, `gdp`). Redundant no-op re-releases have been filtered out to optimize storage and clarity.
-* **Next Steps:** The release-date `pd.merge_asof` point-in-time join logic will be fully integrated. 
+* **Status:** Fully Integrated and Operational.
+* **Dataset Location:** `app/data/macro_raw_with_vintages.csv` (Filtered raw vintage archive).
+* **Execution Logic:** The cleaning pipeline executes a UTC-aware point-in-time `pd.merge_asof` join (with `direction="backward"`) for all macroeconomic features (`cpi`, `unemployment`, `federal_funds_rate`, `m2_money_supply`, `gdp`) against their official FRED publication `release_date`.
+* **Look-Ahead Bias Prevention:** This guarantees that market rows at any given `observation_date` only pull macroeconomic values that were publicly released and available by that date.
+* **Staleness Tracking:** Companion columns (`{feature}_days_since_release`) are generated automatically to track exact publication lag.
+
 ---
 
 ## 6. Standalone Proxy Integration (`high_yield_credit_stress_proxy`)
@@ -99,7 +102,8 @@ The cleaning script (`app/scripts/clean_ml_data.py`) and associated pytest suite
 2. **Temporal Bounds:** `MAX(observation_date) <= current_date`.
 3. **Structural Preservation:** The 913-day `high_yield_spread` gap is verified as `NaN` paired with correct missing flags.
 4. **Proxy Distinctness:** Asserts zero direct equality matches between `high_yield_spread` and `high_yield_credit_stress_proxy`.
-5. **Schema Stability:** Column names, encodings (UTF-8 without BOM), and value ranges (`vix >= 0`, `dxy > 0`) remain consistent.
+5. **Zero Look-Ahead Bias:** Automated test assertions verify that all macro feature release staleness metrics (`_days_since_release`) remain strictly non-negative ($\ge 0$).
+6. **Schema Stability:** Column names, encodings (UTF-8 without BOM), timezones (UTC), and value ranges (`vix >= 0`, `dxy > 0`) remain consistent.
 
 ---
 

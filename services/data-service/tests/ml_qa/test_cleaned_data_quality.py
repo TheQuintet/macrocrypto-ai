@@ -38,17 +38,31 @@ def test_staleness_consistency(cleaned_df):
             assert (cleaned_df[stale_col] >= 0).all(), f"Invalid negative staleness in '{stale_col}'."
 
 
-def test_macro_features_present(cleaned_df):
-    """Assertion 5: No leakage in macro features (placeholder check until ingestion release dates)."""
-    for col in ["cpi", "unemployment"]:
+def test_macro_features_and_vintage_columns(cleaned_df):
+    """Assertion 5 (Updated): Ensure all macro features and point-in-time release tracking columns exist."""
+    macro_features = ["cpi", "federal_funds_rate", "m2_money_supply", "unemployment", "gdp"]
+    for col in macro_features:
         assert col in cleaned_df.columns, f"Required macro feature '{col}' is missing."
+        stale_col = f"{col}_days_since_release"
+        assert stale_col in cleaned_df.columns, f"Required macro vintage staleness column '{stale_col}' is missing."
+
+
+def test_macro_vintage_staleness_non_negative(cleaned_df):
+    """Assertion 5b (New): Macro release staleness must be non-negative (no look-ahead bias)."""
+    macro_features = ["cpi", "federal_funds_rate", "m2_money_supply", "unemployment", "gdp"]
+    for col in macro_features:
+        stale_col = f"{col}_days_since_release"
+        if stale_col in cleaned_df.columns:
+            # Drop NaN rows (e.g., prior to the very first macroeconomic release date)
+            valid_staleness = cleaned_df[stale_col].dropna()
+            assert (valid_staleness >= 0).all(), f"Look-ahead bias detected: negative days since release found in '{stale_col}'."
 
 
 def test_staleness_flags_consistent(cleaned_df):
     """Assertion 6: Staleness flags must be non-negative integers."""
-    stale_cols = [col for col in cleaned_df.columns if col.endswith("_days_since_last_observation")]
+    stale_cols = [col for col in cleaned_df.columns if col.endswith("_days_since_last_observation") or col.endswith("_days_since_release")]
     for col in stale_cols:
-        assert (cleaned_df[col] >= 0).all(), f"Negative staleness value found in '{col}'."
+        assert (cleaned_df[col].dropna() >= 0).all(), f"Negative staleness value found in '{col}'."
 
 
 def test_active_addresses_masking(cleaned_df):
