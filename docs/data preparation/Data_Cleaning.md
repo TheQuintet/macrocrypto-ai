@@ -3,7 +3,7 @@
 **Status:** Finalized & Operational  
 **Date:** September 2026  
 **Input Artifact:** `app/data/ml_btc_daily_raw.csv` (3,321 rows × 32 columns)  
-**Output Artifact:** `app/data/ml_btc_daily_cleaned.csv`  
+**Output Artifact:** `app/data/ml_btc_daily_cleaned.csv` (3,321 rows × 49 columns, inclusive of lineage timestamps and staleness counters)  
 
 ---
 
@@ -51,11 +51,14 @@ Features are processed according to their source release cadence to prevent data
 | **Sparse On-Chain** | `active_addresses` | Forward-fill up to 5 days; mask (NaN) beyond 5 days. | Source is inherently irregular; fill within tolerance, mask extended gaps. |
 | **Monthly / Quarterly Macro** | `cpi`, `federal_funds_rate`, `m2_money_supply`, `unemployment`, `gdp` | Point-in-time as-of join on official release dates; add release lag counters. | Prevents look-ahead bias by respecting official publication lags. |
 
-### 3.2 Staleness Indicators & Imputation Flags
-For forward-filled and imputed features, companion columns are generated to provide explicit data-freshness metrics for downstream tree-based models (XGBoost, LightGBM):
-* **`{feature}_days_since_last_observation`**: Counts integer calendar days since the last fresh market observation (`0` for fresh updates, incrementing upwards during holidays/weekends).
-* **`{feature}_days_since_release`**: Counts integer calendar days between market observation and official macroeconomic vintage release dates.
-* **`{feature}_is_imputed`**: Binary flag (`0`/`1`) marking interpolated or carried values.
+### 3.2 Schema Layout & Metadata Architecture (49 Columns Total)
+The output dataset (`ml_btc_daily_cleaned.csv`) preserves complete lineage across 49 distinct columns, broken down by category:
+
+* **Primary Assets & Identifiers (4 columns):** `observation_date`, `btc_price`, `btc_volume`, and `high_yield_credit_stress_proxy`.
+* **Raw Source Timestamps (15 columns):** Individual feed tracking fields preserving extraction lineage (`btc_timestamp`, `dominance_timestamp`, `gold_spot_timestamp`, `active_addresses_timestamp`, `cpi_timestamp`, `federal_funds_rate_timestamp`, `m2_money_supply_timestamp`, `dxy_timestamp`, `ten_year_treasury_timestamp`, `gdp_timestamp`, `unemployment_timestamp`, `vix_timestamp`, `high_yield_spread_timestamp`, `nasdaq_composite_timestamp`, `equity_corr_timestamp`).
+* **Market & Macro Feature Values (14 columns):** Core financial and economic metrics (`btc_dominance`, `gold_spot`, `active_addresses`, `dxy`, `ten_year_treasury`, `vix`, `high_yield_spread`, `nasdaq_composite`, `equity_corr`, `cpi`, `federal_funds_rate`, `m2_money_supply`, `gdp`, `unemployment` — *Note: 5 macro features plus 9 market/proxy features = 14 core value columns, shared across the dataset schema*).
+* **Staleness & Release Lag Counters (14 columns):** Incremental freshness metrics tracking calendar days since last observation (`btc_dominance_days_since_last_observation`, `gold_spot_days_since_last_observation`, `dxy_days_since_last_observation`, `ten_year_treasury_days_since_last_observation`, `vix_days_since_last_observation`, `nasdaq_composite_days_since_last_observation`, `equity_corr_days_since_last_observation`, `high_yield_credit_stress_proxy_days_since_last_observation`, `active_addresses_days_since_last_observation`) and official macro release lags (`cpi_days_since_release`, `federal_funds_rate_days_since_release`, `gdp_days_since_release`, `m2_money_supply_days_since_release`, `unemployment_days_since_release`).
+* **Governance & Imputation Flags (2 columns):** Binary markers (`high_yield_spread_is_missing`, `active_addresses_is_imputed`).
 
 ---
 
@@ -103,7 +106,7 @@ The cleaning script (`app/scripts/clean_ml_data.py`) and associated pytest suite
 3. **Structural Preservation:** The 913-day `high_yield_spread` gap is verified as `NaN` paired with correct missing flags.
 4. **Proxy Distinctness:** Asserts zero direct equality matches between `high_yield_spread` and `high_yield_credit_stress_proxy`.
 5. **Zero Look-Ahead Bias:** Automated test assertions verify that all macro feature release staleness metrics (`_days_since_release`) remain strictly non-negative ($\ge 0$).
-6. **Schema Stability:** Column names, encodings (UTF-8 without BOM), timezones (UTC), and value ranges (`vix >= 0`, `dxy > 0`) remain consistent.
+6. **Schema Stability:** Column count (49), schema order, encodings (UTF-8 without BOM), timezones (UTC), and value ranges (`vix >= 0`, `dxy > 0`) remain consistent.
 
 ---
 
@@ -111,7 +114,7 @@ The cleaning script (`app/scripts/clean_ml_data.py`) and associated pytest suite
 
 | Artifact Name | File Path | Description |
 | :--- | :--- | :--- |
-| **Cleaning Policy & Report** | `app/docs/data_cleaning_report.md` | Comprehensive documentation of all governance rules. |
+| **Cleaning Policy & Report** | `app/docs/data_cleaning_report.md` | Comprehensive documentation of all governance rules and 49-column layout. |
 | **Cleaning Script** | `app/scripts/clean_ml_data.py` | Deterministic pipeline executing cadence rules and proxy integration. |
-| **Cleaned Dataset** | `app/data/ml_btc_daily_cleaned.csv` | Output artifact ready for feature engineering. |
-| **QA Test Suite** | `tests/ml_qa/test_cleaned_data_quality.py` | Automated test suite enforcing structural assertions. |
+| **Cleaned Dataset** | `app/data/ml_btc_daily_cleaned.csv` | Final output artifact (3,321 rows × 49 columns) ready for feature engineering. |
+| **QA Test Suite** | `tests/ml_qa/test_cleaned_data_quality.py` | Automated test suite enforcing 13 rigorous structural assertions. |
