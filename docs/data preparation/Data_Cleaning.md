@@ -47,6 +47,7 @@ Features are processed according to their source release cadence to prevent data
 | :--- | :--- | :--- | :--- |
 | **Continuous Daily** | `btc_price`, `btc_volume` | Assert completeness (Zero missing expected). | Gaps indicate underlying ingestion bugs rather than fill opportunities. |
 | **Business-Day Markets** | `btc_dominance`, `gold_spot`, `dxy`, `ten_year_treasury`, `vix`, `nasdaq_composite`, `equity_corr`, `high_yield_credit_stress_proxy` | Forward-fill to calendar days; add staleness counters. | Traditional markets close on weekends and holidays; the last known close provides the valid state for a daily ML row. |
+| **Structural Gap Series** | `high_yield_spread` | Left untouched as NaN; add `high_yield_spread_is_missing` flag. | Multi-year structural gap (913 days); forward-filling would fabricate false economic stability across major credit shifts. |
 | **Sparse On-Chain** | `active_addresses` | Forward-fill up to 5 days; mask (NaN) beyond 5 days. | Source is inherently irregular; fill within tolerance, mask extended gaps. |
 | **Monthly / Quarterly Macro** | `cpi`, `federal_funds_rate`, `m2_money_supply`, `unemployment`, `gdp` | As-of join on official release dates; add release lag counters. | Prevents look-ahead bias by respecting publication lags. |
 
@@ -74,12 +75,12 @@ Certain segments contain structural gaps requiring specialized handling rather t
 
 ---
 
-## 5. Macro Release-Date Alignment
+## 5. Macro Release-Date Alignment (Deferred)
 
-Macroeconomic indicators are published with inherent reporting lags (e.g., January CPI is released in mid-February). Aligning them by observation date introduces severe look-ahead bias. 
+Macroeconomic indicators are published with inherent reporting lags (e.g., January CPI is released in mid-February). Aligning them purely by observation date introduces severe look-ahead bias. 
 
-* **The Solution:** Implement an as-of join matching each `observation_date` with the most recent macro release where `release_date <= observation_date`.
-* **Companion Tracking:** Generates `{feature}_days_since_release` to explicitly track publication latency.
+* **Status & Deferral:** Full vintage-based as-of joining requires source release-date metadata from ingestion pipelines. Because this metadata is pending upstream integration, macro features are temporarily carried forward via standard forward-filling in this stage, with rigorous release-date alignment officially deferred to the next pipeline enhancement cycle.
+* **Companion Tracking:** `{feature}_days_since_release` acts as a placeholder counter tracking period progression until vintage timestamps are fully active.
 
 ---
 

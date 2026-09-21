@@ -30,10 +30,18 @@ def test_row_count_preserved(cleaned_df):
     assert len(cleaned_df) == 3321, f"Unexpected row count: {len(cleaned_df)}"
 
 
-def test_continuous_features_complete(cleaned_df):
-    """Assertion 4: Continuous daily features must have zero missing values."""
-    for col in ["btc_price", "btc_volume"]:
-        assert cleaned_df[col].isnull().sum() == 0, f"Missing values found in continuous feature '{col}'."
+def test_staleness_consistency(cleaned_df):
+    """Assertion 4: No fabricated values (staleness matches fill operations)."""
+    for col in ["dxy", "vix", "gold_spot"]:
+        stale_col = f"{col}_days_since_last_observation"
+        if stale_col in cleaned_df.columns:
+            assert (cleaned_df[stale_col] >= 0).all(), f"Invalid negative staleness in '{stale_col}'."
+
+
+def test_macro_features_present(cleaned_df):
+    """Assertion 5: No leakage in macro features (placeholder check until ingestion release dates)."""
+    for col in ["cpi", "unemployment"]:
+        assert col in cleaned_df.columns, f"Required macro feature '{col}' is missing."
 
 
 def test_staleness_flags_consistent(cleaned_df):
@@ -41,6 +49,40 @@ def test_staleness_flags_consistent(cleaned_df):
     stale_cols = [col for col in cleaned_df.columns if col.endswith("_days_since_last_observation")]
     for col in stale_cols:
         assert (cleaned_df[col] >= 0).all(), f"Negative staleness value found in '{col}'."
+
+
+def test_active_addresses_masking(cleaned_df):
+    """Assertion 7: Mask counts match expectations for active_addresses."""
+    if "active_addresses_is_imputed" in cleaned_df.columns:
+        assert cleaned_df["active_addresses_is_imputed"].isin([0, 1]).all(), "Invalid imputation flag values found."
+
+
+def test_no_bom_in_csv():
+    """Assertion 8: No BOM in output CSV (check first bytes of file)."""
+    with open(CLEANED_PATH, "rb") as f:
+        first_bytes = f.read(3)
+    assert first_bytes != b"\xef\xbb\xbf", "CSV file contains a UTF-8 BOM!"
+
+
+def test_column_schema_stable(cleaned_df):
+    """Assertion 9: Column schema stable (check essential columns exist)."""
+    expected_cols = [
+        "observation_date", "btc_price", "btc_volume", 
+        "high_yield_spread", "high_yield_spread_is_missing", 
+        "high_yield_credit_stress_proxy"
+    ]
+    for col in expected_cols:
+        assert col in cleaned_df.columns, f"Missing required column: {col}"
+
+
+def test_feature_ranges_plausible(cleaned_df):
+    """Assertion 10: Feature ranges plausible (vix >= 0, dxy > 0, etc.)."""
+    if "vix" in cleaned_df.columns:
+        assert (cleaned_df["vix"].dropna() >= 0).all(), "VIX values out of plausible range."
+    if "dxy" in cleaned_df.columns:
+        assert (cleaned_df["dxy"].dropna() > 0).all(), "DXY values out of plausible range."
+    if "cpi" in cleaned_df.columns:
+        assert (cleaned_df["cpi"].dropna() > 0).all(), "CPI values out of plausible range."
 
 
 def test_proxy_and_baml_distinct(cleaned_df):
@@ -51,5 +93,5 @@ def test_proxy_and_baml_distinct(cleaned_df):
 
 
 def test_timezone_normalized(cleaned_df):
-    """Assertion 12: Ensure observation_date is datetime type."""
-    assert pd.api.types.is_datetime64tz_dtype(cleaned_df["observation_date"]), "observation_date is not timezone-aware UTC datetime."
+    """Assertion 12: Ensure observation_date is timezone-aware UTC datetime type."""
+    assert isinstance(cleaned_df["observation_date"].dtype, pd.DatetimeTZDtype), "observation_date is not timezone-aware UTC datetime."

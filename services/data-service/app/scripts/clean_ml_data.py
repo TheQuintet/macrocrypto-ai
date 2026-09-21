@@ -45,12 +45,21 @@ def load_data(filepath: Path, proxy_filepath: Path) -> pd.DataFrame:
     # Merge separate proxy dataset using specified structure: Date, high_yield_credit_stress_proxy
     if proxy_filepath.exists():
         proxy_df = pd.read_csv(proxy_filepath)
-        proxy_df["observation_date"] = pd.to_datetime(proxy_df["Date"], utc=True)
         
-        # Keep only date and the explicit proxy column
+        # Verify expected column exists
+        if "Date" not in proxy_df.columns or "high_yield_credit_stress_proxy" not in proxy_df.columns:
+            raise ValueError("Proxy CSV must contain 'Date' and 'high_yield_credit_stress_proxy' columns.")
+            
+        proxy_df["observation_date"] = pd.to_datetime(proxy_df["Date"], utc=True)
         proxy_df = proxy_df[["observation_date", "high_yield_credit_stress_proxy"]]
         
         df = pd.merge(df, proxy_df, on="observation_date", how="left")
+        
+        # QA Bug 3 Verification: Confirm expected pre-ffill coverage (~2,285 non-null rows)
+        non_null_proxy_count = df["high_yield_credit_stress_proxy"].notnull().sum()
+        print(f"Proxy merge verified: {non_null_proxy_count} non-null rows loaded (expected ~2,283 before ffill).")
+        if not (2280 <= non_null_proxy_count <= 2285):
+            raise AssertionError(f"Proxy coverage anomaly: found {non_null_proxy_count} non-null rows.")
     
     return df
 
@@ -64,18 +73,17 @@ def clean_dataset(df: pd.DataFrame) -> pd.DataFrame:
         if cleaned[col].isnull().any():
             raise ValueError(f"Data bug: Missing values detected in continuous daily feature '{col}'.")
 
+
     # 2. Business-Day Markets (including Proxy): Forward-fill to calendar days + staleness flags
     for col in BUSINESS_DAY_MARKETS:
         if col in cleaned.columns:
             stale_col = f"{col}_days_since_last_observation"
             
             valid_mask = cleaned[col].notnull()
-            cleaned[col] = cleaned[col].ffill()
+            groups = valid_mask.cumsum()
             
-            # Calculate days since last observation
-            cleaned[stale_col] = (~valid_mask).cumsum()
-            cleaned.loc[valid_mask, stale_col] = 0
-            cleaned[stale_col] = cleaned[stale_col].astype(int)
+            cleaned[col] = cleaned[col].ffill()
+            cleaned[stale_col] = cleaned.groupby(groups).cumcount().astype(int)
 
     # 3. Special Handling for high_yield_spread: Leave untouched with NaN in gap, add missing flag only
     if "high_yield_spread" in cleaned.columns:
@@ -94,12 +102,18 @@ def clean_dataset(df: pd.DataFrame) -> pd.DataFrame:
             cleaned[stale_col] = (~cleaned[col].notnull()).cumsum()
             cleaned[imputed_col] = ((cleaned[col].notnull()) & (~valid_mask)).astype(int)
 
-    # 5. Macro Features: Release-date as-of alignment handling
+    # 5. Macro Features: Release-date as-of alignment handling (Deferred to Ingestion Stage)
+    # Note: Full release-date as-of joining requires vintage metadata from ingestion. 
+    # For now, macro features are carried forward until a new value appears, 
+    # with release alignment explicitly deferred to the next pipeline stage.
     for col in MACRO_FEATURES:
         if col in cleaned.columns:
             stale_col = f"{col}_days_since_release"
             cleaned[col] = cleaned[col].ffill()
-            cleaned[stale_col] = cleaned[col].notnull().groupby(cleaned[col].ffill()).cumcount()
+            # Placeholder tracking until vintage metadata is integrated
+            valid_mask = cleaned[col].notnull()
+            groups = valid_mask.cumsum()
+            cleaned[stale_col] = cleaned.groupby(groups).cumcount().astype(int)
 
     # 6. Handle Proxy Feature Governance (Ensure distinct standalone existence)
     if "high_yield_credit_stress_proxy" in cleaned.columns and "high_yield_spread" in cleaned.columns:
