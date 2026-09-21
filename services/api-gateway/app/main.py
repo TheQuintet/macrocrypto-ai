@@ -150,14 +150,14 @@ app = FastAPI(
 # MIDDLEWARE
 # ============================================
 
-# # --- CORS Middleware ---
-# app.add_middleware(
-#     CORSMiddleware,
-#     allow_origins=settings.CORS_ALLOW_ORIGINS,
-#     allow_credentials=settings.CORS_ALLOW_CREDENTIALS,
-#     allow_methods=settings.CORS_ALLOW_METHODS,
-#     allow_headers=settings.CORS_ALLOW_HEADERS,
-# )
+# --- CORS Middleware ---
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.CORS_ALLOW_ORIGINS,
+    allow_credentials=settings.CORS_ALLOW_CREDENTIALS,
+    allow_methods=settings.CORS_ALLOW_METHODS,
+    allow_headers=settings.CORS_ALLOW_HEADERS,
+)
 
 # # --- Trusted Host Middleware ---
 # # Disable in test environment to prevent "Invalid host header" errors

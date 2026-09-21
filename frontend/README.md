@@ -30,7 +30,6 @@ Open [http://localhost:3000](http://localhost:3000) in your browser. Vite hot-re
 
 To stop the server, press `Ctrl+C` in the terminal.
 
-
 ### Connect to the API Gateway
 
 Start the backend services from the repository root:

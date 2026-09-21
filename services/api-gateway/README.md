@@ -78,6 +78,7 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 |----------|--------|-------------|
 | `/api/v1/btc/prices` | GET | Historical BTC prices |
 | `/api/v1/indicators` | GET | Macroeconomic indicators |
+| `/api/v1/economic-calendar` | GET | Economic calendar events |
 | `/api/v1/correlation/btc` | GET | BTC-macro correlation |
 | `/api/v1/regimes/btc` | GET | Market regime data |
 
