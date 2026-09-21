@@ -75,13 +75,12 @@ Certain segments contain structural gaps requiring specialized handling rather t
 
 ---
 
-## 5. Macro Release-Date Alignment (Deferred)
+## 5. Macroeconomic Vintage & Point-in-Time Alignment Status
 
-Macroeconomic indicators are published with inherent reporting lags (e.g., January CPI is released in mid-February). Aligning them purely by observation date introduces severe look-ahead bias. 
-
-* **Status & Deferral:** Full vintage-based as-of joining requires source release-date metadata from ingestion pipelines. Because this metadata is pending upstream integration, macro features are temporarily carried forward via standard forward-filling in this stage, with rigorous release-date alignment officially deferred to the next pipeline enhancement cycle.
-* **Companion Tracking:** `{feature}_days_since_release` acts as a placeholder counter tracking period progression until vintage timestamps are fully active.
-
+* **Status:** Raw vintage release dataset successfully acquired and stored.
+* **Dataset Location:** `app/data/macro_raw_with_vintages.csv`
+* **Details:** Official publication and revision dates (`realtime_start`) are tracked for all macroeconomic features (`cpi`, `unemployment`, `federal_funds_rate`, `m2_money_supply`, `gdp`). Redundant no-op re-releases have been filtered out to optimize storage and clarity.
+* **Next Steps:** The release-date `pd.merge_asof` point-in-time join logic will be fully integrated. 
 ---
 
 ## 6. Standalone Proxy Integration (`high_yield_credit_stress_proxy`)
