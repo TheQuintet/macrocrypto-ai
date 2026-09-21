@@ -7,8 +7,18 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app import __version__, __service_name__
+from app.api.v1 import (
+    correlation_router,
+    download_router,
+    events_router,
+    methodology_router,
+    performance_router,
+    predict_router,
+)
+from app.cache.redis_client import close_redis, ping_redis
 from app.config import settings
 from app.health import router as health_router
+from app.scheduler.manager import scheduler_manager
 
 
 # ============================================================
@@ -34,25 +44,34 @@ async def lifespan(app: FastAPI):
     # ============================================================
     # STARTUP
     # ============================================================
-    # Connections (RabbitMQ, TimescaleDB, Redis, MLflow)
-    # will be added in subsequent branches.
-    #
-    # Planned startup order:
-    #   1. Connect to TimescaleDB
-    #   2. Connect to Redis
-    #   3. Connect to RabbitMQ
-    #   4. Connect to MLflow
-    #   5. Load latest model
-    #   6. Start RabbitMQ consumer
-    #   7. Start retraining scheduler
+    # ---- Redis ----
+    # Caching is best-effort; a failed ping logs a warning but
+    # does not prevent startup.
+    if await ping_redis():
+        logger.info("Redis connection verified")
+    else:
+        logger.warning(
+            "Redis is not reachable at startup. "
+            "Caching will be degraded until Redis recovers."
+        )
+
+    # ---- Scheduler ----
+    # Registers and starts background jobs (retrain, predictions,
+    # backtest, accuracy, correlation, export cleanup). Honors
+    # settings.scheduler_enabled — a no-op in tests.
+    scheduler_manager.setup()
+    scheduler_manager.start()
+
+    # Remaining startup steps (RabbitMQ consumer, MLflow,
+    # model load) will be added in subsequent branches.
 
     yield
 
     # ============================================================
     # SHUTDOWN
     # ============================================================
-    # Graceful shutdown of connections
-    # will be added in subsequent branches.
+    scheduler_manager.shutdown()
+    await close_redis()
     logger.info(f"Stopping {__service_name__}")
 
 
@@ -78,6 +97,12 @@ app.add_middleware(
 
 # Register routes
 app.include_router(health_router, tags=["health"])
+app.include_router(predict_router)
+app.include_router(performance_router)
+app.include_router(correlation_router)
+app.include_router(download_router)
+app.include_router(methodology_router)
+app.include_router(events_router)
 
 
 @app.get("/")

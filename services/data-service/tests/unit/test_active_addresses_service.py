@@ -9,7 +9,7 @@ import pytest
 
 from app.services.active_addresses_service import (
     ACTIVE_ADDRESSES_INDICATOR,
-    TIMESPAN,
+    HISTORICAL_START_YEAR,
     ActiveAddressesService,
 )
 
@@ -94,8 +94,19 @@ async def test_calculate_returns_active_address_records(
         "source": "blockchain.com",
     }
 
-    collector.get_active_addresses.assert_awaited_once_with(
-        timespan=TIMESPAN,
+    current_year = datetime.now(timezone.utc).year
+    expected_calls = current_year - HISTORICAL_START_YEAR + 1
+
+    assert collector.get_active_addresses.await_count == expected_calls
+
+    collector.get_active_addresses.assert_any_await(
+        timespan="1year",
+        start=f"{HISTORICAL_START_YEAR}-01-01",
+    )
+
+    collector.get_active_addresses.assert_any_await(
+        timespan="1year",
+        start=f"{current_year}-01-01",
     )
 
 
@@ -238,8 +249,19 @@ async def test_calculate_returns_empty_when_no_records(
 
     assert result == []
 
-    collector.get_active_addresses.assert_awaited_once_with(
-        timespan=TIMESPAN,
+    current_year = datetime.now(timezone.utc).year
+    expected_calls = current_year - HISTORICAL_START_YEAR + 1
+
+    assert collector.get_active_addresses.await_count == expected_calls
+
+    collector.get_active_addresses.assert_any_await(
+        timespan="1year",
+        start=f"{HISTORICAL_START_YEAR}-01-01",
+    )
+
+    collector.get_active_addresses.assert_any_await(
+        timespan="1year",
+        start=f"{current_year}-01-01",
     )
 
 
@@ -266,8 +288,6 @@ async def test_calculate_does_not_persist_records(
 
     assert len(result) == 1
 
-    # calculate() prepares records only.
-    # Persistence is handled by the scheduler.
     service.repository.create_many = MagicMock()
 
     service.repository.create_many.assert_not_called()
@@ -295,8 +315,6 @@ async def test_close_closes_owned_collector(db):
         collector=None,
     )
 
-    # Replace the automatically created collector with a mock while
-    # preserving ownership semantics.
     service.collector = owned_collector
     service._owns_collector = True
 
