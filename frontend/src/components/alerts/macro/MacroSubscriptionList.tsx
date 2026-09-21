@@ -96,7 +96,7 @@ export const MacroSubscriptionList: React.FC<MacroSubscriptionListProps> = ({ us
     setIsLoading(true);
     setError(null);
     try {
-      const data = await macroAlertApi.getSubscriptions(); // ✅ No userId
+      const data = await macroAlertApi.getSubscriptions(userId);
       setSubscriptions(data);
       setIsAllSubscribed(data.every((s) => s.subscribed));
     } catch {
@@ -104,7 +104,7 @@ export const MacroSubscriptionList: React.FC<MacroSubscriptionListProps> = ({ us
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [userId]);
 
   useEffect(() => {
     const timer = setTimeout(() => {

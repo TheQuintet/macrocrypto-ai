@@ -11,7 +11,9 @@ const EVENT_TYPES: EventType[] = ['FED', 'CPI', 'GDP', 'EMPLOYMENT'];
 let mockSubscriptions: MacroSubscription[] | null = null;
 let mockEvents: MacroEvent[] | null = null;
 
-export const generateMockMacroSubscriptions = (): MacroSubscription[] => {
+export const generateMockMacroSubscriptions = (
+  userId = 'test-user',
+): MacroSubscription[] => {
   if (mockSubscriptions) return mockSubscriptions;
 
   mockSubscriptions = EVENT_TYPES.map((type) => {
@@ -20,7 +22,7 @@ export const generateMockMacroSubscriptions = (): MacroSubscription[] => {
 
     return {
       id: crypto.randomUUID(),
-      user_id: 'test-user',
+      user_id: userId,
       event_type: type,
       subscribed: isSubscribed,
       impact_filter: impact as EventImpact,
