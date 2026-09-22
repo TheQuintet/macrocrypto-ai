@@ -85,4 +85,9 @@ describe('predictionAlertMapping', () => {
       name: 'Breakout',
     })
   })
+
+  it('drops a row that has no id or user', () => {
+    expect(toUiAlert({ ...API_ROW, id: '' })).toBeNull()
+    expect(toUiAlert({ ...API_ROW, user_id: '' })).toBeNull()
+  })
 })

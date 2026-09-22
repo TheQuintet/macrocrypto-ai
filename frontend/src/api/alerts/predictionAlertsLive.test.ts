@@ -112,6 +112,25 @@ describe('predictionAlertApi with the alert service configured', () => {
     )
   })
 
+  it('rejects a create response that cannot be mapped', async () => {
+    axiosMock.post.mockResolvedValue({
+      data: { ...LIVE_ROW, id: '', user_id: '' },
+    })
+    const { predictionAlertApi } = await loadApi()
+
+    await expect(
+      predictionAlertApi.createAlert({
+        user_id: ALERTS_USER_ID,
+        threshold: 5,
+        horizon: '24h',
+        confidence_change: 5,
+        one_time: true,
+        notify_in_app: true,
+        notify_email: false,
+      }),
+    ).rejects.toThrow('Prediction alert response is missing id or user_id')
+  })
+
   it('throws instead of substituting seed alerts when the service fails', async () => {
     axiosMock.get.mockRejectedValue(new Error('offline'))
     const { predictionAlertApi } = await loadApi()

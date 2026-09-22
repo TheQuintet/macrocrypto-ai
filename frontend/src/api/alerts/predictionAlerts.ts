@@ -62,6 +62,14 @@ function mapList(payload: PredictionAlertListResponse | PredictionAlertApiRecord
     .filter((row): row is PredictionAlert => row !== null)
 }
 
+function requireUiAlert(row: PredictionAlertApiRecord): PredictionAlert {
+  const alert = toUiAlert(row)
+  if (!alert) {
+    throw new Error('Prediction alert response is missing id or user_id')
+  }
+  return alert
+}
+
 export const predictionAlertApi = {
   getAlerts: async (userId: string): Promise<PredictionAlert[]> =>
     fromApiOrSimulate(
@@ -88,7 +96,7 @@ export const predictionAlertApi = {
           toCreateApiPayload(data),
           { headers: JSON_HEADERS },
         )
-        return toUiAlert(response.data) as PredictionAlert
+        return requireUiAlert(response.data)
       },
     ),
 
@@ -105,7 +113,7 @@ export const predictionAlertApi = {
           toUpdateApiPayload(data),
           { headers: JSON_HEADERS },
         )
-        return toUiAlert(response.data) as PredictionAlert
+        return requireUiAlert(response.data)
       },
     ),
 
@@ -124,9 +132,9 @@ export const predictionAlertApi = {
         const current = await axios.get<PredictionAlertApiRecord>(url, {
           headers: JSON_HEADERS,
         })
-        const mapped = toUiAlert(current.data)
+        const mapped = requireUiAlert(current.data)
         const nextStatus =
-          mapped?.status === 'active' || mapped?.status === 'triggered'
+          mapped.status === 'active' || mapped.status === 'triggered'
             ? 'disabled'
             : 'active'
         const response = await axios.put<PredictionAlertApiRecord>(
@@ -134,7 +142,7 @@ export const predictionAlertApi = {
           { status: nextStatus },
           { headers: JSON_HEADERS },
         )
-        return toUiAlert(response.data) as PredictionAlert
+        return requireUiAlert(response.data)
       },
     ),
 
