@@ -31,17 +31,15 @@ describe('CalendarToolbar', () => {
     expectStepButtonsFor('week')
   })
 
-  it('steps and resets the period', async () => {
+  it('steps the period', async () => {
     const user = userEvent.setup()
     const handlers = renderCalendarToolbar()
 
     await clickPeriodButton(user, 'Previous month')
     await clickPeriodButton(user, 'Next month')
-    await clickPeriodButton(user, 'Today')
 
     expect(handlers.onPrevious).toHaveBeenCalledTimes(1)
     expect(handlers.onNext).toHaveBeenCalledTimes(1)
-    expect(handlers.onToday).toHaveBeenCalledTimes(1)
   })
 
   it('reports a view change', async () => {

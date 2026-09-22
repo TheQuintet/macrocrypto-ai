@@ -13,9 +13,10 @@ export function renderCalendarToolbar(
   const handlers = {
     onViewChange: vi.fn(),
     onTimezoneModeChange: vi.fn(),
+    onEventTypeChange: vi.fn(),
+    onImpactLevelChange: vi.fn(),
     onPrevious: vi.fn(),
     onNext: vi.fn(),
-    onToday: vi.fn(),
   }
 
   render(
@@ -24,6 +25,8 @@ export function renderCalendarToolbar(
       view="month"
       timezoneMode="local"
       timeZone="Europe/Bucharest"
+      eventType="all"
+      impactLevel="all"
       {...handlers}
       {...overrides}
     />,

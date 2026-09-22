@@ -332,3 +332,14 @@ export function buildCalendarGrid({
     label: calendarRangeLabel(anchor, view),
   }
 }
+
+/**
+ * Releases that land on a cell of the current period, in the order the
+ * grid already bucketed them. Padding days from the neighbouring month
+ * stay off the list so both layouts show the same window.
+ */
+export function eventsInCurrentPeriod(grid: CalendarGrid): EconomicEvent[] {
+  return grid.days
+    .filter((day) => day.isCurrentPeriod)
+    .flatMap((day) => day.events)
+}
