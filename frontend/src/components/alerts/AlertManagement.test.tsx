@@ -4,13 +4,13 @@ import { cleanup, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
-  chooseAlertType,
-  clickNewAlert,
+  clickCreateAlert,
   expectFilterCount,
   openTab,
   renderAlertManagement,
   switchAlertTypeTo,
 } from './AlertManagement.testHelpers'
+import { CREATE_ALERT_LABELS } from '@/constants/alerts'
 
 vi.mock('@/hooks/alerts/usePriceAlerts', () => ({
   usePriceAlerts: vi.fn(),
@@ -59,6 +59,24 @@ describe('AlertManagement', () => {
     ).not.toBeNull()
   })
 
+  it('paints the create button with the open tab\'s color', async () => {
+    const user = userEvent.setup()
+    renderAlertManagement()
+
+    expect(
+      screen.getByRole('button', { name: CREATE_ALERT_LABELS.price }).className,
+    ).toContain('--toast-price-bg')
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Macro Alerts (2)' })).toBeInTheDocument()
+    })
+    await openTab(user, /^Macro Alerts/)
+
+    expect(
+      screen.getByRole('button', { name: CREATE_ALERT_LABELS.macro }).className,
+    ).toContain('--toast-macro-bg')
+  })
+
   it('counts event-type subscriptions on the macro tab', async () => {
     const user = userEvent.setup()
     renderAlertManagement()
@@ -99,24 +117,33 @@ describe('AlertManagement', () => {
     expect(screen.getByRole('button', { name: /Save changes/i })).toBeInTheDocument()
   })
 
-  it('offers all three alert types from the plus button', async () => {
+  it('creates the tab\'s own kind without asking for a type', async () => {
     const user = userEvent.setup()
     renderAlertManagement()
 
-    await clickNewAlert(user)
+    await clickCreateAlert(user, 'price')
 
-    expect(screen.getByText('Choose alert type')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Price alert/ })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Macro event alert/ })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Prediction alert/ })).toBeInTheDocument()
+    expect(screen.getByText('New price alert')).toBeInTheDocument()
+  })
+
+  it('offers a create button on every tab', async () => {
+    const user = userEvent.setup()
+    renderAlertManagement()
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Macro Alerts (2)' })).toBeInTheDocument()
+    })
+
+    await openTab(user, /^Macro Alerts/)
+    await clickCreateAlert(user, 'macro')
+    expect(screen.getByText('New macro event alert')).toBeInTheDocument()
   })
 
   it('switches a mis-picked price alert to a macro event alert', async () => {
     const user = userEvent.setup()
     renderAlertManagement()
 
-    await clickNewAlert(user)
-    await chooseAlertType(user, /Price alert/)
+    await clickCreateAlert(user, 'price')
     expect(screen.getByText('New price alert')).toBeInTheDocument()
 
     await switchAlertTypeTo(user, 'Macro event alert')
@@ -128,12 +155,15 @@ describe('AlertManagement', () => {
     expect(screen.getByRole('button', { name: /^Event/ })).toBeInTheDocument()
   })
 
-  it('switches back from macro to price without reopening the chooser', async () => {
+  it('switches back from macro to price inside the open form', async () => {
     const user = userEvent.setup()
     renderAlertManagement()
 
-    await clickNewAlert(user)
-    await chooseAlertType(user, /Macro event alert/)
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Macro Alerts (2)' })).toBeInTheDocument()
+    })
+    await openTab(user, /^Macro Alerts/)
+    await clickCreateAlert(user, 'macro')
     await waitFor(() => {
       expect(screen.getByText('New macro event alert')).toBeInTheDocument()
     })
@@ -141,16 +171,16 @@ describe('AlertManagement', () => {
     await switchAlertTypeTo(user, 'Price alert')
 
     expect(screen.getByText('New price alert')).toBeInTheDocument()
-    expect(screen.queryByText('Choose alert type')).not.toBeInTheDocument()
+    expect(screen.queryByText('New macro event alert')).not.toBeInTheDocument()
   })
 
   it('switches to prediction alert type', async () => {
     const user = userEvent.setup()
     renderAlertManagement()
 
-    await clickNewAlert(user)
-    await chooseAlertType(user, /Prediction alert/)
-    
+    await clickCreateAlert(user, 'price')
+    await switchAlertTypeTo(user, 'Prediction alert')
+
     await waitFor(() => {
       expect(screen.getByText('New prediction alert')).toBeInTheDocument()
     })

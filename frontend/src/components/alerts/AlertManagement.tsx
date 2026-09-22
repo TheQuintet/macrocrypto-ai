@@ -19,7 +19,7 @@ import { showToast } from './shared/ToastNotification';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Plus, RefreshCw } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 import {
   matchesAlertStatusFilter,
   toggledAlertStatus,
@@ -38,7 +38,7 @@ import type {
   UpdatePredictionAlertRequest as UpdatePredictionAlertRequestType,
 } from '@/types/alerts/predictionAlert';
 import { MacroCalendarTable } from './macro/MacroCalendarTable';
-import { AlertTypeSelector } from './shared/AlertTypeSelector';
+import { CreateAlertButton } from './shared/CreateAlertButton';
 import { AlertTypeSwitch } from './shared/AlertTypeSwitch';
 import { AlertKindTabs } from './shared/AlertKindTabs';
 
@@ -50,7 +50,6 @@ interface AlertManagementProps {
 
 export const AlertManagement: React.FC<AlertManagementProps> = ({ userId }) => {
   const [creatingType, setCreatingType] = useState<NewAlertType | null>(null);
-  const [showTypeSelector, setShowTypeSelector] = useState(false);
   const [editingAlert, setEditingAlert] = useState<PriceAlert | null>(null);
   const [editingSubscription, setEditingSubscription] = useState<MacroSubscription | null>(null);
   const [editingPredictionAlert, setEditingPredictionAlert] = useState<PredictionAlert | null>(null);
@@ -352,16 +351,7 @@ export const AlertManagement: React.FC<AlertManagementProps> = ({ userId }) => {
 
   return (
     <div className="space-y-6">
-      {/* New alert + tabs */}
       <div className="flex flex-wrap items-center gap-2 border-b">
-        <Button
-          size="sm"
-          className="mb-2 mr-2"
-          onClick={() => setShowTypeSelector(true)}
-        >
-          <Plus className="w-4 h-4 mr-1" />
-          Create alert
-        </Button>
         <AlertKindTabs
           value={activeTab}
           onChange={setActiveTab}
@@ -384,6 +374,7 @@ export const AlertManagement: React.FC<AlertManagementProps> = ({ userId }) => {
               onChange={setStatusFilter}
               counts={alertCounts}
             />
+            <CreateAlertButton kind="price" onClick={() => setCreatingType('price')} />
           </AlertListToolbar>
 
           {alerts.length === 0 ? (
@@ -411,6 +402,7 @@ export const AlertManagement: React.FC<AlertManagementProps> = ({ userId }) => {
               counts={eventCounts}
             />
             <MacroImpactFilter value={impactFilter} onChange={setImpactFilter} />
+            <CreateAlertButton kind="macro" onClick={() => setCreatingType('macro')} />
           </AlertListToolbar>
 
           <MacroCalendarTable
@@ -438,6 +430,10 @@ export const AlertManagement: React.FC<AlertManagementProps> = ({ userId }) => {
               onChange={setStatusFilter}
               counts={predictionCounts}
             />
+            <CreateAlertButton
+              kind="prediction"
+              onClick={() => setCreatingType('prediction')}
+            />
           </AlertListToolbar>
 
           {predictionAlerts.length === 0 ? (
@@ -457,13 +453,6 @@ export const AlertManagement: React.FC<AlertManagementProps> = ({ userId }) => {
           </div>
         </div>
       )}
-
-      {/* Alert Type Selection - Show all three types */}
-      <AlertTypeSelector
-        open={showTypeSelector}
-        onOpenChange={setShowTypeSelector}
-        onSelect={handleSelectAlertType}
-      />
 
       {/* Create Price Alert Modal - only show when price is selected */}
       {creatingType === 'price' && (

@@ -7,7 +7,7 @@ import {
   EmptyTitle,
 } from '@/components/ui/empty'
 
-/** Creating an alert is the page-level "Create alert" button's job. */
+/** Creating an alert is the toolbar button's job, one per tab. */
 export function AlertsEmptyState() {
   return (
     <Empty className="min-h-[240px] border sm:min-h-[320px]">
@@ -17,7 +17,7 @@ export function AlertsEmptyState() {
         </EmptyMedia>
         <EmptyTitle>No alerts yet</EmptyTitle>
         <EmptyDescription>
-          Use Create alert to set up your first one.
+          Set up your first one from the button above.
         </EmptyDescription>
       </EmptyHeader>
     </Empty>

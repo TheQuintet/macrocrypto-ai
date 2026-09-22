@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { alertKindTabClassName } from '@/lib/alerts/alertKindClassName'
+import {
+  alertKindButtonClassName,
+  alertKindTabClassName,
+} from '@/lib/alerts/alertKindClassName'
 
 describe('alertKindClassName', () => {
   it('uses the toast color tokens for each alert kind', () => {
@@ -11,5 +14,15 @@ describe('alertKindClassName', () => {
   it('keeps kind color on idle tabs so the code is always visible', () => {
     expect(alertKindTabClassName('price', false)).toContain('--toast-price-bg')
     expect(alertKindTabClassName('price', false)).not.toContain('text-muted-foreground')
+  })
+
+  it('fills the create button with the same kind color', () => {
+    expect(alertKindButtonClassName('price')).toContain('bg-[var(--toast-price-bg)]')
+    expect(alertKindButtonClassName('prediction')).toContain('bg-[var(--toast-forecast-bg)]')
+    expect(alertKindButtonClassName('macro')).toContain('bg-[var(--toast-macro-bg)]')
+  })
+
+  it('pairs each fill with its readable text token', () => {
+    expect(alertKindButtonClassName('price')).toContain('text-[var(--toast-price-text)]')
   })
 })

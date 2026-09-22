@@ -24,3 +24,17 @@ const KIND_TAB_IDLE: Record<NewAlertType, string> = {
 export function alertKindTabClassName(kind: NewAlertType, active: boolean): string {
   return active ? KIND_TAB_ACTIVE[kind] : KIND_TAB_IDLE[kind]
 }
+
+/** Solid kind color, so the create button matches the tab it sits under. */
+const KIND_BUTTON: Record<NewAlertType, string> = {
+  price:
+    'bg-[var(--toast-price-bg)] text-[var(--toast-price-text)] hover:bg-[var(--toast-price-bg)]/85',
+  prediction:
+    'bg-[var(--toast-forecast-bg)] text-[var(--toast-forecast-text)] hover:bg-[var(--toast-forecast-bg)]/85',
+  macro:
+    'bg-[var(--toast-macro-bg)] text-[var(--toast-macro-text)] hover:bg-[var(--toast-macro-bg)]/85',
+}
+
+export function alertKindButtonClassName(kind: NewAlertType): string {
+  return KIND_BUTTON[kind]
+}
