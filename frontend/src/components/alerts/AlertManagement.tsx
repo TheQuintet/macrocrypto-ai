@@ -7,6 +7,7 @@ import { MacroAlertForm } from './macro/MacroAlertForm';
 import { PredictionAlertForm } from './prediction/PredictionAlertForm';
 import { PredictionAlertTable } from './prediction/PredictionAlertTable';
 import { PredictionHistory } from './prediction/PredictionHistory';
+import { PredictionAlertDeleteConfirmation } from './prediction/PredictionAlertDeleteConfirmation';
 import { MacroEventStatusFilter } from './macro/MacroEventStatusFilter';
 import { MacroImpactFilter, type ImpactFilterValue } from './macro/MacroImpactFilter';
 import { AlertListToolbar } from './shared/AlertListToolbar';
@@ -19,7 +20,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Plus, RefreshCw } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import {
   matchesAlertStatusFilter,
   toggledAlertStatus,
@@ -40,8 +40,9 @@ import type {
 import { MacroCalendarTable } from './macro/MacroCalendarTable';
 import { AlertTypeSelector } from './shared/AlertTypeSelector';
 import { AlertTypeSwitch } from './shared/AlertTypeSwitch';
+import { AlertKindTabs } from './shared/AlertKindTabs';
 
-type AlertTab = 'price' | 'macro' | 'prediction';
+type AlertTab = NewAlertType;
 
 interface AlertManagementProps {
   userId: string;
@@ -54,6 +55,7 @@ export const AlertManagement: React.FC<AlertManagementProps> = ({ userId }) => {
   const [editingSubscription, setEditingSubscription] = useState<MacroSubscription | null>(null);
   const [editingPredictionAlert, setEditingPredictionAlert] = useState<PredictionAlert | null>(null);
   const [deletingAlert, setDeletingAlert] = useState<PriceAlert | null>(null);
+  const [deletingPredictionAlert, setDeletingPredictionAlert] = useState<PredictionAlert | null>(null);
   const [statusFilter, setStatusFilter] = useState<AlertListStatusFilter>('all');
   const [eventFilter, setEventFilter] = useState<MacroEventStatusFilterValue>('all');
   const [impactFilter, setImpactFilter] = useState<ImpactFilterValue>('all');
@@ -266,9 +268,11 @@ export const AlertManagement: React.FC<AlertManagementProps> = ({ userId }) => {
     }
   };
 
-  const handleDeletePredictionAlert = async (alert: PredictionAlert) => {
+  const handleDeletePredictionAlert = async () => {
+    if (!deletingPredictionAlert) return;
     try {
-      await deletePredictionAlert(alert.id);
+      await deletePredictionAlert(deletingPredictionAlert.id);
+      setDeletingPredictionAlert(null);
       showToast.success('Prediction alert deleted');
     } catch {
       showToast.error('Failed to delete prediction alert');
@@ -358,39 +362,15 @@ export const AlertManagement: React.FC<AlertManagementProps> = ({ userId }) => {
           <Plus className="w-4 h-4 mr-1" />
           Create alert
         </Button>
-        <button
-          className={cn(
-            'px-4 py-2 text-sm font-medium border-b-2 transition-colors',
-            activeTab === 'price'
-              ? 'border-primary text-primary'
-              : 'border-transparent text-muted-foreground hover:text-foreground'
-          )}
-          onClick={() => setActiveTab('price')}
-        >
-          Price Alerts ({priceAlertCount})
-        </button>
-        <button
-          className={cn(
-            'px-4 py-2 text-sm font-medium border-b-2 transition-colors',
-            activeTab === 'macro'
-              ? 'border-primary text-primary'
-              : 'border-transparent text-muted-foreground hover:text-foreground'
-          )}
-          onClick={() => setActiveTab('macro')}
-        >
-          Macro Alerts ({macroEventCount})
-        </button>
-        <button
-          className={cn(
-            'px-4 py-2 text-sm font-medium border-b-2 transition-colors',
-            activeTab === 'prediction'
-              ? 'border-primary text-primary'
-              : 'border-transparent text-muted-foreground hover:text-foreground'
-          )}
-          onClick={() => setActiveTab('prediction')}
-        >
-          Prediction Alerts ({predictionCount})
-        </button>
+        <AlertKindTabs
+          value={activeTab}
+          onChange={setActiveTab}
+          counts={{
+            price: priceAlertCount,
+            macro: macroEventCount,
+            prediction: predictionCount,
+          }}
+        />
       </div>
 
       {/* Price Alerts Tab */}
@@ -465,7 +445,7 @@ export const AlertManagement: React.FC<AlertManagementProps> = ({ userId }) => {
           ) : (
             <PredictionAlertTable
               alerts={visiblePredictionAlerts}
-              onDelete={handleDeletePredictionAlert}
+              onDelete={setDeletingPredictionAlert}
               onEdit={setEditingPredictionAlert}
               onToggleStatus={handleTogglePredictionStatus}
             />
@@ -569,6 +549,13 @@ export const AlertManagement: React.FC<AlertManagementProps> = ({ userId }) => {
         alert={deletingAlert}
         onOpenChange={() => setDeletingAlert(null)}
         onConfirm={handleDeletePriceAlert}
+      />
+
+      <PredictionAlertDeleteConfirmation
+        alert={deletingPredictionAlert}
+        onOpenChange={() => setDeletingPredictionAlert(null)}
+        onConfirm={handleDeletePredictionAlert}
+        isLoading={isLoadingPrediction}
       />
     </div>
   );

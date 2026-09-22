@@ -42,6 +42,20 @@ describe('AlertManagement', () => {
     expectFilterCount('Inactive', 0)
   })
 
+  it('paints each tab with its alert-kind color', async () => {
+    renderAlertManagement()
+
+    expect(screen.getByRole('button', { name: 'Price Alerts (1)' }).className).toContain(
+      '--toast-price-bg',
+    )
+    expect(
+      (await screen.findByRole('button', { name: 'Macro Alerts (2)' })).className,
+    ).toContain('--toast-macro-bg')
+    expect(screen.getByRole('button', { name: /^Prediction Alerts/ }).className).toContain(
+      '--toast-forecast-bg',
+    )
+  })
+
   it('counts event-type subscriptions on the macro tab', async () => {
     const user = userEvent.setup()
     renderAlertManagement()
