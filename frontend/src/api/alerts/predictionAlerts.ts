@@ -11,7 +11,6 @@ import {
   simulateExportHistory,
   simulateGetAlerts,
   simulateGetHistory,
-  simulateGetPreview,
   simulateToggleStatus,
   simulateUpdateAlert,
   type HistoryQuery,
@@ -35,8 +34,8 @@ const JSON_HEADERS = { Accept: 'application/json' }
  * Gateway (or legacy `VITE_ALERT_API_BASE_URL`) set → live HTTP. Unset →
  * simulated seed data. Failed live requests throw; they do not fall back.
  *
- * History, CSV export, and form preview have no backend routes yet, so those
- * stay simulated (or empty when live) until the service adds them.
+ * History and CSV export have no backend routes yet, so those stay simulated
+ * (or empty when live) until the service adds them.
  */
 async function fromApiOrSimulate<T>(
   path: string,
@@ -167,7 +166,4 @@ export const predictionAlertApi = {
       () => simulateExportHistory(userId, params),
       async () => new Blob([''], { type: 'text/csv' }),
     ),
-
-  getPreview: async (data: CreatePredictionAlertRequest) =>
-    simulateGetPreview(data),
 }
