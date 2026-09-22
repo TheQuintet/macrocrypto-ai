@@ -94,11 +94,3 @@ export function expectSimulatedBadge() {
 export function getPeriodHeading() {
   return screen.getByRole('heading', { level: 2 }).textContent
 }
-
-export async function switchToPastEvents(user: UserEvent) {
-  await user.click(screen.getByRole('button', { name: 'Past events' }))
-}
-
-export function getPastEventsSection() {
-  return screen.getByRole('region', { name: 'Past economic events' })
-}

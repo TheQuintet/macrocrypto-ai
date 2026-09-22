@@ -32,6 +32,12 @@ describe('AlertManagement', () => {
     cleanup()
   })
 
+  it('does not keep sent-alert history on the alerts page', async () => {
+    renderAlertManagement()
+
+    expect(screen.queryByRole('button', { name: /^History/ })).not.toBeInTheDocument()
+  })
+
   it('counts alerts on the price tab and its filters', async () => {
     renderAlertManagement()
 
@@ -75,15 +81,6 @@ describe('AlertManagement', () => {
     expect(
       screen.getByRole('button', { name: CREATE_ALERT_LABELS.macro }).className,
     ).toContain('--toast-macro-bg')
-  })
-
-  it('shows macro alert history on its own tab', async () => {
-    const user = userEvent.setup()
-    renderAlertManagement()
-
-    await openTab(user, /^History \(/)
-
-    expect(screen.getByText('Macro alert history')).toBeInTheDocument()
   })
 
   it('counts event-type subscriptions on the macro tab', async () => {

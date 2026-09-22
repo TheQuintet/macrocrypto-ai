@@ -11,9 +11,7 @@ import {
   getPeriodHeading,
   openEventDetails,
   renderEconomicCalendar,
-  getPastEventsSection,
   stepToNextPeriod,
-  switchToPastEvents,
   switchToWeekView,
 } from './EconomicCalendar.testHelpers'
 
@@ -85,18 +83,5 @@ describe('EconomicCalendar', () => {
 
     await stepToNextPeriod(user, 'week')
     expect(getPeriodHeading()).not.toBe(weekLabel)
-  })
-
-  it('switches to a table of past events', async () => {
-    const user = userEvent.setup()
-    renderEconomicCalendar()
-    await expectEventShown('FOMC rate decision')
-
-    await switchToPastEvents(user)
-
-    // The month grid gives way to the history table for the same feed.
-    expect(getPastEventsSection()).toBeInTheDocument()
-    expect(screen.getByPlaceholderText('Search past events...')).toBeInTheDocument()
-    expect(screen.queryByRole('grid')).not.toBeInTheDocument()
   })
 })

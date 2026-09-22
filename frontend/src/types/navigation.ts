@@ -4,6 +4,7 @@ export type NavItemId =
   | 'dashboard'
   | 'macro'
   | 'calendar'
+  | 'economicNotifications'
   | 'forecasts'
   | 'alerts'
 

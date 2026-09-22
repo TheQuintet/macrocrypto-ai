@@ -24,6 +24,9 @@ describe('navigation constants', () => {
     expect(navItemFromPathname(`${routes.forecasts}/x`)).toBe('forecasts')
     // `/macro/calendar` matches both routes; the deeper one wins.
     expect(navItemFromPathname(routes.calendar)).toBe('calendar')
+    expect(navItemFromPathname(routes.economicNotifications)).toBe(
+      'economicNotifications',
+    )
     expect(navItemFromPathname(routes.macro)).toBe('macro')
     expect(navItemFromPathname(routes.alerts)).toBe('alerts')
   })
@@ -38,17 +41,29 @@ describe('navigation constants', () => {
     expect(isSidebarNavItemActive(routes.alerts, '/')).toBe(false)
   })
 
-  it('nests the economic calendar under macro indicators', () => {
+  it('nests economic calendar and notifications under macro indicators', () => {
     const macro = sidebarNavItems.find((item) => item.id === 'macro')
 
-    expect(macro?.children?.map((child) => child.id)).toEqual(['calendar'])
+    expect(macro?.children?.map((child) => child.id)).toEqual([
+      'calendar',
+      'economicNotifications',
+    ])
     expect(routes.calendar.startsWith(`${routes.macro}/`)).toBe(true)
+    expect(routes.economicNotifications.startsWith(`${routes.macro}/`)).toBe(
+      true,
+    )
   })
 
-  it('keeps the macro parent active while on the calendar', () => {
+  it('keeps the macro parent active on its child pages', () => {
     expect(isSidebarNavItemActive(routes.macro, routes.calendar)).toBe(true)
+    expect(
+      isSidebarNavItemActive(routes.macro, routes.economicNotifications),
+    ).toBe(true)
     expect(isSidebarNavItemActive(routes.calendar, routes.calendar)).toBe(true)
     expect(isSidebarNavItemActive(routes.calendar, routes.macro)).toBe(false)
+    expect(
+      isSidebarNavItemActive(routes.economicNotifications, routes.macro),
+    ).toBe(false)
   })
 
   it('lists Alerts in the sidebar next to the other pages', () => {

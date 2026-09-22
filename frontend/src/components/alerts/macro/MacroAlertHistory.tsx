@@ -27,6 +27,7 @@ import {
   paginate,
   type DateRange,
 } from '@/lib/tableFilters';
+import { pageCopy } from '@/constants/navigation';
 import type { EventTypeFilter } from '@/types/economicCalendar';
 
 const PAGE_SIZE = 10;
@@ -99,7 +100,7 @@ export function MacroAlertHistory({ userId }: MacroAlertHistoryProps) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Macro alert history</CardTitle>
+          <CardTitle>{pageCopy.economicNotifications.title}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <Skeleton className="h-9 w-full" />
@@ -137,7 +138,7 @@ export function MacroAlertHistory({ userId }: MacroAlertHistoryProps) {
   return (
     <Card>
       <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <CardTitle>Macro alert history</CardTitle>
+        <CardTitle>{pageCopy.economicNotifications.title}</CardTitle>
         <Button
           variant="outline"
           size="sm"

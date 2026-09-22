@@ -1,7 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { usePriceAlerts } from '@/hooks/alerts/usePriceAlerts';
 import { useMacroEvents } from '@/hooks/alerts/useMacroEvents';
-import { useMacroAlertHistoryQuery } from '@/hooks/alerts/useMacroAlertHistoryQuery';
 import { usePredictionAlerts } from '@/hooks/alerts/usePredictionAlerts';
 import { PriceAlertForm } from './price/PriceAlertForm';
 import { MacroAlertForm } from './macro/MacroAlertForm';
@@ -39,13 +38,9 @@ import type {
   UpdatePredictionAlertRequest as UpdatePredictionAlertRequestType,
 } from '@/types/alerts/predictionAlert';
 import { MacroCalendarTable } from './macro/MacroCalendarTable';
-import { MacroAlertHistory } from './macro/MacroAlertHistory';
 import { CreateAlertButton } from './shared/CreateAlertButton';
 import { AlertTypeSwitch } from './shared/AlertTypeSwitch';
 import { AlertKindTabs } from './shared/AlertKindTabs';
-import { cn } from '@/lib/utils';
-
-type AlertTab = NewAlertType | 'history';
 
 interface AlertManagementProps {
   userId: string;
@@ -61,7 +56,7 @@ export const AlertManagement: React.FC<AlertManagementProps> = ({ userId }) => {
   const [statusFilter, setStatusFilter] = useState<AlertListStatusFilter>('all');
   const [eventFilter, setEventFilter] = useState<MacroEventStatusFilterValue>('all');
   const [impactFilter, setImpactFilter] = useState<ImpactFilterValue>('all');
-  const [activeTab, setActiveTab] = useState<AlertTab>('price');
+  const [activeTab, setActiveTab] = useState<NewAlertType>('price');
 
   const {
     alerts,
@@ -81,11 +76,6 @@ export const AlertManagement: React.FC<AlertManagementProps> = ({ userId }) => {
     subscribe: subscribeToEvent,
     applyDraft: applyMacroDraft,
   } = useMacroEvents(userId);
-
-  // Shares the query cache with the history tab, so this costs no extra request.
-  const historyQuery = useMacroAlertHistoryQuery(userId);
-  const historyCount =
-    historyQuery.data?.total ?? historyQuery.data?.notifications.length ?? 0;
 
   const {
     alerts: predictionAlerts,
@@ -361,7 +351,7 @@ export const AlertManagement: React.FC<AlertManagementProps> = ({ userId }) => {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center gap-2 border-b">
         <AlertKindTabs
-          value={activeTab === 'history' ? null : activeTab}
+          value={activeTab}
           onChange={setActiveTab}
           counts={{
             price: priceAlertCount,
@@ -369,18 +359,6 @@ export const AlertManagement: React.FC<AlertManagementProps> = ({ userId }) => {
             prediction: predictionCount,
           }}
         />
-        <button
-          type="button"
-          className={cn(
-            'inline-flex items-center gap-2 border-b-2 px-4 py-2 text-sm font-medium transition-colors',
-            activeTab === 'history'
-              ? 'border-primary text-primary'
-              : 'border-transparent text-muted-foreground hover:text-foreground',
-          )}
-          onClick={() => setActiveTab('history')}
-        >
-          History ({historyCount})
-        </button>
       </div>
 
       {/* Price Alerts Tab */}
@@ -438,8 +416,6 @@ export const AlertManagement: React.FC<AlertManagementProps> = ({ userId }) => {
           />
         </>
       )}
-
-      {activeTab === 'history' && <MacroAlertHistory userId={userId} />}
 
       {/* Prediction Alerts Tab */}
       {activeTab === 'prediction' && (

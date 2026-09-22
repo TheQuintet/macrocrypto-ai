@@ -4,8 +4,7 @@ import { alertKindTabClassName } from '@/lib/alerts/alertKindClassName'
 import type { NewAlertType } from '@/types/alerts'
 
 type AlertKindTabsProps = {
-  /** Null when a non-kind page tab (history) is selected. */
-  value: NewAlertType | null
+  value: NewAlertType
   onChange: (kind: NewAlertType) => void
   counts: Record<NewAlertType, number>
 }
