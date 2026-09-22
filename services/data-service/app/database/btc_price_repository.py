@@ -6,9 +6,15 @@ Market capitalization may be supplied by CoinGecko when available.
 """
 
 from datetime import datetime, timedelta, timezone
+from logging import getLogger
+
+from typing import Any
 
 from app.database.session import SessionLocal
 from app.models.btc_price import BTCPrice
+
+
+logger = getLogger(__name__)
 
 
 class BTCPriceRepository:
@@ -47,6 +53,137 @@ class BTCPriceRepository:
 
         except Exception:
             session.rollback()
+            raise
+
+        finally:
+            session.close()
+
+    # def save_historical_prices(
+    #     self,
+    #     records: list[dict[str, Any]],
+    #     source: str = "binance_backfill",
+    # ) -> int:
+    #     """Persist historical BTC candles using their original timestamps."""
+    #     if not records:
+    #         return 0
+
+    #     session = SessionLocal()
+
+    #     try:
+    #         db_records = [
+    #             BTCPrice(
+    #                 time=record["time"],
+    #                 price=float(record["price"]),
+    #                 volume=(
+    #                     float(record["volume"])
+    #                     if record.get("volume") is not None
+    #                     else None
+    #                 ),
+    #                 market_cap=(
+    #                     float(record["market_cap"])
+    #                     if record.get("market_cap") is not None
+    #                     else None
+    #                 ),
+    #                 source=source,
+    #             )
+    #             for record in records
+    #         ]
+
+    #         session.add_all(db_records)
+    #         session.commit()
+
+    #         logger.info(
+    #             "Persisted %d historical BTC price records",
+    #             len(db_records),
+    #         )
+
+    #         return len(db_records)
+
+    #     except Exception:
+    #         session.rollback()
+    #         logger.exception(
+    #             "Failed to persist %d historical BTC price records",
+    #             len(records),
+    #         )
+    #         raise
+
+    #     finally:
+    #         session.close()
+
+    def save_historical_prices(
+        self,
+        records: list[dict[str, Any]],
+        source: str = "binance_backfill",
+    ) -> int:
+        """Persist historical BTC candles using their original timestamps."""
+        if not records:
+            return 0
+
+        session = SessionLocal()
+
+        try:
+            existing_times = {
+                row[0]
+                for row in (
+                    session.query(BTCPrice.time)
+                    .filter(
+                        BTCPrice.time.in_(
+                            record["time"] for record in records
+                        )
+                    )
+                    .all()
+                )
+            }
+
+            new_records = [
+                record
+                for record in records
+                if record["time"] not in existing_times
+            ]
+
+            if not new_records:
+                logger.info(
+                    "All %d historical BTC price records already exist; "
+                    "nothing to insert",
+                    len(records),
+                )
+                return 0
+
+            db_records = [
+                BTCPrice(
+                    time=record["time"],
+                    price=float(record["price"]),
+                    volume=(
+                        float(record["volume"])
+                        if record.get("volume") is not None
+                        else None
+                    ),
+                    market_cap=(
+                        float(record["market_cap"])
+                        if record.get("market_cap") is not None
+                        else None
+                    ),
+                    source=source,
+                )
+                for record in new_records
+            ]
+
+            session.add_all(db_records)
+            session.commit()
+
+            logger.info(
+                "Persisted %d historical BTC price records",
+                len(db_records),
+            )
+
+            return len(db_records)
+
+        except Exception:
+            session.rollback()
+            logger.exception(
+                "Failed to persist %d historical BTC price records",
+                len(records),
+            )
             raise
 
         finally:

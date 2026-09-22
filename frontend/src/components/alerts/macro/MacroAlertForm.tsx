@@ -12,11 +12,11 @@ import { AlertFormDialog } from '@/components/alerts/shared/AlertFormDialog';
 import { AlertNotificationFields } from '@/components/alerts/shared/AlertNotificationFields';
 import { AlertOneTimeField } from '@/components/alerts/shared/AlertOneTimeField';
 import { cn } from '@/lib/utils';
+import { MACRO_EVENT_TYPES } from '@/lib/alerts/macroEventMapping';
 import type {
   EventTiming,
   EventType,
   MacroAlertDraft,
-  MacroEvent,
 } from '@/types/alerts/macroAlert';
 import {
   MACRO_EVENT_ICONS,
@@ -27,7 +27,6 @@ import {
 interface MacroAlertFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  events: MacroEvent[];
   onSubmit: (draft: MacroAlertDraft) => void;
   /** Seeds the form when a row is opened; its event cannot be swapped. */
   editingDraft?: MacroAlertDraft | null;
@@ -49,7 +48,6 @@ const emptyDraft = {
 export function MacroAlertForm({
   open,
   onOpenChange,
-  events,
   onSubmit,
   editingDraft,
   isLoading = false,
@@ -90,10 +88,6 @@ export function MacroAlertForm({
     }
     onOpenChange(nextOpen);
   };
-
-  const eventTypes = Array.from(
-    new Set(events.map((event) => event.event_type)),
-  );
 
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
@@ -168,26 +162,14 @@ export function MacroAlertForm({
                   )}
                 </SelectTrigger>
                 <SelectContent>
-                  {eventTypes.length === 0 ? (
-                    <div className='px-2 py-4 text-center text-sm text-muted-foreground'>
-                      No events available
-                    </div>
-                  ) : (
-                    eventTypes.map((type) => (
-                      <SelectItem key={type} value={type}>
-                        <div className='flex items-center gap-2'>
-                          <span>{MACRO_EVENT_ICONS[type]}</span>
-                          <span>{MACRO_EVENT_TITLES[type]}</span>
-                          <span className='text-xs text-muted-foreground'>
-                            (
-                            {events.find((event) => event.event_type === type)
-                              ?.impact ?? 'MEDIUM'}
-                            )
-                          </span>
-                        </div>
-                      </SelectItem>
-                    ))
-                  )}
+                  {MACRO_EVENT_TYPES.map((type) => (
+                    <SelectItem key={type} value={type}>
+                      <div className='flex items-center gap-2'>
+                        <span>{MACRO_EVENT_ICONS[type]}</span>
+                        <span>{MACRO_EVENT_TITLES[type]}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               {errors.event_type ? (

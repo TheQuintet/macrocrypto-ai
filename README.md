@@ -57,9 +57,9 @@ Event-driven microservices. Collectors publish on **RabbitMQ**; services store h
 | **Frontend** | Vite + React dashboard (TypeScript, Tailwind, ShadCN, Zustand, TanStack Query) |
 | **data-service** | BTC (Binance) and macro (FRED) collection; HTTP APIs |
 | **alert-service** | Alert rules and notifications |
-| **ai-service** | Prophet price forecasting |
-| **api-gateway** | External REST / WebSocket (planned) |
-| **Postgres / Redis / RabbitMQ** | Persistence, cache, events |
+| **ai-service** | BTC price forecasting (Prophet, XGBoost, LightGBM) |
+| **api-gateway** | External REST entry point (proxies data-service and alert-service) |
+| **Postgres / Redis / RabbitMQ / MLflow** | Persistence, cache, events, model registry |
 
 Which containers Compose starts today, ports, and endpoints: [services/README.md](./services/README.md#services). Diagrams and service boundaries: [C4 model](./docs/design/c4-model.md) · [microservices](./docs/design/microservices.md).
 
@@ -93,14 +93,27 @@ In the repository root:
 ```bash
 cp services/data-service/.env.example services/data-service/.env
 cp services/alert-service/.env.example services/alert-service/.env
+cp services/ai-service/.env.example services/ai-service/.env
+cp services/api-gateway/.env.example services/api-gateway/.env
 make up
 make ps
 ```
 
-API docs: http://localhost:8001/docs  
-Health: http://localhost:8001/health
+`make up` starts infrastructure (including MLflow), **data-service**, **alert-service**, **ai-service**, and **api-gateway**. To start (or rebuild) one of those after the rest is already up:
 
-Env files, commands, and troubleshooting: [services/README.md — Quick start](./services/README.md#quick-start).
+```bash
+make ai-up
+make api-up
+```
+
+| Service | Docs | Health |
+|---------|------|--------|
+| API Gateway | http://localhost:8000/docs | http://localhost:8000/health |
+| Data service | http://localhost:8001/docs | http://localhost:8001/health |
+| AI service | http://localhost:8002/docs | http://localhost:8002/health |
+| Alert service | http://localhost:8003/docs | http://localhost:8003/health |
+
+Env files, commands, and troubleshooting: [services/README.md — Quick start](./services/README.md#quick-start) · [ai-service README](./services/ai-service/README.md) · [api-gateway README](./services/api-gateway/README.md).
 
 ### Frontend
 
@@ -114,13 +127,19 @@ Open http://localhost:3000. Scripts and stack: [frontend/README.md](./frontend/R
 
 ### Connect UI to live APIs
 
-After the backend is up, from the repository root:
+Point the dashboard at the **API Gateway** (port 8000), not at the services behind it. After the backend is up, from `frontend/`:
 
 ```bash
-echo "VITE_API_BASE_URL=http://localhost:8001" > frontend/.env.local
+cp .env.example .env.local
 ```
 
-Restart the Vite server so it picks up the variable. Steps: [Connecting the frontend](./services/README.md#connecting-the-frontend).
+Set:
+
+```dotenv
+VITE_API_GATEWAY_BASE_URL=http://localhost:8000
+```
+
+Restart the Vite server so it picks up the variable. Leave the value empty for a frontend-only run with simulated data. Steps: [Connect to the API Gateway](./frontend/README.md#connect-to-the-api-gateway).
 
 ---
 
@@ -140,6 +159,7 @@ npm run test:ui-integration   # Playwright UI integration
 ```bash
 make data-test                # data-service pytest
 make alert-test               # alert-service pytest
+make ai-test                  # ai-service pytest
 ```
 
 What we test and why: [frontend/README.md](./frontend/README.md) (unit / UI integration / E2E split) and the [design and testing](#design-and-testing-documentation) docs below.

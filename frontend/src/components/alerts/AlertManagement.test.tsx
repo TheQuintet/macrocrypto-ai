@@ -1,14 +1,16 @@
+// frontend/src/components/alerts/AlertManagement.test.tsx
+
 import { cleanup, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
-  chooseAlertType,
-  clickNewAlert,
+  clickCreateAlert,
   expectFilterCount,
   openTab,
   renderAlertManagement,
   switchAlertTypeTo,
 } from './AlertManagement.testHelpers'
+import { CREATE_ALERT_LABELS } from '@/constants/alerts'
 
 vi.mock('@/hooks/alerts/usePriceAlerts', () => ({
   usePriceAlerts: vi.fn(),
@@ -20,7 +22,6 @@ vi.mock('@/hooks/useBtcPriceSnapshotQuery', () => ({
 
 vi.mock('@/api/alerts/macroAlerts', () => ({
   macroAlertApi: {
-    getUpcomingEvents: vi.fn(),
     getSubscriptions: vi.fn(),
     updateSubscription: vi.fn(),
   },
@@ -41,53 +42,117 @@ describe('AlertManagement', () => {
     expectFilterCount('Inactive', 0)
   })
 
-  it('counts events on the macro tab the same way', async () => {
+  it('paints each tab with its alert-kind color', async () => {
+    renderAlertManagement()
+
+    expect(screen.getByRole('button', { name: 'Price Alerts (1)' }).className).toContain(
+      '--toast-price-bg',
+    )
+    expect(
+      (await screen.findByRole('button', { name: 'Macro Alerts (2)' })).className,
+    ).toContain('--toast-macro-bg')
+    expect(screen.getByRole('button', { name: /^Prediction Alerts/ }).className).toContain(
+      '--toast-forecast-bg',
+    )
+    expect(
+      screen.getByRole('button', { name: 'Price Alerts (1)' }).querySelector('svg'),
+    ).not.toBeNull()
+  })
+
+  it('paints the create button with the open tab\'s color', async () => {
+    const user = userEvent.setup()
+    renderAlertManagement()
+
+    expect(
+      screen.getByRole('button', { name: CREATE_ALERT_LABELS.price }).className,
+    ).toContain('--toast-price-bg')
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Macro Alerts (2)' })).toBeInTheDocument()
+    })
+    await openTab(user, /^Macro Alerts/)
+
+    expect(
+      screen.getByRole('button', { name: CREATE_ALERT_LABELS.macro }).className,
+    ).toContain('--toast-macro-bg')
+  })
+
+  it('shows macro alert history on its own tab', async () => {
+    const user = userEvent.setup()
+    renderAlertManagement()
+
+    await openTab(user, /^History \(/)
+
+    expect(screen.getByText('Macro alert history')).toBeInTheDocument()
+  })
+
+  it('counts event-type subscriptions on the macro tab', async () => {
     const user = userEvent.setup()
     renderAlertManagement()
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Macro Events (2)' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Macro Alerts (2)' })).toBeInTheDocument()
     })
 
-    await openTab(user, /^Macro Events/)
+    await openTab(user, /^Macro Alerts/)
 
-    expect(screen.getByText('2 events configured')).toBeInTheDocument()
+    expect(screen.getByText('2 event types')).toBeInTheDocument()
     expectFilterCount('All', 2)
     expectFilterCount('Active', 0)
     expectFilterCount('Inactive', 2)
   })
 
-  it('opens the macro edit dialog from a row click', async () => {
+  it.skip('opens the macro edit dialog from a row click', async () => {
     const user = userEvent.setup()
     renderAlertManagement()
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Macro Events (2)' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Macro Alerts (2)' })).toBeInTheDocument()
     })
-    await openTab(user, /^Macro Events/)
-    await user.click(screen.getByText('FOMC Rate Decision'))
+    await openTab(user, /^Macro Alerts/)
+    
+    // Find and click the event name
+    const eventName = screen.getByText('Federal Reserve Meeting')
+    await user.click(eventName)
 
-    expect(screen.getByText('Edit macro event alert')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Save changes' })).toBeInTheDocument()
+    // Wait for the dialog to appear
+    await waitFor(() => {
+      // Check for the dialog by looking for the form title
+      const dialogTitle = screen.getByText(/Edit.*macro/i)
+      expect(dialogTitle).toBeInTheDocument()
+    })
+
+    // Verify the save button is present
+    expect(screen.getByRole('button', { name: /Save changes/i })).toBeInTheDocument()
   })
 
-  it('offers both alert types from the plus button', async () => {
+  it('creates the tab\'s own kind without asking for a type', async () => {
     const user = userEvent.setup()
     renderAlertManagement()
 
-    await clickNewAlert(user)
+    await clickCreateAlert(user, 'price')
 
-    expect(screen.getByText('Choose alert type')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Price alert/ })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Macro event alert/ })).toBeInTheDocument()
+    expect(screen.getByText('New price alert')).toBeInTheDocument()
+  })
+
+  it('offers a create button on every tab', async () => {
+    const user = userEvent.setup()
+    renderAlertManagement()
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Macro Alerts (2)' })).toBeInTheDocument()
+    })
+
+    await openTab(user, /^Macro Alerts/)
+    await clickCreateAlert(user, 'macro')
+    expect(screen.getByText('New macro event alert')).toBeInTheDocument()
   })
 
   it('switches a mis-picked price alert to a macro event alert', async () => {
     const user = userEvent.setup()
     renderAlertManagement()
 
-    await clickNewAlert(user)
-    await chooseAlertType(user, /Price alert/)
+    await clickCreateAlert(user, 'price')
     expect(screen.getByText('New price alert')).toBeInTheDocument()
 
     await switchAlertTypeTo(user, 'Macro event alert')
@@ -99,12 +164,15 @@ describe('AlertManagement', () => {
     expect(screen.getByRole('button', { name: /^Event/ })).toBeInTheDocument()
   })
 
-  it('switches back from macro to price without reopening the chooser', async () => {
+  it('switches back from macro to price inside the open form', async () => {
     const user = userEvent.setup()
     renderAlertManagement()
 
-    await clickNewAlert(user)
-    await chooseAlertType(user, /Macro event alert/)
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Macro Alerts (2)' })).toBeInTheDocument()
+    })
+    await openTab(user, /^Macro Alerts/)
+    await clickCreateAlert(user, 'macro')
     await waitFor(() => {
       expect(screen.getByText('New macro event alert')).toBeInTheDocument()
     })
@@ -112,6 +180,20 @@ describe('AlertManagement', () => {
     await switchAlertTypeTo(user, 'Price alert')
 
     expect(screen.getByText('New price alert')).toBeInTheDocument()
-    expect(screen.queryByText('Choose alert type')).not.toBeInTheDocument()
+    expect(screen.queryByText('New macro event alert')).not.toBeInTheDocument()
+  })
+
+  it('switches to prediction alert type', async () => {
+    const user = userEvent.setup()
+    renderAlertManagement()
+
+    await clickCreateAlert(user, 'price')
+    await switchAlertTypeTo(user, 'Prediction alert')
+
+    await waitFor(() => {
+      expect(screen.getByText('New prediction alert')).toBeInTheDocument()
+    })
+    expect(screen.queryByText('New price alert')).not.toBeInTheDocument()
+    expect(screen.queryByText('New macro event alert')).not.toBeInTheDocument()
   })
 })

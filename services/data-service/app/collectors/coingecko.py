@@ -101,7 +101,6 @@ class CoinGeckoCollector:
             )
             return self._empty_dominance_response()
 
-
     def _empty_dominance_response(self) -> Dict[str, Any]:
         """
         Return safe fallback response for BTC dominance.

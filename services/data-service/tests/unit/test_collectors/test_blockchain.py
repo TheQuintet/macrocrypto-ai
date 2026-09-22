@@ -57,7 +57,7 @@ async def test_get_active_addresses_returns_normalized_records():
     collector._get.assert_awaited_once_with(
         "n-unique-addresses",
         params={
-            "timespan": "1year",
+            "timespan": "all",
             "format": "json",
         },
     )

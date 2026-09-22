@@ -3,7 +3,7 @@ Yahoo Finance collector for market data.
 """
 
 import logging
-from typing import Optional
+from typing import Optional, Any
 
 import httpx
 
@@ -99,6 +99,62 @@ class YahooFinanceCollector:
         return await self._get_latest_price(
             self.GOLD_FUTURES_SYMBOL
         )
+
+    async def get_gold_spot_history(
+        self,
+        symbol: str = GOLD_SPOT_SYMBOL,
+        range_: str = "5y",
+        interval: str = "1d",
+    ) -> list[dict[str, Any]]:
+        """Fetch historical daily gold prices from Yahoo Finance."""
+
+        url = f"{self.BASE_URL}/{symbol}"
+
+        response = await self.client.get(
+            url,
+            params={
+                "range": range_,
+                "interval": interval,
+                "events": "history",
+            },
+        )
+
+        response.raise_for_status()
+
+        payload = response.json()
+
+        result = payload.get("chart", {}).get("result")
+
+        if not result:
+            raise RuntimeError(
+                f"No historical data returned for {symbol}"
+            )
+
+        result = result[0]
+
+        timestamps = result.get("timestamp", [])
+        quote = (
+            result.get("indicators", {})
+            .get("quote", [{}])[0]
+        )
+
+        closes = quote.get("close", [])
+
+        records: list[dict[str, Any]] = []
+
+        for timestamp, close in zip(timestamps, closes):
+            if close is None:
+                continue
+
+            records.append(
+                {
+                    "timestamp": timestamp,
+                    "price": float(close),
+                    "symbol": symbol,
+                }
+            )
+
+        return records
 
     async def close(self):
         """Close the HTTP client."""

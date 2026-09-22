@@ -53,15 +53,20 @@ services:
       RABBITMQ_DEFAULT_USER: guest
       RABBITMQ_DEFAULT_PASS: guest
     ports:
-      - "5672:5672"   # AMQP protocol
-      - "15672:15672" # Management UI
+      # Host ports are overridable so a RabbitMQ from another project can keep
+      # the defaults. Containers always reach this node on 5672 via the network.
+      - "${RABBITMQ_AMQP_HOST_PORT:-5672}:5672"   # AMQP protocol
+      - "${RABBITMQ_MGMT_HOST_PORT:-15672}:15672" # Management UI
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     healthcheck:
-      test: ["CMD", "rabbitmqctl", "status"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      # The Erlang CLI needs well over the 5s default on slower machines, which
+      # left the node permanently unhealthy and blocked every depends_on.
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 15s
+      timeout: 30s
+      retries: 10
+      start_period: 90s
     networks:
       - macro-network
 
@@ -252,7 +257,7 @@ services:
   #   ports:
   #     - "3000:3000"
   #   environment:
-  #     - REACT_APP_API_URL=http://api-gateway:8000
+  #     - VITE_API_GATEWAY_BASE_URL=http://localhost:8000
   #   volumes:
   #     - ./frontend/src:/app/src
   #     - ./frontend/public:/app/public

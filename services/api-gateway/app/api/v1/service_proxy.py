@@ -7,9 +7,9 @@ The routes are intentionally thin forwarding routes. They contain no
 business logic and delegate all downstream communication to ServiceProxy.
 
 Source of truth:
-    - 11 Data Service endpoints
-    - 24 Alert Service endpoints
-    - 35 proxy endpoints total
+    - 12 Data Service endpoints
+    - 27 Alert Service endpoints
+    - 39 proxy endpoints total
 """
 
 from __future__ import annotations
@@ -196,6 +196,21 @@ router.add_api_route(
 
 
 # ----------------------------------------------------------------------------
+# Economic Calendar — 1
+# ----------------------------------------------------------------------------
+
+router.add_api_route(
+    "/economic-calendar",
+    partial(
+        data_proxy,
+        upstream_path="/api/v1/economic-calendar",
+    ),
+    methods=["GET"],
+    tags=["Data Service"],
+)
+
+
+# ----------------------------------------------------------------------------
 # Macroeconomic Regimes — 6
 # ----------------------------------------------------------------------------
 
@@ -261,7 +276,7 @@ router.add_api_route(
 
 
 # ============================================================================
-# ALERT SERVICE — 24 ENDPOINTS
+# ALERT SERVICE — 27 ENDPOINTS
 # ============================================================================
 
 # ----------------------------------------------------------------------------
@@ -485,6 +500,36 @@ router.add_api_route(
         upstream_path="/api/v1/macro/alerts/{alert_id}",
     ),
     methods=["DELETE"],
+    tags=["Alert Service"],
+)
+
+router.add_api_route(
+    "/macro/notifications",
+    partial(
+        alert_proxy,
+        upstream_path="/api/v1/macro/notifications",
+    ),
+    methods=["GET"],
+    tags=["Alert Service"],
+)
+
+router.add_api_route(
+    "/macro/notifications/unread",
+    partial(
+        alert_proxy,
+        upstream_path="/api/v1/macro/notifications/unread",
+    ),
+    methods=["GET"],
+    tags=["Alert Service"],
+)
+
+router.add_api_route(
+    "/macro/notifications/read-all",
+    partial(
+        alert_proxy,
+        upstream_path="/api/v1/macro/notifications/read-all",
+    ),
+    methods=["POST"],
     tags=["Alert Service"],
 )
 

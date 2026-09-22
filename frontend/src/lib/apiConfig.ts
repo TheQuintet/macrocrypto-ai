@@ -1,13 +1,15 @@
+/** Single public entry point for data and alert requests. */
+export const API_GATEWAY_BASE_URL = import.meta.env.VITE_API_GATEWAY_BASE_URL
+
 /**
- * Base URL of the data service (or the gateway, once it fronts it).
+ * Legacy direct Data Service URL.
  *
- * Unset in a frontend-only run — no backend, no Docker. Callers fall back to
- * simulated data in that case, and mark it as such so it is never mistaken
- * for the real market.
+ * Used only when no gateway URL is configured, so existing local setups keep
+ * working while deployed and full-stack runs use the gateway.
  */
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
 
-/** Base URL of the alert service (price-alert CRUD). */
+/** Legacy direct Alert Service URL. */
 export const ALERT_API_BASE_URL = import.meta.env.VITE_ALERT_API_BASE_URL
 
 /**
@@ -26,23 +28,23 @@ function joinBaseUrl(base: string | undefined, path: string) {
 }
 
 export function isApiConfigured() {
-  return Boolean(API_BASE_URL)
+  return Boolean(API_GATEWAY_BASE_URL || API_BASE_URL)
 }
 
 export function isAlertApiConfigured() {
-  return Boolean(ALERT_API_BASE_URL)
+  return Boolean(API_GATEWAY_BASE_URL || ALERT_API_BASE_URL)
 }
 
 export function isNotificationApiConfigured() {
   return Boolean(NOTIFICATION_STREAM_URL)
 }
 
-/** Absolute URL for a data-service path, or `null` when none is configured. */
+/** Gateway URL for a data path, falling back to the legacy direct service. */
 export function apiUrl(path: string) {
-  return joinBaseUrl(API_BASE_URL, path)
+  return joinBaseUrl(API_GATEWAY_BASE_URL || API_BASE_URL, path)
 }
 
-/** Absolute URL for an alert-service path, or `null` when none is configured. */
+/** Gateway URL for an alert path, falling back to the legacy direct service. */
 export function alertApiUrl(path: string) {
-  return joinBaseUrl(ALERT_API_BASE_URL, path)
+  return joinBaseUrl(API_GATEWAY_BASE_URL || ALERT_API_BASE_URL, path)
 }

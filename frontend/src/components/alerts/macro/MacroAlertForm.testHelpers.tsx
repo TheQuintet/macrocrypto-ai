@@ -2,39 +2,39 @@ import { render, screen } from '@testing-library/react'
 import type { UserEvent } from '@testing-library/user-event'
 import { expect, vi } from 'vitest'
 import { MacroAlertForm } from './MacroAlertForm'
-import type { MacroAlertDraft, MacroEvent } from '@/types/alerts/macroAlert'
+import type {
+  MacroAlertDraft,
+  MacroSubscription,
+} from '@/types/alerts/macroAlert'
 
-export const macroEvents: MacroEvent[] = [
+export const macroSubscriptions: MacroSubscription[] = [
   {
-    id: 'event-fed',
-    event_id: 'fed-1',
+    id: 'subscription-fed',
+    user_id: 'user-1',
     event_type: 'FED',
-    event_name: 'FOMC Rate Decision',
-    description: 'Federal funds rate announcement',
-    scheduled_at: '2026-09-17T18:00:00.000Z',
-    timezone: 'UTC',
-    impact: 'HIGH',
     subscribed: false,
-    notified: false,
+    impact_filter: 'HIGH',
+    timing: null,
+    one_time: null,
+    created_at: '2026-09-17T18:00:00.000Z',
+    updated_at: '2026-09-17T18:00:00.000Z',
   },
   {
-    id: 'event-cpi',
-    event_id: 'cpi-1',
+    id: 'subscription-cpi',
+    user_id: 'user-1',
     event_type: 'CPI',
-    event_name: 'CPI Release',
-    description: 'Consumer price index',
-    scheduled_at: '2026-09-10T12:30:00.000Z',
-    timezone: 'UTC',
-    impact: 'MEDIUM',
     subscribed: false,
-    notified: false,
+    impact_filter: 'MEDIUM',
+    timing: null,
+    one_time: null,
+    created_at: '2026-09-10T12:30:00.000Z',
+    updated_at: '2026-09-10T12:30:00.000Z',
   },
 ]
 
 type FormProps = {
   open?: boolean
   onOpenChange?: (open: boolean) => void
-  events?: MacroEvent[]
   onSubmit?: (draft: MacroAlertDraft) => void
   isLoading?: boolean
 }
@@ -47,7 +47,6 @@ export function renderMacroForm(overrides: FormProps = {}) {
     <MacroAlertForm
       open={overrides.open ?? true}
       onOpenChange={onOpenChange}
-      events={overrides.events ?? macroEvents}
       onSubmit={onSubmit}
       isLoading={overrides.isLoading ?? false}
     />,

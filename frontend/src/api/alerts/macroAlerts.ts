@@ -1,59 +1,97 @@
-import { generateMockMacroSubscriptions, generateMockMacroEvents } from './simulatedMacroAlerts';
-import type { MacroSubscription, MacroEvent, MacroAlertHistory, EventType, EventTiming } from '@/types/alerts/macroAlert';
+import axios from 'axios'
+import { generateMockMacroSubscriptions } from '@/api/alerts/simulatedMacroAlerts'
+import { alertApiUrl } from '@/lib/apiConfig'
+import {
+  toApiEventType,
+  toApiImpact,
+  toUiSubscription,
+  type SubscriptionPayload,
+} from '@/lib/alerts/macroEventMapping'
+import type {
+  EventType,
+  MacroSubscription,
+} from '@/types/alerts/macroAlert'
 
-// Flag to use real API or simulated data
-const USE_REAL_API = false;
+const JSON_HEADERS = { Accept: 'application/json' }
+
+export const MACRO_SUBSCRIPTIONS_PATH = '/api/v1/macro/subscriptions'
+export const MACRO_SUBSCRIBE_PATH = '/api/v1/macro/subscribe'
+
+async function fromApiOrSimulate<T>(
+  path: string,
+  simulate: () => Promise<T>,
+  live: (url: string) => Promise<T>,
+): Promise<T> {
+  const url = alertApiUrl(path)
+  if (!url) {
+    return simulate()
+  }
+
+  return live(url)
+}
 
 export const macroAlertApi = {
-  getSubscriptions: async (): Promise<MacroSubscription[]> => {
-    if (USE_REAL_API) {
-      console.warn('[MacroAlertApi] Real API not implemented yet');
-    }
-    return generateMockMacroSubscriptions();
-  },
+  /** Exactly the rows the alert service holds for this user — nothing added. */
+  getSubscriptions: async (userId: string): Promise<MacroSubscription[]> =>
+    fromApiOrSimulate(
+      `${MACRO_SUBSCRIPTIONS_PATH}/${userId}`,
+      async () => generateMockMacroSubscriptions(userId),
+      async (url) => {
+        const response = await axios.get<{ subscriptions?: unknown[] }>(url, {
+          headers: JSON_HEADERS,
+        })
+
+        return (response.data.subscriptions ?? [])
+          .map((row) =>
+            toUiSubscription(row as SubscriptionPayload, userId),
+          )
+          .filter((row): row is MacroSubscription => row !== null)
+      },
+    ),
 
   updateSubscription: async (
-    _userId: string,
+    userId: string,
     eventType: EventType,
     subscribed: boolean,
-    oneTime: boolean = true
-  ): Promise<MacroSubscription> => {
-    if (USE_REAL_API) {
-      console.warn('[MacroAlertApi] Real API not implemented yet');
-    }
-    return {
-      id: crypto.randomUUID(),
-      user_id: _userId,
-      event_type: eventType,
-      subscribed,
-      impact_filter: null,
-      timing: '1D' as EventTiming,
-      one_time: oneTime,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-  },
+  ): Promise<MacroSubscription> =>
+    fromApiOrSimulate(
+      MACRO_SUBSCRIBE_PATH,
+      async () => ({
+        id: crypto.randomUUID(),
+        user_id: userId,
+        event_type: eventType,
+        subscribed,
+        impact_filter: 'HIGH',
+        timing: null,
+        one_time: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }),
+      async (url) => {
+        const response = await axios.post<SubscriptionPayload>(url, {
+          user_id: userId,
+          event_type: toApiEventType(eventType),
+          subscribed,
+          impact_filter: toApiImpact('HIGH'),
+        }, {
+          headers: JSON_HEADERS,
+        })
 
-  updateImpactFilter: async (): Promise<{ success: boolean }> => {
-    if (USE_REAL_API) {
-      console.warn('[MacroAlertApi] Real API not implemented yet');
-    }
-    return { success: true };
-  },
+        return (
+          toUiSubscription(response.data, userId) ?? {
+            id: crypto.randomUUID(),
+            user_id: userId,
+            event_type: eventType,
+            subscribed,
+            impact_filter: null,
+            timing: null,
+            one_time: null,
+            created_at: null,
+            updated_at: null,
+          }
+        )
+      },
+    ),
+}
 
-  getUpcomingEvents: async (): Promise<MacroEvent[]> => {
-    if (USE_REAL_API) {
-      console.warn('[MacroAlertApi] Real API not implemented yet');
-    }
-    return generateMockMacroEvents();
-  },
-
-  getHistory: async (): Promise<MacroAlertHistory[]> => {
-    if (USE_REAL_API) {
-      console.warn('[MacroAlertApi] Real API not implemented yet');
-    }
-    return [];
-  },
-};
-
-export default macroAlertApi;
+export default macroAlertApi

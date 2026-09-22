@@ -5,8 +5,10 @@ import { AlertManagement } from './AlertManagement'
 import { usePriceAlerts } from '@/hooks/alerts/usePriceAlerts'
 import { useBtcPriceSnapshotQuery } from '@/hooks/useBtcPriceSnapshotQuery'
 import { macroAlertApi } from '@/api/alerts/macroAlerts'
-import { macroEvents } from './macro/MacroAlertForm.testHelpers'
+import { macroSubscriptions } from './macro/MacroAlertForm.testHelpers'
 import { mockAlert } from './price/__tests__/testHelpers'
+import { CREATE_ALERT_LABELS } from '@/constants/alerts'
+import type { NewAlertType } from '@/types/alerts'
 import type { PriceAlert } from '@/types/alerts/priceAlert'
 import type { BtcPriceSnapshot } from '@/types/btcPrice'
 import { renderWithQuery } from '@/test/renderWithQuery'
@@ -33,14 +35,13 @@ export function renderAlertManagement(overrides: ManagementOptions = {}) {
     data: { currentPrice: 64_213.5 } as Partial<BtcPriceSnapshot>,
   } as ReturnType<typeof useBtcPriceSnapshotQuery>)
 
-  vi.mocked(macroAlertApi.getUpcomingEvents).mockResolvedValue(macroEvents)
-  vi.mocked(macroAlertApi.getSubscriptions).mockResolvedValue([])
+  vi.mocked(macroAlertApi.getSubscriptions).mockResolvedValue(macroSubscriptions)
 
   return renderWithQuery(<AlertManagement userId={defaultUserId} />)
 }
 
-export async function clickNewAlert(user: UserEvent) {
-  await user.click(screen.getByRole('button', { name: 'Create alert' }))
+export async function clickCreateAlert(user: UserEvent, kind: NewAlertType) {
+  await user.click(screen.getByRole('button', { name: CREATE_ALERT_LABELS[kind] }))
 }
 
 export async function openTab(user: UserEvent, label: RegExp) {
@@ -53,10 +54,6 @@ export function getFilterButton(label: string) {
 
 export function expectFilterCount(label: string, count: number) {
   expect(getFilterButton(label)).toHaveAccessibleName(`${label} (${count})`)
-}
-
-export async function chooseAlertType(user: UserEvent, label: RegExp) {
-  await user.click(screen.getByRole('button', { name: label }))
 }
 
 export async function switchAlertTypeTo(user: UserEvent, label: string) {

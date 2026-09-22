@@ -59,7 +59,7 @@ class BlockchainCollector:
 
     async def get_active_addresses(
         self,
-        timespan: str = "1year",
+        timespan: str = "all",
         rolling_average: Optional[str] = None,
         start: Optional[str] = None,
     ) -> list[dict[str, Any]]:
