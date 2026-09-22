@@ -12,21 +12,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { AlertCircle, Eye } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
 import { AlertFormDialog } from '@/components/alerts/shared/AlertFormDialog';
 import { AlertNotificationFields } from '@/components/alerts/shared/AlertNotificationFields';
 import { AlertOneTimeField } from '@/components/alerts/shared/AlertOneTimeField';
 import { AlertStatusBadge } from '@/components/alerts/shared/AlertStatusBadge';
 import { isAlertEnabled, resolveAlertStatus } from '@/components/alerts/shared/alertStatus';
-import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { showToast } from '@/components/alerts/shared/ToastNotification';
-import { predictionAlertApi } from '@/api/alerts/predictionAlerts';
-import { PredictionAlertPreview } from './PredictionAlertPreview';
 import type {
   CreatePredictionAlertRequest,
   PredictionAlert,
-  PredictionAlertPreview as PreviewType,
   PredictionHorizon,
   PredictionThreshold,
   UpdatePredictionAlertRequest,
@@ -100,8 +95,6 @@ export function PredictionAlertForm({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [sessionOpen, setSessionOpen] = useState(open);
-  const [isPreviewLoading, setIsPreviewLoading] = useState(false);
-  const [preview, setPreview] = useState<PreviewType | null>(null);
 
   if (sessionOpen !== open) {
     setSessionOpen(open);
@@ -110,7 +103,6 @@ export function PredictionAlertForm({
       setAlertStatus(resolveAlertStatus(editingAlert?.status) ?? 'active');
       setErrors({});
       setAdvancedOpen(false);
-      setPreview(null);
     }
   }
 
@@ -119,7 +111,6 @@ export function PredictionAlertForm({
     setAlertStatus(resolveAlertStatus(editingAlert?.status) ?? 'active');
     setErrors({});
     setAdvancedOpen(false);
-    setPreview(null);
   };
 
   const handleOpenChange = (newOpen: boolean) => {
@@ -130,7 +121,6 @@ export function PredictionAlertForm({
       setAlertStatus(resolveAlertStatus(editingAlert?.status) ?? 'active');
       setErrors({});
       setAdvancedOpen(false);
-      setPreview(null);
     }
     onOpenChange(newOpen);
   };
@@ -180,28 +170,6 @@ export function PredictionAlertForm({
       : formData;
 
     await onSubmit(submitData);
-  };
-
-  const handlePreview = async () => {
-    if (!formData.threshold || !formData.horizon) {
-      showToast.warning('Please set threshold and horizon first');
-      return;
-    }
-
-    setIsPreviewLoading(true);
-    try {
-      const result = await predictionAlertApi.getPreview(formData);
-      if (result) {
-        setPreview(result);
-        showToast.success('Preview generated');
-      } else {
-        showToast.warning('No preview data available');
-      }
-    } catch {
-      showToast.error('Failed to generate preview');
-    } finally {
-      setIsPreviewLoading(false);
-    }
   };
 
   return (
@@ -347,27 +315,6 @@ export function PredictionAlertForm({
             onChange={(checked) => setFormData({ ...formData, one_time: checked })}
             disabled={isLoading}
           />
-
-          {/* Preview Button and Preview */}
-          <div className="space-y-3 pt-2">
-            <div className="flex items-center gap-3">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="min-h-11 sm:min-h-9"
-                onClick={handlePreview}
-                disabled={isLoading || isPreviewLoading || !formData.threshold || !formData.horizon}
-              >
-                <Eye className="mr-2 h-4 w-4" />
-                {isPreviewLoading ? 'Loading...' : 'Preview'}
-              </Button>
-              <span className="text-xs text-muted-foreground">
-                See how this alert will look when triggered
-              </span>
-            </div>
-            {preview && <PredictionAlertPreview preview={preview} isLoading={isPreviewLoading} />}
-          </div>
         </>
       }
       advancedFields={

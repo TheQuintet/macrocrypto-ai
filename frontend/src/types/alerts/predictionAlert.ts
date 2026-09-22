@@ -20,7 +20,6 @@ export interface PredictionAlert {
   created_at: string
   updated_at: string
   triggered_at?: string | null
-  preview?: PredictionAlertPreview
 }
 
 /** Wire shape from `GET/POST /api/v1/alerts/prediction/`. */
@@ -48,15 +47,6 @@ export interface PredictionAlertListResponse {
   limit: number
   offset: number
   alerts: PredictionAlertApiRecord[]
-}
-
-export interface PredictionAlertPreview {
-  previousPrediction: number;
-  newPrediction: number;
-  changePercentage: number;
-  confidence: number;
-  recommendation: string;
-  horizon: PredictionHorizon;
 }
 
 export interface CreatePredictionAlertRequest {
