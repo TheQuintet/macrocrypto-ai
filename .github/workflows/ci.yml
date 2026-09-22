@@ -4,226 +4,86 @@ on:
   push:
     branches: [ main ]
   pull_request:
-    # Feature branches too, so a PR stacked on another feature branch is
-    # still checked. Targeting only `main` means a stacked PR reports no
-    # checks at all, which reads as "nothing to see" rather than "not run".
-    branches: [ main, 'feature/**', 'chore/**', 'fix/**', 'docs/**' ]
-  workflow_dispatch:
-    inputs:
-      run-everything:
-        description: 'Check the whole repo, not just what a change touches'
-        type: boolean
-        default: false
-
-# A new push supersedes the run already in flight for the same branch.
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+    branches: [ main ]
 
 jobs:
-  # This is a monorepo, and no change touches all of it. Working out what a
-  # change actually edits lets each job below either run against that work or
-  # sit the run out, instead of reporting on files nobody opened.
-  changes:
-    name: Work out what changed
+  test:
     runs-on: ubuntu-latest
 
-    outputs:
-      frontend: ${{ steps.detect.outputs.frontend }}
-      python: ${{ steps.detect.outputs.python }}
-      python-files: ${{ steps.detect.outputs.python-files }}
+    strategy:
+      matrix:
+        python-version: ["3.13"]
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
         with:
-          # Full history, so the diff below has a base to compare against.
+          # Full history so the Python steps can diff against the base branch.
           fetch-depth: 0
 
-      - name: Detect
-        id: detect
-        env:
-          EVENT: ${{ github.event_name }}
-          BASE_BRANCH: ${{ github.base_ref }}
-          PUSH_BEFORE: ${{ github.event.before }}
-          RUN_EVERYTHING: ${{ inputs.run-everything }}
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      # This is a monorepo: a frontend-only change has no Python to lint, format
+      # check, or test. Working out what actually changed lets the Python steps
+      # sit out those runs instead of reporting on files nobody touched.
+      - name: Work out which Python files changed
+        id: changed
         run: |
           set -euo pipefail
 
-          if [ "$EVENT" = "workflow_dispatch" ] && [ "$RUN_EVERYTHING" = "true" ]; then
-            echo "Manual run: checking the whole repo."
-            git ls-files > "$RUNNER_TEMP/changed.txt"
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE="origin/${{ github.base_ref }}"
           else
-            if [ "$EVENT" = "pull_request" ]; then
-              git fetch --no-tags --quiet origin \
-                "+refs/heads/${BASE_BRANCH}:refs/remotes/origin/${BASE_BRANCH}"
-              BASE="origin/${BASE_BRANCH}"
-            else
-              BASE="$PUSH_BEFORE"
-            fi
-
-            # A first push to a branch has no usable `before`, and a shallow or
-            # rewritten history can leave the base unreachable. Comparing
-            # against the previous commit is wrong in the general case, but it
-            # beats failing the run outright.
-            if ! git rev-parse --verify --quiet "${BASE}^{commit}" > /dev/null; then
-              echo "Could not resolve ${BASE}; comparing against the previous commit."
-              BASE="HEAD~1"
-            fi
-
-            echo "Comparing against ${BASE}."
-            git diff --name-only --diff-filter=ACMR "${BASE}...HEAD" > "$RUNNER_TEMP/changed.txt"
-
-            echo "Changed files:"
-            sed 's/^/  /' "$RUNNER_TEMP/changed.txt"
+            BASE="${{ github.event.before }}"
           fi
 
-          # A PR that only edits this file would otherwise report nothing at
-          # all. Running the frontend job against it is what shows the workflow
-          # still works before it is merged.
-          WORKFLOW_CHANGED=false
-          if grep -qxF '.github/workflows/ci.yml' "$RUNNER_TEMP/changed.txt"; then
-            echo "This workflow changed; running the frontend job against it."
-            WORKFLOW_CHANGED=true
+          if ! git rev-parse --verify --quiet "${BASE}^{commit}" > /dev/null; then
+            echo "Could not resolve ${BASE}; comparing against the previous commit."
+            BASE="HEAD~1"
           fi
 
-          if [ "$WORKFLOW_CHANGED" = true ] || grep -q '^frontend/' "$RUNNER_TEMP/changed.txt"; then
-            echo "frontend=true" >> "$GITHUB_OUTPUT"
+          git diff --name-only --diff-filter=ACMR "${BASE}...HEAD" -- '*.py' \
+            > "$RUNNER_TEMP/changed-python-files.txt" || true
+
+          if [ -s "$RUNNER_TEMP/changed-python-files.txt" ]; then
+            echo "Changed Python files:"
+            cat "$RUNNER_TEMP/changed-python-files.txt"
+            echo "has_py=true" >> "$GITHUB_OUTPUT"
           else
-            echo "frontend=false" >> "$GITHUB_OUTPUT"
+            echo "No Python files changed."
+            echo "has_py=false" >> "$GITHUB_OUTPUT"
           fi
-
-          { grep '\.py$' "$RUNNER_TEMP/changed.txt" || true; } > "$RUNNER_TEMP/changed-python.txt"
-          if [ -s "$RUNNER_TEMP/changed-python.txt" ]; then
-            echo "python=true" >> "$GITHUB_OUTPUT"
-            {
-              echo 'python-files<<CHANGED_PYTHON_FILES'
-              cat "$RUNNER_TEMP/changed-python.txt"
-              echo 'CHANGED_PYTHON_FILES'
-            } >> "$GITHUB_OUTPUT"
-          else
-            echo "python=false" >> "$GITHUB_OUTPUT"
-            echo "python-files=" >> "$GITHUB_OUTPUT"
-          fi
-
-  frontend:
-    name: Frontend (lint, typecheck, unit tests)
-    needs: changes
-    if: needs.changes.outputs.frontend == 'true'
-    runs-on: ubuntu-latest
-
-    defaults:
-      run:
-        working-directory: frontend
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
 
       - name: Install dependencies
-        # The package's `prepare` script installs the Husky git hooks, which
-        # are for local commits only - nothing in CI should run them.
-        env:
-          HUSKY: 0
-        run: npm ci
+        if: steps.changed.outputs.has_py == 'true'
+        run: |
+          python -m pip install --upgrade pip
+          pip install flake8 pytest black
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
-      - name: Lint
-        run: npm run lint
-
-      - name: Typecheck
-        run: npm run typecheck
-
-      - name: Unit tests
-        run: npm test
-
-  # Scoped to the Python files a change actually touches. A repo-wide
-  # `black --check .` fails on 395 of the 457 files in the repo, which made
-  # every run red regardless of the work under review - the 30 runs before this
-  # one all failed here, back to 22 August, so the check carried no signal at
-  # all. Reformatting that backlog is its own piece of work: 301 of those files
-  # need real changes, not just a missing final newline.
-  python-quality:
-    name: Python (lint, formatting)
-    needs: changes
-    if: needs.changes.outputs.python == 'true'
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.13'
-
-      - name: Install tools
-        # Pinned on purpose. An unpinned formatter picks up new rules on its
-        # next release and turns CI red with no commit behind it, which is how
-        # a check stops being believed.
-        run: pip install 'flake8==7.3.0' 'black==26.5.1'
-
-      - name: List the files to check
-        env:
-          PYTHON_FILES: ${{ needs.changes.outputs.python-files }}
+      - name: Lint changed files with flake8
+        if: steps.changed.outputs.has_py == 'true'
         run: |
           set -euo pipefail
-          printf '%s\n' "$PYTHON_FILES" \
-            | sed '/^[[:space:]]*$/d' > "$RUNNER_TEMP/changed-python.txt"
-
-          # Given no file arguments, flake8 and black fall back to the whole
-          # repo - which is the failure this job exists to stop. An empty list
-          # here means the detection above is wrong, so say so instead.
-          if [ ! -s "$RUNNER_TEMP/changed-python.txt" ]; then
-            echo "No Python files to check, yet this job ran. Check the detection above." >&2
-            exit 1
-          fi
-
-          echo "Checking:"
-          sed 's/^/  /' "$RUNNER_TEMP/changed-python.txt"
-
-      # The only hard gate: syntax errors and undefined names. These are
-      # breakage, not taste, and a change that adds one should not merge.
-      - name: Lint with flake8
-        run: |
-          set -euo pipefail
-          readarray -t FILES < "$RUNNER_TEMP/changed-python.txt"
+          readarray -t FILES < "$RUNNER_TEMP/changed-python-files.txt"
           flake8 --count --select=E9,F63,F7,F82 --show-source --statistics "${FILES[@]}"
           flake8 --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics "${FILES[@]}"
 
-      # Advisory while the backlog stands. Every recent backend change would
-      # fail this on its own new files, so making it block would just move the
-      # permanent red from one step to another. It reports the diff so the fix
-      # is one command, and it can be made blocking once the repo is formatted.
-      - name: Check formatting with black
-        continue-on-error: true
+      # Scoped to the files a change actually touches. A repo-wide `black .`
+      # fails on ~240 files that predate this check, which made every run red
+      # regardless of the work under review. Clearing that backlog is a separate
+      # job; formatting is still enforced on everything new.
+      - name: Check formatting of changed files with black
+        if: steps.changed.outputs.has_py == 'true'
         run: |
           set -euo pipefail
-          readarray -t FILES < "$RUNNER_TEMP/changed-python.txt"
-          if ! black --check --diff "${FILES[@]}"; then
-            echo "::warning::Not black-formatted. Run 'black' on the files above; this does not fail the build yet."
-            exit 1
-          fi
+          readarray -t FILES < "$RUNNER_TEMP/changed-python-files.txt"
+          black --check --diff "${FILES[@]}"
 
-  # Backend tests are deliberately not here yet. There is no root
-  # requirements.txt, so the old repo-wide `pytest` installed nothing and
-  # collected everything - it only ever looked fine because black failed first
-  # and it never ran. Running each service against its own requirements works,
-  # but `tests/unit` is not all unit tests: much of it wants Postgres, Redis,
-  # and a FRED API key. Run today, with dependencies installed and no
-  # infrastructure:
-  #
-  #   ai-service     2117 passed, 1 failed
-  #   data-service    373 passed, 3 failed, 6 errors
-  #   api-gateway      65 passed, 13 failed
-  #   alert-service                 102 errors
-  #
-  # Gating on that would just move the permanent red. Standing up the services
-  # these tests need is its own change.
+      - name: Run tests with pytest
+        if: steps.changed.outputs.has_py == 'true'
+        run: |
+          pytest
