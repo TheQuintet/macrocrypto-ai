@@ -1,15 +1,7 @@
+import { Bell, Calendar, TrendingUp, type LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import {
-  alertKindDotClassName,
-  alertKindTabClassName,
-} from '@/lib/alerts/alertKindClassName'
+import { alertKindTabClassName } from '@/lib/alerts/alertKindClassName'
 import type { NewAlertType } from '@/types/alerts'
-
-type AlertKindTab = {
-  id: NewAlertType
-  label: string
-  count: number
-}
 
 type AlertKindTabsProps = {
   value: NewAlertType
@@ -17,23 +9,20 @@ type AlertKindTabsProps = {
   counts: Record<NewAlertType, number>
 }
 
-const TABS: Array<{ id: NewAlertType; name: string }> = [
-  { id: 'price', name: 'Price Alerts' },
-  { id: 'macro', name: 'Macro Alerts' },
-  { id: 'prediction', name: 'Prediction Alerts' },
+const TABS: Array<{ id: NewAlertType; name: string; icon: LucideIcon }> = [
+  { id: 'price', name: 'Price Alerts', icon: Bell },
+  { id: 'macro', name: 'Macro Alerts', icon: Calendar },
+  { id: 'prediction', name: 'Prediction Alerts', icon: TrendingUp },
 ]
 
 export function AlertKindTabs({ value, onChange, counts }: AlertKindTabsProps) {
-  const tabs: AlertKindTab[] = TABS.map((tab) => ({
-    id: tab.id,
-    label: `${tab.name} (${counts[tab.id]})`,
-    count: counts[tab.id],
-  }))
-
   return (
     <>
-      {tabs.map((tab) => {
+      {TABS.map((tab) => {
         const active = value === tab.id
+        const Icon = tab.icon
+        const label = `${tab.name} (${counts[tab.id]})`
+
         return (
           <button
             key={tab.id}
@@ -44,11 +33,8 @@ export function AlertKindTabs({ value, onChange, counts }: AlertKindTabsProps) {
             )}
             onClick={() => onChange(tab.id)}
           >
-            <span
-              aria-hidden
-              className={cn('size-2.5 shrink-0 rounded-full', alertKindDotClassName(tab.id))}
-            />
-            {tab.label}
+            <Icon aria-hidden className="size-4 shrink-0" />
+            {label}
           </button>
         )
       })}

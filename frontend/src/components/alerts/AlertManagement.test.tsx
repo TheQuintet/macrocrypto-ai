@@ -54,6 +54,9 @@ describe('AlertManagement', () => {
     expect(screen.getByRole('button', { name: /^Prediction Alerts/ }).className).toContain(
       '--toast-forecast-bg',
     )
+    expect(
+      screen.getByRole('button', { name: 'Price Alerts (1)' }).querySelector('svg'),
+    ).not.toBeNull()
   })
 
   it('counts event-type subscriptions on the macro tab', async () => {

@@ -1,8 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import {
-  alertKindDotClassName,
-  alertKindTabClassName,
-} from '@/lib/alerts/alertKindClassName'
+import { alertKindTabClassName } from '@/lib/alerts/alertKindClassName'
 
 describe('alertKindClassName', () => {
   it('uses the toast color tokens for each alert kind', () => {
@@ -14,6 +11,5 @@ describe('alertKindClassName', () => {
   it('keeps kind color on idle tabs so the code is always visible', () => {
     expect(alertKindTabClassName('price', false)).toContain('--toast-price-bg')
     expect(alertKindTabClassName('price', false)).not.toContain('text-muted-foreground')
-    expect(alertKindDotClassName('macro')).toContain('--toast-macro-bg')
   })
 })
