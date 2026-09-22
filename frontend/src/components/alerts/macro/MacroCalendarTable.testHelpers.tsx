@@ -2,28 +2,21 @@ import { render, screen, within } from '@testing-library/react'
 import type { UserEvent } from '@testing-library/user-event'
 import { expect, vi } from 'vitest'
 import { MacroCalendarTable } from './MacroCalendarTable'
-import { macroEvents } from './MacroAlertForm.testHelpers'
-import type { MacroEventSubscription } from '@/hooks/alerts/useMacroEvents'
+import { macroSubscriptions } from './MacroAlertForm.testHelpers'
 import type {
   EventImpact,
-  EventType,
-  MacroEvent,
   MacroEventStatusFilter,
+  MacroSubscription,
 } from '@/types/alerts/macroAlert'
 
 /** FED is subscribed with a one-time alert; CPI has no alert. */
-export const subscribedEvents: MacroEvent[] = [
-  { ...macroEvents[0], subscribed: true },
-  { ...macroEvents[1], subscribed: false },
+export const subscriptions: MacroSubscription[] = [
+  { ...macroSubscriptions[0], subscribed: true },
+  { ...macroSubscriptions[1], subscribed: false },
 ]
 
-export const subscriptionMap = new Map<EventType, MacroEventSubscription>([
-  ['FED', { timing: '1D', oneTime: true }],
-])
-
 type TableProps = {
-  events?: MacroEvent[]
-  subscriptions?: Map<EventType, MacroEventSubscription>
+  subscriptions?: MacroSubscription[]
   isLoading?: boolean
   error?: string | null
   filter?: MacroEventStatusFilter
@@ -38,8 +31,7 @@ export function renderMacroTable(overrides: TableProps = {}) {
 
   const view = render(
     <MacroCalendarTable
-      events={overrides.events ?? subscribedEvents}
-      subscriptions={overrides.subscriptions ?? subscriptionMap}
+      subscriptions={overrides.subscriptions ?? subscriptions}
       isLoading={overrides.isLoading ?? false}
       error={overrides.error ?? null}
       filter={overrides.filter ?? 'all'}

@@ -1,36 +1,26 @@
-import { useNotificationsQuery } from '@/hooks/alerts/useNotificationsQuery';
-import { useUnreadNotificationCountQuery } from '@/hooks/alerts/useUnreadNotificationCountQuery';
-import { useMarkAllNotificationsReadMutation } from '@/hooks/alerts/useMarkAllNotificationsReadMutation';
-import { NotificationItem } from './NotificationItem';
-import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
-import { BellOff } from 'lucide-react';
-import { showToast } from '@/components/alerts/shared/ToastNotification';
-import { sortNotificationsByDateNewestFirst } from '@/lib/alerts/sortNotifications';
+import { BellOff } from 'lucide-react'
+import { NotificationItem } from '@/components/alerts/notifications/NotificationItem'
+import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
+import { useMarkAllNotificationsReadMutation } from '@/hooks/alerts/useMarkAllNotificationsReadMutation'
+import { useNotificationsQuery } from '@/hooks/alerts/useNotificationsQuery'
+import { useUnreadNotificationCountQuery } from '@/hooks/alerts/useUnreadNotificationCountQuery'
+import { sortNotificationsByDateNewestFirst } from '@/lib/alerts/sortNotifications'
 
-interface NotificationListProps {
-  userId: string;
-  onNavigate?: () => void;
+type NotificationListProps = {
+  userId: string
+  onNavigate?: () => void
 }
 
 export function NotificationList({ userId, onNavigate }: NotificationListProps) {
-  const { data, isPending, isError, refetch } = useNotificationsQuery(userId);
-  const { data: unreadData } = useUnreadNotificationCountQuery(userId);
-  const markAllAsRead = useMarkAllNotificationsReadMutation(userId);
+  const { data, isPending, isError, refetch } = useNotificationsQuery(userId)
+  const { data: unread } = useUnreadNotificationCountQuery(userId)
+  const markAllAsRead = useMarkAllNotificationsReadMutation(userId)
 
   const notifications = sortNotificationsByDateNewestFirst(
-    data?.notifications ?? []
-  );
-  const unreadCount = unreadData?.count ?? 0;
-
-  const handleMarkAllAsRead = async () => {
-    try {
-      await markAllAsRead.mutateAsync();
-      showToast.success('All notifications marked as read');
-    } catch {
-      showToast.error('Failed to mark all as read');
-    }
-  };
+    data?.notifications ?? [],
+  )
+  const unreadCount = unread?.count ?? 0
 
   if (isPending) {
     return (
@@ -45,7 +35,7 @@ export function NotificationList({ userId, onNavigate }: NotificationListProps) 
           </div>
         ))}
       </div>
-    );
+    )
   }
 
   if (isError) {
@@ -55,52 +45,55 @@ export function NotificationList({ userId, onNavigate }: NotificationListProps) 
         <Button
           variant="link"
           className="mt-2"
-          onClick={() => refetch()}
+          onClick={() => {
+            void refetch()
+          }}
         >
           Retry
         </Button>
       </div>
-    );
+    )
   }
 
   if (notifications.length === 0) {
     return (
       <div className="py-12 text-center">
-        <BellOff className="h-12 w-12 mx-auto text-muted-foreground" />
+        <BellOff className="mx-auto h-12 w-12 text-muted-foreground" />
         <p className="mt-4 text-muted-foreground">No notifications</p>
         <p className="text-sm text-muted-foreground">
-          You're all caught up!
+          Fired alerts will show up here.
         </p>
       </div>
-    );
+    )
   }
 
   return (
     <div className="space-y-4">
-      {unreadCount > 0 && (
+      {unreadCount > 0 ? (
         <div className="flex justify-end">
           <Button
             variant="ghost"
             size="sm"
-            onClick={handleMarkAllAsRead}
             className="text-xs"
-            disabled={markAllAsRead.isPending}
+            onClick={() => markAllAsRead.mutate()}
           >
-            {markAllAsRead.isPending ? 'Marking...' : `Mark all as read (${unreadCount})`}
+            Mark all as read
           </Button>
         </div>
-      )}
-      <div className="space-y-2">
+      ) : null}
+      <div className="space-y-2" role="list">
         {notifications.map((notification) => (
-          <NotificationItem
-            key={notification.id}
-            notification={notification}
-            onNavigate={onNavigate}
-          />
+          <div key={notification.id} role="listitem">
+            <NotificationItem
+              notification={notification}
+              userId={userId}
+              onNavigate={onNavigate}
+            />
+          </div>
         ))}
       </div>
     </div>
-  );
+  )
 }
 
-export default NotificationList;
+export default NotificationList

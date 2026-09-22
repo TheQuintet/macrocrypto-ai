@@ -22,7 +22,6 @@ vi.mock('@/hooks/useBtcPriceSnapshotQuery', () => ({
 
 vi.mock('@/api/alerts/macroAlerts', () => ({
   macroAlertApi: {
-    getUpcomingEvents: vi.fn(),
     getSubscriptions: vi.fn(),
     updateSubscription: vi.fn(),
   },
@@ -43,17 +42,17 @@ describe('AlertManagement', () => {
     expectFilterCount('Inactive', 0)
   })
 
-  it('counts events on the macro tab the same way', async () => {
+  it('counts event-type subscriptions on the macro tab', async () => {
     const user = userEvent.setup()
     renderAlertManagement()
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Macro Events (2)' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Macro Alerts (2)' })).toBeInTheDocument()
     })
 
-    await openTab(user, /^Macro Events/)
+    await openTab(user, /^Macro Alerts/)
 
-    expect(screen.getByText('2 events configured')).toBeInTheDocument()
+    expect(screen.getByText('2 event types')).toBeInTheDocument()
     expectFilterCount('All', 2)
     expectFilterCount('Active', 0)
     expectFilterCount('Inactive', 2)
@@ -64,12 +63,12 @@ describe('AlertManagement', () => {
     renderAlertManagement()
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Macro Events (2)' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Macro Alerts (2)' })).toBeInTheDocument()
     })
-    await openTab(user, /^Macro Events/)
+    await openTab(user, /^Macro Alerts/)
     
     // Find and click the event name
-    const eventName = screen.getByText('FOMC Rate Decision')
+    const eventName = screen.getByText('Federal Reserve Meeting')
     await user.click(eventName)
 
     // Wait for the dialog to appear

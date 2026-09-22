@@ -7,30 +7,26 @@ import { ConfirmationDialog } from '../shared/ConfirmationDialog'
 import { AlertTable } from '../shared/AlertTable'
 import { AlertTableEmptyRow } from '../shared/AlertTableEmptyRow'
 import { MacroEventRow } from './MacroEventRow'
-import type { MacroEventSubscription } from '@/hooks/alerts/useMacroEvents'
 import type {
   EventImpact,
-  EventType,
-  MacroEvent,
   MacroEventStatusFilter,
+  MacroSubscription,
 } from '@/types/alerts/macroAlert'
 
 type MacroCalendarTableProps = {
-  events: MacroEvent[]
-  subscriptions: Map<EventType, MacroEventSubscription>
+  subscriptions: MacroSubscription[]
   isLoading: boolean
   error: string | null
   /** Filters live in the toolbar above the table. */
   filter: MacroEventStatusFilter
   impactFilter: EventImpact | 'all'
-  onSubscribeChange: (eventId: string, subscribed: boolean) => void
-  onDelete: (eventId: string) => void
-  onEdit: (event: MacroEvent) => void
+  onSubscribeChange: (subscriptionId: string, subscribed: boolean) => void
+  onDelete: (subscriptionId: string) => void
+  onEdit: (subscription: MacroSubscription) => void
   onRetry: () => void
 }
 
 export function MacroCalendarTable({
-  events,
   subscriptions,
   isLoading,
   error,
@@ -41,21 +37,27 @@ export function MacroCalendarTable({
   onEdit,
   onRetry,
 }: MacroCalendarTableProps) {
-  const [deletingEvent, setDeletingEvent] = useState<{ eventId: string; name: string } | null>(
+  const [deletingSubscription, setDeletingSubscription] = useState<{
+    subscriptionId: string
+    name: string
+  } | null>(
     null,
   )
 
-  const filteredEvents = events.filter((event) => {
-    if (filter === 'active' && !event.subscribed) return false
-    if (filter === 'inactive' && event.subscribed) return false
-    if (impactFilter !== 'all' && event.impact !== impactFilter) return false
+  const filteredSubscriptions = subscriptions.filter((subscription) => {
+    if (filter === 'active' && !subscription.subscribed) return false
+    if (filter === 'inactive' && subscription.subscribed) return false
+    if (
+      impactFilter !== 'all'
+      && subscription.impact_filter !== impactFilter
+    ) return false
     return true
   })
 
   const handleDelete = () => {
-    if (!deletingEvent) return
-    onDelete(deletingEvent.eventId)
-    setDeletingEvent(null)
+    if (!deletingSubscription) return
+    onDelete(deletingSubscription.subscriptionId)
+    setDeletingSubscription(null)
   }
 
   if (isLoading) {
@@ -85,22 +87,28 @@ export function MacroCalendarTable({
 
   return (
     <>
-      <AlertTable nameLabel="Event" detailLabel="When">
-        {filteredEvents.length === 0 ? (
+      <AlertTable nameLabel="Event type" detailLabel="Notify">
+        {filteredSubscriptions.length === 0 ? (
           <AlertTableEmptyRow
             icon={Calendar}
-            message="No events found matching your filters"
+            message={
+              subscriptions.length === 0
+                ? 'No macro subscriptions yet'
+                : 'No macro subscriptions match your filters'
+            }
           />
         ) : (
-          filteredEvents.map((event) => (
+          filteredSubscriptions.map((subscription) => (
             <MacroEventRow
-              key={event.id}
-              event={event}
-              subscription={subscriptions.get(event.event_type)}
+              key={subscription.event_type}
+              subscription={subscription}
               onSubscribeChange={onSubscribeChange}
               onEdit={onEdit}
-              onDelete={(eventId) =>
-                setDeletingEvent({ eventId, name: event.event_name })
+              onDelete={(subscriptionId) =>
+                setDeletingSubscription({
+                  subscriptionId,
+                  name: subscription.event_type,
+                })
               }
             />
           ))
@@ -108,11 +116,11 @@ export function MacroCalendarTable({
       </AlertTable>
 
       <ConfirmationDialog
-        open={!!deletingEvent}
-        onOpenChange={() => setDeletingEvent(null)}
+        open={!!deletingSubscription}
+        onOpenChange={() => setDeletingSubscription(null)}
         onConfirm={handleDelete}
         title="Delete alert"
-        description={`This removes the alert for "${deletingEvent?.name}". This cannot be undone.`}
+        description={`This removes the alert for "${deletingSubscription?.name}". This cannot be undone.`}
         confirmText="Delete"
         variant="destructive"
       />

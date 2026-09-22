@@ -61,6 +61,8 @@ describe('PredictionAlertForm', () => {
       threshold: 5 as const,
       horizon: '24h' as const,
       confidence_change: 5,
+      direction: 'both' as const,
+      asset: 'BTC/USD',
       status: 'active' as const,
       one_time: false,
       name: 'Test Alert',

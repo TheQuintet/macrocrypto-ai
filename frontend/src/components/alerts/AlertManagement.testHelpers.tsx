@@ -5,7 +5,7 @@ import { AlertManagement } from './AlertManagement'
 import { usePriceAlerts } from '@/hooks/alerts/usePriceAlerts'
 import { useBtcPriceSnapshotQuery } from '@/hooks/useBtcPriceSnapshotQuery'
 import { macroAlertApi } from '@/api/alerts/macroAlerts'
-import { macroEvents } from './macro/MacroAlertForm.testHelpers'
+import { macroSubscriptions } from './macro/MacroAlertForm.testHelpers'
 import { mockAlert } from './price/__tests__/testHelpers'
 import type { PriceAlert } from '@/types/alerts/priceAlert'
 import type { BtcPriceSnapshot } from '@/types/btcPrice'
@@ -32,8 +32,7 @@ export function renderAlertManagement(overrides: ManagementOptions = {}) {
     data: { currentPrice: 64_213.5 } as Partial<BtcPriceSnapshot>,
   } as ReturnType<typeof useBtcPriceSnapshotQuery>)
 
-  vi.mocked(macroAlertApi.getUpcomingEvents).mockResolvedValue(macroEvents)
-  vi.mocked(macroAlertApi.getSubscriptions).mockResolvedValue([])
+  vi.mocked(macroAlertApi.getSubscriptions).mockResolvedValue(macroSubscriptions)
 
   return render(<AlertManagement userId={defaultUserId} />)
 }

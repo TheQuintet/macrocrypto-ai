@@ -2,10 +2,8 @@ import type {
   EventImpact,
   EventTiming,
   EventType,
-  MacroEvent,
   MacroSubscription,
 } from '@/types/alerts/macroAlert'
-import type { EconomicEvent } from '@/types/economicCalendar'
 
 export const MACRO_EVENT_TYPES: EventType[] = [
   'FED',
@@ -34,20 +32,20 @@ export function toApiImpact(impact: EventImpact) {
   return impact.toLowerCase()
 }
 
-export function toUiImpact(value: string | null | undefined): EventImpact {
+export function toUiImpact(value: string | null | undefined): EventImpact | null {
   const normalized = value?.toUpperCase()
   if (normalized && IMPACT_SET.has(normalized)) {
     return normalized as EventImpact
   }
-  return 'HIGH'
+  return null
 }
 
-export function toUiTiming(value: string | null | undefined): EventTiming {
+export function toUiTiming(value: string | null | undefined): EventTiming | null {
   const normalized = value?.toUpperCase()
   if (normalized && TIMING_SET.has(normalized)) {
     return normalized as EventTiming
   }
-  return '1D'
+  return null
 }
 
 export type SubscriptionPayload = {
@@ -62,6 +60,10 @@ export type SubscriptionPayload = {
   updated_at?: string | null
 }
 
+/**
+ * Maps one subscription record as the alert service returns it. Fields the
+ * service does not send stay `null` rather than being invented here.
+ */
 export function toUiSubscription(
   payload: SubscriptionPayload,
   fallbackUserId: string,
@@ -78,54 +80,8 @@ export function toUiSubscription(
     subscribed: Boolean(payload.subscribed),
     impact_filter: toUiImpact(payload.impact_filter),
     timing: toUiTiming(payload.timing),
-    one_time: payload.one_time ?? true,
-    created_at: payload.created_at ?? new Date().toISOString(),
-    updated_at: payload.updated_at ?? new Date().toISOString(),
-  }
-}
-
-/** Keep a row for every event type the alerts UI can toggle. */
-export function withDefaultSubscriptions(
-  userId: string,
-  subscriptions: MacroSubscription[],
-): MacroSubscription[] {
-  const byType = new Map(
-    subscriptions.map((subscription) => [subscription.event_type, subscription]),
-  )
-  const timestamp = new Date().toISOString()
-
-  return MACRO_EVENT_TYPES.map(
-    (eventType) =>
-      byType.get(eventType) ?? {
-        id: `default-${eventType}`,
-        user_id: userId,
-        event_type: eventType,
-        subscribed: false,
-        impact_filter: 'HIGH',
-        timing: '1D',
-        one_time: true,
-        created_at: timestamp,
-        updated_at: timestamp,
-      },
-  )
-}
-
-export function toUiMacroEvent(event: EconomicEvent): MacroEvent | null {
-  const eventType = toUiEventType(event.event_type)
-  if (!eventType) {
-    return null
-  }
-
-  return {
-    id: String(event.id),
-    event_id: String(event.id),
-    event_type: eventType,
-    event_name: event.event_name,
-    description: event.description,
-    scheduled_at: event.event_date,
-    timezone: 'UTC',
-    impact: toUiImpact(event.impact_level),
-    subscribed: false,
-    notified: false,
+    one_time: payload.one_time ?? null,
+    created_at: payload.created_at ?? null,
+    updated_at: payload.updated_at ?? null,
   }
 }

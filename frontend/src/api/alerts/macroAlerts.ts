@@ -1,22 +1,14 @@
 import axios from 'axios'
-import { fetchEconomicCalendar } from '@/api/economicCalendar/economicCalendar'
-import {
-  generateMockMacroEvents,
-  generateMockMacroSubscriptions,
-} from '@/api/alerts/simulatedMacroAlerts'
-import { alertApiUrl, isApiConfigured } from '@/lib/apiConfig'
+import { generateMockMacroSubscriptions } from '@/api/alerts/simulatedMacroAlerts'
+import { alertApiUrl } from '@/lib/apiConfig'
 import {
   toApiEventType,
   toApiImpact,
-  toUiMacroEvent,
   toUiSubscription,
-  withDefaultSubscriptions,
   type SubscriptionPayload,
 } from '@/lib/alerts/macroEventMapping'
 import type {
   EventType,
-  MacroAlertHistory,
-  MacroEvent,
   MacroSubscription,
 } from '@/types/alerts/macroAlert'
 
@@ -39,6 +31,7 @@ async function fromApiOrSimulate<T>(
 }
 
 export const macroAlertApi = {
+  /** Exactly the rows the alert service holds for this user — nothing added. */
   getSubscriptions: async (userId: string): Promise<MacroSubscription[]> =>
     fromApiOrSimulate(
       `${MACRO_SUBSCRIPTIONS_PATH}/${userId}`,
@@ -47,13 +40,12 @@ export const macroAlertApi = {
         const response = await axios.get<{ subscriptions?: unknown[] }>(url, {
           headers: JSON_HEADERS,
         })
-        const mapped = (response.data.subscriptions ?? [])
+
+        return (response.data.subscriptions ?? [])
           .map((row) =>
             toUiSubscription(row as SubscriptionPayload, userId),
           )
           .filter((row): row is MacroSubscription => row !== null)
-
-        return withDefaultSubscriptions(userId, mapped)
       },
     ),
 
@@ -61,7 +53,6 @@ export const macroAlertApi = {
     userId: string,
     eventType: EventType,
     subscribed: boolean,
-    oneTime: boolean = true,
   ): Promise<MacroSubscription> =>
     fromApiOrSimulate(
       MACRO_SUBSCRIBE_PATH,
@@ -71,8 +62,8 @@ export const macroAlertApi = {
         event_type: eventType,
         subscribed,
         impact_filter: 'HIGH',
-        timing: '1D',
-        one_time: oneTime,
+        timing: null,
+        one_time: null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       }),
@@ -92,52 +83,15 @@ export const macroAlertApi = {
             user_id: userId,
             event_type: eventType,
             subscribed,
-            impact_filter: 'HIGH',
-            timing: '1D',
-            one_time: oneTime,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
+            impact_filter: null,
+            timing: null,
+            one_time: null,
+            created_at: null,
+            updated_at: null,
           }
         )
       },
     ),
-
-  updateImpactFilter: async (): Promise<{ success: boolean }> => {
-    return { success: true }
-  },
-
-  getUpcomingEvents: async (): Promise<MacroEvent[]> => {
-    if (isApiConfigured()) {
-      const events = await fetchEconomicCalendar()
-      const mapped = events
-        .map(toUiMacroEvent)
-        .filter((event): event is MacroEvent => event !== null)
-      const now = Date.now()
-      const upcoming = mapped
-        .filter((event) => Date.parse(event.scheduled_at) >= now)
-        .sort(
-          (left, right) =>
-            Date.parse(left.scheduled_at) - Date.parse(right.scheduled_at),
-        )
-
-      if (upcoming.length > 0) {
-        return upcoming.slice(0, 50)
-      }
-
-      return [...mapped]
-        .sort(
-          (left, right) =>
-            Date.parse(right.scheduled_at) - Date.parse(left.scheduled_at),
-        )
-        .slice(0, 50)
-    }
-
-    return generateMockMacroEvents()
-  },
-
-  getHistory: async (): Promise<MacroAlertHistory[]> => {
-    return []
-  },
 }
 
 export default macroAlertApi

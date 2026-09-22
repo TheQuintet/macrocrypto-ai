@@ -109,6 +109,27 @@ describe('formatNotificationToast', () => {
     expect(toast.description).toContain('62% confidence')
   })
 
+  it('reads snake_case prediction payloads from alert-service', () => {
+    const toast = formatNotificationToast(
+      notification({
+        title: 'Prediction Change Alert: +3.66%',
+        message: 'BTC prediction for 24h changed',
+        notification_type: 'prediction_alert',
+        data: {
+          previous_prediction: 82000,
+          new_prediction: 85000,
+          change_percent: 3.66,
+          horizon: '24h',
+          recommendation: 'Bullish shift - consider increasing exposure',
+        },
+      }),
+    )
+
+    expect(toast.description).toContain('24h')
+    expect(toast.description).toContain('$82,000.00 → $85,000.00 (+3.7%)')
+    expect(toast.description).toContain('Bullish shift - consider increasing exposure')
+  })
+
   it('appends leftover payload fields the typed formatter does not cover', () => {
     const toast = formatNotificationToast(
       notification({

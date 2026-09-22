@@ -28,8 +28,8 @@ import {
 import type { PriceAlert, CreatePriceAlertRequest, UpdatePriceAlertRequest } from '@/types/alerts/priceAlert';
 import type {
   MacroAlertDraft,
-  MacroEvent,
   MacroEventStatusFilter as MacroEventStatusFilterValue,
+  MacroSubscription,
 } from '@/types/alerts/macroAlert';
 import type { NewAlertType } from '@/types/alerts';
 import type { PredictionAlert } from '@/types/alerts/predictionAlert';
@@ -51,7 +51,7 @@ export const AlertManagement: React.FC<AlertManagementProps> = ({ userId }) => {
   const [creatingType, setCreatingType] = useState<NewAlertType | null>(null);
   const [showTypeSelector, setShowTypeSelector] = useState(false);
   const [editingAlert, setEditingAlert] = useState<PriceAlert | null>(null);
-  const [editingEvent, setEditingEvent] = useState<MacroEvent | null>(null);
+  const [editingSubscription, setEditingSubscription] = useState<MacroSubscription | null>(null);
   const [editingPredictionAlert, setEditingPredictionAlert] = useState<PredictionAlert | null>(null);
   const [deletingAlert, setDeletingAlert] = useState<PriceAlert | null>(null);
   const [statusFilter, setStatusFilter] = useState<AlertListStatusFilter>('all');
@@ -70,7 +70,6 @@ export const AlertManagement: React.FC<AlertManagementProps> = ({ userId }) => {
   } = usePriceAlerts(userId);
 
   const {
-    events,
     subscriptions,
     isLoading: isLoadingEvents,
     error: eventsError,
@@ -107,11 +106,11 @@ export const AlertManagement: React.FC<AlertManagementProps> = ({ userId }) => {
 
   const eventCounts = useMemo(
     () => ({
-      all: events.length,
-      active: events.filter((event) => event.subscribed).length,
-      inactive: events.filter((event) => !event.subscribed).length,
+      all: subscriptions.length,
+      active: subscriptions.filter((subscription) => subscription.subscribed).length,
+      inactive: subscriptions.filter((subscription) => !subscription.subscribed).length,
     }),
-    [events],
+    [subscriptions],
   );
 
   // Prediction alert counts
@@ -175,22 +174,24 @@ export const AlertManagement: React.FC<AlertManagementProps> = ({ userId }) => {
     }
   };
 
-  const editingEventDraft: MacroAlertDraft | null = editingEvent
+  // The alert service does not store timing or one_time, so the form opens on
+  // its own defaults rather than on values read back from a subscription.
+  const editingEventDraft: MacroAlertDraft | null = editingSubscription
     ? {
-        event_type: editingEvent.event_type,
-        timing: subscriptions.get(editingEvent.event_type)?.timing ?? '1D',
-        one_time: subscriptions.get(editingEvent.event_type)?.oneTime ?? true,
+        event_type: editingSubscription.event_type,
+        timing: editingSubscription.timing ?? '1D',
+        one_time: editingSubscription.one_time ?? true,
         notify_in_app: true,
         notify_email: false,
       }
     : null;
 
   const handleSubmitMacroAlert = async (draft: MacroAlertDraft) => {
-    const wasEditing = Boolean(editingEvent);
+    const wasEditing = Boolean(editingSubscription);
     try {
       await applyMacroDraft(draft);
       closeCreateForm();
-      setEditingEvent(null);
+      setEditingSubscription(null);
       showToast.success(wasEditing ? 'Alert updated' : 'Macro event alert created');
     } catch {
       showToast.error(wasEditing ? 'Failed to update alert' : 'Failed to create alert');
@@ -289,7 +290,12 @@ export const AlertManagement: React.FC<AlertManagementProps> = ({ userId }) => {
 
   // Loading state
   const isAnyLoading = isLoading || isLoadingEvents || isLoadingPrediction;
-  if (isAnyLoading && alerts.length === 0 && events.length === 0 && predictionAlerts.length === 0) {
+  if (
+    isAnyLoading
+    && alerts.length === 0
+    && subscriptions.length === 0
+    && predictionAlerts.length === 0
+  ) {
     return (
       <div className="space-y-4">
         <div className="flex justify-between items-center">
@@ -337,7 +343,7 @@ export const AlertManagement: React.FC<AlertManagementProps> = ({ userId }) => {
   }
 
   const priceAlertCount = alerts.length;
-  const macroEventCount = events.length;
+  const macroEventCount = subscriptions.length;
   const predictionCount = predictionAlerts.length;
 
   return (
@@ -372,7 +378,7 @@ export const AlertManagement: React.FC<AlertManagementProps> = ({ userId }) => {
           )}
           onClick={() => setActiveTab('macro')}
         >
-          Macro Events ({macroEventCount})
+          Macro Alerts ({macroEventCount})
         </button>
         <button
           className={cn(
@@ -417,7 +423,7 @@ export const AlertManagement: React.FC<AlertManagementProps> = ({ userId }) => {
       {activeTab === 'macro' && (
         <>
           <AlertListToolbar
-            summary={`${events.length} ${events.length === 1 ? 'event' : 'events'} configured`}
+            summary={`${subscriptions.length} event ${subscriptions.length === 1 ? 'type' : 'types'}`}
           >
             <MacroEventStatusFilter
               value={eventFilter}
@@ -428,7 +434,6 @@ export const AlertManagement: React.FC<AlertManagementProps> = ({ userId }) => {
           </AlertListToolbar>
 
           <MacroCalendarTable
-            events={events}
             subscriptions={subscriptions}
             isLoading={isLoadingEvents}
             error={eventsError}
@@ -436,7 +441,7 @@ export const AlertManagement: React.FC<AlertManagementProps> = ({ userId }) => {
             impactFilter={impactFilter}
             onSubscribeChange={handleSubscribeChange}
             onDelete={handleDeleteMacroAlert}
-            onEdit={setEditingEvent}
+            onEdit={setEditingSubscription}
             onRetry={fetchEvents}
           />
         </>
@@ -496,17 +501,29 @@ export const AlertManagement: React.FC<AlertManagementProps> = ({ userId }) => {
       {/* Create Macro Alert Modal - only show when macro is selected */}
       {creatingType === 'macro' && (
         <MacroAlertForm
-          open={creatingType === 'macro' || Boolean(editingEvent)}
+          open={creatingType === 'macro' || Boolean(editingSubscription)}
           onOpenChange={(open) => {
             if (open) return;
             closeCreateForm();
-            setEditingEvent(null);
+            setEditingSubscription(null);
           }}
-          events={events}
           editingDraft={editingEventDraft}
           onSubmit={handleSubmitMacroAlert}
           isLoading={isLoadingEvents}
           typeSwitcher={typeSwitcher}
+        />
+      )}
+
+      {/* Edit Macro Alert Modal */}
+      {editingSubscription && creatingType !== 'macro' && (
+        <MacroAlertForm
+          open
+          onOpenChange={(open) => {
+            if (!open) setEditingSubscription(null);
+          }}
+          editingDraft={editingEventDraft}
+          onSubmit={handleSubmitMacroAlert}
+          isLoading={isLoadingEvents}
         />
       )}
 
