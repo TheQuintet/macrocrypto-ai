@@ -1,9 +1,8 @@
-// src/components/alerts/shared/AlertTypeSwitch.tsx (UPDATED)
-
 import { Bell, Calendar, TrendingUp } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { alertKindIconClassName } from '@/lib/alerts/alertKindClassName'
 import type { NewAlertType } from '@/types/alerts'
 
 type AlertTypeSwitchProps = {
@@ -35,12 +34,12 @@ export function AlertTypeSwitch({ value, onChange, disabled = false }: AlertType
             key={type.value}
             type="button"
             size="icon"
-            variant={isSelected ? 'default' : 'ghost'}
+            variant="ghost"
             aria-label={type.label}
             aria-pressed={isSelected}
             title={type.label}
             disabled={disabled}
-            className={cn('h-8 w-8', !isSelected && 'text-muted-foreground')}
+            className={cn('h-8 w-8', alertKindIconClassName(type.value, isSelected))}
             onClick={() => onChange(type.value)}
           >
             <Icon className="h-4 w-4" />

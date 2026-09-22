@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   alertKindButtonClassName,
+  alertKindIconClassName,
   alertKindTabClassName,
 } from '@/lib/alerts/alertKindClassName'
 
@@ -24,5 +25,15 @@ describe('alertKindClassName', () => {
 
   it('pairs each fill with its readable text token', () => {
     expect(alertKindButtonClassName('price')).toContain('text-[var(--toast-price-text)]')
+  })
+
+  it('tints idle create-popup icons with the kind color', () => {
+    expect(alertKindIconClassName('price', false)).toContain('--toast-price-bg')
+    expect(alertKindIconClassName('macro', false)).toContain('--toast-macro-bg')
+    expect(alertKindIconClassName('prediction', false)).toContain('--toast-forecast-bg')
+  })
+
+  it('fills the selected create-popup icon with the kind color', () => {
+    expect(alertKindIconClassName('price', true)).toBe(alertKindButtonClassName('price'))
   })
 })

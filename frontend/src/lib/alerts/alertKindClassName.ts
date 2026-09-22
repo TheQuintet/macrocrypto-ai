@@ -38,3 +38,17 @@ const KIND_BUTTON: Record<NewAlertType, string> = {
 export function alertKindButtonClassName(kind: NewAlertType): string {
   return KIND_BUTTON[kind]
 }
+
+/** Icon switch in the create popup: selected is a filled chip, idle keeps kind tint. */
+const KIND_ICON_IDLE: Record<NewAlertType, string> = {
+  price:
+    'text-[var(--toast-price-bg)]/70 hover:bg-[var(--toast-price-bg)]/15 hover:text-[var(--toast-price-bg)]',
+  prediction:
+    'text-[var(--toast-forecast-bg)]/70 hover:bg-[var(--toast-forecast-bg)]/15 hover:text-[var(--toast-forecast-bg)]',
+  macro:
+    'text-[var(--toast-macro-bg)]/70 hover:bg-[var(--toast-macro-bg)]/15 hover:text-[var(--toast-macro-bg)]',
+}
+
+export function alertKindIconClassName(kind: NewAlertType, selected: boolean): string {
+  return selected ? KIND_BUTTON[kind] : KIND_ICON_IDLE[kind]
+}
