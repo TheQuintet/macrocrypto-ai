@@ -7,6 +7,7 @@ import {
   civilDateFromKey,
   dayKeyInTimezone,
   displayTimezone,
+  eventsInCurrentPeriod,
   formatEventDateTime,
   formatEventTime,
   parseInstant,
@@ -128,6 +129,27 @@ describe('buildCalendarGrid', () => {
 
     expect(grid.undated).toHaveLength(1)
     expect(grid.days.every((day) => day.events.length === 0)).toBe(true)
+  })
+
+  it('lists only the events that belong to the current period', () => {
+    const grid = gridFor('2026-03-01', {
+      events: [
+        makeEconomicEvent({
+          id: 1,
+          event_name: 'In March',
+          event_date: '2026-03-12T13:30:00.000Z',
+        }),
+        makeEconomicEvent({
+          id: 2,
+          event_name: 'Padding April',
+          event_date: '2026-04-02T13:30:00.000Z',
+        }),
+      ],
+    })
+
+    expect(
+      eventsInCurrentPeriod(grid).map((event) => event.event_name),
+    ).toEqual(['In March'])
   })
 })
 

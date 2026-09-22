@@ -47,6 +47,9 @@ export type EconomicCalendarResponse = {
 /** Month grid or single week. */
 export type CalendarViewMode = 'month' | 'week'
 
+/** Grid (month/week) or a flat table of the same period. */
+export type CalendarLayout = 'calendar' | 'list'
+
 /** Render events in the reader's own IANA zone, or in UTC. */
 export type CalendarTimezoneMode = 'local' | 'utc'
 

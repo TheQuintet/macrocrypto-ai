@@ -7,11 +7,15 @@ import {
   expectEventAnnounces,
   expectEventGone,
   expectEventShown,
+  expectCalendarGridGone,
+  expectCalendarGridShown,
+  expectListShown,
   expectSimulatedBadge,
   getPeriodHeading,
   openEventDetails,
   renderEconomicCalendar,
   stepToNextPeriod,
+  switchToListLayout,
   switchToWeekView,
 } from './EconomicCalendar.testHelpers'
 
@@ -83,5 +87,30 @@ describe('EconomicCalendar', () => {
 
     await stepToNextPeriod(user, 'week')
     expect(getPeriodHeading()).not.toBe(weekLabel)
+  })
+
+  it('switches the same period to a list', async () => {
+    const user = userEvent.setup()
+    renderEconomicCalendar()
+    await expectEventShown('FOMC rate decision')
+    expectCalendarGridShown()
+
+    await switchToListLayout(user)
+
+    await expectListShown('FOMC rate decision')
+    expectCalendarGridGone()
+  })
+
+  it('keeps filters when the list is showing', async () => {
+    const user = userEvent.setup()
+    renderEconomicCalendar()
+    await expectEventShown('CPI release')
+    await switchToListLayout(user)
+    await expectListShown('CPI release')
+
+    await chooseEventType(user, 'fed')
+
+    await expectListShown('FOMC rate decision')
+    expect(screen.queryByRole('button', { name: 'CPI release' })).not.toBeInTheDocument()
   })
 })

@@ -1,10 +1,10 @@
 import { useCallback, useMemo, useState } from 'react'
-import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { CalendarAgenda } from '@/components/calendar/CalendarAgenda'
-import { CalendarFilters } from '@/components/calendar/CalendarFilters'
 import { CalendarGrid } from '@/components/calendar/CalendarGrid'
+import { CalendarLayoutTabs } from '@/components/calendar/CalendarLayoutTabs'
 import { CalendarToolbar } from '@/components/calendar/CalendarToolbar'
+import { EconomicEventList } from '@/components/calendar/EconomicEventList'
 import { EventDetailsDialog } from '@/components/calendar/EventDetailsDialog'
 import { useMacroSubscriptionsQuery } from '@/hooks/alerts/useMacroSubscriptionsQuery'
 import { useEconomicCalendarQuery } from '@/hooks/useEconomicCalendarQuery'
@@ -12,6 +12,7 @@ import {
   anchorForInstant,
   buildCalendarGrid,
   displayTimezone,
+  eventsInCurrentPeriod,
   shiftAnchor,
   startOfMonth,
   startOfWeek,
@@ -22,6 +23,7 @@ import {
   isEventSubscribed,
 } from '@/lib/economicEventFilters'
 import type {
+  CalendarLayout,
   CalendarTimezoneMode,
   CalendarViewMode,
   EconomicEvent,
@@ -35,6 +37,7 @@ type EconomicCalendarProps = {
 
 export function EconomicCalendar({ userId }: EconomicCalendarProps) {
   const [view, setView] = useState<CalendarViewMode>('month')
+  const [layout, setLayout] = useState<CalendarLayout>('calendar')
   const [timezoneMode, setTimezoneMode] =
     useState<CalendarTimezoneMode>('local')
   const [eventType, setEventType] = useState<EventTypeFilter>('all')
@@ -66,6 +69,10 @@ export function EconomicCalendar({ userId }: EconomicCalendarProps) {
         timeZone,
       }),
     [anchor, view, visibleEvents, timeZone],
+  )
+  const periodEvents = useMemo(
+    () => eventsInCurrentPeriod(grid),
+    [grid],
   )
 
   const subscriptionsByType = useMemo(
@@ -100,45 +107,29 @@ export function EconomicCalendar({ userId }: EconomicCalendarProps) {
     )
   }
 
-  const handleToday = () => {
-    setAnchor(anchorForInstant(new Date(), view, timeZone))
-  }
-
   return (
     <div className="flex min-w-0 flex-col gap-4">
-      <div className="flex min-w-0 flex-col gap-3">
-        {isSimulated ? (
-          <Badge
-            variant="outline"
-            className="w-fit text-[10px] font-normal"
-          >
-            Simulated
-          </Badge>
-        ) : null}
+      <CalendarLayoutTabs value={layout} onChange={setLayout} />
 
-        <CalendarToolbar
-          label={grid.label}
-          view={view}
-          onViewChange={handleViewChange}
-          timezoneMode={timezoneMode}
-          onTimezoneModeChange={setTimezoneMode}
-          timeZone={displayTimezone('local')}
-          onPrevious={() =>
-            setAnchor((current) => shiftAnchor(current, view, -1))
-          }
-          onNext={() =>
-            setAnchor((current) => shiftAnchor(current, view, 1))
-          }
-          onToday={handleToday}
-        />
-
-        <CalendarFilters
-          eventType={eventType}
-          onEventTypeChange={setEventType}
-          impactLevel={impactLevel}
-          onImpactLevelChange={setImpactLevel}
-        />
-      </div>
+      <CalendarToolbar
+        label={grid.label}
+        view={view}
+        onViewChange={handleViewChange}
+        timezoneMode={timezoneMode}
+        onTimezoneModeChange={setTimezoneMode}
+        timeZone={displayTimezone('local')}
+        eventType={eventType}
+        onEventTypeChange={setEventType}
+        impactLevel={impactLevel}
+        onImpactLevelChange={setImpactLevel}
+        onPrevious={() =>
+          setAnchor((current) => shiftAnchor(current, view, -1))
+        }
+        onNext={() =>
+          setAnchor((current) => shiftAnchor(current, view, 1))
+        }
+        isSimulated={isSimulated}
+      />
 
       {subscriptionsQuery.error ? (
         <p className="rounded-lg border border-border bg-card px-3 py-2 text-xs text-muted-foreground">
@@ -157,20 +148,30 @@ export function EconomicCalendar({ userId }: EconomicCalendarProps) {
           Economic calendar unavailable. {calendarQuery.error.message}
         </p>
       ) : (
-        <>
-          <CalendarGrid
-            grid={grid}
+        layout === 'list' ? (
+          <EconomicEventList
+            events={periodEvents}
+            periodLabel={grid.label}
             timeZone={timeZone}
             isSubscribed={isSubscribed}
             onSelectEvent={(event) => setSelectedEventId(event.id)}
           />
-          <CalendarAgenda
-            grid={grid}
-            timeZone={timeZone}
-            isSubscribed={isSubscribed}
-            onSelectEvent={(event) => setSelectedEventId(event.id)}
-          />
-        </>
+        ) : (
+          <>
+            <CalendarGrid
+              grid={grid}
+              timeZone={timeZone}
+              isSubscribed={isSubscribed}
+              onSelectEvent={(event) => setSelectedEventId(event.id)}
+            />
+            <CalendarAgenda
+              grid={grid}
+              timeZone={timeZone}
+              isSubscribed={isSubscribed}
+              onSelectEvent={(event) => setSelectedEventId(event.id)}
+            />
+          </>
+        )
       )}
 
       {grid.undated.length > 0 ? (

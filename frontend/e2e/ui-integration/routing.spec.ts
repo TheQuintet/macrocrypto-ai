@@ -30,6 +30,14 @@ test.describe('client routing UI integration', () => {
     await clickSidebarNav(page, 'alerts')
     await expectRoute(page, 'alerts')
     await expectCurrentPage(page, 'alerts')
+
+    await clickSidebarNav(page, 'calendar')
+    await expectRoute(page, 'calendar')
+    await expectCurrentPage(page, 'calendar')
+
+    await clickSidebarNav(page, 'economicNotifications')
+    await expectRoute(page, 'economicNotifications')
+    await expectCurrentPage(page, 'economicNotifications')
   })
 
   test('header bell opens notifications and can reach alert settings', async ({

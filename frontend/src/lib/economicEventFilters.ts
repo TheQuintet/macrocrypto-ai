@@ -1,3 +1,4 @@
+import { EVENT_TYPE_LABELS } from '@/constants/economicCalendar'
 import type { MacroEventSubscription } from '@/types/alerts/macroSubscription'
 import type {
   EconomicEvent,
@@ -16,6 +17,11 @@ const IMPACT_PRIORITY: Record<EventImpactLevel, number> = {
   low: 1,
   medium: 2,
   high: 3,
+}
+
+/** Falls back to the raw value for a category the UI does not know yet. */
+export function formatEventTypeLabel(eventType: string): string {
+  return EVENT_TYPE_LABELS[eventType as EconomicEventType] ?? eventType
 }
 
 export type EconomicEventFilters = {

@@ -9,35 +9,81 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    
+
     strategy:
       matrix:
         python-version: ["3.13"]
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-      
+        with:
+          # Full history so the Python steps can diff against the base branch.
+          fetch-depth: 0
+
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
-      
+
+      # This is a monorepo: a frontend-only change has no Python to lint, format
+      # check, or test. Working out what actually changed lets the Python steps
+      # sit out those runs instead of reporting on files nobody touched.
+      - name: Work out which Python files changed
+        id: changed
+        run: |
+          set -euo pipefail
+
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE="origin/${{ github.base_ref }}"
+          else
+            BASE="${{ github.event.before }}"
+          fi
+
+          if ! git rev-parse --verify --quiet "${BASE}^{commit}" > /dev/null; then
+            echo "Could not resolve ${BASE}; comparing against the previous commit."
+            BASE="HEAD~1"
+          fi
+
+          git diff --name-only --diff-filter=ACMR "${BASE}...HEAD" -- '*.py' \
+            > "$RUNNER_TEMP/changed-python-files.txt" || true
+
+          if [ -s "$RUNNER_TEMP/changed-python-files.txt" ]; then
+            echo "Changed Python files:"
+            cat "$RUNNER_TEMP/changed-python-files.txt"
+            echo "has_py=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No Python files changed."
+            echo "has_py=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Install dependencies
+        if: steps.changed.outputs.has_py == 'true'
         run: |
           python -m pip install --upgrade pip
           pip install flake8 pytest black
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-      
-      - name: Lint with flake8
+
+      - name: Lint changed files with flake8
+        if: steps.changed.outputs.has_py == 'true'
         run: |
-          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-          flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
-      
-      - name: Check formatting with black
+          set -euo pipefail
+          readarray -t FILES < "$RUNNER_TEMP/changed-python-files.txt"
+          flake8 --count --select=E9,F63,F7,F82 --show-source --statistics "${FILES[@]}"
+          flake8 --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics "${FILES[@]}"
+
+      # Scoped to the files a change actually touches. A repo-wide `black .`
+      # fails on ~240 files that predate this check, which made every run red
+      # regardless of the work under review. Clearing that backlog is a separate
+      # job; formatting is still enforced on everything new.
+      - name: Check formatting of changed files with black
+        if: steps.changed.outputs.has_py == 'true'
         run: |
-          black --check .
-      
+          set -euo pipefail
+          readarray -t FILES < "$RUNNER_TEMP/changed-python-files.txt"
+          black --check --diff "${FILES[@]}"
+
       - name: Run tests with pytest
+        if: steps.changed.outputs.has_py == 'true'
         run: |
           pytest

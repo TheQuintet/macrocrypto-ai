@@ -1,4 +1,3 @@
-import { Bell } from 'lucide-react'
 import { getEventImpactBadgeConfig } from '@/components/calendar/eventImpactBadgeConfig'
 import { formatEventTime } from '@/lib/economicCalendarGrid'
 import { cn } from '@/lib/utils'
@@ -22,8 +21,8 @@ function subscriptionLabel(subscribed: boolean | null): string {
 }
 
 /**
- * One event inside a day cell. The impact dot and bell carry meaning that
- * colour alone would not, so both are spelled out in the accessible name.
+ * One event inside a day cell. The impact bullet is the only colour cue;
+ * the time and name stay on the standard foreground so they stay readable.
  */
 export function CalendarEventChip({
   event,
@@ -41,25 +40,19 @@ export function CalendarEventChip({
       onClick={() => onSelect(event)}
       aria-label={`${event.event_name}, ${time}, ${impact.label}, ${subscriptionLabel(subscribed)}`}
       className={cn(
-        'flex w-full min-w-0 items-center gap-1.5 rounded-md px-1.5 py-1 text-left text-xs',
+        'flex w-full min-w-0 items-start gap-1 rounded px-1 py-0.5 text-left text-[11px] leading-4 text-foreground',
         'touch-manipulation hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
         className,
       )}
     >
       <span
         aria-hidden
-        className={cn('size-1.5 shrink-0 rounded-full', impact.dot)}
+        className={cn('mt-1.5 size-1.5 shrink-0 rounded-full', impact.dot)}
       />
-      <span className="shrink-0 tabular-nums text-muted-foreground">
-        {time}
+      <span className="min-w-0 whitespace-normal break-words">
+        <span className="tabular-nums text-muted-foreground">{time} </span>
+        <span>{event.event_name}</span>
       </span>
-      <span className="truncate">{event.event_name}</span>
-      {subscribed === true ? (
-        <Bell
-          aria-hidden
-          className="ml-auto size-3 shrink-0 text-green-600 dark:text-green-400"
-        />
-      ) : null}
     </button>
   )
 }

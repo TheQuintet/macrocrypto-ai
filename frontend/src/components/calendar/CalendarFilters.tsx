@@ -9,7 +9,7 @@ import type {
 } from '@/types/economicCalendar'
 
 const SELECT_CLASSES = cn(
-  'h-9 w-full min-w-0 rounded-md border border-input bg-transparent px-2 text-sm sm:w-auto',
+  'h-8 w-full min-w-0 rounded-md border border-input bg-transparent px-2 text-xs sm:w-auto',
   'touch-manipulation outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50',
   'dark:bg-input/30',
 )
@@ -28,7 +28,7 @@ export function CalendarFilters({
   onImpactLevelChange,
 }: CalendarFiltersProps) {
   return (
-    <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center">
+    <div className="flex min-w-0 flex-wrap items-center gap-2">
       <select
         aria-label="Event type filter"
         value={eventType}

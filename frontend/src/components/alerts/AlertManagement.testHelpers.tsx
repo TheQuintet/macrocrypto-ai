@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { screen } from '@testing-library/react'
 import type { UserEvent } from '@testing-library/user-event'
 import { expect, vi } from 'vitest'
 import { AlertManagement } from './AlertManagement'
@@ -11,6 +11,7 @@ import { CREATE_ALERT_LABELS } from '@/constants/alerts'
 import type { NewAlertType } from '@/types/alerts'
 import type { PriceAlert } from '@/types/alerts/priceAlert'
 import type { BtcPriceSnapshot } from '@/types/btcPrice'
+import { renderWithQuery } from '@/test/renderWithQuery'
 
 const defaultUserId = 'b5e2102c-c4ac-46f9-95c3-2a3c389399a9'
 
@@ -36,7 +37,7 @@ export function renderAlertManagement(overrides: ManagementOptions = {}) {
 
   vi.mocked(macroAlertApi.getSubscriptions).mockResolvedValue(macroSubscriptions)
 
-  return render(<AlertManagement userId={defaultUserId} />)
+  return renderWithQuery(<AlertManagement userId={defaultUserId} />)
 }
 
 export async function clickCreateAlert(user: UserEvent, kind: NewAlertType) {

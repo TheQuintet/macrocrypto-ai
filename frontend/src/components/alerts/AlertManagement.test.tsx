@@ -32,6 +32,12 @@ describe('AlertManagement', () => {
     cleanup()
   })
 
+  it('does not keep sent-alert history on the alerts page', async () => {
+    renderAlertManagement()
+
+    expect(screen.queryByRole('button', { name: /^History/ })).not.toBeInTheDocument()
+  })
+
   it('counts alerts on the price tab and its filters', async () => {
     renderAlertManagement()
 

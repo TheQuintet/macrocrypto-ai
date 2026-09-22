@@ -83,6 +83,28 @@ export async function switchToWeekView(user: UserEvent) {
   await user.click(screen.getByRole('button', { name: 'Week' }))
 }
 
+export async function switchToListLayout(user: UserEvent) {
+  await user.click(screen.getByRole('tab', { name: 'List' }))
+}
+
+export async function switchToCalendarLayout(user: UserEvent) {
+  await user.click(screen.getByRole('tab', { name: 'Calendar' }))
+}
+
+export async function expectListShown(eventName: string) {
+  expect(
+    await screen.findByRole('button', { name: eventName }, { timeout: FIND_TIMEOUT_MS }),
+  ).toBeInTheDocument()
+}
+
+export function expectCalendarGridShown() {
+  expect(screen.getByRole('grid')).toBeInTheDocument()
+}
+
+export function expectCalendarGridGone() {
+  expect(screen.queryByRole('grid')).not.toBeInTheDocument()
+}
+
 export async function stepToNextPeriod(user: UserEvent, view: string) {
   await user.click(screen.getByRole('button', { name: `Next ${view}` }))
 }

@@ -46,7 +46,6 @@ export function CalendarAgenda({
               )}
             >
               {formatDayHeading(day.key)}
-              {day.isToday ? ' · Today' : ''}
             </h3>
             <div className="flex min-w-0 flex-col gap-1 p-1.5">
               {day.events.map((event) => (
@@ -56,7 +55,7 @@ export function CalendarAgenda({
                   subscribed={isSubscribed(event)}
                   timeZone={timeZone}
                   onSelect={onSelectEvent}
-                  className="min-h-9 text-sm"
+                  className="min-h-9 text-xs"
                 />
               ))}
             </div>

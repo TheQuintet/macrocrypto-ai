@@ -42,8 +42,6 @@ import { CreateAlertButton } from './shared/CreateAlertButton';
 import { AlertTypeSwitch } from './shared/AlertTypeSwitch';
 import { AlertKindTabs } from './shared/AlertKindTabs';
 
-type AlertTab = NewAlertType;
-
 interface AlertManagementProps {
   userId: string;
 }
@@ -58,7 +56,7 @@ export const AlertManagement: React.FC<AlertManagementProps> = ({ userId }) => {
   const [statusFilter, setStatusFilter] = useState<AlertListStatusFilter>('all');
   const [eventFilter, setEventFilter] = useState<MacroEventStatusFilterValue>('all');
   const [impactFilter, setImpactFilter] = useState<ImpactFilterValue>('all');
-  const [activeTab, setActiveTab] = useState<AlertTab>('price');
+  const [activeTab, setActiveTab] = useState<NewAlertType>('price');
 
   const {
     alerts,
