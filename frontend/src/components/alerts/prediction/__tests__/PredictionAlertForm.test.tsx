@@ -1,10 +1,7 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { PredictionAlertForm } from '../PredictionAlertForm';
-import { predictionAlertApi } from '@/api/alerts/predictionAlerts';
-
-vi.mock('@/api/alerts/predictionAlerts');
 
 describe('PredictionAlertForm', () => {
   const mockUserId = 'test-user-id';
@@ -31,27 +28,10 @@ describe('PredictionAlertForm', () => {
     expect(submitButtons.length).toBeGreaterThan(0);
   });
 
-  it('should show preview when preview button is clicked', async () => {
-    const user = userEvent.setup();
-    const mockPreview = {
-      previousPrediction: 68234.50,
-      newPrediction: 70123.75,
-      changePercentage: 2.77,
-      confidence: 74,
-      recommendation: 'Bullish shift - consider increasing exposure',
-      horizon: '24h' as const,
-    };
-
-    vi.mocked(predictionAlertApi.getPreview).mockResolvedValue(mockPreview);
-
+  it('does not offer a preview in the form', () => {
     render(<PredictionAlertForm {...defaultProps} />);
 
-    const previewButtons = screen.getAllByText('Preview');
-    await user.click(previewButtons[0]);
-
-    await waitFor(() => {
-      expect(screen.getByText('Prediction Change Alert')).toBeInTheDocument();
-    });
+    expect(screen.queryByRole('button', { name: 'Preview' })).not.toBeInTheDocument();
   });
 
   it('should show edit mode when editingAlert is provided', () => {

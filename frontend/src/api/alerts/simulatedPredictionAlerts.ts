@@ -1,10 +1,8 @@
 import { ALERTS_USER_ID } from '@/constants/alerts'
-import { getRecommendation } from '@/components/alerts/prediction/predictionAlertRule'
 import type {
   CreatePredictionAlertRequest,
   PredictionAlert,
   PredictionAlertHistory,
-  PredictionAlertPreview,
   PredictionHorizon,
   PredictionThreshold,
   UpdatePredictionAlertRequest,
@@ -244,28 +242,4 @@ export async function simulateExportHistory(
     ].join(','),
   )
   return new Blob([[header, ...body].join('\n')], { type: 'text/csv' })
-}
-
-export function buildSimulatedPreview(
-  data: CreatePredictionAlertRequest,
-): PredictionAlertPreview {
-  const previousPrediction = 68234.5
-  const changePercentage = data.threshold
-  const newPrediction =
-    previousPrediction * (1 + changePercentage / 100)
-  return {
-    previousPrediction,
-    newPrediction,
-    changePercentage,
-    confidence: 70,
-    recommendation: getRecommendation(previousPrediction, newPrediction),
-    horizon: data.horizon,
-  }
-}
-
-export async function simulateGetPreview(
-  data: CreatePredictionAlertRequest,
-): Promise<PredictionAlertPreview> {
-  await delay(MOCK_LATENCY_MS)
-  return buildSimulatedPreview(data)
 }
