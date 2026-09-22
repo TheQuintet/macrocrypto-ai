@@ -40,8 +40,9 @@ export function MacroEventRow({
   const { impact_filter: impact, timing, one_time: oneTime } = subscription
 
   return (
-    <AlertTableRow onOpen={() => onEdit(subscription)}>
-      <td className="px-4 py-3">
+    <AlertTableRow
+      onOpen={() => onEdit(subscription)}
+      name={
         <AlertTableNameCell
           icon={Calendar}
           name={MACRO_EVENT_TITLES[subscription.event_type]}
@@ -58,34 +59,28 @@ export function MacroEventRow({
             ) : null
           }
         />
-      </td>
-      <td className="px-4 py-3">
-        {timing ? (
+      }
+      detail={
+        timing ? (
           <p className="text-sm">Alerts {MACRO_TIMING_LABELS[timing]}</p>
         ) : (
           <NotProvided />
-        )}
-      </td>
-      <td className="px-4 py-3">
-        <div className="flex justify-center">
-          {oneTime === null ? <NotProvided /> : <AlertRepeatBadge oneTime={oneTime} />}
-        </div>
-      </td>
-      <td className="px-4 py-3">
-        <div className="flex justify-center">
-          <AlertStatusToggle
-            status={isActive ? 'active' : 'disabled'}
-            onToggle={() => onSubscribeChange(subscription.id, !isActive)}
-          />
-        </div>
-      </td>
-      <td className="px-4 py-3 text-right">
+        )
+      }
+      repeat={oneTime === null ? <NotProvided /> : <AlertRepeatBadge oneTime={oneTime} />}
+      status={
+        <AlertStatusToggle
+          status={isActive ? 'active' : 'disabled'}
+          onToggle={() => onSubscribeChange(subscription.id, !isActive)}
+        />
+      }
+      actions={
         <AlertRowDeleteButton
           onClick={() => onDelete(subscription.id)}
           disabled={!isActive}
           title={isActive ? 'Delete alert' : 'No alert set for this event'}
         />
-      </td>
-    </AlertTableRow>
+      }
+    />
   )
 }

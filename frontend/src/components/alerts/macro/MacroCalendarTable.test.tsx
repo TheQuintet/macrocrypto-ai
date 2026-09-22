@@ -40,7 +40,7 @@ describe('MacroCalendarTable', () => {
   it('tells the reader when there are no subscriptions at all', () => {
     renderMacroTable({ subscriptions: [] })
 
-    expect(screen.getByText('No macro subscriptions yet')).toBeInTheDocument()
+    expect(screen.getAllByText('No macro subscriptions yet').length).toBeGreaterThan(0)
   })
 
   it('reads Active or Inactive, never Subscribed', () => {

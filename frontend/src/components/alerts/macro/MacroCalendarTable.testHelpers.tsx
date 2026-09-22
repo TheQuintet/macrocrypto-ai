@@ -47,7 +47,7 @@ export function renderMacroTable(overrides: TableProps = {}) {
 }
 
 export function getEventRow(name: string) {
-  const row = screen.getByText(name).closest('tr')
+  const row = screen.getAllByText(name).map((node) => node.closest('tr')).find(Boolean)
   if (!row) throw new Error(`No table row for "${name}"`)
   return row as HTMLElement
 }

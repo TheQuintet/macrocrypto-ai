@@ -47,7 +47,7 @@ describe('PredictionAlertResponsive', () => {
     window.dispatchEvent(new Event('resize'));
   });
 
-  it('should render table on mobile viewport', () => {
+  it('should render stacked cards for narrow viewports', () => {
     Object.defineProperty(window, 'innerWidth', { value: 375, writable: true });
     window.dispatchEvent(new Event('resize'));
 
@@ -60,8 +60,8 @@ describe('PredictionAlertResponsive', () => {
       />
     );
 
-    expect(screen.getByText('Test Alert')).toBeInTheDocument();
-    expect(screen.getByText('24h')).toBeInTheDocument();
+    expect(document.querySelector('[data-slot="alert-list-cards"]')).toHaveClass('sm:hidden');
+    expect(screen.getAllByText('Test Alert').length).toBeGreaterThan(0);
   });
 
   it('should render table on desktop viewport', () => {

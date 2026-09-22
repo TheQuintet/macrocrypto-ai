@@ -59,10 +59,10 @@ describe('PredictionAlertTable', () => {
       />
     );
 
-    expect(screen.getByText('Bullish Breakout')).toBeInTheDocument();
-    expect(screen.getByText('Major Trend Change')).toBeInTheDocument();
-    expect(screen.getByText('24h')).toBeInTheDocument();
-    expect(screen.getByText('7d')).toBeInTheDocument();
+    expect(screen.getAllByText('Bullish Breakout').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Major Trend Change').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('24h').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('7d').length).toBeGreaterThan(0);
   });
 
   it('should show empty state when no alerts', () => {
@@ -75,7 +75,9 @@ describe('PredictionAlertTable', () => {
       />
     );
 
-    expect(screen.getByText('No prediction alerts found matching your filters')).toBeInTheDocument();
+    expect(
+      screen.getAllByText('No prediction alerts found matching your filters').length,
+    ).toBeGreaterThan(0);
   });
 
   it('should call onEdit when alert row is clicked', async () => {
