@@ -66,8 +66,32 @@ export function formatNotificationToast(notification: InAppNotification): {
 
 const PAYLOAD_KEYS: Record<NotificationType, readonly string[]> = {
   price_alert: ['name', 'asset', 'alert_type', 'threshold_price', 'triggered_price'],
-  prediction_alert: ['horizon', 'direction', 'confidence'],
-  confidence_alert: ['horizon', 'direction', 'confidence'],
+  prediction_alert: [
+    'horizon',
+    'direction',
+    'confidence',
+    'previous_prediction',
+    'new_prediction',
+    'change_percent',
+    'recommendation',
+    'alert_id',
+    'previousPrediction',
+    'newPrediction',
+    'changePercentage',
+  ],
+  confidence_alert: [
+    'horizon',
+    'direction',
+    'confidence',
+    'previous_prediction',
+    'new_prediction',
+    'change_percent',
+    'recommendation',
+    'alert_id',
+    'previousPrediction',
+    'newPrediction',
+    'changePercentage',
+  ],
   macro_alert: ['event_name', 'indicator', 'impact'],
 }
 
@@ -175,13 +199,35 @@ function formatForecastAlertDetails(
   const horizon = asNonEmptyString(data.horizon)
   const direction = asNonEmptyString(data.direction)
   const confidence = asFiniteNumber(data.confidence)
+  const previous = asFiniteNumber(
+    data.previous_prediction ?? data.previousPrediction,
+  )
+  const next = asFiniteNumber(data.new_prediction ?? data.newPrediction)
+  const change = asFiniteNumber(
+    data.change_percent ?? data.changePercentage,
+  )
+  const recommendation = asNonEmptyString(data.recommendation)
   const parts: string[] = []
   if (horizon) parts.push(horizon)
   if (direction) parts.push(direction)
   if (confidence != null) {
-    parts.push(`${Math.round(confidence * 100)}% confidence`)
+    const percent = confidence <= 1 ? confidence * 100 : confidence
+    parts.push(`${Math.round(percent)}% confidence`)
   }
-  return parts.length > 0 ? parts.join(' · ') : undefined
+  const headline = parts.length > 0 ? parts.join(' · ') : undefined
+  const lines: string[] = []
+  if (headline) lines.push(headline)
+  if (previous != null && next != null) {
+    const changeLabel =
+      change != null
+        ? ` (${change > 0 ? '+' : ''}${change.toFixed(1)}%)`
+        : ''
+    lines.push(
+      `${formatPrice(previous)} → ${formatPrice(next)}${changeLabel}`,
+    )
+  }
+  if (recommendation) lines.push(recommendation)
+  return lines.length > 0 ? lines.join('\n') : undefined
 }
 
 function formatNotificationTimestamp(iso: string): string | undefined {

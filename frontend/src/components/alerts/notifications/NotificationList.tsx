@@ -95,3 +95,5 @@ export function NotificationList({ userId, onNavigate }: NotificationListProps) 
     </div>
   )
 }
+
+export default NotificationList

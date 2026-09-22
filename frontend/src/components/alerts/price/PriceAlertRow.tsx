@@ -27,8 +27,9 @@ export function PriceAlertRow({
   const triggeredAt = alert.triggered_at ? new Date(alert.triggered_at).toLocaleString() : ''
 
   return (
-    <AlertTableRow onOpen={onEdit ? () => onEdit(alert) : undefined}>
-      <td className="px-4 py-3">
+    <AlertTableRow
+      onOpen={onEdit ? () => onEdit(alert) : undefined}
+      name={
         <AlertTableNameCell
           icon={Bell}
           name={name}
@@ -36,30 +37,24 @@ export function PriceAlertRow({
           onOpen={onEdit ? () => onEdit(alert) : undefined}
           openLabel="Edit alert"
         />
-      </td>
-      <td className="px-4 py-3">
-        <p className="text-sm">{headline}</p>
-        {triggeredAt ? (
-          <p className="text-xs text-muted-foreground">Triggered {triggeredAt}</p>
-        ) : null}
-      </td>
-      <td className="px-4 py-3">
-        <div className="flex justify-center">
-          <AlertRepeatBadge oneTime={Boolean(alert.one_time)} />
-        </div>
-      </td>
-      <td className="px-4 py-3">
-        <div className="flex justify-center">
-          {onToggleStatus ? (
-            <AlertStatusToggle status={alert.status} onToggle={() => onToggleStatus(alert)} />
-          ) : (
-            <AlertStatusBadge status={alert.status} size="sm" />
-          )}
-        </div>
-      </td>
-      <td className="px-4 py-3 text-right">
-        <AlertRowDeleteButton onClick={() => onDelete(alert)} />
-      </td>
-    </AlertTableRow>
+      }
+      detail={
+        <>
+          <p className="text-sm">{headline}</p>
+          {triggeredAt ? (
+            <p className="text-xs text-muted-foreground">Triggered {triggeredAt}</p>
+          ) : null}
+        </>
+      }
+      repeat={<AlertRepeatBadge oneTime={Boolean(alert.one_time)} />}
+      status={
+        onToggleStatus ? (
+          <AlertStatusToggle status={alert.status} onToggle={() => onToggleStatus(alert)} />
+        ) : (
+          <AlertStatusBadge status={alert.status} size="sm" />
+        )
+      }
+      actions={<AlertRowDeleteButton onClick={() => onDelete(alert)} />}
+    />
   )
 }

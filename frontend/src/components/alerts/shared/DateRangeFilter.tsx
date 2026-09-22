@@ -1,4 +1,4 @@
-// src/components/alerts/shared/DateRangeFilter.tsx
+// src/components/alerts/shared/DateRangeFilter.tsx (UPDATED)
 
 import React from 'react';
 import { Input } from '@/components/ui/input';
@@ -21,9 +21,9 @@ export const DateRangeFilter: React.FC<DateRangeFilterProps> = ({
   className,
 }) => {
   return (
-    <div className={cn('flex flex-col sm:flex-row gap-3 sm:gap-4', className)}>
-      <div className="flex-1 space-y-1">
-        <Label htmlFor="start-date" className="text-xs text-muted-foreground">
+    <div className={cn('flex items-center gap-2', className)}>
+      <div className="flex items-center gap-1.5">
+        <Label htmlFor="start-date" className="text-xs text-muted-foreground whitespace-nowrap">
           From
         </Label>
         <Input
@@ -31,11 +31,11 @@ export const DateRangeFilter: React.FC<DateRangeFilterProps> = ({
           type="date"
           value={startDate}
           onChange={(e) => onStartDateChange(e.target.value)}
-          className="h-9 text-sm"
+          className="h-9 w-[145px] text-sm"
         />
       </div>
-      <div className="flex-1 space-y-1">
-        <Label htmlFor="end-date" className="text-xs text-muted-foreground">
+      <div className="flex items-center gap-1.5">
+        <Label htmlFor="end-date" className="text-xs text-muted-foreground whitespace-nowrap">
           To
         </Label>
         <Input
@@ -43,7 +43,7 @@ export const DateRangeFilter: React.FC<DateRangeFilterProps> = ({
           type="date"
           value={endDate}
           onChange={(e) => onEndDateChange(e.target.value)}
-          className="h-9 text-sm"
+          className="h-9 w-[145px] text-sm"
         />
       </div>
     </div>

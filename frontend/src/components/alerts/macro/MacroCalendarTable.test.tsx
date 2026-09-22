@@ -5,7 +5,6 @@ import {
   clickRow,
   deleteRowAlert,
   expectRowText,
-  getEventRow,
   getRowDeleteButton,
   renderMacroTable,
   toggleRowStatus,
@@ -16,24 +15,38 @@ describe('MacroCalendarTable', () => {
     cleanup()
   })
 
-  it('names the event and shows whether its alert repeats', () => {
+  it('names each subscribed event type', () => {
     renderMacroTable()
 
-    expectRowText('FOMC Rate Decision', 'FOMC Rate Decision')
-    expectRowText('FOMC Rate Decision', 'Alerts 1 day before')
-    expectRowText('FOMC Rate Decision', 'One-time')
+    expectRowText('Federal Reserve Meeting', 'Federal Reserve Meeting')
+    expectRowText('Federal Reserve Meeting', 'HIGH')
   })
 
-  it('shows no lead time for an event without an alert', () => {
+  it('leaves timing and repeat blank while the API omits them', () => {
     renderMacroTable()
 
-    expect(getEventRow('CPI Release')).not.toHaveTextContent('Alerts')
+    expect(screen.queryByText(/^Alerts /)).not.toBeInTheDocument()
+    expect(screen.queryByText('One-time')).not.toBeInTheDocument()
+  })
+
+  it('renders only the subscriptions it is given', () => {
+    renderMacroTable()
+
+    expect(screen.getAllByRole('row')).toHaveLength(3) // header + 2 subscriptions
+    expect(screen.queryByText('GDP Release')).not.toBeInTheDocument()
+    expect(screen.queryByText('Employment Report')).not.toBeInTheDocument()
+  })
+
+  it('tells the reader when there are no subscriptions at all', () => {
+    renderMacroTable({ subscriptions: [] })
+
+    expect(screen.getAllByText('No macro subscriptions yet').length).toBeGreaterThan(0)
   })
 
   it('reads Active or Inactive, never Subscribed', () => {
     renderMacroTable()
 
-    expectRowText('FOMC Rate Decision', 'Active')
+    expectRowText('Federal Reserve Meeting', 'Active')
     expectRowText('CPI Release', 'Inactive')
     expect(screen.queryByText(/Subscribed/)).not.toBeInTheDocument()
   })
@@ -42,15 +55,15 @@ describe('MacroCalendarTable', () => {
     const user = userEvent.setup()
     const { onSubscribeChange } = renderMacroTable()
 
-    await toggleRowStatus(user, 'FOMC Rate Decision', 'Deactivate alert')
+    await toggleRowStatus(user, 'Federal Reserve Meeting', 'Deactivate alert')
 
-    expect(onSubscribeChange).toHaveBeenCalledWith('event-fed', false)
+    expect(onSubscribeChange).toHaveBeenCalledWith('subscription-fed', false)
   })
 
   it('offers delete on every row, enabled only where an alert exists', () => {
     renderMacroTable()
 
-    expect(getRowDeleteButton('FOMC Rate Decision')).toBeEnabled()
+    expect(getRowDeleteButton('Federal Reserve Meeting')).toBeEnabled()
     expect(getRowDeleteButton('CPI Release')).toBeDisabled()
   })
 
@@ -58,10 +71,10 @@ describe('MacroCalendarTable', () => {
     const user = userEvent.setup()
     const { onEdit } = renderMacroTable()
 
-    await clickRow(user, 'FOMC Rate Decision')
+    await clickRow(user, 'Federal Reserve Meeting')
 
     expect(onEdit).toHaveBeenCalledWith(
-      expect.objectContaining({ id: 'event-fed', event_type: 'FED' }),
+      expect.objectContaining({ id: 'subscription-fed', event_type: 'FED' }),
     )
   })
 
@@ -69,9 +82,9 @@ describe('MacroCalendarTable', () => {
     const user = userEvent.setup()
     const { onDelete, onSubscribeChange } = renderMacroTable()
 
-    await deleteRowAlert(user, 'FOMC Rate Decision')
+    await deleteRowAlert(user, 'Federal Reserve Meeting')
 
-    expect(onDelete).toHaveBeenCalledWith('event-fed')
+    expect(onDelete).toHaveBeenCalledWith('subscription-fed')
     expect(onSubscribeChange).not.toHaveBeenCalled()
   })
 })
