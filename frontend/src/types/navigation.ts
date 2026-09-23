@@ -3,6 +3,7 @@ import type { LucideIcon } from 'lucide-react'
 export type NavItemId =
   | 'dashboard'
   | 'macro'
+  | 'regimePerformance'
   | 'calendar'
   | 'economicNotifications'
   | 'forecasts'

@@ -7,6 +7,7 @@ import { DashboardPage } from '@/pages/DashboardPage'
 import { EconomicNotificationsPage } from '@/pages/EconomicNotificationsPage'
 import { ForecastsPage } from '@/pages/ForecastsPage'
 import { MacroPage } from '@/pages/MacroPage'
+import { RegimePerformancePage } from '@/pages/RegimePerformancePage'
 
 export function App() {
   return (
@@ -14,6 +15,11 @@ export function App() {
       <Route element={<AppLayout />}>
         <Route index element={<DashboardPage />} />
         <Route path={routes.macro} element={<MacroPage />} />
+        <Route path={routes.regimePerformance} element={<RegimePerformancePage />} />
+        <Route
+          path="/macro/timeline"
+          element={<Navigate to={routes.regimePerformance} replace />}
+        />
         <Route path={routes.calendar} element={<CalendarPage />} />
         <Route path={routes.economicNotifications} element={<EconomicNotificationsPage />} />
         <Route path={routes.forecasts} element={<ForecastsPage />} />

@@ -76,3 +76,84 @@ export type RegimeDisplay = {
   stanceLabel: string
   toneClass: RegimeToneClass
 }
+
+/** Whether a regime has ended, or is the one we are currently in. */
+export type RegimeStatus = 'completed' | 'active'
+
+/** BTC performance during a regime — every field optional on the wire. */
+export type RegimePerformanceMetricsResponse = {
+  avg_return: number | null
+  max_drawdown: number | null
+  volatility: number | null
+  sharpe_ratio: number | null
+  btc_price_start: number | null
+  btc_price_end: number | null
+}
+
+/** One row of GET /api/v1/regimes/performance. */
+export type RegimePerformanceRowResponse = {
+  regime_id: number
+  regime_type: string
+  start_date: string
+  end_date: string | null
+  status: string
+  performance: RegimePerformanceMetricsResponse
+}
+
+export type RegimePerformanceMetrics = {
+  avgReturn: number | null
+  maxDrawdown: number | null
+  volatility: number | null
+  sharpeRatio: number | null
+  btcPriceStart: number | null
+  btcPriceEnd: number | null
+}
+
+export type RegimePerformanceRow = {
+  regimeId: number
+  regimeType: string
+  startDate: string
+  endDate: string | null
+  status: RegimeStatus
+  performance: RegimePerformanceMetrics
+}
+
+export type RegimePerformance = {
+  source: RegimeSource
+  rows: RegimePerformanceRow[]
+}
+
+/** One regime in GET /api/v1/regimes (history), newest first on the wire. */
+export type RegimeHistoryRowResponse = {
+  id: number
+  regime_type: string
+  start_date: string
+  end_date: string | null
+  performance: RegimePerformanceMetricsResponse | null
+}
+
+export type RegimeHistoryRow = {
+  id: number
+  regimeType: string
+  startDate: string
+  endDate: string | null
+  /** Open-ended regime — the one we are currently in. */
+  isCurrent: boolean
+  performance: RegimePerformanceMetrics | null
+}
+
+export type RegimeHistory = {
+  source: RegimeSource
+  rows: RegimeHistoryRow[]
+}
+
+/** One regime positioned on the timeline band, as percentages of its width. */
+export type RegimeTimelineSegment = {
+  row: RegimeHistoryRow
+  /** Distance from the left edge of the band, 0–100. */
+  offsetPercent: number
+  /** Share of the band this regime covers, 0–100. */
+  widthPercent: number
+  startMs: number
+  endMs: number
+}
