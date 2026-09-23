@@ -96,31 +96,44 @@ def test_warmup_nan_pattern(df_feature_store):
       "Warmup violation: unexpected NaN in btc_sma_90 after index 89."
   )
 
-
 def test_shift_directionality_and_formulas(df_feature_store):
-  """Items 1 & 3: Asserts backward-looking shift direction and exact mathematical formula correctness."""
+  """Items 1 & 3: Asserts backward-looking shift direction and exact mathematical formula correctness across multiple sampled indices."""
   prices = df_feature_store["btc_price"]
   log_returns_1d = df_feature_store["btc_log_return_1d"]
-
-  idx = 100
-  expected_ret = math.log(prices.iloc[idx] / prices.iloc[idx - 1])
-  assert math.isclose(
-      log_returns_1d.iloc[idx], expected_ret, rel_tol=1e-9, abs_tol=1e-9
-  ), "Formula mismatch for btc_log_return_1d."
-
   sma_7 = df_feature_store["btc_sma_7"]
-  expected_sma7 = prices.iloc[idx - 6 : idx + 1].mean()
-  assert math.isclose(
-      sma_7.iloc[idx], expected_sma7, rel_tol=1e-9, abs_tol=1e-9
-  ), "Formula mismatch for btc_sma_7."
-
   vol_7d = df_feature_store["btc_volatility_7d"]
-  window_returns = log_returns_1d.iloc[idx - 6 : idx + 1]
-  expected_vol = window_returns.std(ddof=1) * math.sqrt(365)
-  assert math.isclose(
-      vol_7d.iloc[idx], expected_vol, rel_tol=1e-5, abs_tol=1e-5
-  ), "Formula mismatch for btc_volatility_7d."
 
+  # Sample multiple spread-out indices (skipping warmup bounds)
+  sample_indices = [100, 500, 1200, 2000, 2800]
+
+  for idx in sample_indices:
+    if idx >= len(df_feature_store):
+      continue
+
+    # 1. Log return check: ln(P_t / P_{t-1})
+    expected_ret = math.log(prices.iloc[idx] / prices.iloc[idx - 1])
+    assert math.isclose(
+        log_returns_1d.iloc[idx], expected_ret, rel_tol=1e-9, abs_tol=1e-9
+    ), (
+        f"Formula mismatch for btc_log_return_1d at index {idx}."
+    )
+
+    # 2. SMA-7 check: mean of last 7 prices
+    expected_sma7 = prices.iloc[idx - 6 : idx + 1].mean()
+    assert math.isclose(
+        sma_7.iloc[idx], expected_sma7, rel_tol=1e-9, abs_tol=1e-9
+    ), (
+        f"Formula mismatch for btc_sma_7 at index {idx}."
+    )
+
+    # 3. Volatility-7d check: rolling std (ddof=1) * sqrt(365)
+    window_returns = log_returns_1d.iloc[idx - 6 : idx + 1]
+    expected_vol = window_returns.std(ddof=1) * math.sqrt(365)
+    assert math.isclose(
+        vol_7d.iloc[idx], expected_vol, rel_tol=1e-5, abs_tol=1e-5
+    ), (
+        f"Formula mismatch for btc_volatility_7d at index {idx}."
+    )
 
 def test_future_data_does_not_change_past_features(df_cleaned):
   """Item 2: Future-append invariance test.
@@ -152,15 +165,29 @@ def test_future_data_does_not_change_past_features(df_cleaned):
         err_msg=f"Future data leakage detected in {col}: past values changed when future rows were removed!",
     )
 
-
 def test_staleness_counter_semantics(df_feature_store, df_cleaned):
-  """Item 6: Asserts staleness counters reset to 0 on rows where the underlying series was freshly observed."""
+  """Item 6: Asserts staleness counters reset to 0 specifically on rows where a fresh observation occurred."""
   lag_cols = [
       c for c in df_feature_store.columns if "days_since_last_observation" in c
   ]
+  
   for col in lag_cols:
-    zeros_count = (df_feature_store[col] == 0).sum()
-    assert zeros_count > 0, (
-        f"Staleness counter '{col}' never resets to 0 (no fresh observations"
-        " found)."
-    )
+    base_col = col.replace("_days_since_last_observation", "")
+    if base_col in df_cleaned.columns:
+      # Identify rows where a fresh observation occurred in the cleaned data
+      fresh_mask = df_cleaned[base_col].notna() & (df_cleaned[base_col].shift(1).isna() | (df_cleaned[base_col] != df_cleaned[base_col].shift(1)))
+      
+      if fresh_mask.any():
+        # On fresh observation rows, the staleness counter must reset to 0
+        counter_vals_on_fresh = df_feature_store.loc[fresh_mask, col]
+        # Allow a small tolerance or check that 0 is present / majority reset
+        assert (counter_vals_on_fresh == 0).mean() >= 0.95, (
+            f"Staleness reset violation in '{col}': expected staleness counter "
+            f"to reset to 0 on fresh observation rows of '{base_col}'."
+        )
+    else:
+      zeros_count = (df_feature_store[col] == 0).sum()
+      assert zeros_count > 0, (
+          f"Staleness counter '{col}' never resets to 0 (no fresh observations found)."
+      )
+    
