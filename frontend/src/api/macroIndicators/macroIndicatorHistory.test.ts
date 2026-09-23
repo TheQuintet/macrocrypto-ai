@@ -40,7 +40,7 @@ describe('macroIndicatorHistoryQueryKey', () => {
 describe('fetchMacroIndicatorHistory with a backend configured', () => {
   beforeEach(() => {
     vi.resetModules()
-    vi.stubEnv('VITE_API_BASE_URL', 'http://localhost:8001')
+    vi.stubEnv('VITE_API_GATEWAY_BASE_URL', 'http://localhost:8000')
   })
 
   afterEach(() => {
@@ -56,7 +56,7 @@ describe('fetchMacroIndicatorHistory with a backend configured', () => {
     await fetchMacroIndicatorHistory('90d')
 
     expect(fetch).toHaveBeenCalledWith(
-      'http://localhost:8001/api/v1/indicators?period=90d',
+      'http://localhost:8000/api/v1/indicators?period=90d',
       { headers: { Accept: 'application/json' } },
     )
   })
@@ -68,7 +68,7 @@ describe('fetchMacroIndicatorHistory with a backend configured', () => {
     await fetchMacroIndicatorHistory('30d')
 
     expect(fetch).toHaveBeenCalledWith(
-      'http://localhost:8001/api/v1/indicators?period=30d',
+      'http://localhost:8000/api/v1/indicators?period=30d',
       { headers: { Accept: 'application/json' } },
     )
   })
@@ -80,14 +80,14 @@ describe('fetchMacroIndicatorHistory with a backend configured', () => {
     await expect(fetchMacroIndicatorHistory('1y')).rejects.toThrow(/503/)
   })
 
-  it('calls the data service history endpoint for the selected timeframe', async () => {
+  it('calls the gateway history endpoint for the selected timeframe', async () => {
     mockFetchJson(mockIndicatorsApiResponse)
     const { fetchMacroIndicatorHistory } = await loadApi()
 
     await fetchMacroIndicatorHistory('5y')
 
     expect(fetch).toHaveBeenCalledWith(
-      'http://localhost:8001/api/v1/indicators?period=5y',
+      'http://localhost:8000/api/v1/indicators?period=5y',
       { headers: { Accept: 'application/json' } },
     )
   })

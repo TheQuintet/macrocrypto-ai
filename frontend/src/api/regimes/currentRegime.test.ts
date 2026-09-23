@@ -26,7 +26,7 @@ async function loadApi() {
 describe('fetchCurrentRegime without a backend', () => {
   beforeEach(() => {
     vi.resetModules()
-    vi.stubEnv('VITE_API_BASE_URL', '')
+    vi.stubEnv('VITE_API_GATEWAY_BASE_URL', '')
   })
 
   afterEach(() => {
@@ -68,7 +68,7 @@ describe('fetchCurrentRegime without a backend', () => {
 describe('fetchCurrentRegime with a backend configured', () => {
   beforeEach(() => {
     vi.resetModules()
-    vi.stubEnv('VITE_API_BASE_URL', 'http://localhost:8001')
+    vi.stubEnv('VITE_API_GATEWAY_BASE_URL', 'http://localhost:8000')
   })
 
   afterEach(() => {
@@ -77,7 +77,7 @@ describe('fetchCurrentRegime with a backend configured', () => {
     vi.resetModules()
   })
 
-  it('calls the data service regime endpoint', async () => {
+  it('calls the gateway regime endpoint', async () => {
     const fetchSpy = response(WIRE_RESPONSE)
     vi.stubGlobal('fetch', fetchSpy)
     const { fetchCurrentRegime } = await loadApi()
@@ -85,7 +85,7 @@ describe('fetchCurrentRegime with a backend configured', () => {
     await fetchCurrentRegime()
 
     expect(fetchSpy).toHaveBeenCalledWith(
-      'http://localhost:8001/api/v1/regimes/current',
+      'http://localhost:8000/api/v1/regimes/current',
       { headers: { Accept: 'application/json' } },
     )
   })

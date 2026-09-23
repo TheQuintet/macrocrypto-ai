@@ -128,15 +128,4 @@ describe('priceAlertApi with no alert service configured', () => {
     expect(response.alerts.length).toBeGreaterThan(0)
     expect(response.alerts[0]?.asset).toBe('BTC/USD')
   })
-
-  it('stays simulated when only the data-service URL is set', async () => {
-    vi.stubEnv('VITE_API_BASE_URL', 'http://localhost:8001')
-    vi.resetModules()
-    const { priceAlertApi } = await loadApi()
-
-    const response = await priceAlertApi.getAlerts(ALERTS_USER_ID)
-
-    expect(axiosMock.get).not.toHaveBeenCalled()
-    expect(response.alerts.length).toBeGreaterThan(0)
-  })
 })

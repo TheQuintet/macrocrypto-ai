@@ -6,7 +6,7 @@ import type {
   RegimeSource,
 } from '@/types/regime'
 
-/** Real endpoint on the data service (see `app/api/regime.py`). */
+/** Proxied by the gateway to the data service (see `app/api/regime.py`). */
 export const CURRENT_REGIME_PATH = '/api/v1/regimes/current'
 
 export function currentRegimeQueryKey() {
@@ -75,7 +75,8 @@ export async function simulateCurrentRegime(
 }
 
 /**
- * Current macro regime from the data service.
+ * Current macro regime from the data service, via the gateway when
+ * `VITE_API_GATEWAY_BASE_URL` is set.
  *
  * With no backend configured the app runs on simulated data so it still works
  * standalone; with one configured a failed request throws rather than passing

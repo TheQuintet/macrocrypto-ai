@@ -38,7 +38,6 @@ export default defineConfig({
     // test. Pin these empty; tests that need them stub explicitly.
     env: {
       VITE_API_GATEWAY_BASE_URL: '',
-      VITE_API_BASE_URL: '',
       VITE_ALERT_API_BASE_URL: '',
       VITE_PRICE_WS_URL: '',
       VITE_NOTIFICATION_STREAM_URL: '',

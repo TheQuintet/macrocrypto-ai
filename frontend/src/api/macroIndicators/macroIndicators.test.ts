@@ -71,7 +71,7 @@ describe('simulateMacroIndicators', () => {
 describe('fetchMacroIndicators with a backend configured', () => {
   beforeEach(() => {
     vi.resetModules()
-    vi.stubEnv('VITE_API_BASE_URL', 'http://localhost:8001')
+    vi.stubEnv('VITE_API_GATEWAY_BASE_URL', 'http://localhost:8000')
   })
 
   afterEach(() => {
@@ -80,14 +80,14 @@ describe('fetchMacroIndicators with a backend configured', () => {
     vi.resetModules()
   })
 
-  it('calls the data service indicators endpoint', async () => {
+  it('calls the gateway indicators endpoint', async () => {
     mockFetchJson(mockIndicatorsApiResponse)
     const { fetchMacroIndicators } = await loadApi()
 
     await fetchMacroIndicators()
 
     expect(fetch).toHaveBeenCalledWith(
-      'http://localhost:8001/api/v1/indicators',
+      'http://localhost:8000/api/v1/indicators',
       { headers: { Accept: 'application/json' } },
     )
   })

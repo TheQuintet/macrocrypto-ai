@@ -32,7 +32,7 @@ describe('createPriceSocket transport precedence', () => {
   it('refuses to simulate a stream over a real backend', async () => {
     // Both write the same query cache key, and a connected stream stands
     // polling down — so simulated frames would replace live prices entirely.
-    vi.stubEnv('VITE_API_BASE_URL', 'http://localhost:8001')
+    vi.stubEnv('VITE_API_GATEWAY_BASE_URL', 'http://localhost:8000')
     vi.resetModules()
     const { createPriceSocket } = await loadSocket()
 
@@ -40,7 +40,7 @@ describe('createPriceSocket transport precedence', () => {
   })
 
   it('still uses a real stream when both are configured', async () => {
-    vi.stubEnv('VITE_API_BASE_URL', 'http://localhost:8001')
+    vi.stubEnv('VITE_API_GATEWAY_BASE_URL', 'http://localhost:8000')
     vi.stubEnv('VITE_PRICE_WS_URL', 'ws://localhost:8001/stream')
     vi.resetModules()
     const { createPriceSocket, priceStreamSource } = await loadSocket()
