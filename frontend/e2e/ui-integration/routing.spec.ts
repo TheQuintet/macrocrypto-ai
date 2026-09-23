@@ -31,6 +31,10 @@ test.describe('client routing UI integration', () => {
     await expectRoute(page, 'alerts')
     await expectCurrentPage(page, 'alerts')
 
+    await clickSidebarNav(page, 'regimePerformance')
+    await expectRoute(page, 'regimePerformance')
+    await expectCurrentPage(page, 'regimePerformance')
+
     await clickSidebarNav(page, 'calendar')
     await expectRoute(page, 'calendar')
     await expectCurrentPage(page, 'calendar')

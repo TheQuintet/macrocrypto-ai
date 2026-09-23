@@ -24,6 +24,9 @@ describe('navigation constants', () => {
     expect(navItemFromPathname(`${routes.forecasts}/x`)).toBe('forecasts')
     // `/macro/calendar` matches both routes; the deeper one wins.
     expect(navItemFromPathname(routes.calendar)).toBe('calendar')
+    expect(navItemFromPathname(routes.regimePerformance)).toBe(
+      'regimePerformance',
+    )
     expect(navItemFromPathname(routes.economicNotifications)).toBe(
       'economicNotifications',
     )
@@ -41,13 +44,15 @@ describe('navigation constants', () => {
     expect(isSidebarNavItemActive(routes.alerts, '/')).toBe(false)
   })
 
-  it('nests economic calendar and notifications under macro indicators', () => {
+  it('nests regime views, calendar, and notifications under macro indicators', () => {
     const macro = sidebarNavItems.find((item) => item.id === 'macro')
 
     expect(macro?.children?.map((child) => child.id)).toEqual([
+      'regimePerformance',
       'calendar',
       'economicNotifications',
     ])
+    expect(routes.regimePerformance.startsWith(`${routes.macro}/`)).toBe(true)
     expect(routes.calendar.startsWith(`${routes.macro}/`)).toBe(true)
     expect(routes.economicNotifications.startsWith(`${routes.macro}/`)).toBe(
       true,
@@ -57,10 +62,19 @@ describe('navigation constants', () => {
   it('keeps the macro parent active on its child pages', () => {
     expect(isSidebarNavItemActive(routes.macro, routes.calendar)).toBe(true)
     expect(
+      isSidebarNavItemActive(routes.macro, routes.regimePerformance),
+    ).toBe(true)
+    expect(
       isSidebarNavItemActive(routes.macro, routes.economicNotifications),
     ).toBe(true)
     expect(isSidebarNavItemActive(routes.calendar, routes.calendar)).toBe(true)
+    expect(
+      isSidebarNavItemActive(routes.regimePerformance, routes.regimePerformance),
+    ).toBe(true)
     expect(isSidebarNavItemActive(routes.calendar, routes.macro)).toBe(false)
+    expect(
+      isSidebarNavItemActive(routes.regimePerformance, routes.macro),
+    ).toBe(false)
     expect(
       isSidebarNavItemActive(routes.economicNotifications, routes.macro),
     ).toBe(false)

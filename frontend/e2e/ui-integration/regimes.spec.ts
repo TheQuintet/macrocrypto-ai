@@ -37,17 +37,17 @@ test.describe('macro regime UI integration', () => {
     await expectRegimeCardClassified(page)
   })
 
-  test('macro page draws the regime timeline and highlights the current one', async ({
+  test('performance page draws the regime band and highlights the current one', async ({
     page,
   }) => {
-    await goToRoute(page, 'macro')
+    await goToRoute(page, 'regimePerformance')
 
     await expectTimelineSegments(page, 2)
     await expectCurrentRegimeHighlighted(page)
   })
 
   test('hovering a regime shows its summary', async ({ page }) => {
-    await goToRoute(page, 'macro')
+    await goToRoute(page, 'regimePerformance')
 
     await expectTimelineSegments(page, 1)
     await hoverFirstSegment(page)
@@ -57,7 +57,7 @@ test.describe('macro regime UI integration', () => {
   test('clicking a regime opens its details and Escape closes them', async ({
     page,
   }) => {
-    await goToRoute(page, 'macro')
+    await goToRoute(page, 'regimePerformance')
 
     await expectTimelineSegments(page, 1)
     await clickFirstSegment(page)
@@ -68,7 +68,7 @@ test.describe('macro regime UI integration', () => {
   test('zooming widens the band without widening the page', async ({
     page,
   }) => {
-    await goToRoute(page, 'macro')
+    await goToRoute(page, 'regimePerformance')
 
     await expectTimelineSegments(page, 2)
     await expectZoomLevel(page, '1x')
@@ -80,7 +80,7 @@ test.describe('macro regime UI integration', () => {
   })
 
   test('zoom stops at each end of its range', async ({ page }) => {
-    await goToRoute(page, 'macro')
+    await goToRoute(page, 'regimePerformance')
 
     await expectTimelineSegments(page, 2)
     await test.expect(zoomOutButton(page)).toBeDisabled()
@@ -97,7 +97,7 @@ test.describe('macro regime UI integration', () => {
     page,
   }) => {
     await page.setViewportSize(DESKTOP_VIEWPORT)
-    await goToRoute(page, 'macro')
+    await goToRoute(page, 'regimePerformance')
 
     await expectPerformanceMetrics(page)
     await expectPerformanceRows(page, 2)
@@ -106,14 +106,13 @@ test.describe('macro regime UI integration', () => {
   })
 
   test('regime views own up to running on simulated data', async ({ page }) => {
-    await goToRoute(page, 'macro')
-
+    await goToRoute(page, 'regimePerformance')
     await expectSimulatedBadges(page)
   })
 
   test('regime views fit a phone without sideways scroll', async ({ page }) => {
     await page.setViewportSize(MOBILE_VIEWPORT)
-    await goToRoute(page, 'macro')
+    await goToRoute(page, 'regimePerformance')
 
     await expectTimelineSegments(page, 2)
     await expectPerformanceRows(page, 2)

@@ -1,5 +1,6 @@
 import {
   AlarmClock,
+  BarChart3,
   Bell,
   CalendarDays,
   ChartLine,
@@ -12,6 +13,7 @@ import type { NavItemId, PageCopy, SidebarNavItem } from '@/types/navigation';
 export const routes = {
   dashboard: '/',
   macro: '/macro',
+  regimePerformance: '/macro/performance',
   calendar: '/macro/calendar',
   economicNotifications: '/macro/notifications',
   forecasts: '/forecasts',
@@ -26,6 +28,10 @@ export const pageCopy: Record<NavItemId, PageCopy> = {
   macro: {
     title: 'Macro indicators',
     body: 'The macroeconomic backdrop behind Bitcoin — inflation, policy rates, and growth in one view.',
+  },
+  regimePerformance: {
+    title: 'Performance by regime',
+    body: 'How Bitcoin has behaved in each classified backdrop, and how long those regimes ran.',
   },
   calendar: {
     title: 'Economic calendar',
@@ -57,6 +63,12 @@ export const sidebarNavItems: SidebarNavItem[] = [
     path: routes.macro,
     icon: Landmark,
     children: [
+      {
+        id: 'regimePerformance',
+        label: pageCopy.regimePerformance.title,
+        path: routes.regimePerformance,
+        icon: BarChart3,
+      },
       {
         id: 'calendar',
         label: pageCopy.calendar.title,
@@ -93,8 +105,8 @@ export function navItemFromPathname(pathname: string): NavItemId {
     return pathname === path || pathname.startsWith(`${path}/`);
   });
 
-  // `/macro/calendar` and `/macro/notifications` also match `macro` — the
-  // deeper route is the one the reader is actually on.
+  // Nested `/macro/...` routes also match `macro` — the deeper path is the
+  // one the reader is actually on.
   const match = matches.sort((a, b) => routes[b].length - routes[a].length)[0];
 
   return match ?? 'dashboard';

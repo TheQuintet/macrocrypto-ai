@@ -49,7 +49,7 @@ async function loadApi() {
 describe('fetchRegimePerformance without a backend', () => {
   beforeEach(() => {
     vi.resetModules()
-    vi.stubEnv('VITE_API_BASE_URL', '')
+    vi.stubEnv('VITE_API_GATEWAY_BASE_URL', '')
   })
 
   afterEach(() => {
@@ -103,7 +103,7 @@ describe('fetchRegimePerformance without a backend', () => {
 describe('fetchRegimePerformance with a backend configured', () => {
   beforeEach(() => {
     vi.resetModules()
-    vi.stubEnv('VITE_API_BASE_URL', 'http://localhost:8001')
+    vi.stubEnv('VITE_API_GATEWAY_BASE_URL', 'http://localhost:8000')
   })
 
   afterEach(() => {
@@ -112,7 +112,7 @@ describe('fetchRegimePerformance with a backend configured', () => {
     vi.resetModules()
   })
 
-  it('calls the data service performance endpoint', async () => {
+  it('calls the gateway performance endpoint', async () => {
     const fetchSpy = response(WIRE_ROWS)
     vi.stubGlobal('fetch', fetchSpy)
     const { fetchRegimePerformance } = await loadApi()
@@ -120,7 +120,7 @@ describe('fetchRegimePerformance with a backend configured', () => {
     await fetchRegimePerformance()
 
     expect(fetchSpy).toHaveBeenCalledWith(
-      'http://localhost:8001/api/v1/regimes/performance',
+      'http://localhost:8000/api/v1/regimes/performance',
       { headers: { Accept: 'application/json' } },
     )
   })
