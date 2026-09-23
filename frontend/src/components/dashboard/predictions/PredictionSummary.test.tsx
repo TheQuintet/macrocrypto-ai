@@ -2,6 +2,8 @@ import { cleanup, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
   expectBandWidth,
+  expectForecastConfidence,
+  expectForecastConfidenceScale,
   expectPredictedPriceTone,
   expectKeyLevels,
   expectStat,
@@ -20,7 +22,20 @@ describe('PredictionSummary', () => {
 
     expectStat('Current price', '$63,500.00')
     expectStat('Expected change', '+1.10%')
-    expectStat('Confidence', '85%')
+    expectForecastConfidence('85%', '85%', 'moderate')
+    expectForecastConfidenceScale()
+  })
+
+  it('names 70% as low confidence', () => {
+    renderSummary({ confidence: 0.7 })
+
+    expectForecastConfidence('70%', '70%', 'low')
+  })
+
+  it('names 95% as high confidence', () => {
+    renderSummary({ confidence: 0.95 })
+
+    expectForecastConfidence('95%', '95%', 'high')
   })
 
   it('shows the trend direction the model returned', () => {

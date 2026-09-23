@@ -23,6 +23,17 @@ export async function expectSummaryValue(label: string, value: string) {
   })
 }
 
+export async function expectForecastConfidence(percent: string, band: string) {
+  const label = `${percent} ${band.charAt(0).toUpperCase()}${band.slice(1)}`
+
+  await waitFor(() => {
+    const meter = screen.getByRole('meter', { name: 'Forecast confidence' })
+
+    expect(screen.getByText(label)).toBeInTheDocument()
+    expect(meter).toHaveAttribute('data-confidence-band', band)
+  })
+}
+
 export function expectSimulatedBadge() {
   expect(screen.getByText('Simulated')).toBeInTheDocument()
 }

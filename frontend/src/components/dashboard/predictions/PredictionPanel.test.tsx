@@ -12,6 +12,7 @@ import {
   expectLegendExplains,
   expectNoSimulatedBadge,
   expectSimulatedBadge,
+  expectForecastConfidence,
   expectSummaryValue,
   renderPanel,
 } from './PredictionPanel.testHelpers'
@@ -69,7 +70,7 @@ describe('PredictionPanel', () => {
     await expectChartRendered('24h')
     expectHorizonSelected('24h')
     expectLegendExplains('85%')
-    await expectSummaryValue('Confidence', '85%')
+    await expectForecastConfidence('85%', 'moderate')
   })
 
   it('redraws the same chart for the 7d horizon', async () => {
@@ -106,7 +107,7 @@ describe('PredictionPanel', () => {
       horizon: '24h',
       confidence: 0.95,
     })
-    await expectSummaryValue('Confidence', '95%')
+    await expectForecastConfidence('95%', 'high')
     expectLegendExplains('95%')
   })
 
@@ -156,7 +157,7 @@ describe('PredictionPanel', () => {
     const callsBefore = fetchPredictionHistory.mock.calls.length
 
     await selectConfidence('95%')
-    await expectSummaryValue('Confidence', '95%')
+    await expectForecastConfidence('95%', 'high')
 
     expect(fetchPredictionHistory).toHaveBeenCalledTimes(callsBefore)
   })

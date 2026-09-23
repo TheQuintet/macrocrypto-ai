@@ -27,6 +27,8 @@ import {
   expectPredictedLineRendered,
   expectPredictionTooltip,
   expectRangeWidthIndicator,
+  expectForecastConfidence,
+  expectForecastConfidenceScale,
   expectSummaryStat,
   expectTooltipConfidence,
   keyLevelSpread,
@@ -88,7 +90,8 @@ test.describe('forecast chart UI integration', () => {
 
     await expectSummaryStat(page, 'Current price', /\$[\d,]+\.\d{2}/)
     await expectSummaryStat(page, 'Expected change', /[+-]\d+\.\d{2}%/)
-    await expectSummaryStat(page, 'Confidence', '85%')
+    await expectForecastConfidence(page, '85%', 'moderate')
+    await expectForecastConfidenceScale(page)
     await expectKeyLevels(page, /Widest hourly bounds/)
     await expectRangeWidthIndicator(page)
   })
@@ -182,13 +185,13 @@ test.describe('confidence level UI integration', () => {
 
     await selectConfidence(page, '70%')
     await expectConfidenceSelected(page, '70%')
-    await expectSummaryStat(page, 'Confidence', '70%')
+    await expectForecastConfidence(page, '70%', 'low')
     const narrowSpread = await keyLevelSpread(page)
     const narrowPath = await bandPath(page, '24h')
 
     await selectConfidence(page, '95%')
     await expectConfidenceSelected(page, '95%')
-    await expectSummaryStat(page, 'Confidence', '95%')
+    await expectForecastConfidence(page, '95%', 'high')
 
     expect(await keyLevelSpread(page)).toBeGreaterThan(narrowSpread)
     expect(await bandPath(page, '24h')).not.toBe(narrowPath)
@@ -203,7 +206,7 @@ test.describe('confidence level UI integration', () => {
     await selectConfidence(page, '70%')
 
     await expectLegendExplains(page, '70%')
-    await expectSummaryStat(page, 'Confidence', '70%')
+    await expectForecastConfidence(page, '70%', 'low')
   })
 })
 

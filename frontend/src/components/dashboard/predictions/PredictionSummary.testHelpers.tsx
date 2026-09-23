@@ -1,11 +1,19 @@
 import { render, screen, within } from '@testing-library/react'
 import { expect } from 'vitest'
+import {
+  formatPredictionConfidenceBand,
+  PREDICTION_CONFIDENCE_BAND_ORDER,
+  formatPredictionConfidenceBandRange,
+} from '@/components/dashboard/lib/predictionConfidence'
 import { PredictionSummary } from '@/components/dashboard/predictions/PredictionSummary'
 import {
   makePrediction,
   makePredictionPoint,
 } from '@/api/predictions/btcPrediction.testHelpers'
-import type { BtcPrediction } from '@/types/predictions'
+import type {
+  BtcPrediction,
+  PredictionConfidenceBand,
+} from '@/types/predictions'
 
 export { makePredictionPoint }
 
@@ -50,4 +58,28 @@ export function expectBandWidth(label: string) {
   })
 
   expect(within(indicator).getByText(label)).toBeInTheDocument()
+}
+
+export function expectForecastConfidence(
+  percent: string,
+  width: string,
+  band: PredictionConfidenceBand,
+) {
+  const meter = screen.getByRole('meter', { name: 'Forecast confidence' })
+
+  expect(
+    screen.getByText(`${percent} ${formatPredictionConfidenceBand(band)}`),
+  ).toBeInTheDocument()
+  expect(meter).toHaveAttribute('data-confidence-band', band)
+  expect(meter.firstElementChild).toHaveStyle({ width })
+}
+
+export function expectForecastConfidenceScale() {
+  for (const band of PREDICTION_CONFIDENCE_BAND_ORDER) {
+    expect(
+      screen.getByText(
+        `${formatPredictionConfidenceBand(band)} ${formatPredictionConfidenceBandRange(band)}`,
+      ),
+    ).toBeInTheDocument()
+  }
 }

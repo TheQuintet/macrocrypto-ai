@@ -23,6 +23,15 @@ export type PredictionSource = 'live' | 'simulated'
 /** How wide the confidence band is relative to the predicted price. */
 export type PredictionBandWidth = 'narrow' | 'medium' | 'wide'
 
+/** Named read of the selected interval — 70% low, 85% moderate, 95% high. */
+export type PredictionConfidenceBand = 'low' | 'moderate' | 'high'
+
+export type PredictionConfidenceDisplay = {
+  band: PredictionConfidenceBand
+  toneClass: 'text-positive' | 'text-negative' | 'text-warning'
+  barClass: 'bg-positive' | 'bg-negative' | 'bg-warning'
+}
+
 export type PredictionParams = {
   horizon: PredictionHorizon
   confidence: PredictionConfidence

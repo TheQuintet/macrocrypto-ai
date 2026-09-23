@@ -1,13 +1,11 @@
-import {
-  forecastPoints,
-  formatConfidencePercent,
-} from '@/components/dashboard/lib/predictionChart'
+import { forecastPoints } from '@/components/dashboard/lib/predictionChart'
 import {
   formatPrice,
   formatSignedPercent,
   PRICE_PLACEHOLDER,
 } from '@/components/dashboard/lib/priceFormat'
 import { ConfidenceWidthIndicator } from '@/components/dashboard/predictions/ConfidenceWidthIndicator'
+import { PredictionConfidenceMeter } from '@/components/dashboard/predictions/PredictionConfidenceMeter'
 import { PredictionKeyLevels } from '@/components/dashboard/predictions/PredictionKeyLevels'
 import { PredictionSummaryStat } from '@/components/dashboard/predictions/PredictionSummaryStat'
 import { PredictionTrendBadge } from '@/components/dashboard/predictions/PredictionTrendBadge'
@@ -76,11 +74,9 @@ export function PredictionSummary({ prediction }: PredictionSummaryProps) {
           }
           className={cn(changeClassName(prediction.priceChangePct))}
         />
-        <PredictionSummaryStat
-          label="Confidence"
-          value={formatConfidencePercent(prediction.confidence)}
-        />
       </div>
+
+      <PredictionConfidenceMeter confidence={prediction.confidence} />
 
       <Separator />
 

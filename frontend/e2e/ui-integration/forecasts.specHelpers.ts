@@ -184,6 +184,25 @@ export async function expectSummaryStat(
   await expect(getSummaryStat(page, label)).toContainText(value)
 }
 
+export async function expectForecastConfidence(
+  page: Page,
+  percent: string,
+  band: 'low' | 'moderate' | 'high',
+) {
+  const meter = page.getByRole('meter', { name: 'Forecast confidence' })
+  const label = `${percent} ${band.charAt(0).toUpperCase()}${band.slice(1)}`
+
+  await expect(meter).toBeVisible()
+  await expect(meter).toHaveAttribute('data-confidence-band', band)
+  await expect(page.getByText(label, { exact: true })).toBeVisible()
+}
+
+export async function expectForecastConfidenceScale(page: Page) {
+  await expect(page.getByText('Low 70%', { exact: true })).toBeVisible()
+  await expect(page.getByText('Moderate 85%', { exact: true })).toBeVisible()
+  await expect(page.getByText('High 95%', { exact: true })).toBeVisible()
+}
+
 export async function expectLegendNames(page: Page, marks: string[]) {
   const legend = page.getByRole('group', { name: 'Chart legend' })
 
