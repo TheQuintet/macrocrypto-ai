@@ -7,7 +7,9 @@ import {
   expectDetailsDialog,
   expectLoadingSkeleton,
   expectMatchMeter,
+  expectCurrentCondition,
   expectNoComparablePeriod,
+  expectTodayRowInTable,
   expectNoDialog,
   expectPeriodCount,
   expectPeriodShown,
@@ -35,6 +37,51 @@ describe('SimilarPeriodsSection', () => {
   afterEach(() => {
     cleanup()
     vi.restoreAllMocks()
+  })
+
+  it('shows today in the same table as the historical matches', async () => {
+    fetchPeriods.mockResolvedValue(similarPeriods([similarPeriod()]))
+    renderSimilarPeriods()
+
+    await expectPeriodShown('2018-06-01_2019-01-31', 'Jun 2018')
+    expectTodayRowInTable()
+    await expectCurrentCondition('3.10')
+    await expectCurrentCondition('5.25')
+    await expectCurrentCondition('21100.00')
+    await expectCurrentCondition('104.20')
+    await expectCurrentCondition('4.25')
+    await expectCurrentCondition('2.40')
+    await expectCurrentCondition('4.10')
+  })
+
+  it('still shows today when no historical match is found', async () => {
+    fetchPeriods.mockResolvedValue(similarPeriods([]))
+    renderSimilarPeriods()
+
+    await expectNoComparablePeriod()
+    expectTodayRowInTable()
+    await expectCurrentCondition('3.10')
+  })
+
+  it('keeps every indicator on today when the payload omitted a print', async () => {
+    fetchPeriods.mockResolvedValue({
+      ...similarPeriods([similarPeriod()]),
+      currentConditions: {},
+    })
+    renderSimilarPeriods()
+
+    await expectPeriodShown('2018-06-01_2019-01-31', 'Jun 2018')
+    expectTodayRowInTable()
+    await expectCurrentCondition('—')
+  })
+
+  it('does not treat today as a clickable historical match', async () => {
+    fetchPeriods.mockResolvedValue(similarPeriods([similarPeriod()]))
+    renderSimilarPeriods()
+
+    await expectPeriodShown('2018-06-01_2019-01-31', 'Jun 2018')
+    expectPeriodCount(1)
+    expectNoDialog()
   })
 
   it('shows the dates of each similar period', async () => {
@@ -67,6 +114,19 @@ describe('SimilarPeriodsSection', () => {
     renderSimilarPeriods()
 
     await expectPeriodShown('2018-06-01_2019-01-31', 'BTC -50.7%')
+  })
+
+  it('lays the matches out as a table so they can be compared', async () => {
+    fetchPeriods.mockResolvedValue(similarPeriods([similarPeriod()]))
+    renderSimilarPeriods()
+
+    await expectPeriodShown('2018-06-01_2019-01-31', 'Jun 2018')
+    expect(screen.getByRole('columnheader', { name: 'Period' })).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: 'BTC return' })).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: 'CPI' })).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: 'Fed funds' })).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: 'M2' })).toBeInTheDocument()
+    await expectPeriodShown('2018-06-01_2019-01-31', '2.90')
   })
 
   it('says so rather than showing a zero when BTC did not trade then', async () => {

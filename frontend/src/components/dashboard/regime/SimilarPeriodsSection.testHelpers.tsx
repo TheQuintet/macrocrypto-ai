@@ -18,7 +18,15 @@ export function similarPeriod(
     matchingIndicators: [
       { indicator: 'federal_funds_rate', normalizedDifference: 0.06 },
     ],
-    macroConditions: { cpi: 2.9, federal_funds_rate: 5.0 },
+    macroConditions: {
+      cpi: 2.9,
+      federal_funds_rate: 5.0,
+      m2_money_supply: 14_200,
+      dxy: 96.1,
+      ten_year_treasury: 2.85,
+      gdp: 2.2,
+      unemployment: 3.8,
+    },
     btcPerformance: {
       priceStart: 7_480,
       priceEnd: 3_690,
@@ -45,7 +53,15 @@ export function similarPeriods(
   return {
     source,
     method: 'normalized Euclidean distance',
-    currentConditions: { cpi: 3.1, federal_funds_rate: 5.25 },
+    currentConditions: {
+      cpi: 3.1,
+      federal_funds_rate: 5.25,
+      m2_money_supply: 21_100,
+      dxy: 104.2,
+      ten_year_treasury: 4.25,
+      gdp: 2.4,
+      unemployment: 4.1,
+    },
     periods,
     message: null,
   }
@@ -122,6 +138,24 @@ export async function expectNoComparablePeriod() {
       screen.getByText(/no comparable period was found/i),
     ).toBeInTheDocument()
   })
+}
+
+function todayRow() {
+  const row = document.querySelector('[data-current-conditions]')
+
+  expect(row).not.toBeNull()
+  return row as HTMLElement
+}
+
+export async function expectCurrentCondition(value: string) {
+  await waitFor(() => {
+    expect(todayRow()).toHaveTextContent(value)
+  })
+}
+
+export function expectTodayRowInTable() {
+  expect(todayRow()).toHaveTextContent('Today')
+  expect(screen.getByRole('columnheader', { name: 'Period' })).toBeInTheDocument()
 }
 
 /** Silence the expected console noise from a rejected query. */

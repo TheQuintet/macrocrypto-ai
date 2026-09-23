@@ -67,7 +67,15 @@ export function mapSimilarPeriods(
 export const MOCK_SIMILAR_PERIODS: SimilarPeriodsApiResponse = {
   method: 'normalized Euclidean distance across available indicators',
   period_count: 3,
-  current_conditions: { cpi: 3.1, federal_funds_rate: 5.25, gdp: 2.4 },
+  current_conditions: {
+    cpi: 3.1,
+    federal_funds_rate: 5.25,
+    m2_money_supply: 21_100,
+    dxy: 104.2,
+    ten_year_treasury: 4.25,
+    gdp: 2.4,
+    unemployment: 4.1,
+  },
   similar_periods: [
     {
       period_start: '2018-06-01',
@@ -80,7 +88,15 @@ export const MOCK_SIMILAR_PERIODS: SimilarPeriodsApiResponse = {
         { indicator: 'federal_funds_rate', normalized_difference: 0.06 },
         { indicator: 'cpi', normalized_difference: 0.14 },
       ],
-      macro_conditions: { cpi: 2.9, federal_funds_rate: 5.0, gdp: 2.2 },
+      macro_conditions: {
+        cpi: 2.9,
+        federal_funds_rate: 5.0,
+        m2_money_supply: 14_200,
+        dxy: 96.1,
+        ten_year_treasury: 2.85,
+        gdp: 2.2,
+        unemployment: 3.8,
+      },
       btc_performance: {
         price_start: 7_480,
         price_end: 3_690,
@@ -98,7 +114,15 @@ export const MOCK_SIMILAR_PERIODS: SimilarPeriodsApiResponse = {
         { indicator: 'federal_funds_rate', normalized_difference: 0.09 },
         { indicator: 'gdp', normalized_difference: 0.21 },
       ],
-      macro_conditions: { cpi: 3.4, federal_funds_rate: 5.25, gdp: 2.7 },
+      macro_conditions: {
+        cpi: 3.4,
+        federal_funds_rate: 5.25,
+        m2_money_supply: 6_800,
+        dxy: 85.4,
+        ten_year_treasury: 4.7,
+        gdp: 2.7,
+        unemployment: 4.5,
+      },
       btc_performance: null,
     },
     {
@@ -111,7 +135,15 @@ export const MOCK_SIMILAR_PERIODS: SimilarPeriodsApiResponse = {
         { indicator: 'cpi', normalized_difference: 0.18 },
         { indicator: 'federal_funds_rate', normalized_difference: 0.28 },
       ],
-      macro_conditions: { cpi: 4.1, federal_funds_rate: 4.75, gdp: 2.1 },
+      macro_conditions: {
+        cpi: 4.1,
+        federal_funds_rate: 4.75,
+        m2_money_supply: 20_800,
+        dxy: 102.4,
+        ten_year_treasury: 3.75,
+        gdp: 2.1,
+        unemployment: 3.6,
+      },
       btc_performance: {
         price_start: 16_600,
         price_end: 29_200,

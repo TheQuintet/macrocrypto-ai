@@ -174,10 +174,24 @@ export function similarPeriodsSection(page: Page) {
   return page.getByRole('region', { name: 'Similar historical periods' })
 }
 
+export async function expectCurrentConditions(page: Page) {
+  const today = similarPeriodsSection(page).locator(
+    '[data-current-conditions]',
+  )
+  await expect(today).toBeVisible({ timeout: 20_000 })
+  await expect(today.getByText('Today', { exact: true })).toBeVisible()
+
+  for (const label of ['CPI', 'Fed funds', 'M2', 'DXY', '10y', 'GDP', 'Unemp']) {
+    await expect(
+      similarPeriodsSection(page).getByRole('columnheader', { name: label }),
+    ).toBeVisible()
+  }
+}
+
 export async function expectSimilarPeriodCards(page: Page, atLeast: number) {
-  const cards = similarPeriodsSection(page).locator('[data-similar-period]')
-  await expect(cards.first()).toBeVisible({ timeout: 20_000 })
-  expect(await cards.count()).toBeGreaterThanOrEqual(atLeast)
+  const rows = similarPeriodsSection(page).locator('[data-similar-period]')
+  await expect(rows.first()).toBeVisible({ timeout: 20_000 })
+  expect(await rows.count()).toBeGreaterThanOrEqual(atLeast)
 }
 
 /** Each suggestion has to carry its own confidence, not just a date range. */

@@ -17,8 +17,19 @@ describe('indicatorSeriesColor', () => {
     expect(indicatorSeriesColor('CPI')).toBe(indicatorSeriesColor('cpi'))
   })
 
+  it('gives the similar-period indicators their own series colors', () => {
+    expect(indicatorSeriesColor('m2_money_supply')).toBe('var(--indicator-m2)')
+    expect(indicatorSeriesColor('dxy')).toBe('var(--indicator-dxy)')
+    expect(indicatorSeriesColor('ten_year_treasury')).toBe(
+      'var(--indicator-ten-year)',
+    )
+    expect(indicatorSeriesColor('unemployment')).toBe(
+      'var(--indicator-unemployment)',
+    )
+  })
+
   it('falls back for unknown series', () => {
-    expect(indicatorSeriesColor('m2_money_supply')).toBe(
+    expect(indicatorSeriesColor('unknown_print')).toBe(
       'var(--muted-foreground)',
     )
   })

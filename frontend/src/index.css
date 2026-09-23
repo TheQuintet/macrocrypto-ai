@@ -26,6 +26,10 @@
   --color-indicator-cpi: var(--indicator-cpi);
   --color-indicator-federal-funds-rate: var(--indicator-federal-funds-rate);
   --color-indicator-gdp: var(--indicator-gdp);
+  --color-indicator-m2: var(--indicator-m2);
+  --color-indicator-dxy: var(--indicator-dxy);
+  --color-indicator-ten-year: var(--indicator-ten-year);
+  --color-indicator-unemployment: var(--indicator-unemployment);
   --color-regime-growth: var(--regime-growth);
   --color-regime-low-inflation: var(--regime-low-inflation);
   --color-regime-falling-rates: var(--regime-falling-rates);
@@ -113,6 +117,10 @@
   --indicator-cpi: var(--chart-1);
   --indicator-federal-funds-rate: var(--warning);
   --indicator-gdp: oklch(0.66 0.16 300);
+  --indicator-m2: oklch(0.58 0.11 250);
+  --indicator-dxy: oklch(0.62 0.1 80);
+  --indicator-ten-year: oklch(0.55 0.08 220);
+  --indicator-unemployment: oklch(0.6 0.12 20);
 
   /* Regime series — ordered by stance, so hue carries meaning as well as
      identity: bullish classes sit in green/teal, bearish in amber/red. */
@@ -194,6 +202,10 @@
   --indicator-cpi: var(--chart-1);
   --indicator-federal-funds-rate: var(--warning);
   --indicator-gdp: oklch(0.74 0.14 300);
+  --indicator-m2: oklch(0.7 0.1 250);
+  --indicator-dxy: oklch(0.76 0.1 80);
+  --indicator-ten-year: oklch(0.68 0.08 220);
+  --indicator-unemployment: oklch(0.72 0.12 20);
 
   --regime-growth: oklch(0.72 0.13 155);
   --regime-low-inflation: oklch(0.74 0.1 180);

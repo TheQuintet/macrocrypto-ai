@@ -11,6 +11,7 @@ import {
   exportRegimeCsv,
   selectRegimeView,
   expectExportToast,
+  expectCurrentConditions,
   expectSimilarPeriodCards,
   expectSimilarPeriodConfidence,
   expectSimilarPeriodDialog,
@@ -149,6 +150,7 @@ test.describe('macro regime UI integration', () => {
     await goToRoute(page, 'regimePerformance')
     await selectRegimeView(page, 'Similar periods')
 
+    await expectCurrentConditions(page)
     await expectSimilarPeriodCards(page, 2)
     await expectSimilarPeriodConfidence(page)
   })

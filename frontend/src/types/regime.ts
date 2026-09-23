@@ -228,3 +228,16 @@ export type SimilarPeriods = {
 
 /** One pane on the regime analysis page. */
 export type RegimePageView = 'performance' | 'timeline' | 'similarPeriods'
+
+/**
+ * Indicators the similar-period engine compares — data-service
+ * `SimilarPeriodService.INDICATORS`.
+ */
+export type SimilarPeriodIndicatorName =
+  | 'cpi'
+  | 'federal_funds_rate'
+  | 'm2_money_supply'
+  | 'dxy'
+  | 'ten_year_treasury'
+  | 'gdp'
+  | 'unemployment'

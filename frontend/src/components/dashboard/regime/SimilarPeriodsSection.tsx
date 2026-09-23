@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { SimilarPeriodCard } from '@/components/dashboard/regime/SimilarPeriodCard'
 import { SimilarPeriodDetailsDialog } from '@/components/dashboard/regime/SimilarPeriodDetailsDialog'
+import { SimilarPeriodsTable } from '@/components/dashboard/regime/SimilarPeriodsTable'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useSimilarPeriodsQuery } from '@/hooks/useSimilarPeriodsQuery'
@@ -34,7 +34,13 @@ export function SimilarPeriodsSection() {
         </p>
       </div>
 
-      {renderBody(isPending, isError, periods, setSelectedId)}
+      {renderBody(
+        isPending,
+        isError,
+        periods,
+        data?.currentConditions ?? {},
+        setSelectedId,
+      )}
 
       <SimilarPeriodDetailsDialog
         period={selected}
@@ -49,13 +55,15 @@ function renderBody(
   isPending: boolean,
   isError: boolean,
   periods: SimilarPeriod[],
+  currentConditions: Record<string, number>,
   onSelect: (periodId: string) => void,
 ) {
   if (isPending) {
     return (
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {[0, 1, 2].map((key) => (
-          <Skeleton key={key} className="h-32 w-full" />
+      <div className="flex flex-col gap-2">
+        <Skeleton className="h-8 w-full" />
+        {[0, 1, 2, 3].map((key) => (
+          <Skeleton key={key} className="h-14 w-full" />
         ))}
       </div>
     )
@@ -69,24 +77,19 @@ function renderBody(
     )
   }
 
-  if (periods.length === 0) {
-    return (
-      <p className="py-6 text-center text-xs text-muted-foreground">
-        No comparable period was found — the service needs more indicator
-        history before it can match today against the past.
-      </p>
-    )
-  }
-
   return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-      {periods.map((period) => (
-        <SimilarPeriodCard
-          key={period.id}
-          period={period}
-          onSelect={onSelect}
-        />
-      ))}
+    <div className="flex min-w-0 flex-col gap-3">
+      <SimilarPeriodsTable
+        periods={periods}
+        currentConditions={currentConditions}
+        onSelect={onSelect}
+      />
+      {periods.length === 0 ? (
+        <p className="py-2 text-center text-xs text-muted-foreground">
+          No comparable period was found — the service needs more indicator
+          history before it can match today against the past.
+        </p>
+      ) : null}
     </div>
   )
 }
