@@ -136,4 +136,35 @@ Sprint review notes: demo completed work, gather feedback, review progress.
 
 ---
 
+### Review (combined with refinement and planning) — 9 Sep 2026
+
+| | |
+|---|---|
+| **Date** | Wed 9 Sep 2026 |
+| **Attendees** | Sid Ahmed Mahieddine, Loredana Lungu, Kingson Emma-Ochu, Mael Taye Deneke, Owusu Richard |
+| **Sprint** | Sprint 3 — frontend near complete; AI blocked on model/naming |
+| **Full notes** | [2026-09-09 Review, Refinement & Planning](../2026-09-09-review-and-planning.md) |
+
+**Progress by area**
+
+| Area | Owner | Status |
+|------|-------|--------|
+| Macro subscription UI | Team | Closed |
+| T8 prediction alerts UI | Richard | PR open |
+| S3 economic calendar | Kingson | Merged; demoed |
+| T9 alert history (#172) | Kingson | In sprint |
+| API Gateway | Mael | Awaiting Loredana review |
+| AI / ML model | Sid / Richard / Mael | Debate; justification pending |
+
+**Feedback**
+
+- Document ML choices with literature and metrics for capstone
+- Remove console.logs from frontend PRs before merge
+
+**Next sprint preview**
+
+- A3 and S3 frontend stories; Gateway merge; ML implementation path
+
+---
+
 _Add dated review notes below as sprints progress._
