@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ALERTS_USER_ID } from '@/constants/alerts'
 import type { PriceAlert, PriceAlertListResponse } from '@/types/alerts/priceAlert'
 
-const ALERT_API_BASE = 'http://localhost:8003'
-const PRICE_ALERTS_URL = `${ALERT_API_BASE}/api/v1/alerts/price`
+const GATEWAY_BASE = 'http://localhost:8000'
+const PRICE_ALERTS_URL = `${GATEWAY_BASE}/api/v1/alerts/price`
 
 const LIVE_ALERT: PriceAlert = {
   id: 'live-alert-id',
@@ -44,10 +44,10 @@ async function loadApi() {
   return import('@/api/alerts/priceAlerts')
 }
 
-describe('priceAlertApi with the alert service configured', () => {
+describe('priceAlertApi with the API gateway configured', () => {
   beforeEach(() => {
     vi.resetModules()
-    vi.stubEnv('VITE_ALERT_API_BASE_URL', ALERT_API_BASE)
+    vi.stubEnv('VITE_API_GATEWAY_BASE_URL', GATEWAY_BASE)
     axiosMock.get.mockReset()
     axiosMock.post.mockReset()
     axiosMock.put.mockReset()
@@ -59,7 +59,7 @@ describe('priceAlertApi with the alert service configured', () => {
     vi.resetModules()
   })
 
-  it('lists alerts from the alert service', async () => {
+  it('lists alerts from the API gateway', async () => {
     axiosMock.get.mockResolvedValue({ data: LIVE_LIST })
     const { priceAlertApi } = await loadApi()
 
@@ -97,7 +97,7 @@ describe('priceAlertApi with the alert service configured', () => {
   })
 
   it('does not double up slashes on a trailing-slash base URL', async () => {
-    vi.stubEnv('VITE_ALERT_API_BASE_URL', `${ALERT_API_BASE}/`)
+    vi.stubEnv('VITE_API_GATEWAY_BASE_URL', `${GATEWAY_BASE}/`)
     vi.resetModules()
     axiosMock.get.mockResolvedValue({ data: LIVE_LIST })
     const { priceAlertApi } = await loadApi()
@@ -108,7 +108,7 @@ describe('priceAlertApi with the alert service configured', () => {
   })
 })
 
-describe('priceAlertApi with no alert service configured', () => {
+describe('priceAlertApi with no API gateway configured', () => {
   beforeEach(() => {
     vi.resetModules()
     axiosMock.get.mockReset()

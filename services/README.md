@@ -53,17 +53,17 @@ For anything unexpected, `make health` breaks down each dependency and `make dat
 
 ## Connecting the frontend
 
-The browser calls data-service directly on `localhost`, so from the repository root:
+The browser talks only to the API gateway. From the repository root:
 
 ```bash
-echo "VITE_API_BASE_URL=http://localhost:8001" > frontend/.env.local
+echo "VITE_API_GATEWAY_BASE_URL=http://localhost:8000" > frontend/.env.local
 ```
 
 Then **restart the Vite dev server** — the variable is read at module load, so hot reload will not pick it up. Delete the file and restart to go back to simulated data.
 
 A **"Simulated" badge** next to `BTC / USD` on the dashboard tells you which mode you are in, so you never have to infer it from config.
 
-`localhost:8001` is right regardless of where the frontend is served from: the browser makes the request from your host, and Compose publishes the port. Container hostnames like `data-service:8001` only apply to server-to-server calls inside the Compose network.
+`localhost:8000` is right regardless of where the frontend is served from: the browser makes the request from your host, and Compose publishes the port. Container hostnames like `data-service:8001` only apply to server-to-server calls inside the Compose network.
 
 ## What is real once the backend is up
 

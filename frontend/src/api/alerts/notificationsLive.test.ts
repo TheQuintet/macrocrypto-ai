@@ -5,9 +5,8 @@ import type {
   NotificationResponse,
 } from '@/types/alerts/notifications'
 
-const ALERT_API_BASE = 'http://localhost:8003'
-const NOTIFICATIONS_URL = `${ALERT_API_BASE}/api/v1/notifications`
-const STREAM_URL = `${ALERT_API_BASE}/api/v1/notifications/stream`
+const GATEWAY_BASE = 'http://localhost:8000'
+const NOTIFICATIONS_URL = `${GATEWAY_BASE}/api/v1/notifications`
 
 const LIVE_NOTIFICATION: InAppNotification = {
   id: 'live-notification-id',
@@ -58,9 +57,7 @@ describe('notification API', () => {
     vi.resetModules()
   })
 
-  it('does not call the alert host when VITE_NOTIFICATION_STREAM_URL is unset', async () => {
-    vi.stubEnv('VITE_ALERT_API_BASE_URL', ALERT_API_BASE)
-    vi.stubEnv('VITE_NOTIFICATION_STREAM_URL', '')
+  it('does not call the gateway when it is unset', async () => {
     const { fetchNotifications, fetchUnreadNotificationCount } = await loadApi()
 
     await Promise.all([
@@ -71,9 +68,8 @@ describe('notification API', () => {
     expect(axiosMock.get).not.toHaveBeenCalled()
   })
 
-  it('lists notifications from the live API when the stream URL is set', async () => {
-    vi.stubEnv('VITE_ALERT_API_BASE_URL', ALERT_API_BASE)
-    vi.stubEnv('VITE_NOTIFICATION_STREAM_URL', STREAM_URL)
+  it('lists notifications from the gateway when it is configured', async () => {
+    vi.stubEnv('VITE_API_GATEWAY_BASE_URL', GATEWAY_BASE)
     axiosMock.get.mockResolvedValue({ data: LIVE_LIST })
     const { fetchNotifications } = await loadApi()
 

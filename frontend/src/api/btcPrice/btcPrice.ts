@@ -1,12 +1,10 @@
+import { BTC_PRICE_PATH } from '@/constants/apiUrls'
 import { apiUrl } from '@/lib/apiConfig'
 import type {
   BtcPriceSnapshot,
   BtcPriceSnapshotResponse,
   PriceSource,
 } from '@/types/btcPrice'
-
-/** Real endpoint on the data service (see `app/api/btc.py`). */
-export const BTC_PRICE_PATH = '/api/v1/btc/price'
 
 export function btcPriceSnapshotQueryKey() {
   return ['btc-price-snapshot'] as const

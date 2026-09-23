@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const isNotificationApiConfigured = vi.fn()
+const isApiGatewayConfigured = vi.fn()
 
 vi.mock('@/lib/apiConfig', () => ({
-  isNotificationApiConfigured: () => isNotificationApiConfigured(),
+  isApiGatewayConfigured: () => isApiGatewayConfigured(),
 }))
 
 beforeEach(() => {
@@ -11,12 +11,12 @@ beforeEach(() => {
 })
 
 afterEach(() => {
-  isNotificationApiConfigured.mockReset()
+  isApiGatewayConfigured.mockReset()
 })
 
 describe('withSimulatedFallback', () => {
-  it('uses simulated data when the notification env var is unset', async () => {
-    isNotificationApiConfigured.mockReturnValue(false)
+  it('uses simulated data when the API gateway is unset', async () => {
+    isApiGatewayConfigured.mockReturnValue(false)
     const { withSimulatedFallback } = await import('./withSimulatedFallback')
     const live = vi.fn()
     const simulate = vi.fn().mockResolvedValue('simulated')
@@ -28,7 +28,7 @@ describe('withSimulatedFallback', () => {
   })
 
   it('uses the live response when the notification backend answers', async () => {
-    isNotificationApiConfigured.mockReturnValue(true)
+    isApiGatewayConfigured.mockReturnValue(true)
     const { withSimulatedFallback } = await import('./withSimulatedFallback')
     const live = vi.fn().mockResolvedValue('live')
     const simulate = vi.fn()
@@ -38,7 +38,7 @@ describe('withSimulatedFallback', () => {
   })
 
   it('falls back to simulated data when the live request fails', async () => {
-    isNotificationApiConfigured.mockReturnValue(true)
+    isApiGatewayConfigured.mockReturnValue(true)
     const { withSimulatedFallback } = await import('./withSimulatedFallback')
     const live = vi.fn().mockRejectedValue(new Error('offline'))
     const simulate = vi.fn().mockResolvedValue('simulated')

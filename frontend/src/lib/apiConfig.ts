@@ -1,15 +1,5 @@
-/** Single public entry point for data and alert requests. */
+/** Single public entry point for every HTTP request. */
 export const API_GATEWAY_BASE_URL = import.meta.env.VITE_API_GATEWAY_BASE_URL
-
-/** Legacy direct Alert Service URL. */
-export const ALERT_API_BASE_URL = import.meta.env.VITE_ALERT_API_BASE_URL
-
-/**
- * Alert-service notification stream. Unset → no notification HTTP or live
- * stream; the inbox uses simulated data instead.
- */
-export const NOTIFICATION_STREAM_URL = import.meta.env
-  .VITE_NOTIFICATION_STREAM_URL
 
 function joinBaseUrl(base: string | undefined, path: string) {
   if (!base) {
@@ -19,24 +9,21 @@ function joinBaseUrl(base: string | undefined, path: string) {
   return `${base.replace(/\/+$/, '')}${path}`
 }
 
-export function isApiConfigured() {
+function toWebSocketUrl(httpUrl: string) {
+  return httpUrl.replace(/^http/, 'ws')
+}
+
+export function isApiGatewayConfigured() {
   return Boolean(API_GATEWAY_BASE_URL)
 }
 
-export function isAlertApiConfigured() {
-  return Boolean(API_GATEWAY_BASE_URL || ALERT_API_BASE_URL)
-}
-
-export function isNotificationApiConfigured() {
-  return Boolean(NOTIFICATION_STREAM_URL)
-}
-
-/** Gateway URL for a data path. Unset → callers use simulated data. */
+/** Gateway URL for a path. Unset → callers use simulated data. */
 export function apiUrl(path: string) {
   return joinBaseUrl(API_GATEWAY_BASE_URL, path)
 }
 
-/** Gateway URL for an alert path, falling back to the legacy direct service. */
-export function alertApiUrl(path: string) {
-  return joinBaseUrl(API_GATEWAY_BASE_URL || ALERT_API_BASE_URL, path)
+/** Gateway WebSocket URL for a path (`http` → `ws`, `https` → `wss`). */
+export function wsUrl(path: string) {
+  const url = apiUrl(path)
+  return url ? toWebSocketUrl(url) : null
 }

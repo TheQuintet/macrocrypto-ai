@@ -1,12 +1,10 @@
+import { ECONOMIC_CALENDAR_PATH } from '@/constants/apiUrls'
 import { apiUrl } from '@/lib/apiConfig'
 import { simulateEconomicCalendar } from '@/api/economicCalendar/simulatedEconomicCalendar'
 import type {
   EconomicCalendarResponse,
   EconomicEvent,
 } from '@/types/economicCalendar'
-
-/** Real endpoint on the data service (see `app/api/economic_calendar.py`). */
-export const ECONOMIC_CALENDAR_PATH = '/api/v1/economic-calendar'
 
 export function economicCalendarQueryKey() {
   return ['economicCalendar', 'events'] as const

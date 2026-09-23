@@ -3,8 +3,8 @@ import { ALERTS_USER_ID } from '@/constants/alerts'
 import type { PredictionAlertApiRecord } from '@/types/alerts/predictionAlert'
 import { resetSimulatedPredictionAlerts } from '@/api/alerts/simulatedPredictionAlerts'
 
-const ALERT_API_BASE = 'http://localhost:8003'
-const PREDICTION_ALERTS_URL = `${ALERT_API_BASE}/api/v1/alerts/prediction/`
+const GATEWAY_BASE = 'http://localhost:8000'
+const PREDICTION_ALERTS_URL = `${GATEWAY_BASE}/api/v1/alerts/prediction/`
 
 const LIVE_ROW: PredictionAlertApiRecord = {
   id: 'live-prediction-id',
@@ -40,10 +40,10 @@ async function loadApi() {
   return import('@/api/alerts/predictionAlerts')
 }
 
-describe('predictionAlertApi with the alert service configured', () => {
+describe('predictionAlertApi with the API gateway configured', () => {
   beforeEach(() => {
     vi.resetModules()
-    vi.stubEnv('VITE_ALERT_API_BASE_URL', ALERT_API_BASE)
+    vi.stubEnv('VITE_API_GATEWAY_BASE_URL', GATEWAY_BASE)
     axiosMock.get.mockReset()
     axiosMock.post.mockReset()
     axiosMock.put.mockReset()
@@ -55,7 +55,7 @@ describe('predictionAlertApi with the alert service configured', () => {
     vi.resetModules()
   })
 
-  it('lists alerts from the alert service and maps the wire shape', async () => {
+  it('lists alerts from the API gateway and maps the wire shape', async () => {
     axiosMock.get.mockResolvedValue({
       data: { total: 1, limit: 50, offset: 0, alerts: [LIVE_ROW] },
     })
@@ -141,7 +141,7 @@ describe('predictionAlertApi with the alert service configured', () => {
   })
 })
 
-describe('predictionAlertApi with no alert service configured', () => {
+describe('predictionAlertApi with no API gateway configured', () => {
   beforeEach(() => {
     vi.resetModules()
     resetSimulatedPredictionAlerts()

@@ -1,3 +1,4 @@
+import { REGIME_PERFORMANCE_PATH } from '@/constants/apiUrls'
 import { apiUrl } from '@/lib/apiConfig'
 import type {
   RegimePerformance,
@@ -8,9 +9,6 @@ import type {
   RegimeSource,
   RegimeStatus,
 } from '@/types/regime'
-
-/** Real endpoint on the data service (see `app/api/regime.py`). */
-export const REGIME_PERFORMANCE_PATH = '/api/v1/regimes/performance'
 
 export function regimePerformanceQueryKey() {
   return ['regimes', 'performance'] as const

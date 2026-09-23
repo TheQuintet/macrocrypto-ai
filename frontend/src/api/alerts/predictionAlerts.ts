@@ -1,5 +1,6 @@
 import axios from 'axios'
-import { alertApiUrl } from '@/lib/apiConfig'
+import { PREDICTION_ALERTS_PATH } from '@/constants/apiUrls'
+import { apiUrl } from '@/lib/apiConfig'
 import {
   toCreateApiPayload,
   toUiAlert,
@@ -23,16 +24,13 @@ import type {
   UpdatePredictionAlertRequest,
 } from '@/types/alerts/predictionAlert'
 
-/** Real endpoint on alert-service (`app/api/prediction_routes.py`). */
-export const PREDICTION_ALERTS_PATH = '/api/v1/alerts/prediction/'
-
 const JSON_HEADERS = { Accept: 'application/json' }
 
 /**
  * Prediction-alert CRUD from the alert service.
  *
- * Gateway (or legacy `VITE_ALERT_API_BASE_URL`) set → live HTTP. Unset →
- * simulated seed data. Failed live requests throw; they do not fall back.
+ * Gateway set → live HTTP. Unset → simulated seed data. Failed live
+ * requests throw; they do not fall back.
  *
  * History and CSV export have no backend routes yet, so those stay simulated
  * (or empty when live) until the service adds them.
@@ -42,7 +40,7 @@ async function fromApiOrSimulate<T>(
   simulate: () => Promise<T>,
   live: (url: string) => Promise<T>,
 ): Promise<T> {
-  const url = alertApiUrl(path)
+  const url = apiUrl(path)
   if (!url) {
     return simulate()
   }

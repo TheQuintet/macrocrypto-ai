@@ -12,9 +12,6 @@ export const MAIN_INDICATOR_NAMES = [
 
 const MAIN_INDICATORS = new Set<string>(MAIN_INDICATOR_NAMES)
 
-/** Real endpoint on the data service (see `app/api/indicators.py`). */
-export const MACRO_INDICATORS_PATH = '/api/v1/indicators'
-
 export const MACRO_INDICATORS_MOCK_LATENCY_MS = 280
 
 export function keepMainIndicators(indicators: MacroIndicator[]) {

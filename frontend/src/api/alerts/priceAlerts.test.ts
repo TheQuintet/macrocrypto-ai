@@ -3,7 +3,7 @@ import {
   fetchNotifications,
   fetchUnreadNotificationCount,
 } from '@/api/alerts/notifications'
-import { PRICE_ALERTS_PATH, priceAlertApi } from '@/api/alerts/priceAlerts'
+import { priceAlertApi } from '@/api/alerts/priceAlerts'
 import { resetSimulatedNotifications } from '@/api/alerts/simulatedNotifications'
 import { resetSimulatedPriceAlerts } from '@/api/alerts/simulatedPriceAlerts'
 import { ALERTS_USER_ID } from '@/constants/alerts'
@@ -15,10 +15,6 @@ afterEach(() => {
 })
 
 describe('alert APIs without a backend', () => {
-  it('exports the alert-service price path', () => {
-    expect(PRICE_ALERTS_PATH).toBe('/api/v1/alerts/price')
-  })
-
   it('lists simulated price alerts', async () => {
     const response = await priceAlertApi.getAlerts(ALERTS_USER_ID)
 

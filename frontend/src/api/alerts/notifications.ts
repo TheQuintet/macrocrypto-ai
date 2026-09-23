@@ -6,15 +6,13 @@ import {
   simulateMarkAsRead,
 } from '@/api/alerts/simulatedNotifications'
 import { withSimulatedFallback } from '@/api/alerts/withSimulatedFallback'
+import { NOTIFICATIONS_PATH } from '@/constants/apiUrls'
 import { sortNotificationsByDateNewestFirst } from '@/lib/alerts/sortNotifications'
-import { alertApiUrl } from '@/lib/apiConfig'
+import { apiUrl } from '@/lib/apiConfig'
 import type {
   InAppNotification,
   NotificationResponse,
 } from '@/types/alerts/notifications'
-
-/** Intended alert-service inbox routes (see NotificationService). */
-export const NOTIFICATIONS_PATH = '/api/v1/notifications'
 
 const JSON_HEADERS = { Accept: 'application/json' }
 
@@ -47,7 +45,7 @@ export async function fetchNotifications(
 ): Promise<NotificationResponse> {
   return withSimulatedFallback(
     async () => {
-      const url = alertApiUrl(NOTIFICATIONS_PATH)
+      const url = apiUrl(NOTIFICATIONS_PATH)
       if (!url) {
         throw new Error('Alert API is not configured')
       }
@@ -67,7 +65,7 @@ export async function fetchUnreadNotificationCount(
 ): Promise<{ count: number }> {
   return withSimulatedFallback(
     async () => {
-      const url = alertApiUrl(`${NOTIFICATIONS_PATH}/unread`)
+      const url = apiUrl(`${NOTIFICATIONS_PATH}/unread`)
       if (!url) {
         throw new Error('Alert API is not configured')
       }
@@ -87,7 +85,7 @@ export async function markNotificationAsRead(
 ): Promise<InAppNotification> {
   return withSimulatedFallback(
     async () => {
-      const url = alertApiUrl(`${NOTIFICATIONS_PATH}/${notificationId}/read`)
+      const url = apiUrl(`${NOTIFICATIONS_PATH}/${notificationId}/read`)
       if (!url) {
         throw new Error('Alert API is not configured')
       }
@@ -106,7 +104,7 @@ export async function markAllNotificationsAsRead(
 ): Promise<{ count: number }> {
   return withSimulatedFallback(
     async () => {
-      const url = alertApiUrl(`${NOTIFICATIONS_PATH}/read-all`)
+      const url = apiUrl(`${NOTIFICATIONS_PATH}/read-all`)
       if (!url) {
         throw new Error('Alert API is not configured')
       }

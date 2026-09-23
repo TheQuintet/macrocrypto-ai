@@ -1,6 +1,10 @@
 import axios from 'axios'
 import { generateMockMacroSubscriptions } from '@/api/alerts/simulatedMacroAlerts'
-import { alertApiUrl } from '@/lib/apiConfig'
+import {
+  MACRO_SUBSCRIBE_PATH,
+  MACRO_SUBSCRIPTIONS_PATH,
+} from '@/constants/apiUrls'
+import { apiUrl } from '@/lib/apiConfig'
 import {
   toApiEventType,
   toApiImpact,
@@ -14,15 +18,12 @@ import type {
 
 const JSON_HEADERS = { Accept: 'application/json' }
 
-export const MACRO_SUBSCRIPTIONS_PATH = '/api/v1/macro/subscriptions'
-export const MACRO_SUBSCRIBE_PATH = '/api/v1/macro/subscribe'
-
 async function fromApiOrSimulate<T>(
   path: string,
   simulate: () => Promise<T>,
   live: (url: string) => Promise<T>,
 ): Promise<T> {
-  const url = alertApiUrl(path)
+  const url = apiUrl(path)
   if (!url) {
     return simulate()
   }

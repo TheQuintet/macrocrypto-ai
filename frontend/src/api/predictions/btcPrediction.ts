@@ -1,3 +1,4 @@
+import { BTC_PREDICTION_PATH } from '@/constants/apiUrls'
 import { apiUrl } from '@/lib/apiConfig'
 import { buildSimulatedPrediction } from '@/api/predictions/simulatedBtcPrediction'
 import type {
@@ -9,9 +10,6 @@ import type {
   PredictionResponse,
   PredictionSource,
 } from '@/types/predictions'
-
-/** Real endpoint on the ai-service (see `app/api/v1/predict.py`). */
-export const BTC_PREDICTION_PATH = '/api/v1/predict/btc'
 
 /** Predictions are cached for 5 minutes upstream; match that here. */
 export const PREDICTION_STALE_MS = 5 * 60 * 1000

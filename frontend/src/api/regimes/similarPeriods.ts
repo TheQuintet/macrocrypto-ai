@@ -1,3 +1,4 @@
+import { SIMILAR_PERIODS_PATH } from '@/constants/apiUrls'
 import { apiUrl } from '@/lib/apiConfig'
 import type {
   RegimeSource,
@@ -6,9 +7,6 @@ import type {
   SimilarPeriods,
   SimilarPeriodsApiResponse,
 } from '@/types/regime'
-
-/** Real endpoint on the data service (see `app/api/similar_periods.py`). */
-export const SIMILAR_PERIODS_PATH = '/api/v1/regimes/history/similar-periods'
 
 /** The endpoint constrains `limit` to 3–5; asking for more is a 422. */
 export const SIMILAR_PERIODS_LIMIT = 5

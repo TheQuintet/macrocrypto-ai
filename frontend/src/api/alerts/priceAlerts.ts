@@ -1,5 +1,6 @@
 import axios from 'axios'
-import { alertApiUrl } from '@/lib/apiConfig'
+import { PRICE_ALERTS_PATH } from '@/constants/apiUrls'
+import { apiUrl } from '@/lib/apiConfig'
 import {
   simulateCreateAlert,
   simulateDeleteAlert,
@@ -17,24 +18,21 @@ import type {
   PriceAlertListResponse,
 } from '@/types/alerts/priceAlert'
 
-/** Real endpoint on the alert service (see `app/api/routes.py`). */
-export const PRICE_ALERTS_PATH = '/api/v1/alerts/price'
-
 const JSON_HEADERS = { Accept: 'application/json' }
 
 /**
  * Price-alert CRUD from the alert service.
  *
- * `VITE_API_GATEWAY_BASE_URL` (or the legacy `VITE_ALERT_API_BASE_URL`) is
- * the switch. Unset → simulated seed data. Set → axios to that host and a
- * failed request throws rather than quietly substituting seed rules.
+ * `VITE_API_GATEWAY_BASE_URL` is the switch. Unset → simulated seed data.
+ * Set → axios to the gateway and a failed request throws rather than
+ * quietly substituting seed rules.
  */
 async function fromApiOrSimulate<T>(
   path: string,
   simulate: () => Promise<T>,
   live: (url: string) => Promise<T>,
 ): Promise<T> {
-  const url = alertApiUrl(path)
+  const url = apiUrl(path)
   if (!url) {
     return simulate()
   }

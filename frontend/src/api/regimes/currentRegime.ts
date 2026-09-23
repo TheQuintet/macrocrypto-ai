@@ -1,3 +1,4 @@
+import { CURRENT_REGIME_PATH } from '@/constants/apiUrls'
 import { apiUrl } from '@/lib/apiConfig'
 import { toRegimeVisualIndicator } from '@/lib/regimeDisplay'
 import type {
@@ -5,9 +6,6 @@ import type {
   CurrentRegimeResponse,
   RegimeSource,
 } from '@/types/regime'
-
-/** Proxied by the gateway to the data service (see `app/api/regime.py`). */
-export const CURRENT_REGIME_PATH = '/api/v1/regimes/current'
 
 export function currentRegimeQueryKey() {
   return ['regimes', 'current'] as const
