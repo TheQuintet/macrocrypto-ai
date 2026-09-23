@@ -1,8 +1,10 @@
 import { Button } from '@/components/ui/button'
 import { CANDLE_INTERVAL_OPTIONS } from '@/components/dashboard/lib/chartInterval'
+import { isCandleIntervalAllowed } from '@/lib/timeRange'
 import { usePreferencesStore } from '@/stores/preferencesStore'
 
 export function ChartIntervalSwitcher() {
+  const timeRange = usePreferencesStore((state) => state.timeRange)
   const candleInterval = usePreferencesStore((state) => state.candleInterval)
   const setCandleInterval = usePreferencesStore(
     (state) => state.setCandleInterval,
@@ -21,6 +23,7 @@ export function ChartIntervalSwitcher() {
           size="sm"
           variant={candleInterval === option.value ? 'default' : 'outline'}
           aria-pressed={candleInterval === option.value}
+          disabled={!isCandleIntervalAllowed(timeRange, option.value)}
           className="min-h-11 min-w-10 flex-1 touch-manipulation sm:min-h-7 sm:flex-none"
           onClick={() => setCandleInterval(option.value)}
         >

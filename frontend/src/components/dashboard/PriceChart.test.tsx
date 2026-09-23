@@ -73,4 +73,20 @@ describe('PriceChart', () => {
     expect(screen.getByRole('heading', { name: 'BTC price' }).parentElement)
       .toHaveTextContent(/weekly candles/i)
   })
+
+  it('uses weekly candles when the range is 1y', async () => {
+    const user = userEvent.setup()
+    renderPriceChart()
+
+    await user.click(screen.getByRole('button', { name: '1y' }))
+
+    expect(usePreferencesStore.getState().candleInterval).toBe('1w')
+    expect(screen.getByRole('button', { name: 'Weekly' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+    expect(screen.getByRole('button', { name: 'Daily' })).toBeDisabled()
+    expect(screen.getByRole('heading', { name: 'BTC price' }).parentElement)
+      .toHaveTextContent(/weekly candles/i)
+  })
 })

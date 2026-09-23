@@ -1,5 +1,9 @@
 import { create } from 'zustand'
 import { devtools } from 'zustand/middleware'
+import {
+  candleIntervalForTimeRange,
+  isCandleIntervalAllowed,
+} from '@/lib/timeRange'
 import type { CandleInterval } from '@/types/chart'
 import type { TimeRange } from '@/types/preferences'
 
@@ -22,10 +26,27 @@ export const usePreferencesStore = create<PreferencesState>()(
     (set) => ({
       timeRange: '30d',
       setTimeRange: (timeRange) =>
-        set({ timeRange }, undefined, 'preferences/setTimeRange'),
+        set(
+          {
+            timeRange,
+            candleInterval: candleIntervalForTimeRange(timeRange),
+          },
+          undefined,
+          'preferences/setTimeRange',
+        ),
       candleInterval: '1d',
       setCandleInterval: (candleInterval) =>
-        set({ candleInterval }, undefined, 'preferences/setCandleInterval'),
+        set(
+          (state) => {
+            if (!isCandleIntervalAllowed(state.timeRange, candleInterval)) {
+              return state
+            }
+
+            return { candleInterval }
+          },
+          undefined,
+          'preferences/setCandleInterval',
+        ),
     }),
     { name: 'PreferencesStore' },
   ),

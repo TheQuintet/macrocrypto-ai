@@ -31,3 +31,7 @@ export function expectIntervalNotSelected(label: string) {
 export function expectCandleInterval(value: '1d' | '1w') {
   expect(usePreferencesStore.getState().candleInterval).toBe(value)
 }
+
+export function expectIntervalDisabled(label: string) {
+  expect(getIntervalButton(label)).toBeDisabled()
+}

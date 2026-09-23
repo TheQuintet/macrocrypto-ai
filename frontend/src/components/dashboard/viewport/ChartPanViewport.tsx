@@ -14,6 +14,8 @@ import { chartYAxisWidth, isChartCompact } from '@/components/dashboard/lib/char
 import { ChartZoomControls } from '@/components/dashboard/controls/ChartZoomControls'
 import {
   DEFAULT_CHART_POINT_WIDTH,
+  initialChartPointWidth,
+  minChartPointWidth,
   zoomChartPointWidth,
 } from '@/components/dashboard/lib/chartZoom'
 import { candleYDomain } from '@/components/dashboard/lib/chartCandle'
@@ -76,7 +78,10 @@ export function ChartPanViewport({
   const virtualWidth = Math.max(viewportWidth, data.length * pointWidth)
   const minOffsetX = Math.min(0, viewportWidth - virtualWidth)
   const canPan = virtualWidth > viewportWidth + 1
-  const nextSeriesKey = `${data.length}`
+  const minPointWidth = minChartPointWidth(viewportWidth, data.length)
+  // Re-fit when the range changes, and once more when the plot is first
+  // measured — before that there is no width to divide between the candles.
+  const nextSeriesKey = `${data.length}:${viewportWidth > 0 ? 'measured' : 'unmeasured'}`
   const hidePriceXAxis = Boolean(secondary)
 
   useEffect(() => {
@@ -105,8 +110,12 @@ export function ChartPanViewport({
   }, [hidePriceXAxis])
 
   if (seriesKey !== nextSeriesKey) {
+    // Fit the selected range, rather than leaving the window at whatever
+    // density the last range happened to use (#510).
+    const fitted = initialChartPointWidth(viewportWidth, data.length)
     setSeriesKey(nextSeriesKey)
-    setOffsetX(minOffsetX)
+    setPointWidth(fitted)
+    setOffsetX(Math.min(0, viewportWidth - data.length * fitted))
   }
 
   const clampedOffsetX = Math.min(0, Math.max(minOffsetX, offsetX))
@@ -147,9 +156,12 @@ export function ChartPanViewport({
     return secondaryYDomain(visible.length > 0 ? visible : data)
   }, [data, firstVisibleIndex, visibleEnd, secondaryYDomain])
 
-  const visibleFrom = data[firstVisibleIndex]?.time
-  const visibleTo =
-    data[Math.min(data.length - 1, firstVisibleIndex + visibleCount - 1)]?.time
+  // Formatted from `timeMs`, not reused from the candle's axis label: the
+  // 1d/1w labels carry no year, so a fitted 1y range read "Sep 15 → Sep 15".
+  const visibleFrom = formatVisibleBoundary(data[firstVisibleIndex])
+  const visibleTo = formatVisibleBoundary(
+    data[Math.min(data.length - 1, firstVisibleIndex + visibleCount - 1)],
+  )
 
   function clampOffset(value: number, width = pointWidth) {
     const nextVirtualWidth = Math.max(viewportWidth, data.length * width)
@@ -158,7 +170,11 @@ export function ChartPanViewport({
   }
 
   function zoom(direction: 'in' | 'out') {
-    const nextPointWidth = zoomChartPointWidth(pointWidth, direction)
+    const nextPointWidth = zoomChartPointWidth(
+      pointWidth,
+      direction,
+      minPointWidth,
+    )
     if (nextPointWidth === pointWidth || viewportWidth <= 0) {
       return
     }
@@ -253,6 +269,7 @@ export function ChartPanViewport({
       <div className="flex flex-wrap items-center justify-between gap-2 pb-1">
         <ChartZoomControls
           pointWidth={pointWidth}
+          minPointWidth={minPointWidth}
           onZoomIn={() => zoom('in')}
           onZoomOut={() => zoom('out')}
         />
@@ -324,4 +341,24 @@ export function ChartPanViewport({
       ) : null}
     </div>
   )
+}
+
+/** Unambiguous end of the visible window, year included. */
+function formatVisibleBoundary(candle: ChartCandle | undefined) {
+  if (!candle) {
+    return undefined
+  }
+
+  const date = new Date(candle.timeMs)
+
+  if (Number.isNaN(date.getTime())) {
+    return candle.time
+  }
+
+  return date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    timeZone: 'UTC',
+  })
 }

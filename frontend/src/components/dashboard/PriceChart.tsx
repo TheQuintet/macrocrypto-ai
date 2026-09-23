@@ -172,7 +172,14 @@ export function PriceChart({
                 : undefined
             }
           >
-            {({ data: panData, width, height, yDomain, compact, hideXAxis }) => (
+            {({
+              data: panData,
+              width,
+              height,
+              yDomain,
+              compact,
+              hideXAxis,
+            }) => (
               <PriceCandlestickChart
                 data={panData}
                 width={width}

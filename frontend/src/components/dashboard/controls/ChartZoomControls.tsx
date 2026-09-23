@@ -7,12 +7,15 @@ import {
 
 type ChartZoomControlsProps = {
   pointWidth: number
+  /** Fitted floor — zooming out stops at the whole range, not at 8px. */
+  minPointWidth?: number
   onZoomIn: () => void
   onZoomOut: () => void
 }
 
 export function ChartZoomControls({
   pointWidth,
+  minPointWidth = MIN_CHART_POINT_WIDTH,
   onZoomIn,
   onZoomOut,
 }: ChartZoomControlsProps) {
@@ -28,7 +31,7 @@ export function ChartZoomControls({
         variant="outline"
         aria-label="Zoom out"
         className="size-11 touch-manipulation sm:size-7"
-        disabled={pointWidth <= MIN_CHART_POINT_WIDTH}
+        disabled={pointWidth <= minPointWidth}
         onClick={onZoomOut}
       >
         <Minus />
