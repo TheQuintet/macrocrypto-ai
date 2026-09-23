@@ -40,14 +40,10 @@ def test_no_future_dates(df_features):
 
 
 def test_log_return_bounds(df_features):
-  """Asserts 1-day log return implies realistic price changes (no loss > 100%)."""
-  # Drop the first NaN row for the check
+  """Asserts 1-day log return stays within a realistic daily bound (< 100% absolute change, i.e., abs < 1.0)."""
   valid_returns = df_features["btc_log_return_1d"].dropna()
-  # A 1-day log return of less than -1.0 means price dropped by > 63% in a single day,
-  # but absolute price ratio exp(return) cannot exceed drop to 0 (return > -inf, loss < 100%).
-  # A daily loss cannot exceed 100% (absolute log return for a 100% drop is undefined/inf, but practical bounds apply).
-  assert (abs(valid_returns) < 2.0).all(), (
-      "Found extreme anomalous 1-day log returns."
+  assert (abs(valid_returns) < 1.0).all(), (
+      "Found extreme anomalous 1-day log returns exceeding absolute log 1.0."
   )
 
 
