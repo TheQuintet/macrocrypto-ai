@@ -16,7 +16,6 @@ import {
   DEFAULT_CHART_POINT_WIDTH,
   initialChartPointWidth,
   minChartPointWidth,
-  shouldRenderAsLine,
   zoomChartPointWidth,
 } from '@/components/dashboard/lib/chartZoom'
 import { candleYDomain } from '@/components/dashboard/lib/chartCandle'
@@ -32,8 +31,6 @@ type PlotRenderArgs = {
   yDomain: [number, number]
   compact: boolean
   hideXAxis: boolean
-  /** Candles are too thin to read at this density — draw a close line. */
-  asLine: boolean
 }
 
 type ChartPanViewportProps = {
@@ -254,7 +251,6 @@ export function ChartPanViewport({
     width: renderWidth,
     compact,
     hideXAxis: hidePriceXAxis,
-    asLine: shouldRenderAsLine(pointWidth),
   }
   const panHandlers = {
     renderWidth,

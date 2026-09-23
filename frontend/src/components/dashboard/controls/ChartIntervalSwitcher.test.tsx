@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
   expectCandleInterval,
+  expectIntervalDisabled,
   expectIntervalNotSelected,
   expectIntervalSelected,
   getIntervalGroup,
@@ -10,6 +11,7 @@ import {
   selectChartInterval,
 } from '@/components/dashboard/controls/ChartIntervalSwitcher.testHelpers'
 import { resetPreferencesStore } from '@/stores/preferencesStore.testHelpers'
+import { usePreferencesStore } from '@/stores/preferencesStore'
 
 describe('ChartIntervalSwitcher', () => {
   beforeEach(() => {
@@ -49,5 +51,14 @@ describe('ChartIntervalSwitcher', () => {
     expect(
       within(group).getByRole('button', { name: 'Weekly' }),
     ).toBeInTheDocument()
+  })
+
+  it('locks 1y and 5y to weekly candles', () => {
+    usePreferencesStore.getState().setTimeRange('1y')
+    renderChartIntervalSwitcher()
+
+    expectIntervalSelected('Weekly')
+    expectIntervalDisabled('Daily')
+    expectCandleInterval('1w')
   })
 })

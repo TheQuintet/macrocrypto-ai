@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import {
-  CANDLE_LEGIBLE_MIN_WIDTH,
   DEFAULT_CHART_POINT_WIDTH,
   MAX_CHART_POINT_WIDTH,
   MIN_CHART_POINT_WIDTH,
@@ -8,7 +7,6 @@ import {
   fitChartPointWidth,
   initialChartPointWidth,
   minChartPointWidth,
-  shouldRenderAsLine,
   zoomChartPointWidth,
 } from '@/components/dashboard/lib/chartZoom'
 
@@ -109,17 +107,5 @@ describe('zooming out to the fitted floor', () => {
   it('never lets a caller raise the floor above the fixed minimum', () => {
     // A bad `minWidth` must not trap the user above the normal zoom range.
     expect(clampChartPointWidth(8, 40)).toBe(MIN_CHART_POINT_WIDTH)
-  })
-})
-
-describe('shouldRenderAsLine', () => {
-  it('draws candles at a readable density', () => {
-    expect(shouldRenderAsLine(DEFAULT_CHART_POINT_WIDTH)).toBe(false)
-    expect(shouldRenderAsLine(CANDLE_LEGIBLE_MIN_WIDTH)).toBe(false)
-  })
-
-  it('degrades to a line once a body cannot be read', () => {
-    expect(shouldRenderAsLine(2.4)).toBe(true)
-    expect(shouldRenderAsLine(CANDLE_LEGIBLE_MIN_WIDTH - 0.1)).toBe(true)
   })
 })

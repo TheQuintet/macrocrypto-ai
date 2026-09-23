@@ -1,13 +1,5 @@
 import { useMemo } from 'react'
-import {
-  Bar,
-  ComposedChart,
-  CartesianGrid,
-  Line,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts'
+import { Bar, BarChart, CartesianGrid, Tooltip, XAxis, YAxis } from 'recharts'
 import type { ChartCandle } from '@/types/chart'
 import { chartPlotMargin } from '@/components/dashboard/lib/chartTheme'
 import { PriceCandle } from '@/components/dashboard/price/PriceCandle'
@@ -21,12 +13,6 @@ type PriceCandlestickChartProps = {
   yDomain: [number, number]
   compact?: boolean
   hideXAxis?: boolean
-  /**
-   * Draw a close line instead of candles. Set by the viewport once the range
-   * is dense enough that a candle body is no longer readable — a smear of
-   * 2px bodies says less about the market than a plain line does.
-   */
-  asLine?: boolean
   syncId?: string
   overlayTooltip?: boolean
   onInspect?: (candle: ChartCandle) => void
@@ -46,7 +32,6 @@ export function PriceCandlestickChart({
   yDomain,
   compact = false,
   hideXAxis = false,
-  asLine = false,
   syncId,
   overlayTooltip = true,
   onInspect,
@@ -58,7 +43,7 @@ export function PriceCandlestickChart({
   const margin = chartPlotMargin(compact, hideXAxis)
 
   return (
-    <ComposedChart
+    <BarChart
       width={width}
       height={height}
       data={series}
@@ -92,22 +77,7 @@ export function PriceCandlestickChart({
         cursor={<PriceCandleHoverLine />}
         wrapperStyle={overlayTooltip ? undefined : { display: 'none' }}
       />
-      {asLine ? (
-        <Line
-          type="monotone"
-          dataKey="close"
-          stroke="var(--chart-1)"
-          strokeWidth={1.5}
-          dot={false}
-          isAnimationActive={false}
-        />
-      ) : (
-        <Bar
-          dataKey="range"
-          shape={<PriceCandle />}
-          isAnimationActive={false}
-        />
-      )}
-    </ComposedChart>
+      <Bar dataKey="range" shape={<PriceCandle />} isAnimationActive={false} />
+    </BarChart>
   )
 }

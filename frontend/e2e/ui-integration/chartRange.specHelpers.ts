@@ -67,17 +67,6 @@ export async function waitForAnyCandles(page: Page) {
     .toBeGreaterThan(0)
 }
 
-/** The close line the plot falls back to when candles get too thin to read. */
-export async function expectCloseLineDrawn(page: Page) {
-  await expect(page.locator('.recharts-line-curve').first()).toBeVisible({
-    timeout: 20_000,
-  })
-}
-
-export async function expectNoCloseLine(page: Page) {
-  await expect(page.locator('.recharts-line-curve')).toHaveCount(0)
-}
-
 export function zoomGroup(page: Page) {
   return page.getByRole('group', { name: 'Chart zoom' })
 }

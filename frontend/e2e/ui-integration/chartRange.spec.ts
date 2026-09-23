@@ -1,12 +1,11 @@
 import { expect, test } from '@playwright/test'
 import { goToRoute, selectTimeRange } from './routing.specHelpers'
+import { expectCandleIntervalSelected } from './priceChart.specHelpers'
 import {
   MOBILE_VIEWPORT,
   expectNoHorizontalScroll,
 } from './priceDisplay.specHelpers'
 import {
-  expectCloseLineDrawn,
-  expectNoCloseLine,
   probePlot,
   readVisibleSpanDays,
   waitForAnyCandles,
@@ -87,26 +86,15 @@ test.describe('chart fits the selected time range (#510)', () => {
     await expect(zoomOutButton(page)).toBeEnabled()
   })
 
-  test('a readable range keeps candles rather than a line', async ({
-    page,
-  }) => {
+  test('1y and 5y still draw candlesticks', async ({ page }) => {
     await goToRoute(page, 'dashboard')
 
-    await selectTimeRange(page, '30d')
-    await waitForAnyCandles(page)
-    await expectNoCloseLine(page)
-  })
-
-  test('a dense range degrades to a close line, and zooming in restores candles', async ({
-    page,
-  }) => {
-    await goToRoute(page, 'dashboard')
-
-    // A year of daily buckets is ~3px each — too thin for a readable body.
     await selectTimeRange(page, '1y')
-    await expectCloseLineDrawn(page)
+    await expectCandleIntervalSelected(page, 'Weekly')
+    await waitForAnyCandles(page)
 
-    await zoomIn(page, 6)
+    await selectTimeRange(page, '5y')
+    await expectCandleIntervalSelected(page, 'Weekly')
     await waitForAnyCandles(page)
   })
 
@@ -116,7 +104,7 @@ test.describe('chart fits the selected time range (#510)', () => {
     await goToRoute(page, 'dashboard')
 
     await selectTimeRange(page, '1y')
-    await expectCloseLineDrawn(page)
+    await waitForAnyCandles(page)
 
     // The candle axis labels carry no year, so reusing them here read as
     // "Sep 15 → Sep 15" for a whole year on screen.

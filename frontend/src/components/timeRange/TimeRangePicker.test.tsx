@@ -8,6 +8,7 @@ import {
   selectTimeRange,
 } from '@/components/timeRange/TimeRangePicker.testHelpers'
 import { resetPreferencesStore } from '@/stores/preferencesStore.testHelpers'
+import { usePreferencesStore } from '@/stores/preferencesStore'
 
 describe('TimeRangePicker', () => {
   beforeEach(() => {
@@ -42,5 +43,19 @@ describe('TimeRangePicker', () => {
     expect(within(picker).queryByRole('button', { name: '24h' })).not.toBeInTheDocument()
     expect(within(picker).queryByRole('button', { name: '7d' })).not.toBeInTheDocument()
     expect(within(picker).queryByRole('button', { name: '6m' })).not.toBeInTheDocument()
+  })
+
+  it('switches 1y and 5y to weekly candles, and back to daily on 30d', async () => {
+    const user = userEvent.setup()
+    renderTimeRangePicker()
+
+    await selectTimeRange(user, '1y')
+    expect(usePreferencesStore.getState().candleInterval).toBe('1w')
+
+    await selectTimeRange(user, '5y')
+    expect(usePreferencesStore.getState().candleInterval).toBe('1w')
+
+    await selectTimeRange(user, '30d')
+    expect(usePreferencesStore.getState().candleInterval).toBe('1d')
   })
 })

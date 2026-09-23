@@ -3,13 +3,6 @@ export const MIN_CHART_POINT_WIDTH = 8
 export const MAX_CHART_POINT_WIDTH = 72
 export const CHART_ZOOM_FACTOR = 1.25
 
-/**
- * Below this, a candle body is too thin to read an open/close from, so the
- * plot draws a close line instead. Chosen rather than discovered: a 4px
- * body with a 1px wick is already a smear at any realistic density.
- */
-export const CANDLE_LEGIBLE_MIN_WIDTH = 5
-
 export function clampChartPointWidth(
   value: number,
   minWidth = MIN_CHART_POINT_WIDTH,
@@ -80,9 +73,4 @@ export function minChartPointWidth(plotWidth: number, count: number) {
   }
 
   return Math.min(MIN_CHART_POINT_WIDTH, fit)
-}
-
-/** Candles this thin cannot be read; the plot switches to a close line. */
-export function shouldRenderAsLine(pointWidth: number) {
-  return pointWidth < CANDLE_LEGIBLE_MIN_WIDTH
 }
