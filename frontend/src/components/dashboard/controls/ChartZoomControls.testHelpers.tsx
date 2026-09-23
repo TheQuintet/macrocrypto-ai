@@ -6,7 +6,7 @@ import { DEFAULT_CHART_POINT_WIDTH } from '@/components/dashboard/lib/chartZoom'
 export function renderChartZoomControls() {
   return render(
     <ChartZoomControls
-      pointWidth={DEFAULT_CHART_POINT_WIDTH}
+      value={DEFAULT_CHART_POINT_WIDTH}
       onZoomIn={() => undefined}
       onZoomOut={() => undefined}
     />,

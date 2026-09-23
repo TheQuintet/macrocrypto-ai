@@ -6,16 +6,19 @@ import {
 } from '@/components/dashboard/lib/chartZoom'
 
 type ChartZoomControlsProps = {
-  pointWidth: number
-  /** Fitted floor — zooming out stops at the whole range, not at 8px. */
-  minPointWidth?: number
+  /** Current zoom level, in whatever unit the caller zooms by. */
+  value: number
+  /** Bounds the buttons disable at; default to the pan chart's point widths. */
+  min?: number
+  max?: number
   onZoomIn: () => void
   onZoomOut: () => void
 }
 
 export function ChartZoomControls({
-  pointWidth,
-  minPointWidth = MIN_CHART_POINT_WIDTH,
+  value,
+  min = MIN_CHART_POINT_WIDTH,
+  max = MAX_CHART_POINT_WIDTH,
   onZoomIn,
   onZoomOut,
 }: ChartZoomControlsProps) {
@@ -31,7 +34,7 @@ export function ChartZoomControls({
         variant="outline"
         aria-label="Zoom out"
         className="size-11 touch-manipulation sm:size-7"
-        disabled={pointWidth <= minPointWidth}
+        disabled={value <= min}
         onClick={onZoomOut}
       >
         <Minus />
@@ -42,7 +45,7 @@ export function ChartZoomControls({
         variant="outline"
         aria-label="Zoom in"
         className="size-11 touch-manipulation sm:size-7"
-        disabled={pointWidth >= MAX_CHART_POINT_WIDTH}
+        disabled={value >= max}
         onClick={onZoomIn}
       >
         <Plus />

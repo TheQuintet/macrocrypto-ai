@@ -268,8 +268,8 @@ export function ChartPanViewport({
     <div className="flex w-full min-w-0 flex-col gap-5 sm:gap-6">
       <div className="flex flex-wrap items-center justify-between gap-2 pb-1">
         <ChartZoomControls
-          pointWidth={pointWidth}
-          minPointWidth={minPointWidth}
+          value={pointWidth}
+          min={minPointWidth}
           onZoomIn={() => zoom('in')}
           onZoomOut={() => zoom('out')}
         />
