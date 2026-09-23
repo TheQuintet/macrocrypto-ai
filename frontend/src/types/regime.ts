@@ -225,3 +225,6 @@ export type SimilarPeriods = {
   periods: SimilarPeriod[]
   message: string | null
 }
+
+/** One pane on the regime analysis page. */
+export type RegimePageView = 'performance' | 'timeline' | 'similarPeriods'

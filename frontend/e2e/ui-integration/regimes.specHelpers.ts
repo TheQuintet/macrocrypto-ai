@@ -16,6 +16,10 @@ export function performanceSection(page: Page) {
   })
 }
 
+export async function selectRegimeView(page: Page, name: string) {
+  await page.getByRole('tab', { name }).click()
+}
+
 export async function expectRegimeCardClassified(page: Page) {
   const card = regimeCard(page)
   await expect(card).toBeVisible({ timeout: 20_000 })
@@ -151,14 +155,19 @@ export async function expectWideTableShowsDetailColumns(page: Page) {
 export async function expectSimulatedBadges(page: Page) {
   // No backend in a UI-integration run, so every regime view must own up to
   // running on stand-in data rather than looking like the real market.
-  //
-  // Generous timeout: /macro now mounts four query-backed sections, and under
-  // parallel workers the last badge can take well over ten seconds to paint
-  // even though the page renders in about five on its own.
+  await expect(performanceSection(page).getByText('Simulated')).toBeVisible({
+    timeout: 20_000,
+  })
+
+  await selectRegimeView(page, 'Timeline')
   await expect(timelineSection(page).getByText('Simulated')).toBeVisible({
     timeout: 20_000,
   })
-  await expect(performanceSection(page).getByText('Simulated')).toBeVisible()
+
+  await selectRegimeView(page, 'Similar periods')
+  await expect(similarPeriodsSection(page).getByText('Simulated')).toBeVisible({
+    timeout: 20_000,
+  })
 }
 
 export function similarPeriodsSection(page: Page) {
