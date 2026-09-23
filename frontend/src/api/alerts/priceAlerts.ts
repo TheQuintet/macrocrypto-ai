@@ -25,10 +25,9 @@ const JSON_HEADERS = { Accept: 'application/json' }
 /**
  * Price-alert CRUD from the alert service.
  *
- * `VITE_API_GATEWAY_BASE_URL` is the switch (legacy `VITE_ALERT_API_BASE_URL`
- * still works for talking to alert-service on :8003 directly). Unset →
- * simulated seed data. Set → axios to that host and a failed request throws
- * rather than quietly substituting seed rules.
+ * `VITE_API_GATEWAY_BASE_URL` (or the legacy `VITE_ALERT_API_BASE_URL`) is
+ * the switch. Unset → simulated seed data. Set → axios to that host and a
+ * failed request throws rather than quietly substituting seed rules.
  */
 async function fromApiOrSimulate<T>(
   path: string,

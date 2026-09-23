@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   ALERT_API_BASE_URL,
-  API_BASE_URL,
   API_GATEWAY_BASE_URL,
   NOTIFICATION_STREAM_URL,
   alertApiUrl,
@@ -20,7 +19,6 @@ describe('apiConfig', () => {
   it('reports no backend in a frontend-only run', () => {
     // Pinned empty by the Vitest config, so a developer's local .env cannot
     // change this. Unset and empty both mean "no backend".
-    expect(API_BASE_URL).toBeFalsy()
     expect(API_GATEWAY_BASE_URL).toBeFalsy()
     expect(isApiConfigured()).toBe(false)
     expect(apiUrl('/api/v1/btc/price')).toBeNull()
@@ -33,8 +31,8 @@ describe('apiConfig', () => {
 
   it('routes data and alert requests through the configured gateway', async () => {
     vi.stubEnv('VITE_API_GATEWAY_BASE_URL', 'http://localhost:8000/')
-    vi.stubEnv('VITE_API_BASE_URL', 'http://localhost:8001')
     vi.stubEnv('VITE_ALERT_API_BASE_URL', 'http://localhost:8003')
+    vi.resetModules()
 
     const config = await import('@/lib/apiConfig')
 

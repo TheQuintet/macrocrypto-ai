@@ -2,14 +2,7 @@ import { ExampleQueryDemo } from '@/components/examples/ExampleQueryDemo'
 import { PageIntro } from '@/components/layout/PageIntro'
 import { BtcPriceCard } from '@/components/dashboard/price/BtcPriceCard'
 import { PriceChangeCard } from '@/components/dashboard/price/PriceChangeCard'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
-import { Skeleton } from '@/components/ui/skeleton'
+import { RegimeCard } from '@/components/dashboard/regime/RegimeCard'
 import { pageCopy } from '@/constants/navigation'
 import { PriceChart } from '@/components/dashboard/PriceChart'
 import { MacroIndicators } from '@/components/dashboard/MacroIndicators'
@@ -28,19 +21,7 @@ export function DashboardPage() {
 
         <PriceChangeCard />
 
-        <Card className="min-w-0 sm:col-span-2 lg:col-span-1">
-          <CardHeader>
-            <CardDescription>Macro regime</CardDescription>
-            <CardTitle className="min-w-0 truncate text-base sm:text-lg lg:text-xl">
-              <Skeleton className="h-5 w-28 sm:h-6 sm:w-36" />
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <span className="text-xs text-muted-foreground">
-              AI-classified market context
-            </span>
-          </CardContent>
-        </Card>
+        <RegimeCard />
       </section>
 
       <section className="flex min-w-0 flex-col gap-3">

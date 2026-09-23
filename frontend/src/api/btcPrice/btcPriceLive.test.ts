@@ -25,7 +25,7 @@ async function loadApi() {
 describe('fetchBtcPriceSnapshot with a backend configured', () => {
   beforeEach(() => {
     vi.resetModules()
-    vi.stubEnv('VITE_API_BASE_URL', 'http://localhost:8001')
+    vi.stubEnv('VITE_API_GATEWAY_BASE_URL', 'http://localhost:8000')
   })
 
   afterEach(() => {
@@ -34,7 +34,7 @@ describe('fetchBtcPriceSnapshot with a backend configured', () => {
     vi.resetModules()
   })
 
-  it('calls the data service price endpoint', async () => {
+  it('calls the gateway price endpoint', async () => {
     const fetchSpy = okResponse(WIRE_RESPONSE)
     vi.stubGlobal('fetch', fetchSpy)
     const { fetchBtcPriceSnapshot } = await loadApi()
@@ -42,7 +42,7 @@ describe('fetchBtcPriceSnapshot with a backend configured', () => {
     await fetchBtcPriceSnapshot()
 
     expect(fetchSpy).toHaveBeenCalledWith(
-      'http://localhost:8001/api/v1/btc/price',
+      'http://localhost:8000/api/v1/btc/price',
       { headers: { Accept: 'application/json' } },
     )
   })
@@ -89,7 +89,7 @@ describe('fetchBtcPriceSnapshot with a backend configured', () => {
   })
 
   it('does not double up slashes on a trailing-slash base URL', async () => {
-    vi.stubEnv('VITE_API_BASE_URL', 'http://localhost:8001/')
+    vi.stubEnv('VITE_API_GATEWAY_BASE_URL', 'http://localhost:8000/')
     vi.resetModules()
     const fetchSpy = okResponse(WIRE_RESPONSE)
     vi.stubGlobal('fetch', fetchSpy)
@@ -98,7 +98,7 @@ describe('fetchBtcPriceSnapshot with a backend configured', () => {
     await fetchBtcPriceSnapshot()
 
     expect(fetchSpy).toHaveBeenCalledWith(
-      'http://localhost:8001/api/v1/btc/price',
+      'http://localhost:8000/api/v1/btc/price',
       expect.anything(),
     )
   })
