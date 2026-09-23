@@ -1,4 +1,5 @@
 import { RegimePerformanceChart } from '@/components/dashboard/regime/RegimePerformanceChart'
+import { RegimeExportButton } from '@/components/dashboard/regime/RegimeExportButton'
 import { RegimePerformanceTable } from '@/components/dashboard/regime/RegimePerformanceTable'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -15,19 +16,26 @@ export function RegimePerformanceSection() {
       aria-label="BTC performance by macro regime"
       className="flex min-w-0 flex-col gap-3 overflow-hidden rounded-xl border border-border bg-card p-3 text-card-foreground sm:p-4"
     >
-      <div className="flex min-w-0 flex-col gap-1">
-        <div className="flex flex-wrap items-center gap-2">
-          <h2 className="text-sm font-medium">Performance by regime</h2>
-          {data?.source === 'simulated' ? (
-            <Badge variant="outline" className="text-[10px] font-normal">
-              Simulated
-            </Badge>
-          ) : null}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex min-w-0 flex-col gap-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-sm font-medium">Performance by regime</h2>
+            {data?.source === 'simulated' ? (
+              <Badge variant="outline" className="text-[10px] font-normal">
+                Simulated
+              </Badge>
+            ) : null}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Average BTC return in each macro backdrop, with the drawdown,
+            volatility, and Sharpe ratio behind it. Hover a bar for the full
+            set.
+          </p>
         </div>
-        <p className="text-xs text-muted-foreground">
-          Average BTC return in each macro backdrop, with the drawdown,
-          volatility, and Sharpe ratio behind it. Hover a bar for the full set.
-        </p>
+
+        {rows.length > 0 ? (
+          <RegimeExportButton rows={rows} source={data?.source ?? 'live'} />
+        ) : null}
       </div>
 
       {renderBody(isPending, isError, rows)}

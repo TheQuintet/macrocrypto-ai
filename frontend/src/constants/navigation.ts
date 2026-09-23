@@ -30,8 +30,8 @@ export const pageCopy: Record<NavItemId, PageCopy> = {
     body: 'The macroeconomic backdrop behind Bitcoin — inflation, policy rates, and growth in one view.',
   },
   regimePerformance: {
-    title: 'Performance by regime',
-    body: 'How Bitcoin has behaved in each classified backdrop, and how long those regimes ran.',
+    title: 'Regime analysis',
+    body: 'How Bitcoin has behaved in each classified backdrop, the history of those regimes, and periods that looked like today.',
   },
   calendar: {
     title: 'Economic calendar',

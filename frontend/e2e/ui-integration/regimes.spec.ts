@@ -7,6 +7,14 @@ import {
 } from './priceDisplay.specHelpers'
 import {
   clickFirstSegment,
+  clickFirstSimilarPeriod,
+  exportRegimeCsv,
+  selectRegimeView,
+  expectExportToast,
+  expectCurrentConditions,
+  expectSimilarPeriodCards,
+  expectSimilarPeriodConfidence,
+  expectSimilarPeriodDialog,
   closeDialog,
   expectBandWidensWithoutBreakingLayout,
   expectCurrentRegimeBadged,
@@ -41,6 +49,7 @@ test.describe('macro regime UI integration', () => {
     page,
   }) => {
     await goToRoute(page, 'regimePerformance')
+    await selectRegimeView(page, 'Timeline')
 
     await expectTimelineSegments(page, 2)
     await expectCurrentRegimeHighlighted(page)
@@ -48,6 +57,7 @@ test.describe('macro regime UI integration', () => {
 
   test('hovering a regime shows its summary', async ({ page }) => {
     await goToRoute(page, 'regimePerformance')
+    await selectRegimeView(page, 'Timeline')
 
     await expectTimelineSegments(page, 1)
     await hoverFirstSegment(page)
@@ -58,6 +68,7 @@ test.describe('macro regime UI integration', () => {
     page,
   }) => {
     await goToRoute(page, 'regimePerformance')
+    await selectRegimeView(page, 'Timeline')
 
     await expectTimelineSegments(page, 1)
     await clickFirstSegment(page)
@@ -69,6 +80,7 @@ test.describe('macro regime UI integration', () => {
     page,
   }) => {
     await goToRoute(page, 'regimePerformance')
+    await selectRegimeView(page, 'Timeline')
 
     await expectTimelineSegments(page, 2)
     await expectZoomLevel(page, '1x')
@@ -81,6 +93,7 @@ test.describe('macro regime UI integration', () => {
 
   test('zoom stops at each end of its range', async ({ page }) => {
     await goToRoute(page, 'regimePerformance')
+    await selectRegimeView(page, 'Timeline')
 
     await expectTimelineSegments(page, 2)
     await test.expect(zoomOutButton(page)).toBeDisabled()
@@ -114,9 +127,12 @@ test.describe('macro regime UI integration', () => {
     await page.setViewportSize(MOBILE_VIEWPORT)
     await goToRoute(page, 'regimePerformance')
 
-    await expectTimelineSegments(page, 2)
     await expectPerformanceRows(page, 2)
     await expectNarrowTableDropsDetailColumns(page)
+    await expectNoHorizontalScroll(page)
+
+    await selectRegimeView(page, 'Timeline')
+    await expectTimelineSegments(page, 2)
     await expectNoHorizontalScroll(page)
   })
 
@@ -125,6 +141,51 @@ test.describe('macro regime UI integration', () => {
     await goToRoute(page, 'dashboard')
 
     await expectRegimeCardClassified(page)
+    await expectNoHorizontalScroll(page)
+  })
+
+  test('performance page suggests similar historical periods with a confidence', async ({
+    page,
+  }) => {
+    await goToRoute(page, 'regimePerformance')
+    await selectRegimeView(page, 'Similar periods')
+
+    await expectCurrentConditions(page)
+    await expectSimilarPeriodCards(page, 2)
+    await expectSimilarPeriodConfidence(page)
+  })
+
+  test('clicking a similar period compares its conditions against today', async ({
+    page,
+  }) => {
+    await goToRoute(page, 'regimePerformance')
+    await selectRegimeView(page, 'Similar periods')
+
+    await expectSimilarPeriodCards(page, 1)
+    await clickFirstSimilarPeriod(page)
+    await expectSimilarPeriodDialog(page)
+  })
+
+  test('exporting regime data hands over a dated CSV', async ({ page }) => {
+    await goToRoute(page, 'regimePerformance')
+
+    await expectPerformanceRows(page, 2)
+    const download = await exportRegimeCsv(page)
+
+    test
+      .expect(download.suggestedFilename())
+      .toMatch(/^regime-performance-\d{4}-\d{2}-\d{2}\.csv$/)
+    await expectExportToast(page)
+  })
+
+  test('similar periods fit a phone without sideways scroll', async ({
+    page,
+  }) => {
+    await page.setViewportSize(MOBILE_VIEWPORT)
+    await goToRoute(page, 'regimePerformance')
+    await selectRegimeView(page, 'Similar periods')
+
+    await expectSimilarPeriodCards(page, 2)
     await expectNoHorizontalScroll(page)
   })
 })
