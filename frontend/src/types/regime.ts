@@ -50,6 +50,22 @@ export type CurrentRegime = {
 /** Green / red / amber, matching the indicator cards' BTC-impact colours. */
 export type RegimeStance = 'bullish' | 'bearish' | 'neutral'
 
+export type RegimeToneClass =
+  | 'text-positive'
+  | 'text-negative'
+  | 'text-warning'
+
+export type RegimeBarClass = 'bg-positive' | 'bg-negative' | 'bg-warning'
+
+/** How sure the classifier is — independent of bull / bear / recession. */
+export type RegimeConfidenceBand = 'high' | 'moderate' | 'low'
+
+export type RegimeConfidenceDisplay = {
+  band: RegimeConfidenceBand
+  toneClass: RegimeToneClass
+  barClass: RegimeBarClass
+}
+
 /** How a regime reads on screen: what it is called, why, and its colour. */
 export type RegimeDisplay = {
   label: string
@@ -58,6 +74,5 @@ export type RegimeDisplay = {
   stance: RegimeStance
   /** Badge text for the visual indicator — Bull / Bear / Recession. */
   stanceLabel: string
-  toneClass: 'text-positive' | 'text-negative' | 'text-warning'
-  barClass: 'bg-positive' | 'bg-negative' | 'bg-warning'
+  toneClass: RegimeToneClass
 }

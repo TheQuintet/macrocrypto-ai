@@ -2,7 +2,16 @@ import { screen, waitFor } from '@testing-library/react'
 import { expect, vi } from 'vitest'
 import { RegimeCard } from '@/components/dashboard/regime/RegimeCard'
 import { renderWithQuery } from '@/test/renderWithQuery'
-import type { CurrentRegime } from '@/types/regime'
+import {
+  CONFIDENCE_BAND_ORDER,
+  formatConfidenceBand,
+  formatConfidenceBandRange,
+} from '@/lib/regimeDisplay'
+import type {
+  CurrentRegime,
+  RegimeConfidenceBand,
+  RegimeStance,
+} from '@/types/regime'
 
 export const REGIME: CurrentRegime = {
   source: 'live',
@@ -31,7 +40,7 @@ export async function expectRegimeShown(label: string) {
   })
 }
 
-export function expectStance(stanceLabel: string, stance: string) {
+export function expectStance(stanceLabel: string, stance: RegimeStance) {
   const badge = document.querySelector('[data-stance]')
 
   expect(badge).toHaveTextContent(stanceLabel)
@@ -42,13 +51,30 @@ export function expectIdentifiedAt(text: string) {
   expect(screen.getByText(`Identified ${text}`)).toBeInTheDocument()
 }
 
-export function expectConfidence(percent: string, width: string) {
+export function expectConfidence(
+  percent: string,
+  width: string,
+  band: RegimeConfidenceBand,
+) {
   const meter = screen.getByRole('meter', {
     name: /regime classification confidence/i,
   })
 
-  expect(screen.getByText(percent)).toBeInTheDocument()
+  expect(
+    screen.getByText(`${percent} ${formatConfidenceBand(band)}`),
+  ).toBeInTheDocument()
+  expect(meter).toHaveAttribute('data-confidence-band', band)
   expect(meter.firstElementChild).toHaveStyle({ width })
+}
+
+export function expectConfidenceScale() {
+  for (const band of CONFIDENCE_BAND_ORDER) {
+    expect(
+      screen.getByText(
+        `${formatConfidenceBand(band)} ${formatConfidenceBandRange(band)}`,
+      ),
+    ).toBeInTheDocument()
+  }
 }
 
 export function expectExplanationShown(pattern: RegExp) {

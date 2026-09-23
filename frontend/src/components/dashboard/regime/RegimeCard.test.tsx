@@ -9,6 +9,7 @@ import {
   expectNotClassified,
   expectRegimeShown,
   expectRegimeUnavailable,
+  expectConfidenceScale,
   expectStance,
   regimeWith,
   renderRegimeCard,
@@ -59,12 +60,22 @@ describe('RegimeCard', () => {
     expectStance('Recession', 'bearish')
   })
 
-  it('shows the confidence level as a figure and a bar', async () => {
+  it('colours a high-confidence bearish regime by certainty, not by stance', async () => {
     fetchRegime.mockResolvedValue(REGIME)
     renderRegimeCard()
 
     await expectRegimeShown('High inflation')
-    expectConfidence('82%', '81.5%')
+    expectStance('Bear', 'bearish')
+    expectConfidence('82%', '81.5%', 'high')
+    expectConfidenceScale()
+  })
+
+  it('marks a weak classification as low confidence', async () => {
+    fetchRegime.mockResolvedValue(regimeWith({ confidence: 32 }))
+    renderRegimeCard()
+
+    await expectRegimeShown('High inflation')
+    expectConfidence('32%', '32%', 'low')
   })
 
   it('explains why the regime was identified', async () => {

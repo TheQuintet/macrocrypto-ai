@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import {
+  HIGH_CONFIDENCE_MIN,
+  MODERATE_CONFIDENCE_MIN,
   clampConfidence,
+  confidenceDisplay,
   formatConfidence,
+  formatConfidenceBand,
+  formatConfidenceBandRange,
   formatRegimeIdentifiedAt,
   regimeDisplay,
   toRegimeVisualIndicator,
@@ -96,6 +101,35 @@ describe('confidence', () => {
   it('formats to whole percent', () => {
     expect(formatConfidence(72.4)).toBe('72%')
     expect(formatConfidence(72.6)).toBe('73%')
+  })
+
+  it('colours high confidence green, moderate amber, and low red', () => {
+    expect(confidenceDisplay(HIGH_CONFIDENCE_MIN)).toMatchObject({
+      band: 'high',
+      toneClass: 'text-positive',
+      barClass: 'bg-positive',
+    })
+    expect(confidenceDisplay(MODERATE_CONFIDENCE_MIN)).toMatchObject({
+      band: 'moderate',
+      toneClass: 'text-warning',
+      barClass: 'bg-warning',
+    })
+    expect(confidenceDisplay(MODERATE_CONFIDENCE_MIN - 0.1)).toMatchObject({
+      band: 'low',
+      toneClass: 'text-negative',
+      barClass: 'bg-negative',
+    })
+  })
+
+  it('names each confidence band and its range', () => {
+    expect(formatConfidenceBand('low')).toBe('Low')
+    expect(formatConfidenceBandRange('low')).toBe(
+      `<${MODERATE_CONFIDENCE_MIN}%`,
+    )
+    expect(formatConfidenceBandRange('moderate')).toBe(
+      `${MODERATE_CONFIDENCE_MIN}–${HIGH_CONFIDENCE_MIN - 1}%`,
+    )
+    expect(formatConfidenceBandRange('high')).toBe(`≥${HIGH_CONFIDENCE_MIN}%`)
   })
 })
 

@@ -103,7 +103,7 @@ function renderBody(
         </span>
       </div>
 
-      <RegimeConfidenceMeter confidence={regime.confidence} display={display} />
+      <RegimeConfidenceMeter confidence={regime.confidence} />
 
       <p className="text-xs leading-relaxed text-muted-foreground">
         {display.explanation}

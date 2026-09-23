@@ -1,4 +1,6 @@
 import type {
+  RegimeConfidenceBand,
+  RegimeConfidenceDisplay,
   RegimeDisplay,
   RegimeType,
   RegimeVisualIndicator,
@@ -47,32 +49,49 @@ const REGIME_COPY: Record<RegimeType, { label: string; explanation: string }> =
 
 const STANCE_BY_INDICATOR: Record<
   RegimeVisualIndicator,
-  Pick<RegimeDisplay, 'stance' | 'stanceLabel' | 'toneClass' | 'barClass'>
+  Pick<RegimeDisplay, 'stance' | 'stanceLabel' | 'toneClass'>
 > = {
   bull: {
     stance: 'bullish',
     stanceLabel: 'Bull',
     toneClass: 'text-positive',
-    barClass: 'bg-positive',
   },
   bear: {
     stance: 'bearish',
     stanceLabel: 'Bear',
     toneClass: 'text-negative',
-    barClass: 'bg-negative',
   },
   recession: {
     stance: 'bearish',
     stanceLabel: 'Recession',
     toneClass: 'text-negative',
-    barClass: 'bg-negative',
   },
   neutral: {
     stance: 'neutral',
     stanceLabel: 'Neutral',
     toneClass: 'text-warning',
-    barClass: 'bg-warning',
   },
+}
+
+/** At or above this, the classifier is sure enough to read as green. */
+export const HIGH_CONFIDENCE_MIN = 70
+
+/** Below this, the read is too weak to trust — red. Between here and high is amber. */
+export const MODERATE_CONFIDENCE_MIN = 50
+
+export const CONFIDENCE_BAND_ORDER: RegimeConfidenceBand[] = [
+  'low',
+  'moderate',
+  'high',
+]
+
+const TONE_BY_BAND: Record<
+  RegimeConfidenceBand,
+  Pick<RegimeConfidenceDisplay, 'toneClass' | 'barClass'>
+> = {
+  low: { toneClass: 'text-negative', barClass: 'bg-negative' },
+  moderate: { toneClass: 'text-warning', barClass: 'bg-warning' },
+  high: { toneClass: 'text-positive', barClass: 'bg-positive' },
 }
 
 function isRegimeType(value: string): value is RegimeType {
@@ -131,6 +150,50 @@ export function clampConfidence(confidence: number) {
 
 export function formatConfidence(confidence: number) {
   return `${Math.round(clampConfidence(confidence))}%`
+}
+
+/**
+ * Colour the confidence figure by how sure the classifier is, not by
+ * bull / bear. A high-confidence bearish regime is still a strong read.
+ */
+export function confidenceDisplay(confidence: number): RegimeConfidenceDisplay {
+  const value = clampConfidence(confidence)
+
+  if (value >= HIGH_CONFIDENCE_MIN) {
+    return { band: 'high', ...TONE_BY_BAND.high }
+  }
+
+  if (value >= MODERATE_CONFIDENCE_MIN) {
+    return { band: 'moderate', ...TONE_BY_BAND.moderate }
+  }
+
+  return { band: 'low', ...TONE_BY_BAND.low }
+}
+
+export function formatConfidenceBand(band: RegimeConfidenceBand) {
+  switch (band) {
+    case 'high':
+      return 'High'
+    case 'moderate':
+      return 'Moderate'
+    case 'low':
+      return 'Low'
+  }
+}
+
+export function formatConfidenceBandRange(band: RegimeConfidenceBand) {
+  switch (band) {
+    case 'high':
+      return `≥${HIGH_CONFIDENCE_MIN}%`
+    case 'moderate':
+      return `${MODERATE_CONFIDENCE_MIN}–${HIGH_CONFIDENCE_MIN - 1}%`
+    case 'low':
+      return `<${MODERATE_CONFIDENCE_MIN}%`
+  }
+}
+
+export function confidenceBandTone(band: RegimeConfidenceBand) {
+  return TONE_BY_BAND[band]
 }
 
 /**
