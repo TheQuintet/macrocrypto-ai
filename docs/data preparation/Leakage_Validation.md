@@ -1,6 +1,6 @@
 # Leakage & Point-in-Time Validation Policy & Report — Stage 5
 
-**Status:** Review  
+**Status:** Finalized & Operational 
 **Date:** September 2026  
 **Input Artifact:** `app/data/ml_btc_daily_features.csv` (3,321 rows × 60 columns)  
 **Output Artifact:** Automated Pytest Leakage Validation Suite (`tests/ml_qa/test_leakage_validation.py`)  
