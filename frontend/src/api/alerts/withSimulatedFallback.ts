@@ -1,16 +1,15 @@
-import { isNotificationApiConfigured } from '@/lib/apiConfig'
+import { isApiGatewayConfigured } from '@/lib/apiConfig'
 
 /**
- * Notification REST follows `VITE_NOTIFICATION_STREAM_URL`, not the alert
- * CRUD host. Unset → simulated inbox, no HTTP. Set → try live, and if that
- * request fails (routes still missing) fall back so the bell still works.
- * Price-alert CRUD does not use this.
+ * Notification REST follows the API gateway. Unset → simulated inbox, no
+ * HTTP. Set → try live, and if that request fails (routes still missing)
+ * fall back so the bell still works. Price-alert CRUD does not use this.
  */
 export async function withSimulatedFallback<T>(
   live: () => Promise<T>,
   simulate: () => Promise<T>,
 ): Promise<T> {
-  if (!isNotificationApiConfigured()) {
+  if (!isApiGatewayConfigured()) {
     return simulate()
   }
 

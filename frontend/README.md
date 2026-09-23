@@ -50,10 +50,9 @@ Set this value in `.env.local`:
 VITE_API_GATEWAY_BASE_URL=http://localhost:8000
 ```
 
-All data and alert HTTP requests then use the gateway. Leave the value empty
-for a frontend-only run with simulated data. `VITE_ALERT_API_BASE_URL` remains
-available only for talking to the alert service directly; the gateway URL
-takes precedence when both are set.
+All HTTP, SSE, and WebSocket URLs are then built from that base plus a path
+in code. Leave the value empty for a frontend-only run with simulated data.
+The browser does not call the data, alert, or AI services directly.
 
 ## Scripts
 

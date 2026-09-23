@@ -14,25 +14,14 @@ describe('createNotificationSocket transport precedence', () => {
     vi.resetModules()
   })
 
-  it('uses the simulated socket when nothing is configured', async () => {
+  it('uses the simulated socket when the gateway is unset', async () => {
     const { createNotificationSocket } = await loadSocket()
 
     expect(createNotificationSocket('user-1')).toBeTypeOf('function')
   })
 
-  it('uses a live stream when a stream URL is configured', async () => {
-    vi.stubEnv(
-      'VITE_NOTIFICATION_STREAM_URL',
-      'http://localhost:8003/api/v1/notifications/stream',
-    )
-    vi.resetModules()
-    const { createNotificationSocket } = await loadSocket()
-
-    expect(createNotificationSocket('user-1')).toBeTypeOf('function')
-  })
-
-  it('still simulates push when the alert API is up but has no stream', async () => {
-    vi.stubEnv('VITE_ALERT_API_BASE_URL', 'http://localhost:8003')
+  it('uses a live stream derived from the gateway base URL', async () => {
+    vi.stubEnv('VITE_API_GATEWAY_BASE_URL', 'http://localhost:8000')
     vi.resetModules()
     const { createNotificationSocket } = await loadSocket()
 

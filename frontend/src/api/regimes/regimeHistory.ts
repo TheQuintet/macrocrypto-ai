@@ -1,3 +1,4 @@
+import { REGIME_HISTORY_PATH } from '@/constants/apiUrls'
 import { apiUrl } from '@/lib/apiConfig'
 import type {
   RegimeHistory,
@@ -7,9 +8,6 @@ import type {
   RegimePerformanceMetricsResponse,
   RegimeSource,
 } from '@/types/regime'
-
-/** Real endpoint on the data service (see `app/api/regime.py`). */
-export const REGIME_HISTORY_PATH = '/api/v1/regimes'
 
 export function regimeHistoryQueryKey() {
   return ['regimes', 'history'] as const

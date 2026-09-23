@@ -1,10 +1,8 @@
 import axios from 'axios';
-import { alertApiUrl } from '@/lib/apiConfig';
+import { MACRO_ALERT_HISTORY_PATH } from '@/constants/apiUrls';
+import { apiUrl } from '@/lib/apiConfig';
 import { simulateMacroAlertHistory } from '@/api/alerts/simulatedMacroAlertHistory';
 import type { MacroAlertHistoryResponse } from '@/types/alerts/macroAlertHistory';
-
-/** Real endpoint on the alert service (see `app/api/macro_routes.py`). */
-export const MACRO_ALERT_HISTORY_PATH = '/api/v1/macro/notifications';
 
 /**
  * The endpoint caps `limit` at 100. The view filters, searches, and paginates
@@ -22,14 +20,14 @@ export function macroAlertHistoryQueryKey(userId: string) {
 /**
  * Macro alerts that were actually sent to this user.
  *
- * Follows `VITE_ALERT_API_BASE_URL` like the rest of the alert surface: unset
- * → simulated history, set → a failed request throws rather than showing an
+ * Follows the API gateway like the rest of the alert surface: unset →
+ * simulated history, set → a failed request throws rather than showing an
  * empty history the user might read as "I was never alerted".
  */
 export async function fetchMacroAlertHistory(
   userId: string,
 ): Promise<MacroAlertHistoryResponse> {
-  const url = alertApiUrl(`${MACRO_ALERT_HISTORY_PATH}/${userId}`);
+  const url = apiUrl(`${MACRO_ALERT_HISTORY_PATH}/${userId}`);
 
   if (!url) {
     return simulateMacroAlertHistory(userId);

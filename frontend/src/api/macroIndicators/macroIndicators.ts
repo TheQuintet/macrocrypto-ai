@@ -1,18 +1,15 @@
+import { MACRO_INDICATORS_PATH } from '@/constants/apiUrls'
 import { apiUrl } from '@/lib/apiConfig'
 import type { MacroIndicator } from '@/types/macroIndicators'
 import {
   MACRO_INDICATORS_MOCK_LATENCY_MS,
-  MACRO_INDICATORS_PATH,
   delay,
   keepMainIndicators,
   mockLatestIndicators,
   withDataSource,
 } from '@/api/macroIndicators/macroIndicatorsShared'
 
-export {
-  MAIN_INDICATOR_NAMES,
-  MACRO_INDICATORS_PATH,
-} from '@/api/macroIndicators/macroIndicatorsShared'
+export { MAIN_INDICATOR_NAMES } from '@/api/macroIndicators/macroIndicatorsShared'
 
 export function macroIndicatorsQueryKey() {
   return ['macroIndicators', 'latest'] as const

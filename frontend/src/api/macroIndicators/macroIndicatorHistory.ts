@@ -1,10 +1,10 @@
+import { MACRO_INDICATORS_PATH } from '@/constants/apiUrls'
 import { apiUrl } from '@/lib/apiConfig'
 import { indicatorApiPeriod } from '@/lib/macroIndicatorHistory'
 import type { MacroIndicator } from '@/types/macroIndicators'
 import type { TimeRange } from '@/types/preferences'
 import {
   MACRO_INDICATORS_MOCK_LATENCY_MS,
-  MACRO_INDICATORS_PATH,
   delay,
   keepMainIndicators,
   mockLatestIndicators,

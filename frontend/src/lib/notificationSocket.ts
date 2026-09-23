@@ -1,4 +1,4 @@
-import { NOTIFICATION_STREAM_URL } from '@/lib/apiConfig'
+import { notificationStreamUrl } from '@/constants/apiUrls'
 import { createMockNotificationSocket } from '@/lib/mockNotificationSocket'
 import type { NotificationSocketFactory } from '@/types/notificationStream'
 
@@ -54,14 +54,14 @@ export function createSseNotificationSocket(
 }
 
 /**
- * Live SSE/WebSocket when `VITE_NOTIFICATION_STREAM_URL` is set, otherwise
- * the simulated push. A configured alert-service does not imply a stream.
+ * Live stream when the gateway is configured, otherwise the simulated push.
  */
 export function createNotificationSocket(
   userId: string,
-): NotificationSocketFactory | null {
-  if (NOTIFICATION_STREAM_URL) {
-    const url = withUserId(NOTIFICATION_STREAM_URL, userId)
+): NotificationSocketFactory {
+  const streamUrl = notificationStreamUrl()
+  if (streamUrl) {
+    const url = withUserId(streamUrl, userId)
     return isWebSocketUrl(url)
       ? createWebSocketNotificationSocket(url)
       : createSseNotificationSocket(url)

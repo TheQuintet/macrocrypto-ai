@@ -1,3 +1,4 @@
+import { BTC_PRICE_HISTORY_PATH } from '@/constants/apiUrls'
 import { apiUrl } from '@/lib/apiConfig'
 import { HISTORY_WINDOW } from '@/api/predictions/predictionWindow'
 import { buildSimulatedHistoryPoints } from '@/api/predictions/simulatedPredictionHistory'
@@ -12,9 +13,6 @@ import type {
 } from '@/types/predictions'
 
 type PredictionHistoryPoint = PredictionHistoryResponse['points'][number]
-
-/** Real endpoint on the data service, proxied by the gateway. */
-export const BTC_PRICE_HISTORY_PATH = '/api/v1/btc/price/history'
 
 const MOCK_LATENCY_MS = 180
 
