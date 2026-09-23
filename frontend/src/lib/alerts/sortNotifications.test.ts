@@ -1,10 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import { sortNotificationsByDateNewestFirst } from '@/lib/alerts/sortNotifications'
+import {
+  sortNotificationsByDateNewestFirst,
+  splitNotificationsByRead,
+} from '@/lib/alerts/sortNotifications'
 import type { InAppNotification } from '@/types/alerts/notifications'
 
 function item(
   id: string,
   created_at: string,
+  read = false,
 ): InAppNotification {
   return {
     id,
@@ -15,7 +19,7 @@ function item(
     notification_type: 'price_alert',
     data: null,
     action_url: '/',
-    read: false,
+    read,
     is_archived: false,
     created_at,
     read_at: null,
@@ -31,5 +35,17 @@ describe('sortNotificationsByDateNewestFirst', () => {
     ])
 
     expect(sorted.map((entry) => entry.id)).toEqual(['new', 'mid', 'old'])
+  })
+})
+
+describe('splitNotificationsByRead', () => {
+  it('keeps unread rows separate from read ones', () => {
+    const { unread, read } = splitNotificationsByRead([
+      item('open', '2026-08-30T00:00:00.000Z', false),
+      item('done', '2026-08-29T00:00:00.000Z', true),
+    ])
+
+    expect(unread.map((entry) => entry.id)).toEqual(['open'])
+    expect(read.map((entry) => entry.id)).toEqual(['done'])
   })
 })

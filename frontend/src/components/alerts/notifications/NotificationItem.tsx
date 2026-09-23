@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { NotificationTypeIcon } from '@/components/alerts/notifications/NotificationTypeIcon'
+import { Badge } from '@/components/ui/badge'
 import { showToast } from '@/components/alerts/shared/ToastNotification'
 import { useMarkNotificationReadMutation } from '@/hooks/alerts/useMarkNotificationReadMutation'
 import { formatNotificationCopy } from '@/lib/alerts/formatNotificationToast'
@@ -37,7 +38,9 @@ export function NotificationItem({
       type="button"
       className={cn(
         'flex w-full gap-3 rounded-lg p-3 text-left transition-colors hover:bg-muted/50',
-        !notification.read ? 'bg-muted/30' : '',
+        notification.read
+          ? 'bg-transparent'
+          : 'bg-primary/10 ring-1 ring-primary/20',
         notification.is_archived && 'opacity-50',
       )}
       aria-label={
@@ -49,7 +52,14 @@ export function NotificationItem({
     >
       <NotificationTypeIcon type={notification.notification_type} />
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium">{copy.title}</p>
+        <p
+          className={cn(
+            'text-sm',
+            notification.read ? 'font-medium' : 'font-semibold',
+          )}
+        >
+          {copy.title}
+        </p>
         <p className="text-xs font-medium text-muted-foreground">{copy.typeLabel}</p>
         {payloadLines.map((line) => (
           <p
@@ -66,9 +76,7 @@ export function NotificationItem({
           <p className="mt-1 text-xs text-muted-foreground">{copy.timestamp}</p>
         ) : null}
       </div>
-      {!notification.read ? (
-        <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-blue-500" />
-      ) : null}
+      {!notification.read ? <Badge className="mt-1">Unread</Badge> : null}
     </button>
   )
 }

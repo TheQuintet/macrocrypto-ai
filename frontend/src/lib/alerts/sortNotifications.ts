@@ -11,3 +11,11 @@ export function sortNotificationsByDateNewestFirst(
     return right.id.localeCompare(left.id)
   })
 }
+
+/** Split a newest-first list so unread rows can sit above read ones. */
+export function splitNotificationsByRead(notifications: InAppNotification[]) {
+  return {
+    unread: notifications.filter((notification) => !notification.read),
+    read: notifications.filter((notification) => notification.read),
+  }
+}

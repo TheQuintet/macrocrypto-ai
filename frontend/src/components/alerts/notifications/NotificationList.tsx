@@ -1,11 +1,14 @@
-import { BellOff } from 'lucide-react'
-import { NotificationItem } from '@/components/alerts/notifications/NotificationItem'
+import { BellOff, CheckCheck } from 'lucide-react'
+import { NotificationListGroup } from '@/components/alerts/notifications/NotificationListGroup'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useMarkAllNotificationsReadMutation } from '@/hooks/alerts/useMarkAllNotificationsReadMutation'
 import { useNotificationsQuery } from '@/hooks/alerts/useNotificationsQuery'
 import { useUnreadNotificationCountQuery } from '@/hooks/alerts/useUnreadNotificationCountQuery'
-import { sortNotificationsByDateNewestFirst } from '@/lib/alerts/sortNotifications'
+import {
+  sortNotificationsByDateNewestFirst,
+  splitNotificationsByRead,
+} from '@/lib/alerts/sortNotifications'
 
 type NotificationListProps = {
   userId: string
@@ -20,6 +23,8 @@ export function NotificationList({ userId, onNavigate }: NotificationListProps) 
   const notifications = sortNotificationsByDateNewestFirst(
     data?.notifications ?? [],
   )
+  const { unread: unreadNotifications, read: readNotifications } =
+    splitNotificationsByRead(notifications)
   const unreadCount = unread?.count ?? 0
 
   if (isPending) {
@@ -70,28 +75,27 @@ export function NotificationList({ userId, onNavigate }: NotificationListProps) 
   return (
     <div className="space-y-4">
       {unreadCount > 0 ? (
-        <div className="flex justify-end">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-xs"
-            onClick={() => markAllAsRead.mutate()}
-          >
-            Mark all as read
-          </Button>
-        </div>
+        <Button
+          className="w-full"
+          onClick={() => markAllAsRead.mutate()}
+          disabled={markAllAsRead.isPending}
+        >
+          <CheckCheck />
+          Mark all as read
+        </Button>
       ) : null}
-      <div className="space-y-2" role="list">
-        {notifications.map((notification) => (
-          <div key={notification.id} role="listitem">
-            <NotificationItem
-              notification={notification}
-              userId={userId}
-              onNavigate={onNavigate}
-            />
-          </div>
-        ))}
-      </div>
+      <NotificationListGroup
+        heading={`Unread (${unreadNotifications.length})`}
+        notifications={unreadNotifications}
+        userId={userId}
+        onNavigate={onNavigate}
+      />
+      <NotificationListGroup
+        heading="Read"
+        notifications={readNotifications}
+        userId={userId}
+        onNavigate={onNavigate}
+      />
     </div>
   )
 }
