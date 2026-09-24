@@ -2,9 +2,11 @@ from pydantic import BaseModel, Field, model_validator
 
 
 class SplitConfig(BaseModel):
-  """Configuration parameters for train/val/test chronological splitting,
+  """Configuration parameters for chronological train/val/test splitting,
 
   walk-forward cross-validation, and leakage purge/embargo buffers.
+  Designed for next-day Bitcoin price forecasting (y_t = Price_{t+1})
+  with strict feature availability on or before day t.
   """
 
   train_ratio: float = Field(
@@ -17,17 +19,18 @@ class SplitConfig(BaseModel):
       default=0.10, gt=0.0, lt=1.0, description="Proportion of data for holdout test."
   )
   purge_window: int = Field(
-      default=7,
-      ge=0,
+      default=90,
+      ge=1,
       description=(
-          "Purge window (days) between train and val to eliminate rolling"
-          " feature overlap."
+          "Purge window (days) set to 90 to cover max rolling feature"
+          " (btc_sma_90) and exceed the 1-day target horizon (y_t = Price_{t+1}),"
+          " preventing feature-target and rolling overlap leakage."
       ),
   )
   embargo_window: int = Field(
       default=7,
       ge=0,
-      description="Embargo window (days) between val and test sets.",
+      description="Embargo window (days) between validation and test sets.",
   )
   n_walk_forward_splits: int = Field(
       default=5,

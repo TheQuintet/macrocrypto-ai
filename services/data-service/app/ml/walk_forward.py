@@ -6,7 +6,7 @@ from app.ml.splitting_config import SplitConfig
 class WalkForwardSplitter:
   """Time-series cross-validation splitter with support for chronological
 
-  train/val/test splits, purging, and embargoing to prevent leakage.
+  train/val/test splits, purging, and embargoing to prevent data leakage.
   Powered by SplitConfig for robust Pydantic parameter validation.
   """
 
@@ -20,7 +20,10 @@ class WalkForwardSplitter:
     self.n_splits = self.config.n_walk_forward_splits
 
   def split_indices(self, n_samples: int):
-    """Computes absolute start and end index bounds for train, val, and test sets."""
+    """Computes absolute start and end index bounds for train, val, and test sets,
+
+    accounting for purge and embargo buffers.
+    """
     train_end = int(n_samples * self.train_ratio)
     val_start = train_end + self.purge_window
     val_end = val_start + int(n_samples * self.val_ratio)
@@ -34,7 +37,10 @@ class WalkForwardSplitter:
     }
 
   def get_walk_forward_folds(self, n_samples: int):
-    """Generates rolling expanding-window train/val splits natively."""
+    """Generates rolling expanding-window train/val splits natively,
+
+    applying the purge window to the end of each training fold.
+    """
     train_end_limit = int(n_samples * (self.train_ratio + self.val_ratio))
     indices = np.arange(train_end_limit)
     fold_size = len(indices) // (self.n_splits + 1)
@@ -49,5 +55,6 @@ class WalkForwardSplitter:
       if len(train_idx) > self.purge_window:
         train_idx = train_idx[: -self.purge_window]
 
+      # Ensure valid non-empty folds after purge
       if len(val_idx) > 0 and len(train_idx) > 0:
         yield train_idx, val_idx
