@@ -8,8 +8,8 @@ class TargetGenerator:
   and properly managing the unlabeled trailing inference frontier.
   """
 
-  def __init__(self, price_column: str = "close"):
-    self.price_column = price_column
+  def __init__(self, price_column: str = "btc_price"):
+      self.price_column = price_column
 
   def generate_target(self, df: pd.DataFrame) -> pd.DataFrame:
     """Appends the next-day target column ('target_next_price') to the DataFrame.
@@ -18,15 +18,10 @@ class TargetGenerator:
     unlabeled inference frontier.
     """
     if self.price_column not in df.columns:
-      # Fallback check for alternate naming conventions
-      alt_cols = [c for c in df.columns if "close" in c or "price" in c]
-      if alt_cols:
-        self.price_column = alt_cols[0]
-      else:
-        raise ValueError(
-            f"Price column '{self.price_column}' not found in DataFrame."
-            f" Available columns: {list(df.columns)}"
-        )
+      raise ValueError(
+          f"Price column '{self.price_column}' not found in DataFrame."
+          f" Available columns: {list(df.columns)}"
+      )
 
     df_out = df.copy()
     # Shift price backwards by 1 to align day t features with day t+1 target

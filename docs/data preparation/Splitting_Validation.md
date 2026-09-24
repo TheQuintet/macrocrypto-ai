@@ -1,6 +1,6 @@
 # Train / Validation / Test Splitting, Target Alignment & Walk-Forward Policy — Stage 6
 
-**Status:** Review  
+**Status:** Finalized & Operational  
 **Date:** September 2026  
 **Input Artifact:** `app/data/ml_btc_daily_features.csv` (3,321 rows × 60 columns)  
 **Output Artifacts:** 
@@ -61,4 +61,4 @@ The verification suite (`tests/ml_qa/test_split_validation.py`) enforces strict 
 ---
 
 ## 6. Next Steps
-Once Stage 6 got approval, the pipeline proceeds to **Stage 7 (Feature Scaling and Normalization)**.
+Now the pipeline proceeds to **Stage 7 (Feature Scaling and Transformation)**.
