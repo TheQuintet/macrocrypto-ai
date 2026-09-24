@@ -58,5 +58,11 @@ tzdata
 
 # Financial data API
 fredapi
+
+# Machine Learning
+scikit-learn
+joblib
+pyarrow
+
 # only for local debugging and wouldn't be used in production
 debugpy
