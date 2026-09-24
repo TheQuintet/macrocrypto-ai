@@ -4,89 +4,100 @@ import pandas as pd
 
 from app.ml.feature_scaler import FeatureScaler
 from app.ml.scaler_config import ScalerConfig
-from app.ml.splitting_config import SplitConfig
-from app.ml.target_generator import TargetGenerator
-from app.ml.walk_forward import WalkForwardSplitter
-
-FEATURE_STORE_PATH = Path("app/data/ml_btc_daily_features.csv")
-OUTPUT_DIR = Path("app/data/processed")
+from app.ml.split_processor import SplitProcessor
 
 
 def build_and_export_ml_datasets(
-    csv_path: Path = FEATURE_STORE_PATH, output_dir: Path = OUTPUT_DIR
-):
-  """Executes Stages 6 through 8 (Target Alignment, Walk-Forward Splitting,
+    output_dir: Path = Path("app/data/processed"),
+    scaler_config: ScalerConfig = None,
+) -> dict:
+    """Orchestrates Stages 6, 7, and 8 of the ML pipeline:
+    1. Loads raw feature store data.
+    2. Drops warmup rows and isolates live frontier.
+    3. Executes SplitProcessor (Governance, Target Gen, Walk-Forward Split).
+    4. Executes FeatureScaler (Fit on train, transform val/test/frontier).
+    5. Serializes partitions, live frontier, and fitted scaler artifacts.
+    """
+    output_dir.mkdir(parents=True, exist_ok=True)
+    print(f"[Pipeline Orchestrator] Output directory ready: {output_dir}")
 
-  Feature Scaling, and ML-Ready Dataset Packaging) and persists artifacts to disk.
-  """
-  output_dir.mkdir(parents=True, exist_ok=True)
+    # 1. Load Raw Feature Store
+    feature_path = Path("app/data/ml_btc_daily_features.csv")
+    if not feature_path.exists():
+        raise FileNotFoundError(f"Feature store not found at {feature_path}")
 
-  print(f"[Pipeline] Loading raw feature store from {csv_path}...")
-  if not csv_path.exists():
-    raise FileNotFoundError(f"Feature store artifact not found at {csv_path}")
+    print(f"[Pipeline Orchestrator] Loading raw features from {feature_path}...")
+    raw_df = pd.read_csv(feature_path)
+    print(f"[Pipeline Orchestrator] Initial raw shape: {raw_df.shape}")
 
-  df = pd.read_csv(csv_path)
+    # Drop warmup rows before splitting & scaling
+    if "warmup_complete" in raw_df.columns:
+        initial_len = len(raw_df)
+        raw_df = raw_df[raw_df["warmup_complete"] == 1].reset_index(drop=True)
+        print(f"[Pipeline Orchestrator] Dropped {initial_len - len(raw_df)} warmup rows. Remaining: {len(raw_df)}")
 
-  # 1. Target Generation (Stage 6)
-  print("[Stage 6] Generating target alignment (y_t = Price_{t+1})...")
-  target_gen = TargetGenerator(price_column="btc_price")
-  df_with_target = target_gen.generate_target(df)
+    # 2. Stage 6: SplitProcessor Execution
+    print("[Pipeline Orchestrator] Executing SplitProcessor (Governance, Target Gen, Splits)...")
+    split_processor = SplitProcessor()
+    split_result = split_processor.process(raw_df)
 
-  # 2. Walk-Forward Splitting (Stage 6)
-  print("[Stage 6] Computing chronological walk-forward splits...")
-  split_config = SplitConfig(
-      train_ratio=0.80, val_ratio=0.10, test_ratio=0.10, purge_window=90
-  )
-  splitter = WalkForwardSplitter(config=split_config)
-  bounds = splitter.split_indices(len(df_with_target))
+    train_df = split_result["train"]
+    val_df = split_result["val"]
+    test_df = split_result["test"]
+    frontier_df = split_result["frontier"]
 
-  train_start, train_end = bounds["train"]
-  val_start, val_end = bounds["val"]
-  test_start, test_end = bounds["test"]
+    print(f"  -> Train partition rows: {len(train_df)}")
+    print(f"  -> Validation partition rows: {len(val_df)}")
+    print(f"  -> Test partition rows: {len(test_df)}")
+    print(f"  -> Live frontier rows: {len(frontier_df)}")
 
-  train_df = df_with_target.iloc[train_start:train_end]
-  val_df = df_with_target.iloc[val_start:val_end]
-  test_df = df_with_target.iloc[test_start:test_end]
+    # 3. Stage 7: Feature Scaling & Transformation
+    config = scaler_config or ScalerConfig()
+    print(f"[Pipeline Orchestrator] Initializing FeatureScaler with type: '{config.scaler_type}'...")
+    scaler = FeatureScaler(config=config)
+    
+    print("[Pipeline Orchestrator] Fitting scaler on train partition and transforming...")
+    scaled_train = scaler.fit_transform(train_df)
+    
+    print("[Pipeline Orchestrator] Transforming validation partition...")
+    scaled_val = scaler.transform(val_df)
+    
+    print("[Pipeline Orchestrator] Transforming test partition...")
+    scaled_test = scaler.transform(test_df)
+    
+    if not frontier_df.empty:
+        print("[Pipeline Orchestrator] Transforming live frontier partition...")
+        scaled_frontier = scaler.transform(frontier_df)
+    else:
+        print("[Pipeline Orchestrator] Frontier DataFrame is empty, skipping transformation.")
+        scaled_frontier = frontier_df
 
-  # 3. Train-Exclusive Feature Scaling (Stage 7)
-  print(
-      "[Stage 7] Fitting FeatureScaler exclusively on training partition"
-      " (zero leakage)..."
-  )
-  scaler_config = ScalerConfig(scaler_type="robust")
-  scaler = FeatureScaler(config=scaler_config)
+    print(f"[Pipeline Orchestrator] Scaling complete. Total features scaled: {len(scaler.feature_columns)}")
 
-  scaled_train = scaler.fit_transform(train_df)
-  scaled_val = scaler.transform(val_df)
-  scaled_test = scaler.transform(test_df)
+    # 4. Stage 8: Artifact Serialization
+    train_path = output_dir / "train_scaled.parquet"
+    val_path = output_dir / "val_scaled.parquet"
+    test_path = output_dir / "test_scaled.parquet"
+    frontier_path = output_dir / "live_frontier.parquet"
+    scaler_path = output_dir / "feature_scaler.pkl"
 
-  # 4. Persistence & Packaging (Stage 8)
-  train_path = output_dir / "train_scaled.parquet"
-  val_path = output_dir / "val_scaled.parquet"
-  test_path = output_dir / "test_scaled.parquet"
-  scaler_path = output_dir / "feature_scaler.pkl"
+    print("[Pipeline Orchestrator] Serializing datasets and scaler artifacts...")
+    scaled_train.to_parquet(train_path, index=False)
+    scaled_val.to_parquet(val_path, index=False)
+    scaled_test.to_parquet(test_path, index=False)
+    scaled_frontier.to_parquet(frontier_path, index=False)
+    joblib.dump(scaler, scaler_path)
 
-  print(f"[Stage 8] Exporting training partition to {train_path}...")
-  scaled_train.to_parquet(train_path, index=False)
+    print(f"[Pipeline Orchestrator] Successfully exported datasets and scaler to {output_dir}")
 
-  print(f"[Stage 8] Exporting validation partition to {val_path}...")
-  scaled_val.to_parquet(val_path, index=False)
-
-  print(f"[Stage 8] Exporting test partition to {test_path}...")
-  scaled_test.to_parquet(test_path, index=False)
-
-  print(f"[Stage 8] Serializing fitted FeatureScaler to {scaler_path}...")
-  joblib.dump(scaler, scaler_path)
-
-  print("[Stage 8] Pipeline completed successfully! All ML-ready artifacts saved.")
-  return {
-      "train_path": train_path,
-      "val_path": val_path,
-      "test_path": test_path,
-      "scaler_path": scaler_path,
-      "feature_columns": scaler.feature_columns,
-  }
+    return {
+        "train_path": str(train_path),
+        "val_path": str(val_path),
+        "test_path": str(test_path),
+        "frontier_path": str(frontier_path),
+        "scaler_path": str(scaler_path),
+    }
 
 
 if __name__ == "__main__":
-  build_and_export_ml_datasets()
+    build_and_export_ml_datasets()

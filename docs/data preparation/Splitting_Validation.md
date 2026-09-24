@@ -2,18 +2,19 @@
 
 **Status:** Finalized & Operational  
 **Date:** September 2026  
-**Input Artifact:** `app/data/ml_btc_daily_features.csv` (3,321 rows × 60 columns)  
+**Input Artifact:** `app/data/ml_btc_daily_features.csv` (Raw: 3,321 rows $\to$ Filtered Clean Baseline: 3,230 rows × 60 columns)  
 **Output Artifacts:** 
 * `app/ml/splitting_config.py` (Pydantic Split Parameter Validation)
 * `app/ml/walk_forward.py` (Pure NumPy/Pandas Walk-Forward & Purge Splitter)
 * `app/ml/target_generator.py` (Next-Day Target Alignment $y_t = \text{Price}_{t+1}$)
-* `tests/ml_qa/test_split_validation.py` (Automated Verification Suite)
+* `app/ml/split_processor.py` (Stage 6 Pipeline Orchestrator & Governance Manager)
+* `tests/ml_qa/test_split_processor.py` (Automated Verification Suite)
 
 ---
 
 ## 1. Executive Summary
 
-This document establishes the official chronological partitioning, walk-forward cross-validation, and target variable alignment framework for the **MacroCrypto AI** machine learning pipeline. To ensure absolute scientific integrity and eliminate look-ahead bias, all data splits, buffer accounting, and feature-target relationships adhere to strict temporal boundaries.
+This document establishes the official chronological partitioning, walk-forward cross-validation, and target variable alignment framework for the **MacroCrypto AI** machine learning pipeline. Managed centrally via `SplitProcessor`, all data governance filters, splits, buffer accounting, and feature-target relationships adhere to strict temporal boundaries to ensure absolute scientific integrity and eliminate look-ahead bias.
 
 ---
 
@@ -27,38 +28,48 @@ Supervised learning models within the pipeline are structured around a precise 1
 
 ---
 
-## 3. Partition Sizing & Buffer Accounting
+## 3. Data Governance & Row Filtering Strategy
 
-Nominal split ratios are established at **80% Training / 10% Validation / 10% Holdout Test** across a dataset of $N = 3,321$ rows. Purge and embargo buffers carve out dedicated separation zones from the theoretical allocations:
-
-* **Training Region:** Indices $0 \to 2,656$ (**2,656 rows** / 80%)
-* **Purge Buffer:** **90 rows** dropped between training and validation partitions (Indices $2,656 \to 2,746$). This completely neutralizes rolling feature overlap (`btc_sma_90`) and target boundary leakage.
-* **Validation Region:** Indices $2,746 \to 3,078$ (**332 rows** / 10%)
-* **Embargo Buffer:** **7 rows** dropped between validation and test partitions (Indices $3,078 \to 3,085$).
-* **Holdout Test Region:** Indices $3,085 \to 3,321$ (**236 rows** / 7.1% effective).
+Before splitting, Stage 6 applies explicit data governance rules via `SplitProcessor` to transition the raw feature store into a pristine modeling baseline:
+* **Warmup Drop:** Excludes 89 records where `warmup_complete == 0` to purge rolling indicator initialization artifacts (reducing rows from 3,321 to 3,232).
+* **Missing Value Cleanup:** Drops 2 records missing critical `active_addresses` metrics, establishing the final clean baseline of exactly **3,230 rows**.
+* **Feature Imputation:** Minor downstream gaps (such as `unemployment`) are forward-filled strictly on NaN values to maintain zero missing values across numerical features prior to scaling and partitioning.
 
 ---
 
-## 4. Architectural Specifications & Policies
+## 4. Partition Sizing & Buffer Accounting
+
+Nominal split ratios are established at **80% Training / 10% Validation / 10% Holdout Test** across the supervised timeline ($N = 3,229$ rows after isolating the live frontier). Purge and embargo buffers carve out dedicated separation zones from chronological allocations to prevent look-ahead leakage from rolling window features:
+
+* **Training Partition:** **2,583 rows**
+* **Validation Partition:** **322 rows**
+* **Holdout Test Partition:** **227 rows**
+* **Total Supervised Split Rows:** **3,132 rows**
+* **Purge/Embargo Buffer Dropped:** **97 boundary rows** (neutralizing rolling feature overlap like `btc_sma_90` and target boundary leakage between partitions).
+
+---
+
+## 5. Architectural Specifications & Policies
 
 | Policy Domain | Implementation Details & Technical Rationale |
 | :--- | :--- |
 | **Purge & Horizon Sizing** | Default `purge_window` is configured to **90 days**, comfortably exceeding the 1-day target horizon and fully covering maximum rolling indicators like `btc_sma_90`. |
 | **Walk-Forward Design** | Utilizes an expanding training window combined with rolling validation slices, tracking absolute chronological bounds prior to the holdout test set. |
-| **Date Density & Continuity** | Enforces a strict daily calendar grid with zero date gaps ($\Delta = 1$ day) using `observation_date`, verifying that row indices map reliably to calendar intervals. |
-| **Target Enforcement** | Programmatically constructed via `TargetGenerator` (`app/ml/target_generator.py`) and verified by automated test suites. |
+| **Date Density & Continuity** | Enforces a strict daily calendar grid with zero date gaps ($\Delta = 1$ day) using `observation_date` on the raw sequence prior to row filtering. |
+| **Target Enforcement** | Programmatically orchestrated via `SplitProcessor` and verified by automated test suites. |
 
 ---
 
-## 5. Automated Verification Suite
+## 6. Automated Verification Suite
 
-The verification suite (`tests/ml_qa/test_split_validation.py`) enforces strict automated invariants:
-1. **Date Continuity:** Asserts zero calendar gaps or duplicates ($\Delta = 1$ day) across `observation_date`.
-2. **Exact Partition Sizes:** Asserts exact row allocations (`train=2656`, `val=332`, `test=236`) and buffer widths (`purge=90`, `embargo=7`).
-3. **Disjoint Partition Boundaries:** Verifies zero index intersection between Training, Validation, and Test partitions.
-4. **Walk-Forward Invariants:** Confirms strictly expanding training set sizes, rigorous purge buffer enforcement ($\ge 90$ days), and complete test set isolation.
+The verification suite (`tests/ml_qa/test_split_processor.py`) enforces strict automated invariants:
+1. **Row Count Governance:** Asserts exact record transitions (3,321 raw $\to$ 3,232 post-warmup $\to$ 3,230 final clean baseline).
+2. **Supervised Split Validation:** Validates exact partition sums (Train: 2,583, Val: 322, Test: 227 = 3,132 total supervised rows).
+3. **Live Frontier Isolation:** Verifies that exactly 1 row is isolated as the live inference frontier.
+4. **Zero Missingness:** Confirms zero NaN values across unemployment and feature partitions after targeted imputation rules.
 
 ---
 
-## 6. Next Steps
-Now the pipeline proceeds to **Stage 7 (Feature Scaling and Transformation)**.
+## 7. Next Steps
+
+With Stage 6 fully validated and operational, the pipeline proceeds to **Stage 7 (Feature Scaling and Transformation)**.

@@ -1,63 +1,89 @@
-from typing import List, Optional
+from pathlib import Path
+import numpy as np
 import pandas as pd
 from sklearn.preprocessing import MinMaxScaler, RobustScaler, StandardScaler
+
 from app.ml.scaler_config import ScalerConfig
 
 
 class FeatureScaler:
-  """Handles feature scaling with strict train-only fitting semantics
-
-  to prevent data leakage in financial time-series pipelines.
-  """
-
-  def __init__(self, config: Optional[ScalerConfig] = None):
-    self.config = config or ScalerConfig()
-    if self.config.scaler_type == "robust":
-      self.scaler = RobustScaler()
-    elif self.config.scaler_type == "standard":
-      self.scaler = StandardScaler()
-    else:
-      self.scaler = MinMaxScaler()
-
-    self.feature_columns: List[str] = []
-    self.is_fitted: bool = False
-
-  def _get_feature_columns(self, df: pd.DataFrame) -> List[str]:
-    """Identifies continuous feature columns by filtering out timestamps,
-
-    targets, binary flags, and explicit exclusions.
+    """Handles feature normalization using configurable scalers (Robust, Standard,
+    MinMax), ensuring fitting is performed exclusively on the training partition.
     """
-    features = []
-    for col in df.columns:
-      if col == self.config.date_column or col == self.config.target_column:
-        continue
-      if col in self.config.explicit_exclusions:
-        continue
-      if any(col.endswith(suffix) for suffix in self.config.exclude_suffixes):
-        continue
-      features.append(col)
-    return features
 
-  def fit(self, train_df: pd.DataFrame) -> "FeatureScaler":
-    """Fits the scaler exclusively on the training partition."""
-    self.feature_columns = self._get_feature_columns(train_df)
-    self.scaler.fit(train_df[self.feature_columns])
-    self.is_fitted = True
-    return self
+    def __init__(self, config: ScalerConfig = None):
+        self.config = config or ScalerConfig()
+        self._init_scaler()
+        self.feature_columns = []
+        self.is_fitted = False
 
-  def transform(self, df: pd.DataFrame) -> pd.DataFrame:
-    """Transforms a dataset using parameters learned strictly from the training set."""
-    if not self.is_fitted:
-      raise ValueError(
-          "FeatureScaler must be fitted on training data via fit() before"
-          " calling transform()."
-      )
+    def _init_scaler(self):
+        """Initializes the underlying scikit-learn scaler based on configuration."""
+        if self.config.scaler_type == "robust":
+            self.scaler = RobustScaler()
+        elif self.config.scaler_type == "standard":
+            self.scaler = StandardScaler()
+        elif self.config.scaler_type == "minmax":
+            self.scaler = MinMaxScaler()
+        else:
+            raise ValueError(f"Unsupported scaler_type: {self.config.scaler_type}")
 
-    df_out = df.copy()
-    scaled_values = self.scaler.transform(df_out[self.feature_columns])
-    df_out[self.feature_columns] = scaled_values
-    return df_out
+    def _should_exclude(self, col: str) -> bool:
+        """Determines if a column should be excluded from scaling based on config rules."""
+        if col == self.config.target_column or col == self.config.date_column:
+            return True
+        if col in self.config.explicit_exclusions:
+            return True
+        if any(col.endswith(suffix) for suffix in self.config.exclude_suffixes):
+            return True
+        return False
 
-  def fit_transform(self, train_df: pd.DataFrame) -> pd.DataFrame:
-    """Fits on training data and transforms it in a single step."""
-    return self.fit(train_df).transform(train_df)
+    def fit(self, train_df: pd.DataFrame):
+        """Fits the scaler on the training set with defensive NaN validation."""
+        numeric_cols = train_df.select_dtypes(include=["number"]).columns
+        self.feature_columns = [
+            col for col in numeric_cols if not self._should_exclude(col)
+        ]
+
+        # Fail loudly if the training set still has NaN in feature columns
+        null_counts = train_df[self.feature_columns].isna().sum()
+        if null_counts.any():
+            raise ValueError(
+                f"Training set contains NaN in feature columns: "
+                f"{null_counts[null_counts > 0].to_dict()}"
+            )
+
+        self.scaler.fit(train_df[self.feature_columns])
+        self.is_fitted = True
+        return self
+
+    def fit_transform(self, train_df: pd.DataFrame) -> pd.DataFrame:
+        """Fits and transforms the training partition."""
+        self.fit(train_df)
+        return self.transform(train_df)
+
+    def transform(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Transforms partitions using fitted parameters from training."""
+        if not self.is_fitted:
+            raise ValueError(
+                "FeatureScaler must be fitted using fit() or fit_transform() before calling transform()."
+            )
+
+        transformed_df = df.copy()
+
+        # Guard against empty DataFrames (0 samples) to prevent scikit-learn errors
+        if transformed_df.empty:
+            raise ValueError(
+                "Cannot transform an empty DataFrame (0 samples received). "
+                "Check your data splitting, slicing, or filtering logic."
+            )
+
+        cols_to_scale = [
+            col for col in self.feature_columns if col in transformed_df.columns
+        ]
+        
+        if cols_to_scale:
+            transformed_df[cols_to_scale] = self.scaler.transform(
+                transformed_df[cols_to_scale]
+            )
+        return transformed_df
