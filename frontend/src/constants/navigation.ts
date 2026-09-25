@@ -26,7 +26,7 @@ export const pageCopy: Record<NavItemId, PageCopy> = {
     body: 'Live Bitcoin price with the macro context driving it — chart, regime, and key indicators at a glance.',
   },
   macro: {
-    title: 'Macro indicators',
+    title: 'Macro Economy',
     body: 'The macroeconomic backdrop behind Bitcoin — inflation, policy rates, and growth in one view.',
   },
   regimePerformance: {
