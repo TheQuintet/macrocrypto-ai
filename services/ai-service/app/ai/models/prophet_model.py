@@ -37,16 +37,20 @@ logger = logging.getLogger(__name__)
 # CONSTANTS
 # ============================================================
 REGRESSORS = [
+# --- Exact Parquet Column Names ---
     "cpi",
-    "interest_rate",
-    "m2_growth",
+    "federal_funds_rate",     # Replaces 'interest_rate'
+    "m2_money_supply",        # Replaces 'm2_growth'
     "dxy",
-    "treasury_yield",
-    "volume",
-    "volatility",
-    "dominance",
+    "ten_year_treasury",      # Replaces 'treasury_yield'
+    "btc_volume",             # Replaces 'volume'
+    "btc_volatility_7d",      # Replaces 'volatility'
+    "btc_dominance",          # Replaces 'dominance'
     "active_addresses",
-    "price_lag_7d",
+    "btc_log_return_7d",      # Replaces 'price_lag_7d'
+    "btc_nasdaq_ratio",       # New addition
+    "vix",                    # New addition
+    "btc_sma_30",             # New addition
 ]
 
 REQUIRED_COLUMNS = ["ds", "y"] + REGRESSORS
