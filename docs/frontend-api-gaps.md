@@ -2,11 +2,19 @@
 
 ## Merged notifications (bell)
 
-Price and prediction live in `in_app_notifications` (no list API on the gateway). Macro is `GET /api/v1/macro/notifications`.
+The bell needs **one list** with all alert types:
+
+| Type | `notification_type` | Where it lives today |
+|------|---------------------|----------------------|
+| Price alerts | `price_alert` | `in_app_notifications` (no list API on gateway) |
+| Prediction alerts | `prediction_alert` | `in_app_notifications` (same) |
+| Macro alerts | `macro_alert` | `macro_event_notifications` — `GET /api/v1/macro/notifications` only |
+
+`GET /api/v1/notifications` must **merge price + prediction + macro** into a single response (newest first, not archived). Macro-only is not enough for the inbox.
 
 | Method | Path |
 |--------|------|
-| `GET` | `/api/v1/notifications` — merge both sources, newest first, not archived |
+| `GET` | `/api/v1/notifications` — merged price, prediction, and macro |
 | `PUT` | `/api/v1/notifications/{id}/read` |
 | `POST` | `/api/v1/notifications/read-all` → `{ "count": number }` |
 
