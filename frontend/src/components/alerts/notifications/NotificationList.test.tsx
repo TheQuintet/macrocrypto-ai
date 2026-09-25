@@ -21,7 +21,11 @@ describe('NotificationList', () => {
     renderNotificationList()
 
     expect(
-      await screen.findByRole('button', { name: /BTC broke \$70,000/ }),
+      await screen.findByRole('heading', { name: /Unread/ }),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Read' })).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: /BTC broke \$70,000/ }),
     ).toBeInTheDocument()
     expectNewestFirst([
       'BTC broke $70,000',

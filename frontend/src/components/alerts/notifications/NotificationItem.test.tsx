@@ -89,6 +89,7 @@ describe('NotificationItem', () => {
     expect(
       screen.getByRole('button', { name: `${notification.title} (unread)` }),
     ).toBeInTheDocument()
+    expect(screen.getByText('Unread')).toBeInTheDocument()
 
     await clickNotification(user, notification.title)
 
