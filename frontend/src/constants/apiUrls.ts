@@ -72,7 +72,7 @@ export const MACRO_ALERTS_PATH = '/api/v1/macro/alerts'
 export const MACRO_ALERTS_BY_USER_PATH = `${MACRO_ALERTS_PATH}/{user_id}`
 /** Unused. DELETE one macro alert rule. */
 export const MACRO_ALERT_PATH = `${MACRO_ALERTS_PATH}/{alert_id}`
-/** Unused. PUT mark a sent macro notification as read. */
+/** Used. PUT mark one macro notification read. The inbox calls this. */
 export const MACRO_NOTIFICATION_READ_PATH =
   '/api/v1/macro/notifications/{notification_id}/read'
 /** Unused. GET upcoming subscribed events. */
@@ -106,9 +106,9 @@ export const AI_EVENTS_HISTORICAL_PATH = '/api/v1/events/historical'
 
 /** Used. Price WebSocket the frontend expects on the gateway. */
 export const PRICE_STREAM_PATH = '/api/v1/btc/price/stream'
-/** Used. In-app inbox REST (not the macro-notifications routes above). */
-export const NOTIFICATIONS_PATH = '/api/v1/notifications'
-/** Used. Inbox push stream. */
+/** Used. In-app inbox. Gateway route is the shared macro notification list. */
+export const NOTIFICATIONS_PATH = '/api/v1/macro/notifications'
+/** Gateway does not expose an inbox stream. Kept so callers can detect that. */
 export const NOTIFICATIONS_STREAM_PATH = `${NOTIFICATIONS_PATH}/stream`
 
 export function priceStreamUrl() {
@@ -138,7 +138,6 @@ export const unusedApiPaths = {
     MACRO_ALERTS_PATH,
     MACRO_ALERTS_BY_USER_PATH,
     MACRO_ALERT_PATH,
-    MACRO_NOTIFICATION_READ_PATH,
     MACRO_EVENTS_UPCOMING_PATH,
   ],
   aiService: [

@@ -1,15 +1,6 @@
-import { notificationStreamUrl } from '@/constants/apiUrls'
+import { isApiGatewayConfigured } from '@/lib/apiConfig'
 import { createMockNotificationSocket } from '@/lib/mockNotificationSocket'
 import type { NotificationSocketFactory } from '@/types/notificationStream'
-
-function withUserId(base: string, userId: string) {
-  const separator = base.includes('?') ? '&' : '?'
-  return `${base}${separator}user_id=${encodeURIComponent(userId)}`
-}
-
-function isWebSocketUrl(url: string) {
-  return url.startsWith('ws://') || url.startsWith('wss://')
-}
 
 /** Adapter over a real browser WebSocket. */
 export function createWebSocketNotificationSocket(
@@ -54,18 +45,13 @@ export function createSseNotificationSocket(
 }
 
 /**
- * Live stream when the gateway is configured, otherwise the simulated push.
+ * The gateway has no notification stream. With a gateway configured, the
+ * inbox polls GET /api/v1/macro/notifications. Without one, the simulated
+ * socket keeps the demo inbox moving.
  */
 export function createNotificationSocket(
   userId: string,
-): NotificationSocketFactory {
-  const streamUrl = notificationStreamUrl()
-  if (streamUrl) {
-    const url = withUserId(streamUrl, userId)
-    return isWebSocketUrl(url)
-      ? createWebSocketNotificationSocket(url)
-      : createSseNotificationSocket(url)
-  }
-
+): NotificationSocketFactory | null {
+  if (isApiGatewayConfigured()) return null
   return createMockNotificationSocket({ userId })
 }

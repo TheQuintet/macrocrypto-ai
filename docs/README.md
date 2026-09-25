@@ -7,6 +7,7 @@ Long-form project documentation. How to clone and run the app is in the [root RE
 - [**Scope**](./project-scope.md) — what we're building, architecture, milestones
 - [**User personas**](./user-personas.md) — who uses the platform and what they need
 - [**Structure**](./project-structure-and-architecture.md) — repository layout and high-level architecture
+- [**Frontend API gaps**](./frontend-api-gaps.md) — missing gateway routes and notification response shape
 
 ## Design
 
