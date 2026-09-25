@@ -41,13 +41,16 @@ class SplitProcessor:
             f" missing active_addresses. Clean Baseline: {len(df)} rows"
         )
 
-        # 3. Apply forward-fill strictly to NaN values in unemployment
+        # 3. Apply forward-fill strictly to NaN values in unemployment and generate imputation flag
         if "unemployment" in df.columns:
-            df["unemployment"] = df["unemployment"].ffill()
-        print(
-            "[Stage 6 Governance] Applied forward-fill strictly to NaN values in"
-            " unemployment."
-        )
+            mask = df["unemployment"].isna()
+            n_null = mask.sum()
+            if n_null > 0:
+                df["unemployment_is_imputed"] = mask.astype(int)
+                df["unemployment"] = df["unemployment"].ffill()
+                print(f"[Stage 6 Governance] Forward-filled {n_null} unemployment NaN rows and added 'unemployment_is_imputed' flag.")
+            else:
+                print("[Stage 6 Governance] No NaN in unemployment; no ffill needed.")
 
         # 4. Generate target and split out live frontier
         supervised_df, live_frontier = self.target_generator.split_supervised_data(

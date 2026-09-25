@@ -83,14 +83,17 @@ def test_validation_uses_train_statistics(prepared_dataset):
     feature_col = scaler.feature_columns[0]
     
     train_col_data = train_df[feature_col]
-    median_train = train_col_data.median()
-    q25, q75 = np.percentile(train_col_data, [25, 75])
+    median_train = np.median(train_col_data)
+    
+    # Use nanpercentile to match scikit-learn's internal robustness
+    q25, q75 = np.nanpercentile(train_col_data, [25, 75])
     iqr_train = q75 - q25
     
+    # Match sklearn behavior: if IQR is 0, scale defaults to 1.0 to avoid division errors
     if iqr_train == 0:
-        expected_val = val_df[feature_col] - median_train
-    else:
-        expected_val = (val_df[feature_col] - median_train) / iqr_train
+        iqr_train = 1.0
+        
+    expected_val = (val_df[feature_col] - median_train) / iqr_train
         
     np.testing.assert_allclose(
         transformed_val[feature_col].values,

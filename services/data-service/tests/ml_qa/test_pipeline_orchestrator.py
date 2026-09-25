@@ -54,3 +54,14 @@ def test_pipeline_export_and_integrity(processed_partitions):
 
     # 4. Verify live frontier isolation
     assert len(live_frontier_df) == 1, f"Expected 1 live frontier row, but found {len(live_frontier_df)}."
+
+def test_high_yield_spread_nan_preserved(processed_partitions):
+    """Verify high_yield_spread NaN is preserved through the full pipeline."""
+    train_df, val_df, test_df, _ = processed_partitions
+    
+    for name, df in [("train", train_df), ("val", val_df), ("test", test_df)]:
+        if "high_yield_spread" in df.columns:
+            assert df["high_yield_spread"].isna().any(), (
+                f"high_yield_spread should have NaN in {name} (structural gap), "
+                "but has no NaN."
+            )
