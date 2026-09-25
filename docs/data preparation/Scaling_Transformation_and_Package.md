@@ -55,7 +55,7 @@ Execution of the pipeline orchestrator (`app/ml/pipeline_orchestrator.py`) gener
 1. `train_scaled.parquet` — Scaled training features and aligned targets.
 2. `val_scaled.parquet` — Scaled validation features transformed via training statistics.
 3. `test_scaled.parquet` — Scaled test features transformed via training statistics.
-4. `live_frontier.parquet` — Isolated real-time inference row with an unmaterialized future target.
+4. `live_frontier_scaled.parquet` — Isolated real-time inference row with an unmaterialized future target.
 5. `feature_scaler.pkl` — Serialized `FeatureScaler` object.
 
 ---

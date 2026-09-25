@@ -65,3 +65,22 @@ def test_high_yield_spread_nan_preserved(processed_partitions):
                 f"high_yield_spread should have NaN in {name} (structural gap), "
                 "but has no NaN."
             )
+
+def test_timestamp_metadata_dropped(processed_partitions):
+    """Verify that no `_timestamp` columns exist in the final processed partitions."""
+    train_df, val_df, test_df, frontier_df = processed_partitions
+    
+    partitions = {
+        "train": train_df,
+        "val": val_df,
+        "test": test_df,
+        "frontier": frontier_df
+    }
+    
+    for name, df in partitions.items():
+        if df.empty:
+            continue
+        timestamp_cols = [c for c in df.columns if c.endswith("_timestamp")]
+        assert len(timestamp_cols) == 0, (
+            f"Found unexpected timestamp metadata columns {timestamp_cols} in the final {name} partition!"
+        )

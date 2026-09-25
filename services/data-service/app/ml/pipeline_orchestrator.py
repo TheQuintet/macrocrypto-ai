@@ -75,13 +75,47 @@ def build_and_export_ml_datasets(
     print(f"[Pipeline Orchestrator] Scaling complete. Total features scaled: {len(scaler.feature_columns)}")
 
     # 4. Stage 8: Artifact Serialization
+    # train_path = output_dir / "train_scaled.parquet"
+    # val_path = output_dir / "val_scaled.parquet"
+    # test_path = output_dir / "test_scaled.parquet"
+    # frontier_path = output_dir / "live_inference_row.parquet"
+    # scaler_path = output_dir / "feature_scaler.pkl"
+
+    # print("[Pipeline Orchestrator] Serializing datasets and scaler artifacts...")
+    # scaled_train.to_parquet(train_path, index=False)
+    # scaled_val.to_parquet(val_path, index=False)
+    # scaled_test.to_parquet(test_path, index=False)
+    # scaled_frontier.to_parquet(frontier_path, index=False)
+    # joblib.dump(scaler, scaler_path)
+
+    # print(f"[Pipeline Orchestrator] Successfully exported datasets and scaler to {output_dir}")
+
+# 4. Stage 8: Artifact Serialization
     train_path = output_dir / "train_scaled.parquet"
     val_path = output_dir / "val_scaled.parquet"
     test_path = output_dir / "test_scaled.parquet"
-    frontier_path = output_dir / "live_frontier.parquet"
+    frontier_path = output_dir / "live_frontier_scaled.parquet"  # Updated for consistency, or keep your preferred name
     scaler_path = output_dir / "feature_scaler.pkl"
 
-    print("[Pipeline Orchestrator] Serializing datasets and scaler artifacts...")
+    # Define datasets to clean and persist
+    datasets_to_persist = {
+        "train": scaled_train,
+        "val": scaled_val,
+        "test": scaled_test,
+        "frontier": scaled_frontier
+    }
+
+    print("[Pipeline Orchestrator] Pruning timestamp metadata and serializing datasets...")
+    for name, df in datasets_to_persist.items():
+        if df.empty:
+            continue
+        # 👉 Drop timestamp metadata columns before persisting
+        timestamp_cols = [c for c in df.columns if c.endswith("_timestamp")]
+        if timestamp_cols:
+            df.drop(columns=timestamp_cols, inplace=True)
+            print(f"[Prep] Dropped {len(timestamp_cols)} timestamp columns from {name} partition.")
+
+    # Serialize to Parquet
     scaled_train.to_parquet(train_path, index=False)
     scaled_val.to_parquet(val_path, index=False)
     scaled_test.to_parquet(test_path, index=False)
