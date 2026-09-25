@@ -175,4 +175,4 @@ Sid and Loredana briefly discussed completing **Quantic specializations** before
 
 ## Next meeting
 
-See [recurring sync schedule](../team-roles.md#recurring-meetings-through-14-oct-2026) — next weekly sync per team calendar.
+See [recurring sync schedule](../team-roles.md#recurring-meetings-through-14-oct-2026) — next documented session: [23 Sep 2026 Review, Refinement & Planning](./2026-09-23-review-and-planning.md). The 16 Sep sync has no write-up in this folder.
