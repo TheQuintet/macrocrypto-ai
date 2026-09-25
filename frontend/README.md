@@ -154,7 +154,7 @@ Client-side routes (React Router):
 | Path | Page |
 |------|------|
 | `/` | Dashboard |
-| `/macro` | Macro indicators |
+| `/macro` | Macro Economy |
 | `/forecasts` | Forecasts |
 | `/alerts` | Alerts |
 

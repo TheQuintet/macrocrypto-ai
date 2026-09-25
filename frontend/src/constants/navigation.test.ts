@@ -44,7 +44,7 @@ describe('navigation constants', () => {
     expect(isSidebarNavItemActive(routes.alerts, '/')).toBe(false)
   })
 
-  it('nests regime views, calendar, and notifications under macro indicators', () => {
+  it('nests regime views, calendar, and notifications under Macro Economy', () => {
     const macro = sidebarNavItems.find((item) => item.id === 'macro')
 
     expect(macro?.children?.map((child) => child.id)).toEqual([

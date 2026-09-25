@@ -34,7 +34,7 @@ export function renderNotificationItem(
       },
       {
         path: '/macro',
-        element: <div>Macro indicators</div>,
+        element: <div>Macro Economy</div>,
       },
     ],
     { initialEntries: [initialPath] },
