@@ -28,6 +28,36 @@ Sprint planning notes: select stories, estimate, assign owners.
 
 ## Sessions
 
+### Submission push — Planning (combined with review and refinement) — 23 Sep 2026
+
+| | |
+|---|---|
+| **Date** | Wed 23 Sep 2026 |
+| **Attendees** | Sid Ahmed Mahieddine, Loredana Lungu, Kingson Emma-Ochu, Mael Taye Deneke, Richard Owusu |
+| **Sprint goal** | Finish the BTC trader path for submission: ML-ready data into the AI service, real frontend data, Gateway integration, design-doc checklist, Vercel, and the recording |
+| **Full notes** | [2026-09-23 Review, Refinement & Planning](../2026-09-23-review-and-planning.md) |
+
+**Stories / focus selected**
+
+| Story / focus | Owner | Notes |
+|---------------|-------|-------|
+| ML-ready dataset, then AI service | Mael (Richard feedback) | Dataset by 24 Sep if feedback is fast; then Sid’s model orchestration |
+| Missing endpoints and real data | Loredana | Summary of data and alert gaps; wire the UI off mocks |
+| T6 remaining frontend | Kingson | Review again; integration is what is still open |
+| Document checklist and doc corrections | Mael / Richard | Checklist from the earlier project list; edit existing docs where scope changed |
+| Design revision | Loredana, Mael, Sid | UML, pattern rationale, DDD, testing method; code, docs, and board agree |
+| Presentation outline | Richard | 15–20 minutes; speakers cover the work they did |
+| Investment analyst UI | Team | Stop for this submission |
+| Deploy | Team | Not Render. Vercel, one Docker Compose app; measure training memory |
+
+**Notes**
+
+- About 70% complete; API Gateway integration is the bottleneck (~38 endpoints today)
+- Sid owes frontend and regime feedback the evening of 23 Sep
+- CI/CD was named and not discussed
+
+---
+
 ### Next sprint — Planning (combined with review and refinement) — 9 Sep 2026
 
 | | |

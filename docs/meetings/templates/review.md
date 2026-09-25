@@ -167,4 +167,36 @@ Sprint review notes: demo completed work, gather feedback, review progress.
 
 ---
 
+### Review (combined with refinement and planning) — 23 Sep 2026
+
+| | |
+|---|---|
+| **Date** | Wed 23 Sep 2026 |
+| **Attendees** | Sid Ahmed Mahieddine, Loredana Lungu, Kingson Emma-Ochu, Mael Taye Deneke, Richard Owusu |
+| **Sprint** | Submission push — ~70% complete; Gateway integration, real data, docs, and the recording |
+| **Full notes** | [2026-09-23 Review, Refinement & Planning](../2026-09-23-review-and-planning.md) |
+
+**Progress by area**
+
+| Area | Owner | Status |
+|------|-------|--------|
+| Data preparation | Mael | Feature engineering and 80-10-10 split done; scaling and final dataset in progress |
+| Forecast UI | Kingson / Loredana | BTC trader sub-issues demoed; data still mocked |
+| Regime analysis | Loredana | Demoed; analyst-oriented; purpose still unclear |
+| API Gateway | Mael | ~38 endpoints; integration is the bottleneck |
+| Investment analyst UI | Team | Stopped for this submission |
+| Deploy | Team | Not Render; Vercel and one Docker Compose app |
+
+**Feedback**
+
+- Show real backend data on trader screens
+- Sid to explain regime analysis and review the UI the evening of the sync
+- Reply when progress is posted; do not leave investment-analyst issues in the active push
+
+**Next sprint preview**
+
+- ML-ready data into the AI service, Gateway integration, design-doc checklist, Vercel, and the 15–20 minute recording
+
+---
+
 _Add dated review notes below as sprints progress._
