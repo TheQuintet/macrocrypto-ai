@@ -48,11 +48,83 @@ Shared demo inbox: no `user_id` filter.
 
 Macro: `event_name` → `title`, `description` → `message`, `sent_at` → `created_at`, `notification_type`: `macro_alert`.
 
+## Forecasts screen
+
+The Forecasts page (`PredictionPanel`) uses **two** data routes:
+
+| Part | Method | Path | Status |
+|------|--------|------|--------|
+| Chart history (actual candles) | `GET` | `/api/v1/btc/price/history` | **On gateway** (data service proxy) |
+| Forecast batch (line + band + summary) | `GET` | `/api/v1/predict/btc` | **Missing on gateway** — implemented on **ai-service**, not proxied in `service_proxy.py` |
+
+With `VITE_API_GATEWAY_BASE_URL` set, history loads live but the forecast call **404s** until the gateway forwards ai-service predict routes.
+
+### Missing: proxy `GET /api/v1/predict/btc`
+
+| Method | Path |
+|--------|------|
+| `GET` | `/api/v1/predict/btc` |
+
+**Query params** (what the UI sends today):
+
+| Param | Values | Notes |
+|-------|--------|--------|
+| `horizon` | `24h`, `7d` | Required for the screen |
+| `confidence` | `0.7`, `0.85`, `0.95` | Confidence band width |
+| `model_name` | e.g. `prophet` | Optional; UI omits this (single-model default) |
+| `models` | comma-separated | Optional; **not used** by Forecasts (multi-model returns a different envelope) |
+
+**Response** must match `frontend/src/types/predictions.ts` / ai-service `PredictionResponse`:
+
+```json
+{
+  "horizon": "24h",
+  "model_name": "prophet",
+  "confidence": 0.85,
+  "prediction_time": "ISO-8601",
+  "current_price": 95000.0,
+  "predicted_end_price": 96500.0,
+  "price_change_pct": 1.58,
+  "trend": "up | down | neutral",
+  "predictions": [
+    {
+      "time": "ISO-8601",
+      "predicted_price": 95200.0,
+      "lower_bound": 94000.0,
+      "upper_bound": 96400.0
+    }
+  ]
+}
+```
+
+**History query** (already works — for reference):
+
+`GET /api/v1/btc/price/history?range=24h|7d|30d&interval=1h|1d` — the UI picks `range` / `interval` from the selected forecast horizon (wider lookback than the forecast window).
+
+### Not required for the current Forecasts UI
+
+| Path | Notes |
+|------|--------|
+| `GET /api/v1/performance/btc` | Model accuracy on ai-service; no Forecasts screen yet |
+| `GET /api/v1/btc/price` | Snapshot; forecast summary uses `current_price` on the predict response |
+
+Prediction **alerts** (`/api/v1/alerts/prediction/…`) are already on the gateway; they are separate from the Forecasts chart.
+
+## Regime analysis
+
+Regime routes are **implemented** (data service + gateway proxy). The UI calls:
+
+- `GET /api/v1/regimes/current`
+- `GET /api/v1/regimes`
+- `GET /api/v1/regimes/performance`
+- `GET /api/v1/regimes/history/similar-periods`
+
+Optional combined route `GET /api/v1/regimes/btc` exists but the frontend uses the split routes above.
+
 ## Other missing routes
 
 | UI | Path |
 |----|------|
-| Price stream | `WS /api/v1/btc/price/stream` |
-| Forecast | `GET /api/v1/predict/btc` |
+| Dashboard price stream | `WS /api/v1/btc/price/stream` |
 
-Price snapshot still works via `GET /api/v1/btc/price`.
+Price snapshot still works via `GET /api/v1/btc/price`. REST polling works when the WebSocket route is absent.
