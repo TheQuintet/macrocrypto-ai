@@ -39,16 +39,60 @@ logger = logging.getLogger(__name__)
 # CONSTANTS
 # ============================================================
 BASE_FEATURES = [
-    "cpi",
-    "interest_rate",
-    "m2_growth",
-    "dxy",
-    "treasury_yield",
-    "volume",
-    "volatility",
-    "dominance",
+# --- Raw Market & On-Chain ---
+    "btc_price",
+    "btc_volume",
+    "btc_dominance",
     "active_addresses",
-    "price_lag_7d",  # Provided by data pipeline
+    
+    # --- Macroeconomic & External Assets ---
+    "gold_spot",
+    "dxy",
+    "ten_year_treasury",
+    "vix",
+    "high_yield_spread",
+    "nasdaq_composite",
+    "equity_corr",
+    "high_yield_credit_stress_proxy",
+    "cpi",
+    "federal_funds_rate",
+    "gdp",
+    "m2_money_supply",
+    "unemployment",
+    
+    # --- Technical Indicators & Ratios ---
+    "btc_log_return_1d",
+    "btc_log_return_7d",
+    "btc_log_return_30d",
+    "btc_sma_7",
+    "btc_sma_30",
+    "btc_sma_90",
+    "btc_volatility_7d",
+    "btc_volatility_30d",
+    "btc_gold_ratio",
+    "btc_nasdaq_ratio",
+    
+    # --- Metadata & Data Quality Flags ---
+    "high_yield_spread_is_missing",
+    "active_addresses_is_imputed",
+    "unemployment_is_imputed",
+    "warmup_complete",
+    
+    # --- Observation Lag / Recency Trackers ---
+    "btc_dominance_days_since_last_observation",
+    "gold_spot_days_since_last_observation",
+    "dxy_days_since_last_observation",
+    "ten_year_treasury_days_since_last_observation",
+    "vix_days_since_last_observation",
+    "nasdaq_composite_days_since_last_observation",
+    "equity_corr_days_since_last_observation",
+    "high_yield_credit_stress_proxy_days_since_last_observation",
+    "active_addresses_days_since_last_observation",
+    "cpi_days_since_release",
+    "federal_funds_rate_days_since_release",
+    "gdp_days_since_release",
+    "m2_money_supply_days_since_release",
+    "unemployment_days_since_release",
 ]
 
 LAG_DAYS = [1, 7, 30]

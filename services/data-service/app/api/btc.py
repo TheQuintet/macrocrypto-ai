@@ -1,7 +1,8 @@
 """BTC price endpoints for data-service"""
 
 import logging
-from fastapi import APIRouter, Request, Depends, HTTPException, Response
+import asyncio
+from fastapi import APIRouter, Request, Depends, HTTPException, Response, WebSocket
 from typing import Optional
 from sqlalchemy.orm import Session
 from app.api.dependencies import jwt_auth
@@ -65,6 +66,8 @@ async def get_btc_price(
     """
     # Get services from request app state
     data_processor = request.app.state.data_processor
+    logger.info(f"🔎 API DataProcessor ID: {id(data_processor)}")
+    logger.info(f"🔎 API PriceService ID: {id(data_processor.price_service)}")
     cache_client = request.app.state.cache_client
 
     cache_key = "btc_price_snapshot"
@@ -242,8 +245,40 @@ async def get_btc_dominance(
     finally:
         await service.close()
 
+@router.websocket("/price/stream")
+async def btc_price_stream(websocket: WebSocket):
+    await websocket.accept()
 
+    data_processor = websocket.app.state.data_processor
 
+    if not data_processor:
+        await websocket.close(code=1011, reason="Data processor unavailable")
+        return
+
+    try:
+        while True:
+            snapshot = data_processor.get_snapshot()
+
+            await websocket.send_json({
+                "current_price": snapshot.current_price,
+                "change_24h": snapshot.change_24h,
+                "change_24h_percent": snapshot.change_24h_percent,
+                "high_24h": snapshot.high_24h,
+                "low_24h": snapshot.low_24h,
+                "volume_24h": snapshot.volume_24h,
+                "change_7d": snapshot.change_7d,
+                "change_7d_percent": snapshot.change_7d_percent,
+                "updated_at": (
+                    snapshot.updated_at.isoformat()
+                    if snapshot.updated_at
+                    else None
+                ),
+            })
+
+            await asyncio.sleep(1)
+
+    except Exception as error:
+        logger.info(f"BTC price WebSocket disconnected: {error}")
 
 @router.get(
     "/status",
