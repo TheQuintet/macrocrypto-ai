@@ -1,22 +1,15 @@
-import { useQuery } from '@tanstack/react-query'
-import {
-  fetchUnreadNotificationCount,
-  unreadNotificationCountQueryKey,
-} from '@/api/alerts/notifications'
-import { useNotificationStreamStore } from '@/stores/notificationStreamStore'
+import { useNotificationsQuery } from '@/hooks/alerts/useNotificationsQuery'
 
-/** Unread badge poll — stands down while the live stream is connected. */
+/** @deprecated The badge counts unread rows on the notification list. */
 export const UNREAD_NOTIFICATION_POLL_MS = 30_000
 
 export function useUnreadNotificationCountQuery(userId: string) {
-  const isStreamConnected = useNotificationStreamStore(
-    (state) => state.status === 'connected',
-  )
+  const query = useNotificationsQuery(userId)
+  const count =
+    query.data?.notifications.filter((item) => !item.read).length ?? 0
 
-  return useQuery<{ count: number }, Error>({
-    queryKey: unreadNotificationCountQueryKey(userId),
-    queryFn: () => fetchUnreadNotificationCount(userId),
-    refetchInterval: isStreamConnected ? false : UNREAD_NOTIFICATION_POLL_MS,
-    enabled: Boolean(userId),
-  })
+  return {
+    ...query,
+    data: query.data ? { count } : undefined,
+  }
 }

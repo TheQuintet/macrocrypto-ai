@@ -33,7 +33,6 @@ describe('apiUrls', () => {
       '/api/v1/macro/alerts',
       '/api/v1/macro/alerts/{user_id}',
       '/api/v1/macro/alerts/{alert_id}',
-      '/api/v1/macro/notifications/{notification_id}/read',
       '/api/v1/macro/events/upcoming',
     ])
     expect(unusedApiPaths.aiService).toEqual([
@@ -62,5 +61,6 @@ describe('apiUrls', () => {
     expect(urls.notificationStreamUrl()).toBe(
       `http://localhost:8000${NOTIFICATIONS_STREAM_PATH}`,
     )
+    expect(urls.priceStreamUrl()).not.toContain('user_id')
   })
 })

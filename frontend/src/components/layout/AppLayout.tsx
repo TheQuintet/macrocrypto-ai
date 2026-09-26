@@ -4,6 +4,7 @@ import { NotificationBell } from '@/components/alerts/notifications/Notification
 import { AppBreadcrumb } from '@/components/layout/AppBreadcrumb';
 import { AppSidebar } from '@/components/layout/AppSidebar';
 import { AppToaster } from '@/components/layout/AppToaster';
+import { PriceStreamConnection } from '@/components/layout/PriceStreamConnection';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import {
@@ -76,6 +77,7 @@ function AppLayoutContent() {
         </div>
       </SidebarInset>
       <AppToaster />
+      <PriceStreamConnection />
     </>
   );
 }

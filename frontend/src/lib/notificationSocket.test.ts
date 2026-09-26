@@ -20,11 +20,11 @@ describe('createNotificationSocket transport precedence', () => {
     expect(createNotificationSocket('user-1')).toBeTypeOf('function')
   })
 
-  it('uses a live stream derived from the gateway base URL', async () => {
+  it('does not open a stream when the gateway is configured', async () => {
     vi.stubEnv('VITE_API_GATEWAY_BASE_URL', 'http://localhost:8000')
     vi.resetModules()
     const { createNotificationSocket } = await loadSocket()
 
-    expect(createNotificationSocket('user-1')).toBeTypeOf('function')
+    expect(createNotificationSocket('user-1')).toBeNull()
   })
 })
