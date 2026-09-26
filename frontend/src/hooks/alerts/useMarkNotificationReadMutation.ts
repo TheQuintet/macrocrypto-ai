@@ -4,17 +4,15 @@ import {
   notificationsQueryKey,
   unreadNotificationCountQueryKey,
 } from '@/api/alerts/notifications'
-import type {
-  InAppNotification,
-  NotificationResponse,
-} from '@/types/alerts/notifications'
+import type { NotificationResponse } from '@/types/alerts/notifications'
 
 export function useMarkNotificationReadMutation(userId: string) {
   const queryClient = useQueryClient()
 
-  return useMutation<InAppNotification, Error, string>({
+  return useMutation<void, Error, string>({
     mutationFn: (notificationId) => markNotificationAsRead(notificationId),
-    onSuccess: (updated) => {
+    onSuccess: (_result, notificationId) => {
+      const readAt = new Date().toISOString()
       queryClient.setQueryData<NotificationResponse>(
         notificationsQueryKey(userId),
         (current) => {
@@ -22,7 +20,9 @@ export function useMarkNotificationReadMutation(userId: string) {
           return {
             ...current,
             notifications: current.notifications.map((item) =>
-              item.id === updated.id ? updated : item,
+              item.id === notificationId
+                ? { ...item, read: true, read_at: item.read_at ?? readAt }
+                : item,
             ),
           }
         },

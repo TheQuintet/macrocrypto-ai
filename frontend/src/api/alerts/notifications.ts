@@ -1,7 +1,6 @@
 import axios from 'axios'
 import {
   simulateGetNotifications,
-  simulateGetUnreadCount,
   simulateMarkAllAsRead,
   simulateMarkAsRead,
 } from '@/api/alerts/simulatedNotifications'
@@ -11,8 +10,28 @@ import { sortNotificationsByDateNewestFirst } from '@/lib/alerts/sortNotificatio
 import { apiUrl } from '@/lib/apiConfig'
 import type {
   InAppNotification,
+  MacroNotificationListResponse,
+  MacroNotificationWire,
+  NotificationListParams,
   NotificationResponse,
 } from '@/types/alerts/notifications'
+
+function toInAppNotification(raw: MacroNotificationWire): InAppNotification {
+  return {
+    id: raw.id,
+    user_id: raw.user_id ?? '',
+    alert_id: raw.alert_id ?? null,
+    title: raw.title ?? raw.event_name ?? 'Macro alert',
+    message: raw.message ?? raw.description ?? '',
+    notification_type: raw.notification_type ?? 'macro_alert',
+    data: raw.data ?? null,
+    action_url: raw.action_url ?? null,
+    read: Boolean(raw.read),
+    is_archived: Boolean(raw.is_archived),
+    created_at: raw.created_at ?? raw.sent_at ?? '',
+    read_at: raw.read_at ?? null,
+  }
+}
 
 const JSON_HEADERS = { Accept: 'application/json' }
 
@@ -22,12 +41,6 @@ export function notificationsQueryKey(userId: string) {
 
 export function unreadNotificationCountQueryKey(userId: string) {
   return ['notifications', 'unread-count', userId] as const
-}
-
-type NotificationListParams = {
-  unread_only?: boolean
-  limit?: number
-  offset?: number
 }
 
 function sortedResponse(response: NotificationResponse): NotificationResponse {
@@ -50,11 +63,19 @@ export async function fetchNotifications(
         throw new Error('Alert API is not configured')
       }
 
-      const response = await axios.get<NotificationResponse>(url, {
-        params: { user_id: userId, ...params },
+      const response = await axios.get<MacroNotificationListResponse>(url, {
+        params: {
+          ...(params.limit !== undefined ? { limit: params.limit } : {}),
+          ...(params.offset !== undefined ? { offset: params.offset } : {}),
+        },
         headers: JSON_HEADERS,
       })
-      return sortedResponse(response.data)
+      return sortedResponse({
+        ...response.data,
+        notifications: (response.data.notifications ?? []).map(
+          toInAppNotification,
+        ),
+      })
     },
     async () => sortedResponse(await simulateGetNotifications(userId, params)),
   )
@@ -63,26 +84,15 @@ export async function fetchNotifications(
 export async function fetchUnreadNotificationCount(
   userId: string,
 ): Promise<{ count: number }> {
-  return withSimulatedFallback(
-    async () => {
-      const url = apiUrl(`${NOTIFICATIONS_PATH}/unread`)
-      if (!url) {
-        throw new Error('Alert API is not configured')
-      }
-
-      const response = await axios.get<{ count: number }>(url, {
-        params: { user_id: userId },
-        headers: JSON_HEADERS,
-      })
-      return response.data
-    },
-    () => simulateGetUnreadCount(userId),
-  )
+  const list = await fetchNotifications(userId)
+  return {
+    count: list.notifications.filter((item) => !item.read).length,
+  }
 }
 
 export async function markNotificationAsRead(
   notificationId: string,
-): Promise<InAppNotification> {
+): Promise<void> {
   return withSimulatedFallback(
     async () => {
       const url = apiUrl(`${NOTIFICATIONS_PATH}/${notificationId}/read`)
@@ -90,12 +100,11 @@ export async function markNotificationAsRead(
         throw new Error('Alert API is not configured')
       }
 
-      const response = await axios.put<InAppNotification>(url, undefined, {
-        headers: JSON_HEADERS,
-      })
-      return response.data
+      await axios.put(url, undefined, { headers: JSON_HEADERS })
     },
-    () => simulateMarkAsRead(notificationId),
+    async () => {
+      await simulateMarkAsRead(notificationId)
+    },
   )
 }
 
@@ -109,11 +118,9 @@ export async function markAllNotificationsAsRead(
         throw new Error('Alert API is not configured')
       }
 
-      const response = await axios.post<{ count: number }>(
-        url,
-        { user_id: userId },
-        { headers: JSON_HEADERS },
-      )
+      const response = await axios.post<{ count: number }>(url, undefined, {
+        headers: JSON_HEADERS,
+      })
       return response.data
     },
     () => simulateMarkAllAsRead(userId),
