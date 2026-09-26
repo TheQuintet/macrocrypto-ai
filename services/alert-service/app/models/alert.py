@@ -87,7 +87,7 @@ class PriceAlert(Base):
     
     # Relationships
     history = relationship("AlertHistory", back_populates="alert", cascade="all, delete-orphan")
-    notifications = relationship("InAppNotification", back_populates="alert")
+    # notifications = relationship("InAppNotification", back_populates="alert")
     
     __table_args__ = (
         Index('idx_price_alerts_user_id_status', 'user_id', 'status'),
@@ -187,8 +187,8 @@ class InAppNotification(Base):
 
     id = Column(PGUUID, primary_key=True, default=uuid.uuid4)
     user_id = Column(PGUUID, nullable=False, index=True)
-    alert_id = Column(PGUUID, ForeignKey("price_alerts.id", ondelete="SET NULL"), index=True)
-    
+    # alert_id = Column(PGUUID, ForeignKey("price_alerts.id", ondelete="SET NULL"), index=True)
+    alert_id = Column(PGUUID, index=True)
     # Notification content
     title = Column(String(255), nullable=False)
     message = Column(Text, nullable=False)
@@ -207,7 +207,7 @@ class InAppNotification(Base):
     read_at = Column(DateTime)
     
     # Relationship
-    alert = relationship("PriceAlert", back_populates="notifications")
+    # alert = relationship("PriceAlert", back_populates="notifications")
     
     __table_args__ = (
         Index('idx_notifications_user_id_unread', 'user_id', 'read'),

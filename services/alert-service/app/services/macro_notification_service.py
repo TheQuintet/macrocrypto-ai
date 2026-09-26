@@ -22,6 +22,43 @@ class MacroNotificationService:
         self.db = db
         self.notification_service = NotificationService(db)
 
+    # def create_macro_notification(
+    #     self,
+    #     user_id: UUID,
+    #     alert_id: UUID,
+    #     event_name: str,
+    #     event_type: str,
+    #     event_date: datetime,
+    #     timing: str,
+    #     impact: str,
+    #     description: Optional[str] = None,
+    #     data: Optional[dict] = None,
+    #     action_url: Optional[str] = None
+    # ) -> MacroEventNotification:
+    #     """Create a macro event notification."""
+    #     notification = MacroEventNotification(
+    #         user_id=user_id,
+    #         alert_id=alert_id,
+    #         event_name=event_name,
+    #         event_type=event_type,
+    #         event_date=event_date,
+    #         timing=timing,
+    #         impact=impact,
+    #         description=description,
+    #         data=data,
+    #         action_url=action_url,
+    #         read=False,
+    #         is_archived=False,
+    #         sent_at=datetime.utcnow()
+    #     )
+
+    #     self.db.add(notification)
+    #     self.db.commit()
+    #     self.db.refresh(notification)
+
+    #     logger.debug(f"📱 Macro notification created: {notification.id}")
+    #     return notification
+
     def create_macro_notification(
         self,
         user_id: UUID,
@@ -33,28 +70,30 @@ class MacroNotificationService:
         impact: str,
         description: Optional[str] = None,
         data: Optional[dict] = None,
-        action_url: Optional[str] = None
-    ) -> MacroEventNotification:
-        """Create a macro event notification."""
-        notification = MacroEventNotification(
+        action_url: Optional[str] = None,
+        title: Optional[str] = None,
+        message: Optional[str] = None
+    ):
+        """Create a macro event notification in the unified notification store."""
+        notification_data = {
+            "event_name": event_name,
+            "event_type": event_type,
+            "event_date": event_date.isoformat(),
+            "timing": timing,
+            "impact": impact,
+            "description": description,
+            **(data or {})
+        }
+
+        notification = self.notification_service.create_notification(
             user_id=user_id,
             alert_id=alert_id,
-            event_name=event_name,
-            event_type=event_type,
-            event_date=event_date,
-            timing=timing,
-            impact=impact,
-            description=description,
-            data=data,
-            action_url=action_url,
-            read=False,
-            is_archived=False,
-            sent_at=datetime.utcnow()
+            title=title or event_name,
+            message=message or description or event_name,
+            notification_type="macro_alert",
+            data=notification_data,
+            action_url=action_url
         )
-
-        self.db.add(notification)
-        self.db.commit()
-        self.db.refresh(notification)
 
         logger.debug(f"📱 Macro notification created: {notification.id}")
         return notification
