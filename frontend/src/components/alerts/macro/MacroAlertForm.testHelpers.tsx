@@ -16,6 +16,8 @@ export const macroSubscriptions: MacroSubscription[] = [
     impact_filter: 'HIGH',
     timing: null,
     one_time: null,
+    notify_in_app: null,
+    notify_email: null,
     created_at: '2026-09-17T18:00:00.000Z',
     updated_at: '2026-09-17T18:00:00.000Z',
   },
@@ -27,6 +29,8 @@ export const macroSubscriptions: MacroSubscription[] = [
     impact_filter: 'MEDIUM',
     timing: null,
     one_time: null,
+    notify_in_app: null,
+    notify_email: null,
     created_at: '2026-09-10T12:30:00.000Z',
     updated_at: '2026-09-10T12:30:00.000Z',
   },
@@ -36,6 +40,7 @@ type FormProps = {
   open?: boolean
   onOpenChange?: (open: boolean) => void
   onSubmit?: (draft: MacroAlertDraft) => void
+  editingDraft?: MacroAlertDraft | null
   isLoading?: boolean
 }
 
@@ -48,6 +53,7 @@ export function renderMacroForm(overrides: FormProps = {}) {
       open={overrides.open ?? true}
       onOpenChange={onOpenChange}
       onSubmit={onSubmit}
+      editingDraft={overrides.editingDraft}
       isLoading={overrides.isLoading ?? false}
     />,
   )

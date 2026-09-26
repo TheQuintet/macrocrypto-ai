@@ -498,6 +498,17 @@ class MacroEventSubscription(Base):
         ),
         default=EventImpact.HIGH
     )
+    timing = Column(
+        Enum(
+            EventTiming,
+            values_callable=lambda x: [e.value for e in x]
+        ),
+        default=EventTiming.ONE_DAY,
+        nullable=False,
+    )
+    one_time = Column(Boolean, default=True, nullable=False)
+    notify_in_app = Column(Boolean, default=True, nullable=False)
+    notify_email = Column(Boolean, default=False, nullable=False)
 
     # Timestamps
     created_at = Column(
@@ -546,6 +557,14 @@ class MacroEventSubscription(Base):
                 if self.impact_filter
                 else None
             ),
+            "timing": (
+                self.timing.value
+                if self.timing
+                else None
+            ),
+            "one_time": self.one_time,
+            "notify_in_app": self.notify_in_app,
+            "notify_email": self.notify_email,
             "created_at": (
                 self.created_at.isoformat()
                 if self.created_at

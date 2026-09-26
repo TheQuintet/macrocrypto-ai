@@ -12,8 +12,10 @@ const LIVE_SUB: MacroSubscription = {
   event_type: 'FED',
   subscribed: true,
   impact_filter: 'HIGH',
-  timing: null,
-  one_time: null,
+  timing: '12H',
+  one_time: false,
+  notify_in_app: true,
+  notify_email: true,
   created_at: '2026-01-01T00:00:00Z',
   updated_at: '2026-01-01T00:00:00Z',
 }
@@ -21,6 +23,7 @@ const LIVE_SUB: MacroSubscription = {
 const axiosMock = vi.hoisted(() => ({
   get: vi.fn(),
   post: vi.fn(),
+  delete: vi.fn(),
 }))
 
 vi.mock('axios', () => ({
@@ -36,6 +39,7 @@ describe('macroAlertApi', () => {
     vi.resetModules()
     axiosMock.get.mockReset()
     axiosMock.post.mockReset()
+    axiosMock.delete.mockReset()
   })
 
   afterEach(() => {
@@ -68,6 +72,10 @@ describe('macroAlertApi', () => {
             event_type: 'fed',
             subscribed: true,
             impact_filter: 'high',
+            timing: '12h',
+            one_time: false,
+            notify_in_app: true,
+            notify_email: true,
             created_at: LIVE_SUB.created_at,
             updated_at: LIVE_SUB.updated_at,
           },
@@ -85,8 +93,10 @@ describe('macroAlertApi', () => {
     expect(subscriptions[0]).toMatchObject({
       event_type: 'FED',
       subscribed: true,
-      timing: null,
-      one_time: null,
+      timing: '12H',
+      one_time: false,
+      notify_in_app: true,
+      notify_email: true,
     })
   })
 
@@ -103,11 +113,14 @@ describe('macroAlertApi', () => {
     })
     const { macroAlertApi } = await loadApi()
 
-    const updated = await macroAlertApi.updateSubscription(
-      ALERTS_USER_ID,
-      'CPI',
-      true,
-    )
+    const updated = await macroAlertApi.updateSubscription(ALERTS_USER_ID, {
+      event_type: 'CPI',
+      subscribed: true,
+      timing: '1H',
+      one_time: true,
+      notify_in_app: false,
+      notify_email: true,
+    })
 
     expect(axiosMock.post).toHaveBeenCalledWith(
       SUBSCRIBE_URL,
@@ -116,6 +129,10 @@ describe('macroAlertApi', () => {
         event_type: 'cpi',
         subscribed: true,
         impact_filter: 'high',
+        timing: '1h',
+        one_time: true,
+        notify_in_app: false,
+        notify_email: true,
       },
       { headers: { Accept: 'application/json' } },
     )

@@ -173,17 +173,19 @@ export const AlertManagement: React.FC<AlertManagementProps> = ({ userId }) => {
     }
   };
 
-  // The alert service does not store timing or one_time, so the form opens on
-  // its own defaults rather than on values read back from a subscription.
   const editingEventDraft: MacroAlertDraft | null = editingSubscription
     ? {
         event_type: editingSubscription.event_type,
         timing: editingSubscription.timing ?? '1D',
         one_time: editingSubscription.one_time ?? true,
-        notify_in_app: true,
-        notify_email: false,
+        notify_in_app: editingSubscription.notify_in_app ?? true,
+        notify_email: editingSubscription.notify_email ?? false,
       }
     : null;
+
+  const macroFormKey = editingSubscription
+    ? `macro-edit-${editingSubscription.event_type}`
+    : 'macro-create';
 
   const handleSubmitMacroAlert = async (draft: MacroAlertDraft) => {
     const wasEditing = Boolean(editingSubscription);
@@ -468,6 +470,7 @@ export const AlertManagement: React.FC<AlertManagementProps> = ({ userId }) => {
       {/* Create Macro Alert Modal - only show when macro is selected */}
       {creatingType === 'macro' && (
         <MacroAlertForm
+          key={macroFormKey}
           open={creatingType === 'macro' || Boolean(editingSubscription)}
           onOpenChange={(open) => {
             if (open) return;
@@ -484,6 +487,7 @@ export const AlertManagement: React.FC<AlertManagementProps> = ({ userId }) => {
       {/* Edit Macro Alert Modal */}
       {editingSubscription && creatingType !== 'macro' && (
         <MacroAlertForm
+          key={macroFormKey}
           open
           onOpenChange={(open) => {
             if (!open) setEditingSubscription(null);
