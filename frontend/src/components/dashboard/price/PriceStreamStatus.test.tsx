@@ -9,15 +9,17 @@ import {
   renderPriceStreamStatus,
 } from '@/components/dashboard/price/PriceStreamStatus.testHelpers'
 import { useBtcPriceSnapshotQuery } from '@/hooks/useBtcPriceSnapshotQuery'
-import { usePriceStream } from '@/hooks/usePriceStream'
+import { usePriceStreamStore } from '@/stores/priceStreamStore'
 import type { PriceStreamStatus as StreamStatus } from '@/types/priceStream'
 
-vi.mock('@/hooks/usePriceStream', () => ({ usePriceStream: vi.fn() }))
+vi.mock('@/stores/priceStreamStore', () => ({
+  usePriceStreamStore: vi.fn(),
+}))
 vi.mock('@/hooks/useBtcPriceSnapshotQuery', () => ({
   useBtcPriceSnapshotQuery: vi.fn(),
 }))
 
-const priceStream = vi.mocked(usePriceStream)
+const priceStreamStore = vi.mocked(usePriceStreamStore)
 const snapshotQuery = vi.mocked(useBtcPriceSnapshotQuery)
 
 function givenStream(
@@ -25,7 +27,14 @@ function givenStream(
   lastUpdatedAt: string | null = null,
   reconnectAttempts = 0,
 ) {
-  priceStream.mockReturnValue({ status, reconnectAttempts })
+  priceStreamStore.mockImplementation((selector) =>
+    selector({
+      status,
+      reconnectAttempts,
+      setStatus: vi.fn(),
+      setReconnectAttempts: vi.fn(),
+    }),
+  )
   snapshotQuery.mockReturnValue({
     data: lastUpdatedAt ? { updatedAt: lastUpdatedAt } : undefined,
   } as ReturnType<typeof useBtcPriceSnapshotQuery>)
@@ -33,7 +42,7 @@ function givenStream(
 
 describe('PriceStreamStatus', () => {
   beforeEach(() => {
-    priceStream.mockReset()
+    priceStreamStore.mockReset()
     snapshotQuery.mockReset()
   })
 

@@ -62,5 +62,6 @@ describe('apiUrls', () => {
     expect(urls.notificationStreamUrl()).toBe(
       `http://localhost:8000${NOTIFICATIONS_STREAM_PATH}`,
     )
+    expect(urls.priceStreamUrl()).not.toContain('user_id')
   })
 })
