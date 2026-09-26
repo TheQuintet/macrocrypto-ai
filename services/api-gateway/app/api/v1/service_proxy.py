@@ -15,12 +15,16 @@ Source of truth:
 from __future__ import annotations
 
 from functools import partial
-
-from fastapi import APIRouter, Request
+import asyncio
+import websockets
+from fastapi import APIRouter, Request, WebSocket
 from fastapi.responses import JSONResponse, Response
 
 from app.core.config import settings
 from app.services.service_proxy import ServiceProxy, ServiceProxyError
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 # ============================================================================
@@ -111,6 +115,63 @@ async def data_proxy(
             content={"detail": str(exc)},
         )
 
+async def data_websocket_proxy(
+    websocket: WebSocket,
+    upstream_path: str,
+) -> None:
+    """Proxy a WebSocket connection to Data Service."""
+
+    await websocket.accept()
+
+    upstream_url = (
+        f"{settings.DATA_SERVICE_URL.rstrip('/')}"
+        f"/{upstream_path.lstrip('/')}"
+    )
+
+    if upstream_url.startswith("http://"):
+        upstream_url = "ws://" + upstream_url[len("http://"):]
+    elif upstream_url.startswith("https://"):
+        upstream_url = "wss://" + upstream_url[len("https://"):]
+
+    try:
+        async with websockets.connect(upstream_url) as upstream:
+
+            async def client_to_upstream() -> None:
+                while True:
+                    message = await websocket.receive()
+
+                    if message.get("text") is not None:
+                        await upstream.send(message["text"])
+                    elif message.get("bytes") is not None:
+                        await upstream.send(message["bytes"])
+                    else:
+                        break
+
+            async def upstream_to_client() -> None:
+                while True:
+                    message = await upstream.recv()
+
+                    if isinstance(message, str):
+                        await websocket.send_text(message)
+                    else:
+                        await websocket.send_bytes(message)
+
+            await asyncio.gather(
+                client_to_upstream(),
+                upstream_to_client(),
+            )
+
+    except websockets.exceptions.ConnectionClosed:
+        pass
+
+    except Exception as exc:
+        logger.exception(
+            "WebSocket proxy error for Data Service: %s",
+            exc,
+        )
+
+    finally:
+        await websocket.close()
 
 async def alert_proxy(
     request: Request,
@@ -167,6 +228,14 @@ router.add_api_route(
     ),
     methods=["GET"],
     tags=["Data Service"],
+)
+
+router.add_api_websocket_route(
+    "/btc/price/stream",
+    partial(
+        data_websocket_proxy,
+        upstream_path="/api/v1/btc/price/stream",
+    ),
 )
 
 router.add_api_route(

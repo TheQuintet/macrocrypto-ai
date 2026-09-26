@@ -338,6 +338,9 @@ async def run_websocket_stream(
         logger.error("❌ data_processor is None! Cannot start WebSocket.")
         return
     
+    logger.info(f"🔎 WebSocket DataProcessor ID: {id(data_processor)}")
+    logger.info(f"🔎 WebSocket PriceService ID: {id(data_processor.price_service)}")
+
     # ✅ Pass rabbitmq_producer to the WebSocket client
     client = BTCWebSocketClient(
         data_processor=data_processor,
