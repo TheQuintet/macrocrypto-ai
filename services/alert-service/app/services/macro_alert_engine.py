@@ -194,6 +194,20 @@ class MacroAlertEngine:
         notification_sent = False
 
         for subscription in subscribers:
+            subscription_timing = (
+                subscription.timing.value
+                if subscription.timing is not None
+                else None
+            )
+            if subscription_timing and subscription_timing != timing:
+                logger.debug(
+                    "Skipping subscription %s: wants timing %s, window is %s",
+                    subscription.user_id,
+                    subscription_timing,
+                    timing,
+                )
+                continue
+
             logger.info(
                             "PROCESSING subscription user=%s event=%s type=%s timing=%s",
                             subscription.user_id,
@@ -202,7 +216,7 @@ class MacroAlertEngine:
                             timing,
                         )
             alert = self._get_or_create_alert(
-                user_id=subscription.user_id,
+                subscription=subscription,
                 event=event,
                 timing=timing,
             )
@@ -224,7 +238,20 @@ class MacroAlertEngine:
                 timing=timing,
             )
 
+            if subscription.one_time:
+                subscription.subscribed = False
+                subscription.updated_at = utc_now()
+
             notification_sent = True
+
+        if notification_sent:
+            try:
+                self.db.commit()
+            except Exception:
+                self.db.rollback()
+                logger.exception(
+                    "Failed to persist subscription state after macro alert",
+                )
 
         return notification_sent
 
@@ -307,11 +334,12 @@ class MacroAlertEngine:
 
     def _get_or_create_alert(
         self,
-        user_id: UUID,
+        subscription: MacroEventSubscription,
         event: MacroEventCache,
         timing: str,
     ) -> Optional[MacroEventAlert]:
         """Get an existing alert or create a new one."""
+        user_id = subscription.user_id
         event_type = self._normalize_event_type(event.event_type)
 
         if event_type is None:
@@ -333,6 +361,8 @@ class MacroAlertEngine:
         )
 
         if alert:
+            alert.notify_in_app = subscription.notify_in_app
+            alert.notify_email = subscription.notify_email
             return alert
 
         impact = self._normalize_impact(event.impact)
@@ -351,8 +381,8 @@ class MacroAlertEngine:
             timing=timing,
             impact_filter=impact,
             status=MacroAlertStatus.ACTIVE,
-            notify_in_app=True,
-            notify_email=True,
+            notify_in_app=subscription.notify_in_app,
+            notify_email=subscription.notify_email,
         )
 
         self.db.add(alert)

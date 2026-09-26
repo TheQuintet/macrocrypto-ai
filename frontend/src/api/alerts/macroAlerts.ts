@@ -1,5 +1,8 @@
 import axios from 'axios'
-import { generateMockMacroSubscriptions } from '@/api/alerts/simulatedMacroAlerts'
+import {
+  generateMockMacroSubscriptions,
+  upsertMockMacroSubscription,
+} from '@/api/alerts/simulatedMacroAlerts'
 import {
   MACRO_SUBSCRIBE_PATH,
   MACRO_SUBSCRIPTIONS_PATH,
@@ -8,15 +11,29 @@ import { apiUrl } from '@/lib/apiConfig'
 import {
   toApiEventType,
   toApiImpact,
+  toApiTiming,
   toUiSubscription,
   type SubscriptionPayload,
 } from '@/lib/alerts/macroEventMapping'
 import type {
-  EventType,
   MacroSubscription,
+  MacroSubscriptionWrite,
 } from '@/types/alerts/macroAlert'
 
 const JSON_HEADERS = { Accept: 'application/json' }
+
+function subscribePayload(userId: string, write: MacroSubscriptionWrite) {
+  return {
+    user_id: userId,
+    event_type: toApiEventType(write.event_type),
+    subscribed: write.subscribed,
+    impact_filter: toApiImpact('HIGH'),
+    timing: toApiTiming(write.timing),
+    one_time: write.one_time,
+    notify_in_app: write.notify_in_app,
+    notify_email: write.notify_email,
+  }
+}
 
 async function fromApiOrSimulate<T>(
   path: string,
@@ -52,41 +69,31 @@ export const macroAlertApi = {
 
   updateSubscription: async (
     userId: string,
-    eventType: EventType,
-    subscribed: boolean,
+    write: MacroSubscriptionWrite,
   ): Promise<MacroSubscription> =>
     fromApiOrSimulate(
       MACRO_SUBSCRIBE_PATH,
-      async () => ({
-        id: crypto.randomUUID(),
-        user_id: userId,
-        event_type: eventType,
-        subscribed,
-        impact_filter: 'HIGH',
-        timing: null,
-        one_time: null,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      }),
+      async () => upsertMockMacroSubscription(userId, write),
       async (url) => {
-        const response = await axios.post<SubscriptionPayload>(url, {
-          user_id: userId,
-          event_type: toApiEventType(eventType),
-          subscribed,
-          impact_filter: toApiImpact('HIGH'),
-        }, {
-          headers: JSON_HEADERS,
-        })
+        const response = await axios.post<SubscriptionPayload>(
+          url,
+          subscribePayload(userId, write),
+          {
+            headers: JSON_HEADERS,
+          },
+        )
 
         return (
           toUiSubscription(response.data, userId) ?? {
             id: crypto.randomUUID(),
             user_id: userId,
-            event_type: eventType,
-            subscribed,
-            impact_filter: null,
-            timing: null,
-            one_time: null,
+            event_type: write.event_type,
+            subscribed: write.subscribed,
+            impact_filter: 'HIGH',
+            timing: write.timing,
+            one_time: write.one_time,
+            notify_in_app: write.notify_in_app,
+            notify_email: write.notify_email,
             created_at: null,
             updated_at: null,
           }

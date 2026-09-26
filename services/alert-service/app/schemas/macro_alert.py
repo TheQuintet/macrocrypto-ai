@@ -131,6 +131,13 @@ class MacroSubscriptionCreate(BaseModel):
         default="high",
         description="high, medium, low"
     )
+    timing: str = Field(
+        default="1d",
+        description="1d, 12h, 1h",
+    )
+    one_time: bool = True
+    notify_in_app: bool = True
+    notify_email: bool = False
 
     @validator('event_type')
     def validate_event_type(cls, v):
@@ -157,6 +164,15 @@ class MacroSubscriptionCreate(BaseModel):
         if v not in valid_impacts:
             raise ValueError(
                 f'impact_filter must be one of: {", ".join(valid_impacts)}'
+            )
+        return v
+
+    @validator('timing')
+    def validate_timing(cls, v):
+        valid_timings = ['1d', '12h', '1h']
+        if v not in valid_timings:
+            raise ValueError(
+                f'timing must be one of: {", ".join(valid_timings)}'
             )
         return v
 

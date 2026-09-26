@@ -2,7 +2,9 @@ import type {
   EventImpact,
   EventTiming,
   EventType,
+  MacroAlertDraft,
   MacroSubscription,
+  MacroSubscriptionWrite,
 } from '@/types/alerts/macroAlert'
 
 export const MACRO_EVENT_TYPES: EventType[] = [
@@ -32,6 +34,10 @@ export function toApiImpact(impact: EventImpact) {
   return impact.toLowerCase()
 }
 
+export function toApiTiming(timing: EventTiming) {
+  return timing.toLowerCase()
+}
+
 export function toUiImpact(value: string | null | undefined): EventImpact | null {
   const normalized = value?.toUpperCase()
   if (normalized && IMPACT_SET.has(normalized)) {
@@ -56,6 +62,8 @@ export type SubscriptionPayload = {
   impact_filter?: string | null
   timing?: string | null
   one_time?: boolean
+  notify_in_app?: boolean
+  notify_email?: boolean
   created_at?: string | null
   updated_at?: string | null
 }
@@ -81,7 +89,34 @@ export function toUiSubscription(
     impact_filter: toUiImpact(payload.impact_filter),
     timing: toUiTiming(payload.timing),
     one_time: payload.one_time ?? null,
+    notify_in_app: payload.notify_in_app ?? null,
+    notify_email: payload.notify_email ?? null,
     created_at: payload.created_at ?? null,
     updated_at: payload.updated_at ?? null,
+  }
+}
+
+export function subscriptionToWrite(
+  subscription: MacroSubscription,
+  subscribed: boolean,
+): MacroSubscriptionWrite {
+  return {
+    event_type: subscription.event_type,
+    subscribed,
+    timing: subscription.timing ?? '1D',
+    one_time: subscription.one_time ?? true,
+    notify_in_app: subscription.notify_in_app ?? true,
+    notify_email: subscription.notify_email ?? false,
+  }
+}
+
+export function draftToWrite(draft: MacroAlertDraft): MacroSubscriptionWrite {
+  return {
+    event_type: draft.event_type,
+    subscribed: true,
+    timing: draft.timing,
+    one_time: draft.one_time,
+    notify_in_app: draft.notify_in_app,
+    notify_email: draft.notify_email,
   }
 }

@@ -1,6 +1,7 @@
-import { cleanup, screen, within } from '@testing-library/react'
+import { cleanup, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { MacroAlertForm } from './MacroAlertForm'
 import {
   expectValidationError,
   getCreateButton,
@@ -67,6 +68,51 @@ describe('MacroAlertForm', () => {
     expectValidationError('Choose a notification.')
     expectAdvancedOpen()
     expect(onSubmit).not.toHaveBeenCalled()
+  })
+
+  it('syncs the event combobox when a different row is opened for edit', () => {
+    const fedDraft = {
+      event_type: 'FED' as const,
+      timing: '1D' as const,
+      one_time: true,
+      notify_in_app: true,
+      notify_email: false,
+    }
+    const onOpenChange = vi.fn()
+    const onSubmit = vi.fn()
+    const { rerender } = render(
+      <MacroAlertForm
+        key="macro-edit-FED"
+        open
+        onOpenChange={onOpenChange}
+        onSubmit={onSubmit}
+        editingDraft={fedDraft}
+      />,
+    )
+
+    expect(screen.getByRole('button', { name: /^Event/ })).toHaveTextContent(
+      'Federal Reserve Meeting',
+    )
+
+    rerender(
+      <MacroAlertForm
+        key="macro-edit-CPI"
+        open
+        onOpenChange={onOpenChange}
+        onSubmit={onSubmit}
+        editingDraft={{
+          event_type: 'CPI',
+          timing: '12H',
+          one_time: false,
+          notify_in_app: true,
+          notify_email: false,
+        }}
+      />,
+    )
+
+    expect(screen.getByRole('button', { name: /^Event/ })).toHaveTextContent(
+      'CPI Release',
+    )
   })
 
   it('submits the chosen event and timing', async () => {

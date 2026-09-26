@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { macroAlertApi } from '@/api/alerts/macroAlerts'
+import { draftToWrite, subscriptionToWrite } from '@/lib/alerts/macroEventMapping'
 import type {
   MacroAlertDraft,
   MacroSubscription,
@@ -52,8 +53,7 @@ export function useMacroEvents(userId: string) {
 
       await macroAlertApi.updateSubscription(
         userId,
-        subscription.event_type,
-        subscribed,
+        subscriptionToWrite(subscription, subscribed),
       )
       setSubscriptions(await macroAlertApi.getSubscriptions(userId))
     },
@@ -62,7 +62,7 @@ export function useMacroEvents(userId: string) {
 
   const applyDraft = useCallback(
     async (draft: MacroAlertDraft) => {
-      await macroAlertApi.updateSubscription(userId, draft.event_type, true)
+      await macroAlertApi.updateSubscription(userId, draftToWrite(draft))
       setSubscriptions(await macroAlertApi.getSubscriptions(userId))
     },
     [userId],

@@ -46,6 +46,20 @@ def get_db():
         db.close()
 
 
+def _apply_subscription_preferences(
+    subscription: MacroEventSubscription,
+    subscription_data: MacroSubscriptionCreate,
+) -> None:
+    """Copy alert preferences from the subscribe payload onto a subscription row."""
+    subscription.subscribed = subscription_data.subscribed
+    subscription.impact_filter = subscription_data.impact_filter
+    subscription.timing = EventTiming(subscription_data.timing)
+    subscription.one_time = subscription_data.one_time
+    subscription.notify_in_app = subscription_data.notify_in_app
+    subscription.notify_email = subscription_data.notify_email
+    subscription.updated_at = datetime.utcnow()
+
+
 # ============================================
 # SUBSCRIPTION MANAGEMENT
 # ============================================
@@ -62,9 +76,7 @@ async def subscribe_to_event(
     ).first()
 
     if existing:
-        existing.subscribed = subscription_data.subscribed
-        existing.impact_filter = subscription_data.impact_filter
-        existing.updated_at = datetime.utcnow()
+        _apply_subscription_preferences(existing, subscription_data)
         db.commit()
         db.refresh(existing)
         return existing.to_dict()
@@ -73,7 +85,11 @@ async def subscribe_to_event(
         user_id=subscription_data.user_id,
         event_type=subscription_data.event_type,
         subscribed=subscription_data.subscribed,
-        impact_filter=subscription_data.impact_filter
+        impact_filter=subscription_data.impact_filter,
+        timing=EventTiming(subscription_data.timing),
+        one_time=subscription_data.one_time,
+        notify_in_app=subscription_data.notify_in_app,
+        notify_email=subscription_data.notify_email,
     )
 
     db.add(subscription)
