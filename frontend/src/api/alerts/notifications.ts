@@ -10,28 +10,11 @@ import { sortNotificationsByDateNewestFirst } from '@/lib/alerts/sortNotificatio
 import { apiUrl } from '@/lib/apiConfig'
 import type {
   InAppNotification,
+  MacroNotificationListResponse,
+  MacroNotificationWire,
+  NotificationListParams,
   NotificationResponse,
-  NotificationType,
 } from '@/types/alerts/notifications'
-
-/** Gateway list item from GET /api/v1/macro/notifications. */
-type MacroNotificationWire = {
-  id: string
-  user_id?: string
-  alert_id?: string | null
-  event_name?: string
-  description?: string | null
-  data?: Record<string, unknown> | null
-  action_url?: string | null
-  read?: boolean
-  is_archived?: boolean
-  sent_at?: string | null
-  read_at?: string | null
-  title?: string
-  message?: string
-  notification_type?: NotificationType
-  created_at?: string
-}
 
 function toInAppNotification(raw: MacroNotificationWire): InAppNotification {
   return {
@@ -60,12 +43,6 @@ export function unreadNotificationCountQueryKey(userId: string) {
   return ['notifications', 'unread-count', userId] as const
 }
 
-type NotificationListParams = {
-  unread_only?: boolean
-  limit?: number
-  offset?: number
-}
-
 function sortedResponse(response: NotificationResponse): NotificationResponse {
   return {
     ...response,
@@ -86,12 +63,7 @@ export async function fetchNotifications(
         throw new Error('Alert API is not configured')
       }
 
-      const response = await axios.get<{
-        total: number
-        limit: number
-        offset: number
-        notifications: MacroNotificationWire[]
-      }>(url, {
+      const response = await axios.get<MacroNotificationListResponse>(url, {
         params: {
           ...(params.limit !== undefined ? { limit: params.limit } : {}),
           ...(params.offset !== undefined ? { offset: params.offset } : {}),

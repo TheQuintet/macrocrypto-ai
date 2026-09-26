@@ -4,6 +4,7 @@ import { routes } from '@/constants/navigation'
 import { sortNotificationsByDateNewestFirst } from '@/lib/alerts/sortNotifications'
 import type {
   InAppNotification,
+  NotificationListParams,
   NotificationResponse,
 } from '@/types/alerts/notifications'
 
@@ -144,7 +145,7 @@ function requireNotification(notificationId: string) {
 
 function listForUser(
   userId: string,
-  params?: { unread_only?: boolean },
+  params?: Pick<NotificationListParams, 'unread_only'>,
 ): InAppNotification[] {
   let list = notifications.filter((item) => item.user_id === userId)
   if (params?.unread_only) {
@@ -155,7 +156,7 @@ function listForUser(
 
 export async function simulateGetNotifications(
   userId: string,
-  params?: { unread_only?: boolean; limit?: number; offset?: number },
+  params?: NotificationListParams,
 ): Promise<NotificationResponse> {
   await delay(MOCK_LATENCY_MS)
 
