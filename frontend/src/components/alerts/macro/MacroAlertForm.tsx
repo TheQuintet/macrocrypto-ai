@@ -55,12 +55,20 @@ export function MacroAlertForm({
 }: MacroAlertFormProps) {
   const isEditing = Boolean(editingDraft);
   const [eventType, setEventType] = useState<EventType | ''>(
-    emptyDraft.eventType,
+    editingDraft?.event_type ?? emptyDraft.eventType,
   );
-  const [timing, setTiming] = useState<EventTiming>(emptyDraft.timing);
-  const [oneTime, setOneTime] = useState(emptyDraft.oneTime);
-  const [notifyInApp, setNotifyInApp] = useState(emptyDraft.notifyInApp);
-  const [notifyEmail, setNotifyEmail] = useState(emptyDraft.notifyEmail);
+  const [timing, setTiming] = useState<EventTiming>(
+    editingDraft?.timing ?? emptyDraft.timing,
+  );
+  const [oneTime, setOneTime] = useState(
+    editingDraft?.one_time ?? emptyDraft.oneTime,
+  );
+  const [notifyInApp, setNotifyInApp] = useState(
+    editingDraft?.notify_in_app ?? emptyDraft.notifyInApp,
+  );
+  const [notifyEmail, setNotifyEmail] = useState(
+    editingDraft?.notify_email ?? emptyDraft.notifyEmail,
+  );
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [sessionOpen, setSessionOpen] = useState(open);
