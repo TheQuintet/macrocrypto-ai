@@ -683,15 +683,15 @@ def test_alert_service_proxy_error_returns_502(
 # ============================================================================
 
 
-def test_all_39_proxy_routes_are_registered():
-    """Exactly 39 proxy route definitions are registered."""
+def test_all_42_proxy_routes_are_registered():
+    """Exactly 42 proxy route definitions are registered."""
     routes = [
         route
         for route in service_proxy.router.routes
         if hasattr(route, "methods")
     ]
 
-    assert len(routes) == 39
+    assert len(routes) == 42
 
 
 def test_data_service_route_count():
@@ -706,14 +706,14 @@ def test_data_service_route_count():
 
 
 def test_alert_service_route_count():
-    """Exactly 27 Alert Service routes are registered."""
+    """Exactly 30 Alert Service routes are registered."""
     alert_routes = [
         route
         for route in service_proxy.router.routes
         if "Alert Service" in getattr(route, "tags", [])
     ]
 
-    assert len(alert_routes) == 27
+    assert len(alert_routes) == 30
 
 
 # ============================================================================

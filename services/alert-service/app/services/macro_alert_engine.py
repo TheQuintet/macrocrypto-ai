@@ -528,6 +528,8 @@ class MacroAlertEngine:
                 "description": event.description,
             },
             action_url=f"/alerts/macro/{alert.id}",
+            title=title,
+            message=message,
         )
 
         logger.debug(

@@ -631,3 +631,33 @@ router.add_api_route(
     methods=["GET"],
     tags=["Alert Service"],
 )
+
+router.add_api_route(
+    "/notifications",
+    partial(
+        alert_proxy,
+        upstream_path="/api/v1/notifications",
+    ),
+    methods=["GET"],
+    tags=["Alert Service"],
+)
+
+router.add_api_route(
+    "/notifications/{notification_id}/read",
+    partial(
+        alert_proxy,
+        upstream_path="/api/v1/notifications/{notification_id}/read",
+    ),
+    methods=["PUT"],
+    tags=["Alert Service"],
+)
+
+router.add_api_route(
+    "/notifications/read-all",
+    partial(
+        alert_proxy,
+        upstream_path="/api/v1/notifications/read-all",
+    ),
+    methods=["POST"],
+    tags=["Alert Service"],
+)

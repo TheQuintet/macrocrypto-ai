@@ -72,6 +72,44 @@ class NotificationService:
         ).offset(offset).limit(limit).all()
         
         return total, notifications
+
+    def get_all_notifications(
+        self,
+        unread_only: bool = False,
+        limit: int = 50,
+        offset: int = 0
+    ) -> tuple:
+        """Get all non-archived notifications."""
+        query = self.db.query(InAppNotification).filter(
+            InAppNotification.is_archived == False
+        )
+
+        if unread_only:
+            query = query.filter(InAppNotification.read == False)
+
+        total = query.count()
+        notifications = query.order_by(
+            desc(InAppNotification.created_at)
+        ).offset(offset).limit(limit).all()
+
+        return total, notifications
+
+    def mark_all_notifications_as_read(self) -> int:
+        """Mark all non-archived notifications as read."""
+        notifications = self.db.query(InAppNotification).filter(
+            InAppNotification.read == False,
+            InAppNotification.is_archived == False
+        ).all()
+
+        count = 0
+        for notification in notifications:
+            notification.read = True
+            notification.read_at = datetime.utcnow()
+            count += 1
+
+        self.db.commit()
+        logger.debug(f"📱 Marked {count} notifications as read")
+        return count
     
     def mark_as_read(self, notification_id: UUID) -> Optional[InAppNotification]:
         """Mark a notification as read."""
@@ -84,12 +122,12 @@ class NotificationService:
             notification.read_at = datetime.utcnow()
             
             # Update history
-            history = self.db.query(AlertHistory).filter(
-                AlertHistory.alert_id == notification.alert_id
-            ).order_by(desc(AlertHistory.created_at)).first()
+            # history = self.db.query(AlertHistory).filter(
+            #     AlertHistory.alert_id == notification.alert_id
+            # ).order_by(desc(AlertHistory.created_at)).first()
             
-            if history:
-                history.read_status = True
+            # if history:
+            #     history.read_status = True
             
             self.db.commit()
             self.db.refresh(notification)
