@@ -6,7 +6,7 @@ import type {
 } from '@/types/alerts/notifications'
 
 const GATEWAY_BASE = 'http://localhost:8000'
-const NOTIFICATIONS_URL = `${GATEWAY_BASE}/api/v1/notifications`
+const NOTIFICATIONS_URL = `${GATEWAY_BASE}/api/v1/macro/notifications`
 
 const LIVE_NOTIFICATION: InAppNotification = {
   id: 'live-notification-id',
@@ -76,9 +76,41 @@ describe('notification API', () => {
     const response = await fetchNotifications(ALERTS_USER_ID)
 
     expect(axiosMock.get).toHaveBeenCalledWith(NOTIFICATIONS_URL, {
-      params: { user_id: ALERTS_USER_ID },
+      params: {},
       headers: { Accept: 'application/json' },
     })
     expect(response.notifications[0]?.id).toBe(LIVE_NOTIFICATION.id)
+  })
+
+  it('maps the macro notification wire onto the inbox row', async () => {
+    vi.stubEnv('VITE_API_GATEWAY_BASE_URL', GATEWAY_BASE)
+    axiosMock.get.mockResolvedValue({
+      data: {
+        total: 1,
+        limit: 50,
+        offset: 0,
+        notifications: [
+          {
+            id: 'macro-1',
+            event_name: 'CPI release',
+            description: 'Inflation print',
+            read: false,
+            sent_at: '2026-09-01T12:00:00.000Z',
+          },
+        ],
+      },
+    })
+    const { fetchNotifications } = await loadApi()
+
+    const response = await fetchNotifications(ALERTS_USER_ID)
+
+    expect(response.notifications[0]).toMatchObject({
+      id: 'macro-1',
+      title: 'CPI release',
+      message: 'Inflation print',
+      notification_type: 'macro_alert',
+      created_at: '2026-09-01T12:00:00.000Z',
+      read: false,
+    })
   })
 })
