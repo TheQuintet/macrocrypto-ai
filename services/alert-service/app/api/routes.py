@@ -215,7 +215,7 @@ async def delete_price_alert(
     alert_id: UUID,
     db: Session = Depends(get_db)
 ):
-    """Delete a price alert (soft delete - mark as disabled)."""
+    """Delete a price alert (hard delete). Pause uses PUT status=disabled."""
     alert = db.query(PriceAlert).filter(PriceAlert.id == alert_id).first()
     
     if not alert:
@@ -223,22 +223,8 @@ async def delete_price_alert(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Alert {alert_id} not found"
         )
-    
-    # Soft delete - disable it
-    previous_status = alert.status
-    alert.status = AlertStatus.DISABLED
-    alert.updated_at = datetime.utcnow()
-    
-    # Create history entry
-    history = AlertHistory(
-        alert_id=alert.id,
-        event_type=HistoryEventType.DELETED,
-        event_source="user",
-        previous_status=previous_status,
-        new_status=AlertStatus.DISABLED,
-        triggered_at=datetime.utcnow()
-    )
-    db.add(history)
+
+    db.delete(alert)
     db.commit()
     
     return None

@@ -90,9 +90,10 @@ async def unsubscribe_from_event(
     db: Session = Depends(get_db)
 ):
     """Unsubscribe from a macro event type."""
+    normalized_event_type = event_type.strip().lower()
     subscription = db.query(MacroEventSubscription).filter(
         MacroEventSubscription.user_id == user_id,
-        MacroEventSubscription.event_type == event_type
+        MacroEventSubscription.event_type == normalized_event_type
     ).first()
 
     if not subscription:
@@ -101,8 +102,7 @@ async def unsubscribe_from_event(
             detail=f"Subscription for {event_type} not found"
         )
 
-    subscription.subscribed = False
-    subscription.updated_at = datetime.utcnow()
+    db.delete(subscription)
     db.commit()
 
     return {

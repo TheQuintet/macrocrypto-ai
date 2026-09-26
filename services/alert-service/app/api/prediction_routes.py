@@ -207,7 +207,7 @@ async def delete_prediction_alert(
     alert_id: UUID,
     db: Session = Depends(get_db)
 ):
-    """Delete a prediction alert (soft delete - mark as disabled)."""
+    """Delete a prediction alert (hard delete). Pause uses PUT status=disabled."""
     alert = db.query(PredictionChangeAlert).filter(
         PredictionChangeAlert.id == alert_id
     ).first()
@@ -218,9 +218,7 @@ async def delete_prediction_alert(
             detail=f"Prediction alert {alert_id} not found"
         )
 
-    alert.status = PredictionAlertStatus.DISABLED
-    alert.updated_at = datetime.utcnow()
-
+    db.delete(alert)
     db.commit()
 
     return None
