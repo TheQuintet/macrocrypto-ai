@@ -25,8 +25,10 @@ describe('createPriceSocket transport precedence', () => {
     vi.stubEnv('VITE_API_GATEWAY_BASE_URL', 'http://localhost:8000')
     vi.resetModules()
     const { createPriceSocket, priceStreamSource } = await loadSocket()
+    const { priceStreamUrl } = await import('@/constants/apiUrls')
 
     expect(createPriceSocket()).toBeTypeOf('function')
     expect(priceStreamSource()).toBe('live')
+    expect(priceStreamUrl()).toBe('ws://localhost:8000/api/v1/btc/price/stream')
   })
 })

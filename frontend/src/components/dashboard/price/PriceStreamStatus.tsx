@@ -6,8 +6,8 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { useBtcPriceSnapshotQuery } from '@/hooks/useBtcPriceSnapshotQuery';
-import { usePriceStream } from '@/hooks/usePriceStream';
 import { cn } from '@/lib/utils';
+import { usePriceStreamStore } from '@/stores/priceStreamStore';
 import type { PriceStreamStatus as StreamStatus } from '@/types/priceStream';
 
 const STATUS_LABEL: Record<StreamStatus, string> = {
@@ -43,7 +43,10 @@ const STATUS_DETAIL: Record<StreamStatus, string> = {
  * of the last frame received, and connection detail on hover.
  */
 export function PriceStreamStatus() {
-  const { status, reconnectAttempts } = usePriceStream();
+  const status = usePriceStreamStore((state) => state.status);
+  const reconnectAttempts = usePriceStreamStore(
+    (state) => state.reconnectAttempts,
+  );
   // The snapshot carries its own timestamp, and every transport writes the
   // same cache entry — so this works whether a stream or polling delivered it.
   const { data } = useBtcPriceSnapshotQuery();
