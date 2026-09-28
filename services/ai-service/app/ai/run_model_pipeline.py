@@ -1,57 +1,74 @@
+"""Train, compare, and save forecasting model candidates.
+
+Candidates are selected by validation error against held-out targets.
+The test partition is deliberately not loaded by this workflow.
+"""
+
 import logging
+import tempfile
 from pathlib import Path
-from typing import Dict, Any, Tuple
+from typing import Dict, Tuple
+
+import numpy as np
 import pandas as pd
 from tabulate import tabulate
 
-from app.utils.feature_loader import FeatureLoader
+from app.ai.base import ForecastModel
+from app.ai.metrics import current_prices_for_target_dates, directional_accuracy
 from app.ai.models.lightgbm_model import LightGBMModel
-from app.ai.models.xgboost_model import XGBoostModel
 from app.ai.models.prophet_model import ProphetModel
-from app.ai.comparison import ModelComparisonEngine
+from app.ai.models.xgboost_model import XGBoostModel
+from app.utils.feature_loader import FeatureLoader
 
 logger = logging.getLogger(__name__)
 
-# --- Adapter: Map feature names to model expectations and clean timezones ---
-def adapt_columns(df: pd.DataFrame) -> pd.DataFrame:
-    """Maps actual dataset column names to model expectations and strips timezones from 'ds'."""
-    df = df.copy()
-    rename_map = {
-        'observation_date': 'ds',
-        'target_next_price': 'y'
-    }
-    # Only rename columns that actually exist in the dataframe
-    actual_rename = {k: v for k, v in rename_map.items() if k in df.columns and v not in df.columns}
-    df = df.rename(columns=actual_rename)
-    
-    # Prophet requires 'ds' to be timezone-naive; safely strip timezone if present
-    if 'ds' in df.columns:
-        df['ds'] = pd.to_datetime(df['ds']).apply(
-            lambda x: x.tz_localize(None) if pd.notnull(x) and getattr(x, 'tzinfo', None) is not None else x
-        )
-        
-    return df
+WARMUP_FRACTION = 0.8
+MIN_WARMUP_ROWS = 60
 
-# --- Step 1: Load Features ---
+
+def adapt_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """Map prepared feature names to the forecasting-model contract."""
+    adapted = df.copy()
+    rename_map = {
+        "observation_date": "ds",
+        "target_next_price": "y",
+    }
+    actual_rename = {
+        source: target
+        for source, target in rename_map.items()
+        if source in adapted.columns and target not in adapted.columns
+    }
+    adapted = adapted.rename(columns=actual_rename)
+
+    if "ds" in adapted.columns:
+        dates = pd.to_datetime(adapted["ds"])
+        if dates.dt.tz is not None:
+            dates = dates.dt.tz_localize(None)
+        adapted["ds"] = dates
+
+    return adapted
+
+
 def load_features() -> Tuple[pd.DataFrame, pd.DataFrame]:
-    """Loads and adapts training and validation feature partitions."""
-    logger.info("Step 1: Loading feature partitions...")
+    """Load and adapt training and validation feature partitions."""
+    logger.info("Loading training and validation feature partitions")
     loader = FeatureLoader()
-    train_df = loader.load_partition("train")
-    val_df = loader.load_partition("val")
-    
-    # Map columns to match model expectations
-    train_df = adapt_columns(train_df)
-    val_df = adapt_columns(val_df)
-    
-    logger.info(f"Loaded and adapted train shape: {train_df.shape}, val shape: {val_df.shape}")
+    train_df = adapt_columns(loader.load_partition("train"))
+    val_df = adapt_columns(loader.load_partition("val"))
+    _validate_partition(train_df, "train")
+    _validate_partition(val_df, "validation")
+
+    logger.info(
+        "Loaded partitions: train=%s rows, validation=%s rows",
+        len(train_df),
+        len(val_df),
+    )
     return train_df, val_df
 
-# --- Step 2: Instantiate Models ---
-def instantiate_models() -> Dict[str, Any]:
-    """Initializes the 6 candidate model variants (fresh vs. warm/incremental)."""
-    logger.info("Step 2: Instantiating candidate models...")
-    models = {
+
+def instantiate_models() -> Dict[str, ForecastModel]:
+    """Create the six supported model and strategy candidates."""
+    return {
         "prophet_fresh": ProphetModel(strategy="fresh"),
         "prophet_warm": ProphetModel(strategy="warm"),
         "xgboost_fresh": XGBoostModel(strategy="fresh"),
@@ -59,119 +76,266 @@ def instantiate_models() -> Dict[str, Any]:
         "lightgbm_fresh": LightGBMModel(strategy="fresh"),
         "lightgbm_incremental": LightGBMModel(strategy="incremental"),
     }
-    logger.info(f"Initialized models: {list(models.keys())}")
+
+
+def train_models(
+    models: Dict[str, ForecastModel],
+    train_df: pd.DataFrame,
+) -> Dict[str, ForecastModel]:
+    """Train all candidates, exercising each configured strategy.
+
+    Warm/incremental candidates first train a chronological seed model,
+    save it to a temporary checkpoint, and then train on the full
+    training history with the model's warm-start path enabled.
+    """
+    _validate_partition(train_df, "train")
+    ordered_train = train_df.sort_values("ds").reset_index(drop=True)
+    split_at = int(len(ordered_train) * WARMUP_FRACTION)
+    if split_at < MIN_WARMUP_ROWS or split_at >= len(ordered_train):
+        raise ValueError(
+            f"Training partition needs at least {MIN_WARMUP_ROWS + 1} "
+            "rows to compare warm/incremental candidates"
+        )
+
+    seed_data = ordered_train.iloc[:split_at].copy()
+    expected_modes = {
+        "fresh": "fresh",
+        "warm": "warm",
+        "incremental": "incremental",
+    }
+
+    with tempfile.TemporaryDirectory(prefix="model_candidates_") as temp_dir:
+        for name, model in models.items():
+            strategy = getattr(model, "strategy", None)
+            if strategy not in expected_modes:
+                raise ValueError(
+                    f"Candidate '{name}' has unsupported strategy "
+                    f"{strategy!r}"
+                )
+
+            logger.info("Training candidate %s (%s)", name, strategy)
+            if strategy == "fresh":
+                model.train(ordered_train.copy())
+                actual_mode = getattr(model, "last_training_mode", "fresh")
+            else:
+                model.train(seed_data.copy())
+                checkpoint = Path(temp_dir) / f"{name}{_model_extension(model)}"
+                model.save(str(checkpoint))
+                model.train(
+                    ordered_train.copy(),
+                    warm_start=True,
+                    previous_model_path=str(checkpoint),
+                )
+                actual_mode = getattr(model, "last_training_mode", None)
+
+            expected_mode = expected_modes[strategy]
+            if actual_mode != expected_mode:
+                raise RuntimeError(
+                    f"Candidate '{name}' requested {expected_mode} training "
+                    f"but model used {actual_mode!r}"
+                )
+
     return models
 
-# --- Step 3: Train Models ---
-def train_models(models: Dict[str, Any], train_df: pd.DataFrame) -> Dict[str, Any]:
-    """Trains each candidate model on the full training dataframe."""
-    logger.info("Step 3: Training models...")
-    trained_models = {}
-    for name, model in models.items():
-        logger.info(f"Training model variant: {name}...")
-        model.train(train_df)
-        trained_models[name] = model
-    return trained_models
 
-# --- Step 4 & 5: Evaluate, Tabulate, and Compare Models ---
-def evaluate_and_compare_models(models: Dict[str, Any], val_df: pd.DataFrame) -> Tuple[str, Any]:
-    """Evaluates candidate models, displays formatted metric tables, and selects the winning champion."""
-    logger.info("Step 4: Testing and evaluating models...")
-    
-    evaluation_records = []
+def evaluate_and_compare_models(
+    models: Dict[str, ForecastModel],
+    val_df: pd.DataFrame,
+) -> Tuple[str, ForecastModel] | None:
+    """Score candidates and return the lowest-MAE candidate if eligible."""
+    _validate_partition(val_df, "validation")
+    if not models:
+        raise ValueError("At least one model is required for evaluation")
+
+    actual = val_df[["ds", "y"]].copy()
+    actual["ds"] = pd.to_datetime(actual["ds"])
+    actual = actual[np.isfinite(actual["y"]) & (actual["y"] != 0)]
+    if actual["ds"].duplicated().any():
+        raise ValueError("Validation partition contains duplicate dates")
+    actual_by_date = actual.set_index("ds")["y"]
+
+    predictions: Dict[str, pd.DataFrame] = {}
+    failures: Dict[str, str] = {}
     for name, model in models.items():
         try:
-            metrics = getattr(model, "last_metrics", {})
-            if not metrics and hasattr(model, "get_metrics"):
-                metrics = model.get_metrics()
-                
-            mae = metrics.get("mae", float("nan"))
-            rmse = metrics.get("rmse", float("nan"))
-            mape_raw = metrics.get("mape", float("nan"))
-            mape_str = f"{mape_raw * 100:.2f}%" if pd.notnull(mape_raw) else "N/A"
-            
-            evaluation_records.append({
+            prediction = model.predict(val_df.copy())
+            missing = {"ds", "yhat"} - set(prediction.columns)
+            if missing:
+                raise ValueError(
+                    f"Prediction output is missing columns: {sorted(missing)}"
+                )
+
+            prediction = prediction[["ds", "yhat"]].copy()
+            prediction["ds"] = pd.to_datetime(prediction["ds"])
+            prediction = prediction[np.isfinite(prediction["yhat"])]
+            if prediction["ds"].duplicated().any():
+                raise ValueError("Prediction output contains duplicate dates")
+            predictions[name] = prediction.set_index("ds")["yhat"].to_frame()
+        except Exception as exc:
+            logger.exception("Validation prediction failed for %s", name)
+            failures[name] = f"{type(exc).__name__}: {exc}"
+
+    common_dates = set(actual_by_date.index)
+    for prediction in predictions.values():
+        common_dates.intersection_update(prediction.index)
+
+    if failures:
+        failure_table = [
+            {"Model Variant": name, "Status": "FAILED", "Details": error}
+            for name, error in failures.items()
+        ]
+        print(tabulate(failure_table, headers="keys", tablefmt="github"))
+        raise RuntimeError(
+            "Cannot select a winner because one or more candidates failed "
+            "validation prediction"
+        )
+    if not common_dates:
+        raise RuntimeError(
+            "Candidates have no common finite validation predictions"
+        )
+
+    ordered_dates = sorted(common_dates)
+    actual_values = actual_by_date.loc[ordered_dates].to_numpy(dtype=float)
+    if not np.isfinite(actual_values).all():
+        raise ValueError("Validation targets contain non-finite values")
+    current_prices = current_prices_for_target_dates(val_df, ordered_dates)
+
+    records = []
+    for name, prediction in predictions.items():
+        predicted_values = prediction.loc[ordered_dates, "yhat"].to_numpy(
+            dtype=float
+        )
+        errors = actual_values - predicted_values
+        records.append(
+            {
                 "Model Variant": name,
-                "MAE": f"{mae:.4f}" if pd.notnull(mae) else "N/A",
-                "RMSE": f"{rmse:.4f}" if pd.notnull(rmse) else "N/A",
-                "MAPE (%)": mape_str
-            })
-        except Exception as e:
-            logger.warning(f"Could not retrieve metrics for {name}: {e}")
-            evaluation_records.append({
-                "Model Variant": name,
-                "MAE": "Error",
-                "RMSE": "Error",
-                "MAPE (%)": "Error"
-            })
+                "Validation Rows": len(ordered_dates),
+                "MAE": float(np.mean(np.abs(errors))),
+                "RMSE": float(np.sqrt(np.mean(np.square(errors)))),
+                "MAPE (%)": float(
+                    np.mean(np.abs(errors / actual_values)) * 100
+                ),
+                "Directional Accuracy (%)": directional_accuracy(
+                    actual_values, predicted_values, current_prices
+                ),
+            }
+        )
 
-    # Print Tabular Report for Individual Evaluations
-    print("\n" + "="*70)
-    print("📊 INDIVIDUAL MODEL VALIDATION PERFORMANCE REPORT")
-    print("="*70)
-    eval_df = pd.DataFrame(evaluation_records)
-    print(tabulate(eval_df, headers="keys", tablefmt="fancy_grid", showindex=False))
-    print("="*70 + "\n")
+    persistence_errors = actual_values - current_prices
+    baseline = {
+        "Model Variant": "naive_persistence_baseline",
+        "Validation Rows": len(ordered_dates),
+        "MAE": float(np.mean(np.abs(persistence_errors))),
+        "RMSE": float(np.sqrt(np.mean(np.square(persistence_errors)))),
+        "MAPE (%)": float(
+            np.mean(np.abs(persistence_errors / actual_values)) * 100
+        ),
+        "Directional Accuracy (%)": directional_accuracy(
+            actual_values, current_prices, current_prices
+        ),
+    }
+    records.sort(
+        key=lambda row: (
+            row["MAE"],
+            row["MAPE (%)"],
+            row["Model Variant"],
+        )
+    )
+    display_records = records + [baseline]
+    print(
+        f"\nValidation scores on {len(ordered_dates)} shared dates "
+        f"({ordered_dates[0]} to {ordered_dates[-1]}):"
+    )
+    print(
+        "Stored model MAPE is in percentage points (for example, 0.3213 "
+        "means 0.3213%, not 32.13%)."
+    )
+    print(
+        "Directional accuracy compares each predicted/actual next-day move "
+        "against that date's BTC price; persistence predicts no move."
+    )
+    print(
+        tabulate(
+            display_records,
+            headers="keys",
+            tablefmt="github",
+            floatfmt=".4f",
+        )
+    )
 
-    # --- Step 5: Run Comparison Engine ---
-    logger.info("Step 5: Running ModelComparisonEngine consensus and selection...")
-    comparator = ModelComparisonEngine(models=models)
-    comparison_result = comparator.compare(val_df)
-    
-    comparison_records = []
-    for name, pred in comparison_result.predictions.items():
-        status = "Failed" if pred.error else "Success"
-        error_msg = str(pred.error) if pred.error else "-"
-        comparison_records.append({
-            "Model Variant": name,
-            "Execution Status": status,
-            "Error Details": error_msg
-        })
-        
-    print("\n" + "="*70)
-    print("🤝 COMPARISON ENGINE EXECUTION SUMMARY")
-    print("="*70)
-    print(f"• Agreement Score : {comparison_result.agreement_score:.3f}")
-    print(f"• Models Run      : {', '.join(comparison_result.models_run)}")
-    print(f"• Models Failed   : {', '.join(comparison_result.models_failed) if comparison_result.models_failed else 'None'}")
-    print(f"• Total Elapsed   : {comparison_result.total_elapsed_seconds:.2f}s")
-    print("-" * 70)
-    comp_df = pd.DataFrame(comparison_records)
-    print(tabulate(comp_df, headers="keys", tablefmt="fancy_grid", showindex=False))
-    print("="*70 + "\n")
+    winning_name = records[0]["Model Variant"]
+    if records[0]["MAE"] >= baseline["MAE"]:
+        message = (
+            "No eligible model: no candidate beats naive persistence on "
+            f"shared validation dates by MAE (best model="
+            f"{records[0]['MAE']:.4f}, persistence={baseline['MAE']:.4f}). "
+            "No model was selected or saved."
+        )
+        logger.info(message)
+        print(message)
+        return None
 
-    winning_name = comparison_result.best_model
-    if not winning_name or winning_name not in models:
-        winning_name = list(models.keys())[0]
-        
-    winning_model = models[winning_name]
-    logger.info(f"🏆 Winning Champion Model Crowned: {winning_name}")
-    return winning_name, winning_model
+    logger.info("Selected validation winner: %s", winning_name)
+    return winning_name, models[winning_name]
 
-# --- Step 6: Save Winning Model ---
-def save_winning_model(winning_name: str, winning_model: Any, output_dir: str = "app/ai/artifacts") -> str:
-    """Serializes and saves the winning model artifact to disk."""
-    logger.info(f"Step 6: Saving winning model ({winning_name})...")
-    path = Path(output_dir)
-    path.mkdir(parents=True, exist_ok=True)
-    
-    file_path = path / "champion_model.pkl"
-    winning_model.save(str(file_path))
-    logger.info(f"Successfully saved champion model to {file_path}")
-    return str(file_path)
 
-def execute_model_training_workflow() -> str:
-    """Executes the complete 6-step model training, tabulation, comparison, and deployment pipeline."""
+def save_winning_model(
+    winning_name: str,
+    winning_model: ForecastModel,
+    output_dir: str = "models/evaluation_candidates",
+) -> str:
+    """Save the selected candidate using its native model format."""
+    output_path = Path(output_dir)
+    output_path.mkdir(parents=True, exist_ok=True)
+    artifact_path = output_path / f"{winning_name}{_model_extension(winning_model)}"
+    winning_model.save(str(artifact_path))
+    logger.info("Saved selected evaluation candidate to %s", artifact_path)
+    return str(artifact_path)
+
+
+def execute_model_training_workflow() -> str | None:
+    """Train candidates and save a validation winner, if it beats persistence."""
     train_df, val_df = load_features()
-    models = instantiate_models()
-    trained_models = train_models(models, train_df)
-    winning_name, winning_model = evaluate_and_compare_models(trained_models, val_df)
-    saved_path = save_winning_model(winning_name, winning_model)
-    
-    return saved_path
+    models = train_models(instantiate_models(), train_df)
+    selection = evaluate_and_compare_models(models, val_df)
+    if selection is None:
+        return None
+
+    winning_name, winning_model = selection
+    return save_winning_model(winning_name, winning_model)
+
+
+def _validate_partition(data: pd.DataFrame, name: str) -> None:
+    if data is None or data.empty:
+        raise ValueError(f"{name.capitalize()} partition is empty")
+
+    required = {"ds", "y"}
+    missing = required - set(data.columns)
+    if missing:
+        raise ValueError(
+            f"{name.capitalize()} partition is missing required columns: "
+            f"{sorted(missing)}"
+        )
+    if data["ds"].isna().any():
+        raise ValueError(f"{name.capitalize()} partition has missing dates")
+    if data["y"].isna().any():
+        raise ValueError(f"{name.capitalize()} partition has missing targets")
+
+
+def _model_extension(model: ForecastModel) -> str:
+    if isinstance(model, (ProphetModel, XGBoostModel)):
+        return ".json"
+    if isinstance(model, LightGBMModel):
+        return ".txt"
+    raise TypeError(
+        f"Unsupported model type for artifact serialization: "
+        f"{type(model).__name__}"
+    )
+
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
-    print("=== Running Complete Model Training & Evaluation Pipeline ===")
-    final_artifact_path = execute_model_training_workflow()
-    print(f"Pipeline completed successfully! Champion saved to: {final_artifact_path}")
+    print("=== Training and evaluating six forecasting candidates ===")
+    artifact_path = execute_model_training_workflow()
+    if artifact_path is not None:
+        print(f"Selected candidate saved to: {artifact_path}")

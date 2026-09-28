@@ -39,6 +39,8 @@ from app.ai.comparison import (
     AGREEMENT_SCORE_MIN,
     DEFAULT_MODEL_KEYS,
 )
+from app.ai.models.prophet_model import REGRESSORS
+from app.ai.models.xgboost_model import BASE_FEATURES
 
 
 # ============================================================
@@ -868,22 +870,16 @@ class TestEngineIntegration:
         trend = np.linspace(0, 8_000, n)
         noise = np.random.normal(0, 500, n)
 
-        return pd.DataFrame(
-            {
-                "ds": dates,
-                "y": base_price + trend + noise,
-                "cpi": [3.2] * n,
-                "interest_rate": [4.5] * n,
-                "m2_growth": [2.8] * n,
-                "dxy": [102.5] * n,
-                "treasury_yield": [4.2] * n,
-                "volume": [25_000_000_000] * n,
-                "volatility": [0.15] * n,
-                "dominance": [52.5] * n,
-                "active_addresses": [850_000] * n,
-                "price_lag_7d": [50_000] * n,
-            }
-        )
+        data = {
+            "ds": dates,
+            "y": base_price + trend + noise,
+            **{
+                feature: np.linspace(1.0, 2.0, n)
+                for feature in dict.fromkeys([*REGRESSORS, *BASE_FEATURES])
+            },
+        }
+        data["btc_price"] = data["y"]
+        return pd.DataFrame(data)
 
     @pytest.fixture(scope="class")
     @classmethod
@@ -899,16 +895,10 @@ class TestEngineIntegration:
             {
                 "ds": future_dates,
                 "y": [real_training_data["y"].iloc[-1]] * n_future,
-                "cpi": [3.2] * n_future,
-                "interest_rate": [4.5] * n_future,
-                "m2_growth": [2.8] * n_future,
-                "dxy": [102.5] * n_future,
-                "treasury_yield": [4.2] * n_future,
-                "volume": [25_000_000_000] * n_future,
-                "volatility": [0.15] * n_future,
-                "dominance": [52.5] * n_future,
-                "active_addresses": [850_000] * n_future,
-                "price_lag_7d": [50_000] * n_future,
+                **{
+                    feature: [real_training_data[feature].iloc[-1]] * n_future
+                    for feature in dict.fromkeys([*REGRESSORS, *BASE_FEATURES])
+                },
             }
         )
 

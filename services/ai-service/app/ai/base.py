@@ -67,7 +67,8 @@ class ForecastModel(ABC):
                 Required when warm_start=True.
 
         Returns:
-            Dictionary of performance metrics (e.g., MAE, RMSE, MAPE).
+            Dictionary of performance metrics. MAPE and directional
+            accuracy are percentage values in [0, 100].
 
         Raises:
             ValueError: If data is empty or missing required columns.

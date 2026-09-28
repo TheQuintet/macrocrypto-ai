@@ -51,16 +51,7 @@ def training_data() -> pd.DataFrame:
         {
             "ds": dates,
             "y": base_price + trend + noise,
-            "cpi": [3.2] * n,
-            "interest_rate": [4.5] * n,
-            "m2_growth": [2.8] * n,
-            "dxy": [102.5] * n,
-            "treasury_yield": [4.2] * n,
-            "volume": [25_000_000_000] * n,
-            "volatility": [0.15] * n,
-            "dominance": [52.5] * n,
-            "active_addresses": [850_000] * n,
-            "price_lag_7d": [50_000] * n,
+            **{regressor: [1.0] * n for regressor in REGRESSORS},
         }
     )
 
@@ -74,16 +65,7 @@ def future_data() -> pd.DataFrame:
     return pd.DataFrame(
         {
             "ds": dates,
-            "cpi": [3.2] * n,
-            "interest_rate": [4.5] * n,
-            "m2_growth": [2.8] * n,
-            "dxy": [102.5] * n,
-            "treasury_yield": [4.2] * n,
-            "volume": [25_000_000_000] * n,
-            "volatility": [0.15] * n,
-            "dominance": [52.5] * n,
-            "active_addresses": [850_000] * n,
-            "price_lag_7d": [50_000] * n,
+            **{regressor: [1.0] * n for regressor in REGRESSORS},
         }
     )
 
@@ -293,8 +275,7 @@ class TestProphetModelWarmStart:
 
         assert second_model.is_trained is True
         assert "mae" in metrics
-        # Should have used warm mode (or fresh if init not supported)
-        assert second_model.last_training_mode in ("warm", "fresh")
+        assert second_model.last_training_mode == "warm"
 
     def test_warm_start_metrics_are_reasonable(
         self,
@@ -598,8 +579,8 @@ class TestProphetModelConstants:
     """Tests for module-level constants."""
 
     def test_regressors_count(self) -> None:
-        """Test that there are exactly 10 regressors."""
-        assert len(REGRESSORS) == 10
+        """Test that required columns include every configured regressor."""
+        assert REQUIRED_COLUMNS == ["ds", "y", *REGRESSORS]
 
     def test_required_columns(self) -> None:
         """Test that required columns include ds, y, and all regressors."""

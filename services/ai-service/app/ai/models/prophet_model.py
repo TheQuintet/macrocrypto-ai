@@ -21,7 +21,7 @@ Branch M2.2 adds warm-start support on top of M2.1's fresh strategy.
 
 import logging
 import os
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -29,6 +29,8 @@ from prophet import Prophet
 from prophet.serialize import model_from_json, model_to_json
 
 from app.ai.base import ForecastModel
+from app.ai.metrics import current_prices_for_target_dates, directional_accuracy
+from app.ai.models.feature_utils import missing_required_columns
 
 logger = logging.getLogger(__name__)
 
@@ -120,6 +122,7 @@ class ProphetModel(ForecastModel):
             )
 
         self.strategy = strategy
+        self.regressors = REGRESSORS.copy()
         self.config = {**DEFAULT_CONFIG, **(config or {})}
         self.model: Optional[Prophet] = None
         self.last_training_mode: str = "fresh"
@@ -164,28 +167,43 @@ class ProphetModel(ForecastModel):
 
         # Decide training mode
         init_params: Optional[Dict[str, Any]] = None
-        mode = "fresh"
 
         if warm_start:
-            init_params, mode = self._try_load_warm_start_params(
+            init_params, _ = self._try_load_warm_start_params(
                 previous_model_path
             )
 
-        self.last_training_mode = mode
-
         logger.info(
-            f"Training Prophet model ({mode}) on {len(data)} rows"
+            "Training Prophet model (%s) on %s rows",
+            "warm" if init_params is not None else "fresh",
+            len(data),
         )
 
-        # Initialize Prophet model (with optional warm-start init)
-        self.model = self._create_prophet_model(init_params)
+        self.model = self._create_prophet_model()
+        self.regressors = [
+            regressor for regressor in REGRESSORS if regressor in data.columns
+        ]
+        self._add_regressors(self.model, self.regressors)
+        mode = "fresh"
+        try:
+            if init_params is None:
+                self.model.fit(data)
+            else:
+                self.model.fit(data, init=init_params)
+                mode = "warm"
+        except Exception as e:
+            if init_params is None:
+                raise
+            logger.warning(
+                "Prophet warm-start fit failed (%s). Falling back to fresh "
+                "training.",
+                e,
+            )
+            self.model = self._create_prophet_model()
+            self._add_regressors(self.model, self.regressors)
+            self.model.fit(data)
 
-        # Add all regressors
-        for regressor in REGRESSORS:
-            self.model.add_regressor(regressor)
-
-        # Fit model on FULL dataset (required by Prophet)
-        self.model.fit(data)
+        self.last_training_mode = mode
 
         # Calculate metrics
         self.metrics = self._calculate_metrics(data)
@@ -272,10 +290,10 @@ class ProphetModel(ForecastModel):
     ) -> Optional[Dict[str, Any]]:
         """Extract initialization parameters from a trained Prophet model.
 
-        Prophet's Stan backend is strict about parameter shapes. If
-        the number of changepoints in the new model doesn't match the
-        previous model, warm-start will fail. We catch any such issues
-        and return None, allowing the caller to fall back to fresh.
+        Prophet expects Stan parameter initial values when fitting, not
+        changepoint dates or constructor configuration. Parameter arrays
+        are reduced across posterior samples so the resulting values can
+        initialize another fit with compatible regressors and changepoints.
 
         Args:
             previous_model: A trained Prophet instance.
@@ -284,27 +302,32 @@ class ProphetModel(ForecastModel):
             Dictionary of init parameters, or None if extraction fails.
         """
         try:
-            init: Dict[str, Any] = {}
-
-            # Extract changepoints if available
-            if (
-                hasattr(previous_model, "changepoints")
-                and previous_model.changepoints is not None
-            ):
-                # Convert to a list of floats for JSON compatibility
-                init["changepoints"] = [
-                    float(cp) for cp in previous_model.changepoints
-                ]
-
-            # Extract number of changepoints
-            if hasattr(previous_model, "n_changepoints"):
-                init["n_changepoints"] = int(previous_model.n_changepoints)
-
-            if not init:
-                logger.debug(
-                    "No extractable init params found in previous model"
+            parameter_names = ("k", "m", "sigma_obs", "delta", "beta")
+            params = getattr(previous_model, "params", {})
+            if not all(name in params for name in parameter_names):
+                logger.warning(
+                    "Previous Prophet model is missing Stan parameters "
+                    "required for warm-start"
                 )
                 return None
+
+            init: Dict[str, Any] = {}
+            for name in parameter_names:
+                values = np.asarray(params[name], dtype=float)
+                if values.ndim > 0:
+                    values = np.mean(values, axis=0)
+                if not np.isfinite(values).all():
+                    logger.warning(
+                        "Previous Prophet parameter '%s' contains "
+                        "non-finite values",
+                        name,
+                    )
+                    return None
+                init[name] = (
+                    float(values)
+                    if values.ndim == 0
+                    else values
+                )
 
             logger.debug(
                 f"Extracted warm-start params: {list(init.keys())}"
@@ -315,40 +338,17 @@ class ProphetModel(ForecastModel):
             logger.warning(f"Failed to extract init params: {e}")
             return None
 
-    def _create_prophet_model(
-        self,
-        init_params: Optional[Dict[str, Any]],
-    ) -> Prophet:
-        """Create a new Prophet instance.
-
-        If init_params are provided, attempts to pass them as the
-        `init` argument to Prophet. If the installed Prophet version
-        doesn't support the `init` parameter, falls back to creating
-        a model without warm-start.
-
-        Args:
-            init_params: Optional init parameters for warm-start.
-
-        Returns:
-            A Prophet instance.
-        """
-        if init_params is not None:
-            try:
-                model = Prophet(init=init_params, **self.config)
-                logger.debug("Prophet created with warm-start init")
-                return model
-            except TypeError:
-                logger.warning(
-                    "Installed Prophet version does not support the "
-                    "'init' parameter. Creating model without warm-start."
-                )
-            except Exception as e:
-                logger.warning(
-                    f"Failed to create Prophet with warm-start init "
-                    f"({e}). Creating model without warm-start."
-                )
-
+    def _create_prophet_model(self) -> Prophet:
+        """Create a new Prophet instance configured for this adapter."""
         return Prophet(**self.config)
+
+    @staticmethod
+    def _add_regressors(
+        model: Prophet,
+        regressors: List[str],
+    ) -> None:
+        for regressor in regressors:
+            model.add_regressor(regressor)
 
     # ============================================================
     # PREDICTION
@@ -510,7 +510,7 @@ class ProphetModel(ForecastModel):
         if data is None or data.empty:
             raise ValueError("Training data cannot be empty")
 
-        missing = [col for col in REQUIRED_COLUMNS if col not in data.columns]
+        missing = missing_required_columns(data, REQUIRED_COLUMNS)
         if missing:
             raise ValueError(
                 f"Training data is missing required columns: {missing}"
@@ -531,8 +531,13 @@ class ProphetModel(ForecastModel):
         if future_data is None or future_data.empty:
             raise ValueError("Future data cannot be empty")
 
-        required = ["ds"] + REGRESSORS
-        missing = [col for col in required if col not in future_data.columns]
+        regressors = (
+            list(self.model.extra_regressors)
+            if self.model is not None
+            else self.regressors
+        )
+        required = ["ds"] + regressors
+        missing = missing_required_columns(future_data, required)
         if missing:
             raise ValueError(
                 f"Future data is missing required columns: {missing}"
@@ -560,6 +565,9 @@ class ProphetModel(ForecastModel):
         forecast = self.model.predict(data)
         predicted = forecast["yhat"].values
         actual = data["y"].values
+        current_price = current_prices_for_target_dates(
+            data, data["ds"], strict=False
+        )
 
         # MAE
         mae = float(np.mean(np.abs(predicted - actual)))
@@ -573,24 +581,15 @@ class ProphetModel(ForecastModel):
             mape_values = mape_values[np.isfinite(mape_values)]
             mape = float(np.mean(mape_values)) if len(mape_values) > 0 else 0.0
 
-        # Directional accuracy
-        actual_diff = np.diff(actual)
-        predicted_diff = np.diff(predicted)
-        if len(actual_diff) > 0:
-            correct_directions = np.sum(
-                np.sign(actual_diff) == np.sign(predicted_diff)
-            )
-            directional_accuracy = float(
-                correct_directions / len(actual_diff) * 100
-            )
-        else:
-            directional_accuracy = 0.0
+        direction_score = directional_accuracy(
+            actual, predicted, current_price
+        )
 
         return {
             "mae": mae,
             "rmse": rmse,
             "mape": mape,
-            "directional_accuracy": directional_accuracy,
+            "directional_accuracy": direction_score,
         }
 
     # ============================================================

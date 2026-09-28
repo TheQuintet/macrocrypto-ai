@@ -31,6 +31,11 @@ import pandas as pd
 import xgboost as xgb
 
 from app.ai.base import ForecastModel
+from app.ai.metrics import current_prices_for_target_dates, directional_accuracy
+from app.ai.models.feature_utils import (
+    drop_rows_with_unhandled_missing_features,
+    missing_required_columns,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -280,7 +285,9 @@ class XGBoostModel(ForecastModel):
 
         # Calculate metrics
         self.metrics = self._calculate_metrics_from_arrays(
-            y.values, predictions
+            y.values,
+            predictions,
+            current_prices_for_target_dates(data, prepared["ds"]),
         )
         self.is_trained = True
         self.last_training_mode = "fresh"
@@ -403,7 +410,9 @@ class XGBoostModel(ForecastModel):
         residuals = y_full.values - predictions
         self.residual_std = float(np.std(residuals))
         self.metrics = self._calculate_metrics_from_arrays(
-            y_full.values, predictions
+            y_full.values,
+            predictions,
+            current_prices_for_target_dates(data, prepared["ds"]),
         )
 
         self.is_trained = True
@@ -491,10 +500,16 @@ class XGBoostModel(ForecastModel):
 
         # Update feature columns on first call
         if update_feature_columns:
-            self.feature_columns = ALL_FEATURES
+            self.feature_columns = [
+                column for column in BASE_FEATURES if column in df.columns
+            ] + ENGINEERED_FEATURES
 
-        # Drop rows with NaN (from lagging)
-        df = df.dropna(subset=self.feature_columns).reset_index(drop=True)
+        df = drop_rows_with_unhandled_missing_features(
+            df,
+            self.feature_columns,
+            missing_feature="high_yield_spread",
+            missing_indicator="high_yield_spread_is_missing",
+        )
 
         return df
 
@@ -738,7 +753,7 @@ class XGBoostModel(ForecastModel):
         if data is None or data.empty:
             raise ValueError("Training data cannot be empty")
 
-        missing = [col for col in REQUIRED_COLUMNS if col not in data.columns]
+        missing = missing_required_columns(data, REQUIRED_COLUMNS)
         if missing:
             raise ValueError(
                 f"Training data is missing required columns: {missing}"
@@ -757,14 +772,15 @@ class XGBoostModel(ForecastModel):
         self,
         actual: np.ndarray,
         predicted: np.ndarray,
+        current_price: np.ndarray,
     ) -> Dict[str, float]:
         """Calculate performance metrics from arrays.
 
         Computes:
             - MAE: Mean Absolute Error
             - RMSE: Root Mean Square Error
-            - MAPE: Mean Absolute Percentage Error
-            - directional_accuracy: % of correct direction predictions
+            - MAPE: Mean Absolute Percentage Error, in percentage points
+            - directional_accuracy: Correct next-day movement direction (%)
 
         Args:
             actual: Actual values.
@@ -781,19 +797,13 @@ class XGBoostModel(ForecastModel):
             mape_values = mape_values[np.isfinite(mape_values)]
             mape = float(np.mean(mape_values)) if len(mape_values) > 0 else 0.0
 
-        actual_diff = np.diff(actual)
-        predicted_diff = np.diff(predicted)
-        if len(actual_diff) > 0:
-            correct = np.sum(np.sign(actual_diff) == np.sign(predicted_diff))
-            directional_accuracy = float(correct / len(actual_diff) * 100)
-        else:
-            directional_accuracy = 0.0
+        directional = directional_accuracy(actual, predicted, current_price)
 
         return {
             "mae": mae,
             "rmse": rmse,
             "mape": mape,
-            "directional_accuracy": directional_accuracy,
+            "directional_accuracy": directional,
         }
 
     # ============================================================

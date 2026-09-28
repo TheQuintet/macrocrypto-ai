@@ -46,7 +46,7 @@ def training_data() -> pd.DataFrame:
     The dataset contains:
         - ds: daily timestamps
         - y: BTC price with an upward trend and noise
-        - 10 base features (5 macro + 5 BTC)
+        - all current model base features
     """
     n = 100
     dates = pd.date_range("2024-01-01", periods=n, freq="D")
@@ -56,22 +56,16 @@ def training_data() -> pd.DataFrame:
     trend = np.linspace(0, 8000, n)
     noise = np.random.normal(0, 500, n)
 
-    return pd.DataFrame(
-        {
-            "ds": dates,
-            "y": base_price + trend + noise,
-            "cpi": [3.2] * n,
-            "interest_rate": [4.5] * n,
-            "m2_growth": [2.8] * n,
-            "dxy": [102.5] * n,
-            "treasury_yield": [4.2] * n,
-            "volume": [25_000_000_000] * n,
-            "volatility": [0.15] * n,
-            "dominance": [52.5] * n,
-            "active_addresses": [850_000] * n,
-            "price_lag_7d": [50_000] * n,
-        }
-    )
+    data = {
+        "ds": dates,
+        "y": base_price + trend + noise,
+        **{
+            feature: np.linspace(1.0, 2.0, n)
+            for feature in BASE_FEATURES
+        },
+    }
+    data["btc_price"] = data["y"]
+    return pd.DataFrame(data)
 
 
 @pytest.fixture(scope="module")
@@ -92,16 +86,10 @@ def future_data(training_data: pd.DataFrame) -> pd.DataFrame:
         {
             "ds": future_dates,
             "y": [training_data["y"].iloc[-1]] * n_future,
-            "cpi": [3.2] * n_future,
-            "interest_rate": [4.5] * n_future,
-            "m2_growth": [2.8] * n_future,
-            "dxy": [102.5] * n_future,
-            "treasury_yield": [4.2] * n_future,
-            "volume": [25_000_000_000] * n_future,
-            "volatility": [0.15] * n_future,
-            "dominance": [52.5] * n_future,
-            "active_addresses": [850_000] * n_future,
-            "price_lag_7d": [50_000] * n_future,
+            **{
+                feature: [training_data[feature].iloc[-1]] * n_future
+                for feature in BASE_FEATURES
+            },
         }
     )
 
@@ -767,6 +755,35 @@ class TestLightGBMModelFeatureEngineering:
         for feat in ENGINEERED_FEATURES:
             assert feat in prepared.columns, f"Missing {feat}"
 
+    def test_flagged_missing_spread_is_kept_and_trainable(
+        self, training_data: pd.DataFrame
+    ) -> None:
+        data = training_data.copy()
+        row_index = 35
+        data.loc[row_index, "high_yield_spread"] = np.nan
+        data.loc[row_index, "high_yield_spread_is_missing"] = 1
+
+        model = LightGBMModel()
+        prepared = model._prepare_features(data)
+
+        retained = prepared.loc[prepared["ds"] == data.loc[row_index, "ds"]]
+        assert len(retained) == 1
+        assert pd.isna(retained.iloc[0]["high_yield_spread"])
+        model.train(data)
+        assert model.is_trained
+
+    def test_unflagged_missing_spread_is_dropped(
+        self, training_data: pd.DataFrame
+    ) -> None:
+        data = training_data.copy()
+        row_index = 35
+        data.loc[row_index, "high_yield_spread"] = np.nan
+        data.loc[row_index, "high_yield_spread_is_missing"] = 0
+
+        prepared = LightGBMModel()._prepare_features(data)
+
+        assert data.loc[row_index, "ds"] not in set(prepared["ds"])
+
 
 # ============================================================
 # CONSTANTS TESTS
@@ -775,16 +792,16 @@ class TestLightGBMModelConstants:
     """Tests for module-level constants."""
 
     def test_base_features_count(self) -> None:
-        """Test that there are exactly 10 base features."""
-        assert len(BASE_FEATURES) == 10
+        """Test that all model features are represented."""
+        assert set(BASE_FEATURES).issubset(REQUIRED_COLUMNS)
 
     def test_engineered_features_count(self) -> None:
         """Test that there are 6 engineered features (3 lag + 3 return)."""
         assert len(ENGINEERED_FEATURES) == 6
 
     def test_all_features_count(self) -> None:
-        """Test that there are 16 total features (10 base + 6 engineered)."""
-        assert len(ALL_FEATURES) == 16
+        """Test that all features include base and engineered columns."""
+        assert ALL_FEATURES == BASE_FEATURES + ENGINEERED_FEATURES
 
     def test_required_columns(self) -> None:
         """Test that required columns include ds, y, and all base features."""

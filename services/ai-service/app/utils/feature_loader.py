@@ -5,6 +5,10 @@ from typing import Tuple, Optional, Any
 import pandas as pd
 from pathlib import Path
 from app.config import settings
+from app.ai.models.feature_utils import (
+    CONSTANT_FEATURE_COLUMNS_ATTR,
+    constant_feature_columns,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -12,6 +16,7 @@ class FeatureLoader:
     """Loads scaled feature parquet files and scaler artifacts from the data-service processed directory."""
 
     def __init__(self, shared_dir: Optional[str] = None) -> None:
+        self._constant_feature_columns: Optional[list[str]] = None
         if shared_dir:
             self.shared_dir = shared_dir
         else:
@@ -39,13 +44,41 @@ class FeatureLoader:
         return os.path.join(self.shared_dir, filename_map[partition_name])
 
     def load_partition(self, partition_name: str) -> pd.DataFrame:
-        """Load a specified scaled partition parquet file from the processed directory."""
+        """Load a partition, excluding columns constant in the training data."""
         path = self._get_partition_path(partition_name)
         if not os.path.exists(path):
             raise FileNotFoundError(f"Partition file not found: {path}")
         
         logger.info(f"Loading partition '{partition_name}' from {path}")
-        return pd.read_parquet(path)
+        data = pd.read_parquet(path)
+
+        if partition_name == "train":
+            self._constant_feature_columns = constant_feature_columns(data)
+        elif self._constant_feature_columns is None:
+            train_path = self._get_partition_path("train")
+            if not os.path.exists(train_path):
+                raise FileNotFoundError(
+                    "Training partition is required to identify constant "
+                    f"features: {train_path}"
+                )
+            training_data = pd.read_parquet(train_path)
+            self._constant_feature_columns = constant_feature_columns(
+                training_data
+            )
+
+        constant_columns = self._constant_feature_columns or []
+        columns_to_drop = [
+            column for column in constant_columns if column in data.columns
+        ]
+        data = data.drop(columns=columns_to_drop)
+        data.attrs[CONSTANT_FEATURE_COLUMNS_ATTR] = constant_columns.copy()
+        if columns_to_drop:
+            logger.info(
+                "Dropped training-constant feature columns from '%s': %s",
+                partition_name,
+                columns_to_drop,
+            )
+        return data
 
     def load_scaler(self) -> Any:
         """Load the fitted feature scaler pickle file."""
