@@ -94,7 +94,7 @@ jobs:
             echo "frontend=false" >> "$GITHUB_OUTPUT"
           fi
           
-          if [ "$WORKFLOW_CHANGED" = true ] || grep -q '^api-gateway/' "$RUNNER_TEMP/changed.txt"; then
+          if [ "$WORKFLOW_CHANGED" = true ] || grep -q '^services/api-gateway/' "$RUNNER_TEMP/changed.txt"; then
             echo "api-gateway=true" >> "$GITHUB_OUTPUT"
           else
             echo "api-gateway=false" >> "$GITHUB_OUTPUT"
@@ -228,7 +228,7 @@ jobs:
 
     defaults:
       run:
-        working-directory: api-gateway
+        working-directory: services/api-gateway
 
     steps:
       - name: Checkout code
