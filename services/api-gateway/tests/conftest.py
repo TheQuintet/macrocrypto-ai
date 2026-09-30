@@ -50,13 +50,19 @@ os.environ["TESTING"] = "true"
 # DATABASE FOR TESTS
 # ============================================
 
-# Use an in-memory SQLite database for tests
-# This avoids the need for a real PostgreSQL database during testing
-TEST_DATABASE_URL = "sqlite:///./test.db"
+# Use PostgreSQL if DATABASE_URL is provided (e.g. in CI or Docker), 
+# otherwise fall back to SQLite for quick local runs
+TEST_DATABASE_URL = os.getenv(
+    "DATABASE_URL", 
+    "sqlite:///./test.db"
+)
+
+# SQLite needs check_same_thread=False, but PostgreSQL doesn't use it
+connect_args = {"check_same_thread": False} if TEST_DATABASE_URL.startswith("sqlite") else {}
 
 engine = create_engine(
     TEST_DATABASE_URL,
-    connect_args={"check_same_thread": False}
+    connect_args=connect_args
 )
 TestingSessionLocal = sessionmaker(
     autocommit=False,
