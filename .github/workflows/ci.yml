@@ -219,12 +219,28 @@ jobs:
             exit 1
           fi
 
-
   api-gateway-tests:
     name: API Gateway (pytest)
     needs: changes
     if: needs.changes.outputs.api-gateway == 'true' || github.event.inputs.run-everything == 'true'
     runs-on: ubuntu-latest
+
+    # ⬇️ PUT THE TIMESCALEDB SERVICES BLOCK HERE ⬇️
+    services:
+      postgres:
+        image: timescale/timescaledb:2.17.2-pg15
+        env:
+          POSTGRES_USER: macro
+          POSTGRES_PASSWORD: crypto
+          POSTGRES_DB: macrocrypto
+        ports:
+          - 5432:5432
+        options: >-
+          -c shared_preload_libraries=timescaledb
+          --health-cmd "pg_isready -U macro -d macrocrypto"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     defaults:
       run:
@@ -247,7 +263,10 @@ jobs:
           if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
 
       - name: Run pytest
+        env:
+          DATABASE_URL: postgresql://macro:crypto@localhost:5432/macrocrypto
         run: pytest
+  
   # Backend tests are deliberately not here yet. There is no root
   # requirements.txt, so the old repo-wide `pytest` installed nothing and
   # collected everything - it only ever looked fine because black failed first
