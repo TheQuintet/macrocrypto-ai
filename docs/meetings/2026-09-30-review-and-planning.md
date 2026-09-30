@@ -71,7 +71,6 @@ Final submission push (~one week to **14 Oct**): backend integration, Quantic do
 ## Notes
 
 - Source: Zoom AI summary — `Weekly Capstone Scrum meeting. (1).md` (**30 Sep 2026**). Expand from a full transcript if one is added later.
-- Zoom once labeled Loredana as “Product Owner” for indicator updates; roles follow [team-roles.md](../team-roles.md).
 - Previous session: [23 Sep 2026](./2026-09-23-review-and-planning.md) · [Dr. Robert checkpoint](./2026-09-04-dr-robert-steele-checkpoint.md) · [Quantic grading](../quantic/grading.md) · [Deliverables](../quantic/deliverables.md).
 
 ---
