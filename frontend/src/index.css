@@ -5,6 +5,40 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/*
+ * Slim, theme-coloured scrollbar with no arrow buttons, for scroll panes inside
+ * cards and dialogs. Chromium/Safari take the ::-webkit-scrollbar styles (the
+ * standard properties would override them and bring the arrows back); Firefox
+ * falls through to the standard ones.
+ */
+@utility scrollbar-slim {
+  scrollbar-gutter: stable;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    border-radius: 9999px;
+    background-color: color-mix(in oklch, var(--muted-foreground) 40%, transparent);
+  }
+  &::-webkit-scrollbar-thumb:hover {
+    background-color: color-mix(in oklch, var(--muted-foreground) 70%, transparent);
+  }
+  &::-webkit-scrollbar-button {
+    display: none;
+  }
+
+  @supports not selector(::-webkit-scrollbar) {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in oklch, var(--muted-foreground) 45%, transparent)
+      transparent;
+  }
+}
+
 @theme inline {
   --font-heading: var(--font-sans);
   --font-sans: 'Geist Variable', ui-sans-serif, system-ui, sans-serif;
@@ -36,6 +70,7 @@
   --color-regime-rising-rates: var(--regime-rising-rates);
   --color-regime-high-inflation: var(--regime-high-inflation);
   --color-regime-recession: var(--regime-recession);
+  --color-market-volatile: var(--market-volatile);
   --color-ring: var(--ring);
   --color-input: var(--input);
   --color-border: var(--border);
@@ -130,6 +165,8 @@
   --regime-rising-rates: oklch(0.68 0.13 65);
   --regime-high-inflation: oklch(0.63 0.16 40);
   --regime-recession: oklch(0.56 0.2 25);
+  /* Bull/bear/neutral reuse positive/negative/warning; volatile needs its own. */
+  --market-volatile: oklch(0.6 0.15 300);
 
   --sidebar: oklch(0.975 0.003 220);
   --sidebar-foreground: oklch(0.28 0.012 240);
@@ -213,6 +250,7 @@
   --regime-rising-rates: oklch(0.78 0.13 65);
   --regime-high-inflation: oklch(0.72 0.15 40);
   --regime-recession: oklch(0.68 0.18 25);
+  --market-volatile: oklch(0.74 0.13 300);
 
   --sidebar: oklch(0.195 0.007 240);
   --sidebar-foreground: oklch(0.9 0.004 220);

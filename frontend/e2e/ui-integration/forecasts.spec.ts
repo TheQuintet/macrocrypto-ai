@@ -7,6 +7,15 @@ import {
   expectNoHorizontalScroll,
 } from './priceDisplay.specHelpers'
 import {
+  closeAccuracyDetails,
+  expectAccuracyBreakdown,
+  expectAccuracyDetailsClosed,
+  expectAccuracyGrades,
+  expectAccuracyScore,
+  expectAccuracyTrend,
+  expectAccuracyWarning,
+  expectNoAccuracyWarning,
+  openAccuracyDetails,
   bandPath,
   candleCount,
   expectCandleCount,
@@ -288,6 +297,50 @@ test.describe('forecast responsive UI integration', () => {
     await expectNoHorizontalScroll(page)
   })
 
+})
+
+test.describe('forecast accuracy UI integration', () => {
+  test('grades past 24h forecasts under the chart', async ({ page }) => {
+    await goToRoute(page, 'forecasts')
+
+    await expectAccuracyScore(page)
+    await expectAccuracyGrades(page, '24h')
+    await expectAccuracyTrend(page)
+    await expectNoAccuracyWarning(page)
+  })
+
+  test('follows the horizon toggle and shows the service warning', async ({
+    page,
+  }) => {
+    await goToRoute(page, 'forecasts')
+    await expectAccuracyScore(page)
+
+    await selectHorizon(page, '7d')
+
+    await expectAccuracyGrades(page, '7d')
+    await expectAccuracyWarning(page)
+  })
+
+  test('opens and closes the full scorecard', async ({ page }) => {
+    await goToRoute(page, 'forecasts')
+    await expectAccuracyScore(page)
+
+    await openAccuracyDetails(page)
+    await expectAccuracyBreakdown(page)
+
+    await closeAccuracyDetails(page)
+    await expectAccuracyDetailsClosed(page)
+  })
+
+  test('fits the scorecard on mobile without horizontal scrolling', async ({
+    page,
+  }) => {
+    await page.setViewportSize(MOBILE_VIEWPORT)
+    await goToRoute(page, 'forecasts')
+
+    await expectAccuracyScore(page)
+    await expectNoHorizontalScroll(page)
+  })
 })
 
 /** A real touch-capable context — `setViewportSize` alone leaves touch off. */

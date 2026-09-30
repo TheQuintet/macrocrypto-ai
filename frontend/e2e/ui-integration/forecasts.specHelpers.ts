@@ -286,3 +286,71 @@ export async function expectTooltipConfidence(page: Page, confidence: string) {
     `${confidence} confidence`,
   )
 }
+
+export function getAccuracyScore(page: Page) {
+  return page.getByRole('group', { name: 'Accuracy score', exact: true })
+}
+
+/** Price accuracy is the headline the service can produce today. */
+export async function expectAccuracyScore(page: Page) {
+  await expect(getAccuracyScore(page)).toContainText(/\d+%/)
+  await expect(getAccuracyScore(page)).toContainText(
+    'price accuracy (100% minus the average % miss)',
+  )
+}
+
+export async function expectAccuracyTrend(page: Page) {
+  await expect(
+    page
+      .getByRole('img', { name: 'Forecast accuracy trend' })
+      .locator('.recharts-line-curve'),
+  ).toBeVisible()
+}
+
+export async function expectAccuracyGrades(page: Page, horizon: string) {
+  await expect(
+    page.getByText(new RegExp(`past ${horizon} forecasts`)),
+  ).toBeVisible()
+}
+
+export async function expectAccuracyWarning(page: Page) {
+  await expect(
+    page.getByRole('status', { name: 'Accuracy warning' }),
+  ).toContainText('Average % miss has been above 10%')
+}
+
+export async function expectNoAccuracyWarning(page: Page) {
+  await expect(
+    page.getByRole('status', { name: 'Accuracy warning' }),
+  ).toHaveCount(0)
+}
+
+export async function openAccuracyDetails(page: Page) {
+  await page.getByRole('button', { name: 'View details' }).click()
+  const dialog = page.getByRole('dialog')
+  await expect(
+    dialog.getByRole('heading', { name: 'Forecast accuracy details' }),
+  ).toBeVisible()
+  return dialog
+}
+
+export async function expectAccuracyBreakdown(page: Page) {
+  const table = page.getByRole('table', {
+    name: 'Accuracy by market condition',
+  })
+
+  for (const market of ['Bull market', 'Bear market', 'Volatile', 'Neutral']) {
+    await expect(table).toContainText(market)
+  }
+}
+
+export async function closeAccuracyDetails(page: Page) {
+  await page
+    .getByRole('dialog')
+    .getByRole('button', { name: 'Close', exact: true })
+    .click()
+}
+
+export async function expectAccuracyDetailsClosed(page: Page) {
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+}

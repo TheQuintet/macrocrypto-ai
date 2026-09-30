@@ -36,7 +36,6 @@ describe('apiUrls', () => {
       '/api/v1/macro/events/upcoming',
     ])
     expect(unusedApiPaths.aiService).toEqual([
-      '/api/v1/performance/btc',
       '/api/v1/correlation/btc',
       '/api/v1/exports/{file_name}',
       '/api/v1/methodology',

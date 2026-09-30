@@ -1,11 +1,13 @@
 import { PredictionChartCard } from '@/components/dashboard/predictions/PredictionChartCard'
 import { PredictionSummaryCard } from '@/components/dashboard/predictions/PredictionSummaryCard'
+import { PredictionAccuracyCard } from '@/components/dashboard/predictions/accuracy/PredictionAccuracyCard'
 import { useBtcPredictionHistoryQuery } from '@/hooks/useBtcPredictionHistoryQuery'
 import { useBtcPredictionQuery } from '@/hooks/useBtcPredictionQuery'
 
 /**
  * The Forecasts screen's content: one chart and one summary, both reading the
- * horizon and confidence chosen in the chart card's controls.
+ * horizon and confidence chosen in the chart card's controls, and underneath
+ * them how accurate past forecasts at that horizon turned out to be.
  *
  * History and forecast are separate queries because they fail separately: the
  * candles come through the gateway, the forecast does not yet, so the chart
@@ -28,6 +30,7 @@ export function PredictionPanel() {
         isPending={isPending}
         error={error}
       />
+      <PredictionAccuracyCard />
     </div>
   )
 }
