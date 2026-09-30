@@ -277,6 +277,10 @@ jobs:
   
 
   test-alert-service:
+    name: Alert Service (pytest)
+    needs: changes
+    if: needs.changes.outputs.alert-service == 'true' || github.event.inputs.run-everything == 'true'
+    
     runs-on: ubuntu-latest
     defaults:
       run:
