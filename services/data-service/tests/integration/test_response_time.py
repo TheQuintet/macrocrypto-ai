@@ -4,6 +4,10 @@ API response-time tests for data-service.
 Each API endpoint has its own dedicated test function.
 Response-time thresholds and request counts are loaded
 from application settings.
+
+Each endpoint is warmed up before measurement so that
+one-time initialization, connection establishment, or
+cache population is not included in the measured time.
 """
 
 import time
@@ -18,13 +22,26 @@ from app.main import app
 # BTC PRICE API
 # ============================================================
 
+
 def test_btc_price_response_time():
     """
     Verify BTC price API responds within the configured
     BTC response-time limit.
+
+    The first request is used as a warm-up and is not included
+    in the measured response time.
     """
 
     with TestClient(app) as client:
+
+        # Warm up the endpoint.
+        warmup_response = client.get(
+            "/api/v1/btc/price"
+        )
+
+        assert warmup_response.status_code == 200
+
+        # Measure warmed-up response.
         start_time = time.perf_counter()
 
         response = client.get(
@@ -51,11 +68,23 @@ def test_btc_price_repeated_response_time():
     """
     Verify repeated BTC price requests remain within the
     configured BTC response-time limit.
+
+    The first request is used as a warm-up and is not included
+    in the measured requests.
     """
 
     response_times = []
 
     with TestClient(app) as client:
+
+        # Warm up the endpoint.
+        warmup_response = client.get(
+            "/api/v1/btc/price"
+        )
+
+        assert warmup_response.status_code == 200
+
+        # Measure repeated warmed-up requests.
         for _ in range(
             settings.RESPONSE_TIME_TEST_REQUEST_COUNT
         ):
@@ -89,20 +118,24 @@ def test_btc_price_repeated_response_time():
 # INDICATORS API
 # ============================================================
 
+
 def test_indicators_response_time():
     """
     Verify cached indicators API responds within the configured
     standard API response-time limit.
+
+    The first request populates the cache and is not included
+    in the measured response time.
     """
 
     with TestClient(app) as client:
 
-        # Populate the Redis cache.
-        response = client.get(
+        # Warm up and populate the Redis cache.
+        warmup_response = client.get(
             "/api/v1/indicators"
         )
 
-        assert response.status_code == 200
+        assert warmup_response.status_code == 200
 
         # Measure cached response.
         start_time = time.perf_counter()
@@ -131,6 +164,7 @@ def test_indicators_response_time():
 # CURRENT REGIME API
 # ============================================================
 
+
 def test_current_regime_response_time(seed_current_regime):
     """
     Verify current regime API responds within the configured
@@ -138,9 +172,21 @@ def test_current_regime_response_time(seed_current_regime):
 
     Uses seed_current_regime fixture to ensure data exists
     so the endpoint returns 200 instead of 404.
+
+    The first request is used as a warm-up and is not included
+    in the measured response time.
     """
 
     with TestClient(app) as client:
+
+        # Warm up the endpoint.
+        warmup_response = client.get(
+            "/api/v1/regimes/current"
+        )
+
+        assert warmup_response.status_code == 200
+
+        # Measure warmed-up response.
         start_time = time.perf_counter()
 
         response = client.get(
@@ -167,13 +213,27 @@ def test_current_regime_response_time(seed_current_regime):
 # REGIME BTC API
 # ============================================================
 
+
 def test_regime_btc_response_time():
     """
     Verify regime BTC API responds within the configured
     standard API response-time limit.
+
+    The first request is used as a warm-up so that one-time
+    initialization, connection establishment, or cache
+    population is not included in the measured response time.
     """
 
     with TestClient(app) as client:
+
+        # Warm up the endpoint.
+        warmup_response = client.get(
+            "/api/v1/regimes/btc"
+        )
+
+        assert warmup_response.status_code == 200
+
+        # Measure warmed-up response.
         start_time = time.perf_counter()
 
         response = client.get(
@@ -200,13 +260,26 @@ def test_regime_btc_response_time():
 # SIMILAR HISTORICAL PERIODS API
 # ============================================================
 
+
 def test_similar_periods_response_time():
     """
     Verify similar historical periods API responds within
     the configured standard API response-time limit.
+
+    The first request is used as a warm-up and is not included
+    in the measured response time.
     """
 
     with TestClient(app) as client:
+
+        # Warm up the endpoint.
+        warmup_response = client.get(
+            "/api/v1/regimes/history/similar-periods"
+        )
+
+        assert warmup_response.status_code == 200
+
+        # Measure warmed-up response.
         start_time = time.perf_counter()
 
         response = client.get(
@@ -233,13 +306,26 @@ def test_similar_periods_response_time():
 # ECONOMIC CALENDAR API
 # ============================================================
 
+
 def test_economic_calendar_response_time():
     """
     Verify economic calendar API responds within the configured
     standard API response-time limit.
+
+    The first request is used as a warm-up and is not included
+    in the measured response time.
     """
 
     with TestClient(app) as client:
+
+        # Warm up the endpoint.
+        warmup_response = client.get(
+            "/api/v1/economic-calendar"
+        )
+
+        assert warmup_response.status_code == 200
+
+        # Measure warmed-up response.
         start_time = time.perf_counter()
 
         response = client.get(
@@ -260,3 +346,4 @@ def test_economic_calendar_response_time():
         f"limit of "
         f"{settings.API_RESPONSE_TIME_LIMIT_MS}ms"
     )
+

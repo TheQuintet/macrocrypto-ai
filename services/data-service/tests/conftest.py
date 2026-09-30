@@ -112,49 +112,91 @@ def seed_macro_indicators():
     Seed macro indicator data for integration tests.
 
     Inserts test indicators into the database and cleans up
-    after the test completes.
+    only the rows created by this fixture.
     """
     session = SessionLocal()
 
+    now = datetime.now(timezone.utc)
+
+    inserted_rows = [
+        {
+            "indicator_name": "GDP Growth",
+            "time": now - timedelta(days=1),
+            "value": 2.5,
+            "previous_value": 2.3,
+            "change_percent": 8.7,
+            "source": "FRED",
+        },
+        {
+            "indicator_name": "Inflation Rate",
+            "time": now - timedelta(days=1),
+            "value": 3.2,
+            "previous_value": 3.5,
+            "change_percent": -8.57,
+            "source": "FRED",
+        },
+        {
+            "indicator_name": "Unemployment",
+            "time": now - timedelta(days=1),
+            "value": 4.1,
+            "previous_value": 4.3,
+            "change_percent": -4.65,
+            "source": "BLS",
+        },
+    ]
+
     try:
-        # Insert test indicator data
-        now = datetime.now(timezone.utc)
-        
-        session.execute(
-            text("""
-                INSERT INTO macro_indicators (
-                    indicator_name, 
-                    time, 
-                    value,
-                    previous_value, 
-                    change_percent, 
-                    source,
-                    created_at
-                ) VALUES 
-                    ('GDP Growth', :now1, 2.5, 2.3, 8.7, 'FRED', :now1),
-                    ('Inflation Rate', :now2, 3.2, 3.5, -8.57, 'FRED', :now2),
-                    ('Unemployment', :now3, 4.1, 4.3, -4.65, 'BLS', :now3)
-            """),
-            {
-                "now1": now - timedelta(days=1),
-                "now2": now - timedelta(days=1),
-                "now3": now - timedelta(days=1)
-            }
-        )
+        for row in inserted_rows:
+            session.execute(
+                text("""
+                    INSERT INTO macro_indicators (
+                        indicator_name,
+                        time,
+                        value,
+                        previous_value,
+                        change_percent,
+                        source,
+                        created_at
+                    ) VALUES (
+                        :indicator_name,
+                        :time,
+                        :value,
+                        :previous_value,
+                        :change_percent,
+                        :source,
+                        :created_at
+                    )
+                """),
+                {
+                    **row,
+                    "created_at": now,
+                },
+            )
+
         session.commit()
-        
+
         yield session
-        
-    except Exception as e:
+
+    except Exception:
         session.rollback()
-        raise e
-        
+        raise
+
     finally:
-        # Clean up after test
-        session.execute(text("DELETE FROM macro_indicators"))
+        for row in inserted_rows:
+            session.execute(
+                text("""
+                    DELETE FROM macro_indicators
+                    WHERE indicator_name = :indicator_name
+                      AND time = :time
+                """),
+                {
+                    "indicator_name": row["indicator_name"],
+                    "time": row["time"],
+                },
+            )
+
         session.commit()
         session.close()
-
 
 @pytest.fixture
 def seed_current_regime():
