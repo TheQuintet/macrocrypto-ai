@@ -32,6 +32,7 @@ jobs:
       frontend: ${{ steps.detect.outputs.frontend }}
       python: ${{ steps.detect.outputs.python }}
       python-files: ${{ steps.detect.outputs.python-files }}
+      api-gateway: ${{ steps.detect.outputs.api-gateway }} # for api-gateway service 
 
     steps:
       - name: Checkout code
@@ -91,6 +92,12 @@ jobs:
             echo "frontend=true" >> "$GITHUB_OUTPUT"
           else
             echo "frontend=false" >> "$GITHUB_OUTPUT"
+          fi
+          
+          if [ "$WORKFLOW_CHANGED" = true ] || grep -q '^api-gateway/' "$RUNNER_TEMP/changed.txt"; then
+            echo "api-gateway=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "api-gateway=false" >> "$GITHUB_OUTPUT"
           fi
 
           { grep '\.py$' "$RUNNER_TEMP/changed.txt" || true; } > "$RUNNER_TEMP/changed-python.txt"
@@ -212,6 +219,35 @@ jobs:
             exit 1
           fi
 
+
+  api-gateway-tests:
+    name: API Gateway (pytest)
+    needs: changes
+    if: needs.changes.outputs.api-gateway == 'true' || github.event.inputs.run-everything == 'true'
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: api-gateway
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
+
+      - name: Run pytest
+        run: pytest
   # Backend tests are deliberately not here yet. There is no root
   # requirements.txt, so the old repo-wide `pytest` installed nothing and
   # collected everything - it only ever looked fine because black failed first
