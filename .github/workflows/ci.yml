@@ -235,12 +235,13 @@ jobs:
           POSTGRES_DB: macrocrypto
         ports:
           - 5432:5432
-        command: ["postgres", "-c", "shared_preload_libraries=timescaledb"]
+        command: postgres -c shared_preload_libraries=timescaledb
         options: >-
           --health-cmd "pg_isready -U macro -d macrocrypto"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+        
 
     defaults:
       run:
