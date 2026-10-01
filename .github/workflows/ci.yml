@@ -409,10 +409,7 @@ jobs:
          
         run: |          
           # Run pytest while ignoring heavy, one-time, live network-dependent, or slow end-to-end tests
-          pytest 
-            --ignore=tests/ml_qa \
-            --ignore=tests/integration \
-            --ignore=tests/e2e \
+          pytest --ignore=tests/ml_qa --ignore=tests/integration --ignore=tests/e2e
 
 
          
