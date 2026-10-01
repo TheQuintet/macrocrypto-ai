@@ -14,10 +14,32 @@ Design:
     - Takes an AsyncSession in the constructor. Callers wire the
       session from app.database.engine.session_scope().
     - Uses SQLAlchemy Core for queries (typesafe, parameterized).
-    - The merged DataFrame is prepared for Prophet (columns: ds, y,
-      plus all 10 regressors).
     - Predictions are validated before insertion, then written in a
       single bulk INSERT.
+
+Feature sources:
+    The repository exposes multiple methods for obtaining training
+    and prediction frames. They share the same (hours, partition)
+    signature so callers can treat them interchangeably:
+
+        fetch_training_frame_legacy(hours)
+            DEPRECATED. Reads from btc_prices + macro_indicators
+            (10-feature Postgres source).
+
+        fetch_training_frame_from_files(hours, partition)
+            Reads from data-service parquet files (50-feature
+            canonical source). Requires an explicit partition.
+
+        fetch_training_frame_from_features_db(hours, partition=None)
+            Reads from the future feature_store DB table (50-feature
+            canonical source). Raises NotImplementedError until the
+            table exists.
+
+        fetch_training_frame_for_source(hours, context, partition=None)
+            Dispatcher. Chooses the source based on
+            settings.feature_source and resolves the default
+            partition from the context. This is what callers should
+            use — not the individual methods.
 """
 
 import logging
@@ -29,6 +51,8 @@ import pandas as pd
 from sqlalchemy import insert, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
+from app.database.enums import FeatureContext, FeaturePartition
 from app.database.tables import (
     btc_predictions,
     btc_prices,
@@ -36,6 +60,23 @@ from app.database.tables import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+# ============================================================
+# CONTEXT -> PARTITION MAP
+# ============================================================
+# Maps a caller's intent (FeatureContext) to the default partition
+# (FeaturePartition) used by the file-based feature source.
+#
+# Kept as a module-level constant so the dispatcher has exactly
+# one source of truth for the mapping. Adding a new context here
+# forces the type checker to require a corresponding mapping.
+_CONTEXT_TO_PARTITION: Dict[FeatureContext, FeaturePartition] = {
+    FeatureContext.TRAINING: FeaturePartition.TRAIN,
+    FeatureContext.VALIDATION: FeaturePartition.VAL,
+    FeatureContext.TEST: FeaturePartition.TEST,
+    FeatureContext.PREDICTION: FeaturePartition.LIVE_FRONTIER,
+}
 
 
 # ============================================================
@@ -203,20 +244,30 @@ class PredictionRepository:
             ]
         )
 
-    async def fetch_training_frame(self, hours: int) -> pd.DataFrame:
-        """Fetch and merge BTC + macro data into a single frame.
+    # ============================================================
+    # READS — training / prediction frames (multi-source)
+    # ============================================================
+    async def fetch_training_frame_legacy(self, hours: int) -> pd.DataFrame:
+        """Fetch and merge BTC + macro data from the legacy Postgres tables.
 
-        Merges on `time` (outer join), forward-fills macro columns
-        (macro data is daily → hourly needs ffill), renames `time` to
-        `ds` and `close` to `y`, and returns a frame ready for Prophet.
+        DEPRECATED (2026-XX): This method reads the 10-feature
+        Postgres source (btc_prices + macro_indicators), which has
+        been superseded by the 50-feature canonical dataset. Kept
+        for reference during the current migration; do not call
+        from new code.
+
+        See known_issues.md #1, #2, #3, #17 for the migration
+        context.
 
         Args:
-            hours: Number of most recent hours to fetch from each source.
+            hours: Number of most recent hours to fetch from each
+                source.
 
         Returns:
             DataFrame with columns:
-                ds, y, cpi, interest_rate, m2_growth, dxy, treasury_yield,
-                volume, volatility, dominance, active_addresses, price_lag_7d
+                ds, y, cpi, interest_rate, m2_growth, dxy,
+                treasury_yield, volume, volatility, dominance,
+                active_addresses, price_lag_7d
             Sorted ascending by ds.
         """
         btc_df = await self.fetch_recent_btc_data(hours=hours)
@@ -256,12 +307,187 @@ class PredictionRepository:
         merged = merged.sort_values("ds").reset_index(drop=True)
 
         logger.info(
-            f"Built training frame: {len(merged)} rows, "
+            f"Built legacy training frame: {len(merged)} rows, "
             f"{len(merged.columns)} columns"
         )
 
         return merged
 
+    async def fetch_training_frame_from_files(
+        self,
+        hours: int,
+        partition: FeaturePartition,
+    ) -> pd.DataFrame:
+        """Read a training frame from the data-service parquet files.
+
+        Loads the requested partition (train / val / test /
+        live_frontier), then slices to the last `hours` of rows. The
+        returned DataFrame carries the canonical 50-feature set with
+        the model-expected column names.
+
+        Unlike the legacy source, this method returns the frame as
+        stored on disk — no column renames beyond the timestamp and
+        target aliases, no forward-fill. The parquet files are the
+        source of truth.
+
+        Args:
+            hours: How much history to return (in hours). The
+                partition is sliced to its last `hours` rows.
+            partition: Which partition to load, as a FeaturePartition
+                value. Callers who do not want to reason about
+                partitions directly should use
+                fetch_training_frame_for_source() with a
+                FeatureContext.
+
+        Returns:
+            DataFrame with the canonical 50 features plus timestamp
+            and target columns, sorted ascending by time.
+
+        Raises:
+            FileNotFoundError: If the parquet file for the requested
+                partition does not exist.
+            ValueError: If the partition value is not recognized.
+        """
+        # Imported locally to avoid a hard dependency between the
+        # repository package and the utils package at module load.
+        from app.utils.feature_loader import FeatureLoader
+
+        loader = FeatureLoader()
+        df = loader.load_partition(partition.value)
+
+        if df.empty:
+            logger.warning(
+                f"Partition '{partition.value}' is empty — "
+                f"returning empty frame"
+            )
+            return df
+
+        # Slice to the last `hours` rows.
+        #
+        # The parquet files are ordered ascending by time (the
+        # data-service writes them that way). We take the tail so
+        # "the last N hours" reads naturally regardless of the
+        # file's actual size.
+        if len(df) > hours:
+            df = df.tail(hours).reset_index(drop=True)
+
+        # Rename the timestamp and target columns to the model
+        # adapters' expected names if they came from the file with
+        # alternative names.
+        rename_map = {
+            "observation_date": "ds",
+            "target_next_price": "y",
+        }
+        rename_map = {
+            k: v for k, v in rename_map.items() if k in df.columns
+        }
+        if rename_map:
+            df = df.rename(columns=rename_map)
+
+        logger.info(
+            f"Loaded training frame from parquet "
+            f"(partition='{partition.value}', hours={hours}, "
+            f"rows={len(df)}, cols={len(df.columns)})"
+        )
+
+        return df
+
+    async def fetch_training_frame_from_features_db(
+        self,
+        hours: int,
+        partition: Optional[FeaturePartition] = None,
+    ) -> pd.DataFrame:
+        """Read a training frame from the future features DB table.
+
+        PLACEHOLDER — not yet implemented. The table does not exist
+        yet; it will be created by a future migration and populated
+        by the data-service (or a dedicated sync job). When that
+        happens, replace the body of this method with the actual
+        query.
+
+        The signature matches fetch_training_frame_from_files so
+        callers can treat both sources interchangeably.
+
+        Args:
+            hours: How much history to return (in hours).
+            partition: Optional partition filter. When the table
+                exists, this may map to a partition column, or be
+                ignored if partitions are not modeled in the DB.
+
+        Returns:
+            DataFrame with the canonical 50 features.
+
+        Raises:
+            NotImplementedError: Always, until the table is built.
+        """
+        raise NotImplementedError(
+            "The features_db source is not yet implemented. "
+            "The future feature_store table has not been created. "
+            "Use feature_source='parquet' until the migration lands."
+        )
+
+    async def fetch_training_frame_for_source(
+        self,
+        hours: int,
+        context: FeatureContext,
+        partition: Optional[FeaturePartition] = None,
+    ) -> pd.DataFrame:
+        """Dispatch to the configured feature source.
+
+        Chooses the source based on settings.feature_source and
+        resolves the default partition (for the file source) from
+        the caller's context. This is the method new code should
+        call — not the individual source-specific methods.
+
+        Args:
+            hours: How much history to return (in hours).
+            context: What the caller is doing. Determines the
+                default partition for the file-based source:
+                    TRAINING    -> train
+                    VALIDATION  -> val
+                    TEST        -> test
+                    PREDICTION  -> live_frontier
+            partition: Optional explicit partition override. When
+                provided, takes precedence over the context-derived
+                default.
+
+        Returns:
+            DataFrame from the selected source.
+
+        Raises:
+            ValueError: If feature_source is unknown.
+            NotImplementedError: If feature_source="features_db"
+                and the future table has not been created yet.
+        """
+        source = settings.feature_source
+
+        # Resolve the partition.
+        resolved_partition = (
+            partition
+            if partition is not None
+            else _CONTEXT_TO_PARTITION[context]
+        )
+
+        if source == "parquet":
+            return await self.fetch_training_frame_from_files(
+                hours=hours,
+                partition=resolved_partition,
+            )
+
+        if source == "features_db":
+            return await self.fetch_training_frame_from_features_db(
+                hours=hours,
+                partition=resolved_partition,
+            )
+
+        raise ValueError(
+            f"Unsupported feature_source '{source}'. "
+            f"Expected 'parquet' or 'features_db'."
+        )
+
+    # ============================================================
+    # READS — historical BTC (A5.2)
+    # ============================================================
     async def fetch_btc_price_at(
         self,
         target_time: datetime,
