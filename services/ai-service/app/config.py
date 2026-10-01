@@ -50,6 +50,35 @@ class Settings(BaseSettings):
     db_table_predictions: str = Field(default="btc_predictions")
 
     # ============================================================
+    # FEATURE SOURCE
+    # ============================================================
+    # Where training and prediction features come from.
+    #
+    # Supported values:
+    #   "parquet"      — data-service parquet files (50 features).
+    #                    Used by the manual CLI file-path pipeline.
+    #   "features_db"  — the future DB table (50 features, live-updated).
+    #                    This is the target production source.
+    #
+    # Both sources provide the same canonical 50-feature contract.
+    # Only the physical storage differs.
+    #
+    # The legacy 10-feature path (btc_prices + macro_indicators) is
+    # NOT a supported option. The old repository method
+    # fetch_training_frame(hours) remains for reference but is
+    # unreachable via this setting.
+    feature_source: str = Field(default="features_db")
+
+    # Directory where the data-service writes its processed parquet
+    # files. Used when feature_source="parquet". The AI Service must
+    # be able to read this directory (usually mounted as a read-only
+    # volume in Docker/K8s).
+    shared_data_dir: str = Field(
+        default="/app/shared/features",
+        description="Directory containing data-service parquet files",
+    )
+
+    # ============================================================
     # REDIS
     # ============================================================
     redis_host: str = Field(default="redis")
@@ -91,12 +120,16 @@ class Settings(BaseSettings):
     # ============================================================
     # MODEL PARAMETERS
     # ============================================================
-    model_training_days: int = Field(default=90)
-    model_forecast_horizon_hours: int = Field(default=24)
-    model_forecast_horizon_days: int = Field(default=7)
-    model_changepoint_prior: float = Field(default=0.05)
-    model_seasonality_prior: float = Field(default=10.0)
-    model_holidays_prior: float = Field(default=10.0)
+    # DEPRECATED (2026-XX): The following settings are not read by
+    # any code path. Kept for reference during the current migration
+    # and will be removed once the future feature pipeline is in
+    # place. See known_issues.md #13.
+    model_training_days: int = Field(default=90)          # DEPRECATED
+    model_forecast_horizon_hours: int = Field(default=24) # DEPRECATED
+    model_forecast_horizon_days: int = Field(default=7)   # DEPRECATED
+    model_changepoint_prior: float = Field(default=0.05)  # DEPRECATED
+    model_seasonality_prior: float = Field(default=10.0)  # DEPRECATED
+    model_holidays_prior: float = Field(default=10.0)     # DEPRECATED
 
     # Model artifact storage
     model_save_dir: str = Field(default="models")
@@ -136,10 +169,40 @@ class Settings(BaseSettings):
     retrain_hour: int = Field(default=6)
     retrain_minute: int = Field(default=0)
     retrain_timezone: str = Field(default="UTC")
-    walk_forward_days: int = Field(default=30)
 
-    # Scheduler master switch (disabled in tests, enabled in prod)
+    # DEPRECATED: not read by any code path. Kept for reference.
+    # See known_issues.md #13.
+    walk_forward_days: int = Field(default=30)  # DEPRECATED
+
+    # ------------------------------------------------------------
+    # Scheduler toggles
+    # ------------------------------------------------------------
+    # Master switch for the entire scheduler. When False, no jobs
+    # run, even if the category toggles below are True.
     scheduler_enabled: bool = Field(default=True)
+
+    # ML pipeline jobs — the 7 jobs that depend on trained models
+    # and a working feature source:
+    #   - daily_retrain
+    #   - hourly_prediction
+    #   - daily_7d_prediction
+    #   - daily_backtest
+    #   - daily_accuracy
+    #   - daily_multi_model_predictions
+    #   - daily_model_performance_aggregation
+    #
+    # Default: False. Enable once the live path is ready to run
+    # against the "features_db" source.
+    scheduler_ml_jobs_enabled: bool = Field(default=False)
+
+    # Analytics + housekeeping jobs — the 3 independent jobs that
+    # do not depend on trained models:
+    #   - daily_correlation
+    #   - daily_event_impact_update
+    #   - daily_export_cleanup
+    #
+    # Default: True. These run regardless of ML pipeline state.
+    scheduler_analytics_jobs_enabled: bool = Field(default=True)
 
     # Retention of in-memory job history entries
     scheduler_history_max_entries: int = Field(default=100)
