@@ -1,6 +1,7 @@
 import { ExampleQueryDemo } from '@/components/examples/ExampleQueryDemo'
 import { PageIntro } from '@/components/layout/PageIntro'
 import { BtcPriceCard } from '@/components/dashboard/price/BtcPriceCard'
+import { DashboardForecastCard } from '@/components/dashboard/forecast/DashboardForecastCard'
 import { PriceChangeCard } from '@/components/dashboard/price/PriceChangeCard'
 import { RegimeCard } from '@/components/dashboard/regime/RegimeCard'
 import { pageCopy } from '@/constants/navigation'
@@ -22,6 +23,16 @@ export function DashboardPage() {
         <PriceChangeCard />
 
         <RegimeCard />
+      </section>
+
+      <section className="flex min-w-0 flex-col gap-3">
+        <div className="flex flex-col gap-1">
+          <h2 className="text-base font-medium">Forecast</h2>
+          <p className="text-sm text-muted-foreground">
+            The AI model's outlook for the next day
+          </p>
+        </div>
+        <DashboardForecastCard />
       </section>
 
       <section className="flex min-w-0 flex-col gap-3">
