@@ -411,7 +411,32 @@ jobs:
           # Run pytest while ignoring heavy, one-time, live network-dependent, or slow end-to-end tests
           pytest --ignore=tests/ml_qa --ignore=tests/integration --ignore=tests/e2e
 
+  verify-gateway-routing:
+    needs: test-data-service
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
 
+      - name: Start services with Docker Compose
+        run: docker compose up -d data-service alert-service api-gateway
+
+      - name: Wait for services to initialize
+        run: sleep 5
+
+      - name: Smoke Test Data-Service Proxy via Gateway
+        run: |
+          response=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/api/v1/gateway/btc/price)
+          echo "Gateway Proxy HTTP Status: $response"
+          # Accept 200 (Success) or 401/403 (Protected route responding)
+          if [ "$response" -ne 200 ] && [ "$response" -ne 401 ] && [ "$response" -ne 403 ]; then
+            echo "❌ Routing verification failed!"
+            exit 1
+          fi
+          echo "✨ Gateway routing verified successfully!"
+
+      - name: Teardown Docker Compose
+        if: always()
+        run: docker compose down
          
 
 
