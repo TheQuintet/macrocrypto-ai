@@ -69,6 +69,14 @@ class Settings(BaseSettings):
     # unreachable via this setting.
     feature_source: str = Field(default="features_db")
 
+    # Name of the DB table that holds the canonical 50-feature set.
+    # Used when feature_source="features_db". Owned by the data-service;
+    # the AI Service reads from it, never writes.
+    features_db_table: str = Field(
+        default="features_db",
+        description="Name of the feature-store table used by features_db source",
+    )
+
     # Directory where the data-service writes its processed parquet
     # files. Used when feature_source="parquet". The AI Service must
     # be able to read this directory (usually mounted as a read-only
@@ -77,6 +85,25 @@ class Settings(BaseSettings):
         default="/app/shared/features",
         description="Directory containing data-service parquet files",
     )
+
+    # ============================================================
+    # CLI ISOLATION
+    # ============================================================
+    # When True, all repository writes and file-system writes go to
+    # isolated targets so a CLI run never touches production data:
+    #   - DB writes go to <table>_cli variants
+    #   - Model files go to {cli_data_dir}/models/
+    #   - Backtest temp dirs go to {cli_data_dir}/models/backtest/
+    #   - Export files go to {cli_data_dir}/exports/
+    #
+    # Controlled by the CLI_MODE environment variable. Default: False.
+    # The manual CLI (app.cli.pipeline) sets CLI_MODE=true before
+    # invoking any job or repository.
+    cli_mode: bool = Field(default=False)
+
+    # Root directory for CLI-mode artifacts (models, exports, etc.).
+    # Relative to the service working directory.
+    cli_data_dir: str = Field(default="cli_data")
 
     # ============================================================
     # REDIS
@@ -284,7 +311,8 @@ class Settings(BaseSettings):
 
     # Directory where locally-stored export files live. Relative
     # paths are resolved against the current working directory (see
-    # ``export_storage_dir_path``).
+    # ``export_storage_dir_path``). In CLI mode, the path is
+    # redirected under ``cli_data_dir``.
     export_storage_dir: str = Field(default="exports")
 
     # How long a download link remains valid, in seconds. The A2.6
@@ -342,34 +370,79 @@ class Settings(BaseSettings):
             return url.replace("postgresql://", "postgresql+asyncpg://", 1)
         return url
 
+    # ------------------------------------------------------------
+    # CLI-aware path properties
+    # ------------------------------------------------------------
+    @property
+    def effective_model_save_dir(self) -> str:
+        """Return the active model save directory.
+
+        When CLI mode is enabled, returns a path under
+        ``cli_data_dir`` so the CLI never writes into the production
+        ``models/`` directory. Otherwise returns ``model_save_dir``.
+        """
+        if self.cli_mode:
+            return f"{self.cli_data_dir}/models"
+        return self.model_save_dir
+
+    @property
+    def effective_backtest_model_dir(self) -> str:
+        """Return the active backtest temp dir.
+
+        When CLI mode is enabled, returns a path under
+        ``cli_data_dir``. Otherwise returns ``backtest_model_dir``.
+        """
+        if self.cli_mode:
+            return f"{self.cli_data_dir}/models/backtest"
+        return self.backtest_model_dir
+
     @property
     def prophet_24h_model_path(self) -> str:
-        """Return the full path to the trained 24h Prophet model file."""
-        return f"{self.model_save_dir}/{self.prophet_24h_model_filename}"
+        """Return the full path to the trained 24h Prophet model file.
+
+        Uses the CLI-aware model save dir so CLI runs don't clash
+        with production model files.
+        """
+        return (
+            f"{self.effective_model_save_dir}/"
+            f"{self.prophet_24h_model_filename}"
+        )
 
     @property
     def prophet_7d_model_path(self) -> str:
-        """Return the full path to the trained 7d Prophet model file."""
-        return f"{self.model_save_dir}/{self.prophet_7d_model_filename}"
+        """Return the full path to the trained 7d Prophet model file.
+
+        Uses the CLI-aware model save dir so CLI runs don't clash
+        with production model files.
+        """
+        return (
+            f"{self.effective_model_save_dir}/"
+            f"{self.prophet_7d_model_filename}"
+        )
 
     @property
     def export_storage_dir_path(self) -> Path:
         """Return the export storage directory as an absolute Path.
 
-        Relative paths in ``export_storage_dir`` are resolved
-        against the current working directory, which for the
-        AI Service is the service root. Absolute paths are
-        returned unchanged.
+        When CLI mode is enabled, the directory is redirected under
+        ``cli_data_dir/exports``. Otherwise, relative paths in
+        ``export_storage_dir`` are resolved against the current
+        working directory (which for the AI Service is the service
+        root), and absolute paths are returned unchanged.
 
         Returns:
             The resolved :class:`pathlib.Path` for the storage
             directory. The path is not created here — creation is
             ``LocalDiskStorage``'s responsibility.
         """
-        path = Path(self.export_storage_dir)
-        if not path.is_absolute():
-            path = Path.cwd() / path
-        return path
+        if self.cli_mode:
+            base = Path(f"{self.cli_data_dir}/exports")
+        else:
+            base = Path(self.export_storage_dir)
+
+        if not base.is_absolute():
+            base = Path.cwd() / base
+        return base
 
 
 # Global settings instance
