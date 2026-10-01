@@ -384,6 +384,16 @@ class PredictionRepository:
         if rename_map:
             df = df.rename(columns=rename_map)
 
+        # ---- NEW: strip timezone from ds ----
+        # Prophet requires `ds` to be timezone-naive. The parquet
+        # files write it as tz-aware (UTC); strip the tz here so
+        # every consumer sees a consistent, Prophet-compatible
+        # timestamp column. Tree models ignore `ds`, so this is
+        # safe for them too.
+        if "ds" in df.columns:
+            df["ds"] = pd.to_datetime(df["ds"]).dt.tz_localize(None)
+
+
         logger.info(
             f"Loaded training frame from parquet "
             f"(partition='{partition.value}', hours={hours}, "
