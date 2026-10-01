@@ -34,6 +34,17 @@ Design:
       every invocation.
     - Job functions are pure async callables with no scheduler
       dependencies — easy to unit test directly
+
+Feature source:
+    ML jobs that need training data or prediction history call
+    PredictionRepository.fetch_training_frame_for_source(...) with a
+    FeatureContext. The repository dispatches to the configured
+    source (parquet or features_db). This keeps the jobs agnostic
+    of where the canonical 50-feature set physically lives.
+
+    Analytics jobs (correlation, event impact, export cleanup) read
+    directly from the source tables — they do not go through the
+    feature-source dispatcher.
 """
 
 import logging
@@ -53,6 +64,7 @@ from app.ai.thresholds import (
 from app.config import settings
 from app.correlation.calculator import CorrelationCalculator
 from app.database.engine import session_scope
+from app.database.enums import FeatureContext
 from app.database.repositories.correlation_repository import (
     CorrelationRepository,
 )
@@ -291,15 +303,23 @@ async def daily_retrain_job() -> Dict[str, Any]:
     """Retrain all 6 models on the latest historical data.
 
     Runs daily at 6:00 AM UTC. Steps:
-        1. Open a DB session and fetch 90 days of training data.
+        1. Open a DB session and fetch 90 days of training data
+           from the configured feature source.
         2. Build a fresh model registry (all 6 variants).
         3. Run the RetrainingOrchestrator.
         4. Return a structured result.
 
+    Feature source:
+        The training frame is fetched via
+        ``fetch_training_frame_for_source(hours=2160,
+        context=FeatureContext.TRAINING)``. The repository dispatches
+        to the configured source (parquet or features_db) and
+        resolves the partition from the context.
+
     The job raises on failure so the SchedulerManager records the
     failure, applies retries, and updates job state. If the whole
     job fails, the previously saved models remain on disk — the
-    next 6:30 AM prediction job (T2.2) continues to use them.
+    next 6:30 AM prediction job continues to use them.
 
     Returns:
         Dict with keys: models_retrained (int),
@@ -322,8 +342,9 @@ async def daily_retrain_job() -> Dict[str, Any]:
 
     async with session_scope() as session:
         repository = PredictionRepository(session)
-        training_frame = await repository.fetch_training_frame(
-            hours=history_hours
+        training_frame = await repository.fetch_training_frame_for_source(
+            hours=history_hours,
+            context=FeatureContext.TRAINING,
         )
 
     if training_frame is None or training_frame.empty:
@@ -401,13 +422,19 @@ async def daily_backtest_job() -> Dict[str, Any]:
 
     Runs daily at 6:45 AM UTC, after the 6:00 retrain and the
     6:30 7d prediction. Steps:
-        1. Open a DB session and fetch 120 days of training data.
+        1. Open a DB session and fetch 120 days of training data
+           from the configured feature source.
         2. For each of the 12 (variant, horizon) pairs:
             a. Run WalkForwardBacktester
             b. Convert the BacktestResult + raw predictions to
                PerformanceRow instances
             c. Persist them via PerformanceRepository
         3. Aggregate and return a summary.
+
+    Feature source:
+        Like ``daily_retrain_job``, the training frame is fetched
+        via ``fetch_training_frame_for_source(hours=...,
+        context=FeatureContext.TRAINING)``.
 
     Idempotency note: the job is NOT deduplicating on run. If it
     runs twice in the same day, it will write two sets of rows. The
@@ -438,8 +465,9 @@ async def daily_backtest_job() -> Dict[str, Any]:
 
     async with session_scope() as session:
         pred_repo = PredictionRepository(session)
-        training_frame = await pred_repo.fetch_training_frame(
-            hours=history_hours
+        training_frame = await pred_repo.fetch_training_frame_for_source(
+            hours=history_hours,
+            context=FeatureContext.TRAINING,
         )
 
     if training_frame is None or training_frame.empty:
@@ -930,7 +958,8 @@ async def hourly_prediction_job() -> Dict[str, Any]:
     Steps:
         1. Load the trained Prophet model from disk.
         2. Open a DB session.
-        3. Build a PredictionGenerator (24h horizon, 0.85 confidence).
+        3. Build a PredictionGenerator (24h horizon, 0.85 confidence,
+           history_source=FeatureContext.PREDICTION).
         4. Run generate().
         5. Return a structured result.
 
@@ -969,6 +998,7 @@ async def hourly_prediction_job() -> Dict[str, Any]:
             horizon="24h",
             horizon_hours=24,
             confidence=0.85,
+            history_source=FeatureContext.PREDICTION,
         )
 
         result = await generator.generate()
@@ -1008,7 +1038,8 @@ async def daily_7d_prediction_job() -> Dict[str, Any]:
     Steps:
         1. Load the trained 7d Prophet model from disk.
         2. Open a DB session.
-        3. Build a PredictionGenerator (7d horizon, 0.85 confidence).
+        3. Build a PredictionGenerator (7d horizon, 0.85 confidence,
+           history_source=FeatureContext.PREDICTION).
         4. Run generate().
         5. Return a structured result.
 
@@ -1045,6 +1076,7 @@ async def daily_7d_prediction_job() -> Dict[str, Any]:
             horizon="7d",
             horizon_hours=168,
             confidence=0.85,
+            history_source=FeatureContext.PREDICTION,
             # 90 days of history to observe multiple weekly cycles
             history_hours=2160,
         )
@@ -1099,6 +1131,7 @@ async def daily_multi_model_predictions_job() -> Dict[str, Any]:
                `{settings.model_save_dir}/{variant}.pkl`
             b. Open a DB session
             c. Build a PredictionGenerator for the horizon
+               (history_source=FeatureContext.PREDICTION)
             d. Run generate() and let the generator write rows
         2. Aggregate results and return a summary.
 
@@ -1149,6 +1182,7 @@ async def daily_multi_model_predictions_job() -> Dict[str, Any]:
                     horizon=horizon,
                     horizon_hours=horizon_hours,
                     confidence=0.85,
+                    history_source=FeatureContext.PREDICTION,
                 )
                 gen_result = await generator.generate()
 
