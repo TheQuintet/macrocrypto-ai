@@ -423,7 +423,8 @@ jobs:
           kill $SERVER_PID
 
   # --- Security Audit Runs After Tests Pass ---
-  security-audit:
+  Security-Audit:
+    name: Security Audit (pip-audit)
     needs: [api-gateway-tests, test-alert-service, test-data-service]
     runs-on: ubuntu-latest
     steps:
