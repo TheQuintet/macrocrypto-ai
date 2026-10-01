@@ -401,28 +401,22 @@ jobs:
           DATABASE_URL: postgresql://macro:crypto@localhost:5432/macrocrypto
           REDIS_HOST: localhost
           REDIS_PORT: 6379
-          RABBITMQ_HOST: localhost
+          RABBITMQ_HOST: rabbitmq          # Updated to match config test expectation
           RABBITMQ_PORT: 5672
           RABBITMQ_DEFAULT_USER: guest
           RABBITMQ_DEFAULT_PASS: guest
+          FRED_API_KEY: test-fred-key       # Added to satisfy config validation
         run: |
-          # 1. Start uvicorn in the background using the same shell session
           uvicorn app.main:app --host 127.0.0.1 --port 8001 &
           SERVER_PID=$!
 
-          # 2. Wait until the FastAPI server is fully up and responding
-          echo "Waiting for FastAPI to start..."
           until curl -s http://127.0.0.1:8001/docs > /dev/null; do
             sleep 1
           done
-          echo "FastAPI server is up and running!"
 
-          # 3. Execute all unit, integration, and E2E tests
           pytest
 
-          # 4. Safely stop the background server process
           kill $SERVER_PID
- 
 
 
 
