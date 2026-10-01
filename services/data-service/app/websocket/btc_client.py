@@ -82,7 +82,7 @@ class BTCWebSocketClient:
             logger.warning("WebSocket client already running")
             return
         
-        self.is_running = True
+        self.is_running = True        
         self.task = asyncio.create_task(self._run_websocket())
         logger.info("BTC WebSocket client started")
     

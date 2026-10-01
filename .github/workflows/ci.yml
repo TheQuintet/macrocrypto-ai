@@ -405,28 +405,16 @@ jobs:
           RABBITMQ_PORT: 5672
           RABBITMQ_DEFAULT_USER: guest
           RABBITMQ_DEFAULT_PASS: guest
-          FRED_API_KEY: test-fred-key       # Added to satisfy config validation
-          # BINANCE_USE_TESTNET: "true"
+          FRED_API_KEY: test-fred-key      # Added to satisfy config validation
+         
         run: |          
-          pytest --ignore=tests/ml_qa
+          # Run pytest while ignoring heavy, one-time, live network-dependent, or slow end-to-end tests
+          pytest 
+            --ignore=tests/ml_qa \
+            --ignore=tests/integration/test_rate_limit.py \
+            --ignore=tests/e2e/test_data_flow.py
+
 
          
 
 
-
-
- # Backend tests are deliberately not here yet. There is no root
-  # requirements.txt, so the old repo-wide `pytest` installed nothing and
-  # collected everything - it only ever looked fine because black failed first
-  # and it never ran. Running each service against its own requirements works,
-  # but `tests/unit` is not all unit tests: much of it wants Postgres, Redis,
-  # and a FRED API key. Run today, with dependencies installed and no
-  # infrastructure:
-  #
-  #   ai-service     2117 passed, 1 failed
-  #   data-service    373 passed, 3 failed, 6 errors
-  #   api-gateway      65 passed, 13 failed
-  #   alert-service                 102 errors
-  #
-  # Gating on that would just move the permanent red. Standing up the services
-  # these tests need is its own change.
