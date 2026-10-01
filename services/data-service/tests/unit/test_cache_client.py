@@ -23,19 +23,34 @@ async def test_connect_disabled():
 
     assert result is False
 
-
 @pytest.mark.asyncio
-async def test_connect_success():
+async def test_connect_success(mocker):
     cache = CacheClient()
     cache.is_enabled = True
 
+    # Mock the internal redis client creation or factory method if it initializes from URL
     mock_redis = MagicMock()
     mock_redis.ping = AsyncMock(return_value=True)
-    cache.client = mock_redis
-
+    
+    # Patch redis.asyncio.Redis.from_url or whatever client loader is used inside connect()
+    mocker.patch("redis.asyncio.Redis.from_url", return_value=mock_redis)
+    
     result = await cache.connect()
 
     assert result is True
+
+# @pytest.mark.asyncio
+# async def test_connect_success():
+#     cache = CacheClient()
+#     cache.is_enabled = True
+
+#     mock_redis = MagicMock()
+#     mock_redis.ping = AsyncMock(return_value=True)
+#     cache.client = mock_redis
+
+#     result = await cache.connect()
+
+#     assert result is True
 
 
 @pytest.mark.asyncio
