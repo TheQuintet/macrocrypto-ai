@@ -424,7 +424,7 @@ jobs:
 
   # --- Security Audit Runs After Tests Pass ---
   security-audit:
-    needs: [test-api-gateway, test-alert-service, test-data-service]
+    needs: [api-gateway-tests, test-alert-service, test-data-service]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
