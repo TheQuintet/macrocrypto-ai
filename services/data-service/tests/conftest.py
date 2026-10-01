@@ -321,6 +321,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Generator
 
 import pytest
+import requests
 from fastapi.testclient import TestClient
 from dotenv import load_dotenv
 from sqlalchemy import text
@@ -442,7 +443,29 @@ def client() -> Generator[TestClient, None, None]:
             pass
 
     with TestClient(app) as test_client:
+        original_get = requests.get
+        original_post = requests.post
+
+        def get_path(url):
+            return url.split("8001")[-1] if "8001" in url else url
+
+        def mocked_get(url, *args, **kwargs):
+            if "localhost" in url or "127.0.0.1" in url:
+                return test_client.get(get_path(url), *args, **kwargs)
+            return original_get(url, *args, **kwargs)
+
+        def mocked_post(url, *args, **kwargs):
+            if "localhost" in url or "127.0.0.1" in url:
+                return test_client.post(get_path(url), *args, **kwargs)
+            return original_post(url, *args, **kwargs)
+
+        monkeypatch_session_get = requests.Session.request # Alternative or direct patch:
+        requests.get = mocked_get
+        requests.post = mocked_post
         yield test_client
+        # Restore original requests functions on teardown
+        requests.get = original_get
+        requests.post = original_post
 
     if hasattr(app, "dependency_overrides"):
         app.dependency_overrides.clear()
