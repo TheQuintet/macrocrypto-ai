@@ -406,7 +406,7 @@ jobs:
           RABBITMQ_DEFAULT_USER: guest
           RABBITMQ_DEFAULT_PASS: guest
           FRED_API_KEY: test-fred-key       # Added to satisfy config validation
-          BINANCE_USE_TESTNET: "true"
+          # BINANCE_USE_TESTNET: "true"
         run: |
           uvicorn app.main:app --host 127.0.0.1 --port 8001 --log-level warning &
           SERVER_PID=$!
