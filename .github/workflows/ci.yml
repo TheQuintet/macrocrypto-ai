@@ -417,7 +417,7 @@ jobs:
           done
 
           # 3. Run pytest quietly, ignoring ml_qa
-          pytest -q --show-capture=no --ignore=tests/ml_qa
+          pytest -q --show-capture=no --ignore=tests/ml_qa --cov=app --cov-report=term-missing
 
           # 4. Clean up the background server process
           kill $SERVER_PID
