@@ -407,7 +407,7 @@ jobs:
           RABBITMQ_DEFAULT_PASS: guest
           FRED_API_KEY: test-fred-key      # Added to satisfy config validation
         run: | 
-        # 1. Start uvicorn and redirect all stdout/stderr to /dev/null to keep console completely clean
+          # 1. Start uvicorn and redirect all stdout/stderr to /dev/null to keep console completely clean
           uvicorn app.main:app --host 127.0.0.1 --port 8001 >/dev/null 2>&1 &
           SERVER_PID=$!
 
@@ -421,6 +421,3 @@ jobs:
 
           # 4. Clean up the background server process
           kill $SERVER_PID
-         
-
-
