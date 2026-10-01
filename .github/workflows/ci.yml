@@ -396,6 +396,24 @@ jobs:
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
           if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
 
+      # 1. Start the FastAPI server in the background for your E2E tests
+      - name: Start FastAPI Server for E2E Tests
+        env:
+          DATABASE_URL: postgresql://macro:crypto@localhost:5432/macrocrypto
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+          RABBITMQ_HOST: localhost
+          RABBITMQ_PORT: 5672
+        run: |
+          uvicorn app.main:app --host 127.0.0.1 --port 8001 &
+          
+          echo "Waiting for FastAPI to start..."
+          until curl -s http://127.0.0.1:8001/docs > /dev/null; do
+            sleep 1
+          done
+          echo "FastAPI server is up and running!"
+
+      # 2. Run your tests against the running server and services
       - name: Run Pytest
         env:
           DATABASE_URL: postgresql://macro:crypto@localhost:5432/macrocrypto
