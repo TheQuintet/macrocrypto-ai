@@ -406,11 +406,21 @@ jobs:
           RABBITMQ_DEFAULT_USER: guest
           RABBITMQ_DEFAULT_PASS: guest
           FRED_API_KEY: test-fred-key      # Added to satisfy config validation
-         
-        run: |          
-          # Run pytest while ignoring heavy, one-time, live network-dependent, or slow end-to-end tests
-          pytest --ignore=tests/ml_qa --ignore=tests/integration --ignore=tests/e2e
+        run: | 
+        # 1. Start uvicorn and redirect all stdout/stderr to /dev/null to keep console completely clean
+          uvicorn app.main:app --host 127.0.0.1 --port 8001 >/dev/null 2>&1 &
+          SERVER_PID=$!
 
+          # 2. Wait until the FastAPI server is fully up and responding
+          until curl -s http://127.0.0.1:8001/docs > /dev/null; do
+            sleep 1
+          done
+
+          # 3. Run pytest quietly, ignoring ml_qa
+          pytest -q --show-capture=no --ignore=tests/ml_qa
+
+          # 4. Clean up the background server process
+          kill $SERVER_PID
          
 
 
