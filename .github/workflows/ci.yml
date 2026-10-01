@@ -408,14 +408,14 @@ jobs:
           FRED_API_KEY: test-fred-key       # Added to satisfy config validation
           # BINANCE_USE_TESTNET: "true"
         run: |
-          uvicorn app.main:app --host 127.0.0.1 --port 8001 --log-level warning &
+          uvicorn app.main:app --host 127.0.0.1 --port 8001 >/dev/null 2>&1 &
           SERVER_PID=$!
 
           until curl -s http://127.0.0.1:8001/docs > /dev/null; do
             sleep 1
           done
 
-          pytest -q --show-capture=no --ignore=tests/ml_qa
+          pytest --ignore=tests/ml_qa
 
           kill $SERVER_PID
 
