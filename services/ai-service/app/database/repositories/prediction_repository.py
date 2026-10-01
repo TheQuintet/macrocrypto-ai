@@ -40,6 +40,17 @@ Feature sources:
             settings.feature_source and resolves the default
             partition from the context. This is what callers should
             use — not the individual methods.
+
+CLI isolation:
+    When settings.cli_mode is True, all writes and reads on the
+    btc_predictions table are routed to btc_predictions_cli instead.
+    This keeps CLI runs sandboxed from production data. Source
+    tables (btc_prices, macro_indicators, features_db) are shared
+    read-only inputs and are not routed.
+
+    The routing is handled by `_resolve_predictions_table()`, which
+    returns the production or CLI variant based on the current
+    settings. Every method that touches btc_predictions calls it.
 """
 
 import logging
@@ -55,6 +66,7 @@ from app.config import settings
 from app.database.enums import FeatureContext, FeaturePartition
 from app.database.tables import (
     btc_predictions,
+    btc_predictions_cli,
     btc_prices,
     macro_indicators,
 )
@@ -145,10 +157,32 @@ class PredictionRepository:
         self.session = session
 
     # ============================================================
+    # CLI ROUTING HELPER
+    # ============================================================
+    def _resolve_predictions_table(self):
+        """Return the active btc_predictions table.
+
+        In CLI mode (settings.cli_mode=True), returns
+        btc_predictions_cli so CLI runs are sandboxed. Otherwise
+        returns the production btc_predictions table.
+
+        Returns:
+            A SQLAlchemy Table object: either btc_predictions or
+            btc_predictions_cli.
+        """
+        if settings.cli_mode:
+            return btc_predictions_cli
+        return btc_predictions
+
+    # ============================================================
     # READS — source data
     # ============================================================
     async def fetch_recent_btc_data(self, hours: int) -> pd.DataFrame:
         """Fetch the last `hours` of BTC price data.
+
+        Note: this reads the shared `btc_prices` source table,
+        which is NOT routed by CLI mode. Source tables are
+        read-only inputs common to both paths.
 
         Args:
             hours: Number of most recent hours to fetch.
@@ -199,6 +233,9 @@ class PredictionRepository:
 
     async def fetch_recent_macro_data(self, hours: int) -> pd.DataFrame:
         """Fetch the last `hours` of macro indicator data.
+
+        Note: this reads the shared `macro_indicators` source
+        table, which is NOT routed by CLI mode.
 
         Args:
             hours: Number of most recent hours to fetch.
@@ -384,15 +421,18 @@ class PredictionRepository:
         if rename_map:
             df = df.rename(columns=rename_map)
 
-        # ---- NEW: strip timezone from ds ----
-        # Prophet requires `ds` to be timezone-naive. The parquet
-        # files write it as tz-aware (UTC); strip the tz here so
-        # every consumer sees a consistent, Prophet-compatible
-        # timestamp column. Tree models ignore `ds`, so this is
-        # safe for them too.
+        # ---- Normalize `ds` to timezone-naive ----
+        # Prophet requires `ds` to have no timezone info. The
+        # parquet files store it as tz-aware UTC; strip the tz
+        # so every consumer sees the same column shape.
+        #
+        # `pd.to_datetime(...)` ensures we're working with a
+        # datetime dtype (in case the parquet reader returned
+        # something exotic). `.dt.tz_localize(None)` drops the
+        # tz without converting the values — the wall-clock
+        # timestamps are preserved.
         if "ds" in df.columns:
             df["ds"] = pd.to_datetime(df["ds"]).dt.tz_localize(None)
-
 
         logger.info(
             f"Loaded training frame from parquet "
@@ -516,6 +556,9 @@ class PredictionRepository:
         direction. If no row falls within the tolerance, returns
         None so the caller can record the event as skipped.
 
+        Note: this reads the shared `btc_prices` source table,
+        which is NOT routed by CLI mode.
+
         Args:
             target_time: The historical timestamp to look near. Must
                 be timezone-aware; a naive datetime is interpreted
@@ -567,6 +610,9 @@ class PredictionRepository:
         series over the reaction window, not just the two endpoints.
         Returns a DataFrame with columns ``time`` and ``close``,
         sorted ascending by time.
+
+        Note: this reads the shared `btc_prices` source table,
+        which is NOT routed by CLI mode.
 
         Args:
             start: Earliest timestamp to include. Must be
@@ -627,6 +673,9 @@ class PredictionRepository:
 
         Returns an empty list if no rows exist for the given key.
 
+        CLI mode: when settings.cli_mode is True, this reads from
+        btc_predictions_cli instead of btc_predictions.
+
         Args:
             horizon: Horizon label ('24h' or '7d').
             model_name: Model identifier ('prophet', 'xgboost', ...).
@@ -638,13 +687,15 @@ class PredictionRepository:
         """
         from sqlalchemy import func
 
+        table = self._resolve_predictions_table()
+
         # Subquery: latest prediction_time for this key
         latest_ts_stmt = select(
-            func.max(btc_predictions.c.prediction_time)
+            func.max(table.c.prediction_time)
         ).where(
-            btc_predictions.c.horizon == horizon,
-            btc_predictions.c.model_name == model_name,
-            btc_predictions.c.confidence == confidence,
+            table.c.horizon == horizon,
+            table.c.model_name == model_name,
+            table.c.confidence == confidence,
         )
 
         result = await self.session.execute(latest_ts_stmt)
@@ -661,22 +712,22 @@ class PredictionRepository:
         # Fetch all rows in that batch
         stmt = (
             select(
-                btc_predictions.c.time,
-                btc_predictions.c.prediction_time,
-                btc_predictions.c.horizon,
-                btc_predictions.c.model_name,
-                btc_predictions.c.confidence,
-                btc_predictions.c.predicted_price,
-                btc_predictions.c.lower_bound,
-                btc_predictions.c.upper_bound,
+                table.c.time,
+                table.c.prediction_time,
+                table.c.horizon,
+                table.c.model_name,
+                table.c.confidence,
+                table.c.predicted_price,
+                table.c.lower_bound,
+                table.c.upper_bound,
             )
             .where(
-                btc_predictions.c.horizon == horizon,
-                btc_predictions.c.model_name == model_name,
-                btc_predictions.c.confidence == confidence,
-                btc_predictions.c.prediction_time == latest_ts,
+                table.c.horizon == horizon,
+                table.c.model_name == model_name,
+                table.c.confidence == confidence,
+                table.c.prediction_time == latest_ts,
             )
-            .order_by(btc_predictions.c.time.asc())
+            .order_by(table.c.time.asc())
         )
 
         result = await self.session.execute(stmt)
@@ -723,6 +774,9 @@ class PredictionRepository:
         Called by the M6a multi-model comparison endpoint; the two-
         query design keeps latency flat as the model count grows.
 
+        CLI mode: when settings.cli_mode is True, this reads from
+        btc_predictions_cli instead of btc_predictions.
+
         Args:
             model_names: Names of the models to fetch. Empty input
                 short-circuits without touching the DB.
@@ -743,20 +797,22 @@ class PredictionRepository:
             )
             return {}
 
+        table = self._resolve_predictions_table()
+
         # ---- Step 1: latest prediction_time per model ----
         latest_stmt = (
             select(
-                btc_predictions.c.model_name,
-                func.max(btc_predictions.c.prediction_time).label(
+                table.c.model_name,
+                func.max(table.c.prediction_time).label(
                     "latest_ts"
                 ),
             )
             .where(
-                btc_predictions.c.horizon == horizon,
-                btc_predictions.c.model_name.in_(model_names),
-                btc_predictions.c.confidence == confidence,
+                table.c.horizon == horizon,
+                table.c.model_name.in_(model_names),
+                table.c.confidence == confidence,
             )
-            .group_by(btc_predictions.c.model_name)
+            .group_by(table.c.model_name)
         )
 
         result = await self.session.execute(latest_stmt)
@@ -776,31 +832,31 @@ class PredictionRepository:
         # ---- Step 2: fetch all rows in those batches ----
         conditions = [
             and_(
-                btc_predictions.c.model_name == name,
-                btc_predictions.c.prediction_time == ts,
+                table.c.model_name == name,
+                table.c.prediction_time == ts,
             )
             for name, ts in latest_by_model.items()
         ]
 
         rows_stmt = (
             select(
-                btc_predictions.c.time,
-                btc_predictions.c.prediction_time,
-                btc_predictions.c.horizon,
-                btc_predictions.c.model_name,
-                btc_predictions.c.confidence,
-                btc_predictions.c.predicted_price,
-                btc_predictions.c.lower_bound,
-                btc_predictions.c.upper_bound,
+                table.c.time,
+                table.c.prediction_time,
+                table.c.horizon,
+                table.c.model_name,
+                table.c.confidence,
+                table.c.predicted_price,
+                table.c.lower_bound,
+                table.c.upper_bound,
             )
             .where(
-                btc_predictions.c.horizon == horizon,
-                btc_predictions.c.confidence == confidence,
+                table.c.horizon == horizon,
+                table.c.confidence == confidence,
                 or_(*conditions),
             )
             .order_by(
-                btc_predictions.c.model_name.asc(),
-                btc_predictions.c.time.asc(),
+                table.c.model_name.asc(),
+                table.c.time.asc(),
             )
         )
 
@@ -833,6 +889,8 @@ class PredictionRepository:
         """Fetch the most recent BTC close price.
 
         Reads from the Data Ingestion Service's `btc_prices` table.
+        Source tables are shared inputs and are NOT routed by CLI
+        mode.
 
         Returns:
             The latest close price as a float, or None if the table
@@ -874,6 +932,9 @@ class PredictionRepository:
         Validates all rows before insertion. Does not commit — the
         caller controls the transaction via session_scope().
 
+        CLI mode: when settings.cli_mode is True, rows are written
+        to btc_predictions_cli instead of btc_predictions.
+
         Args:
             rows: List of PredictionRow instances.
 
@@ -894,13 +955,17 @@ class PredictionRepository:
 
         validate_prediction_rows(rows)
 
+        table = self._resolve_predictions_table()
         payload = [r.to_dict() for r in rows]
 
-        stmt = insert(btc_predictions).values(payload)
+        stmt = insert(table).values(payload)
         await self.session.execute(stmt)
         await self.session.flush()
 
-        logger.info(f"Inserted {len(payload)} prediction rows")
+        logger.info(
+            f"Inserted {len(payload)} prediction rows "
+            f"into {table.name}"
+        )
 
         return len(payload)
 
@@ -915,6 +980,9 @@ class PredictionRepository:
         Useful for idempotency checks (avoid re-inserting the same
         prediction batch twice).
 
+        CLI mode: reads from btc_predictions_cli when CLI mode is
+        enabled.
+
         Args:
             horizon: '24h' or '7d'.
             model_name: 'prophet', 'xgboost', 'lightgbm', ...
@@ -924,9 +992,11 @@ class PredictionRepository:
         """
         from sqlalchemy import func
 
-        stmt = select(func.max(btc_predictions.c.prediction_time)).where(
-            btc_predictions.c.horizon == horizon,
-            btc_predictions.c.model_name == model_name,
+        table = self._resolve_predictions_table()
+
+        stmt = select(func.max(table.c.prediction_time)).where(
+            table.c.horizon == horizon,
+            table.c.model_name == model_name,
         )
 
         result = await self.session.execute(stmt)
