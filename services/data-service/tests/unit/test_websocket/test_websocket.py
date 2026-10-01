@@ -9,13 +9,14 @@ Validates:
 
 import asyncio
 import json
-import pytest
+import os
 import socket
+import pytest
 import websockets
 
 
 def is_internet_available():
-    """Check if Binance WebSocket is reachable."""
+    """Check if Binance WebSocket domain resolves."""
     try:
         socket.gethostbyname("stream.binance.com")
         return True
@@ -28,7 +29,11 @@ def is_internet_available():
 async def test_websocket_connection():
     """Test WebSocket connection to Binance stream."""
 
-    # ✅ Skip test if DNS resolution fails
+    # 🛑 Skip automatically if running inside GitHub Actions or CI environment
+    if os.getenv("CI") == "true":
+        pytest.skip("Skipping live Binance WebSocket test in CI environment (cloud IP restriction)")
+
+    # ✅ Skip test if DNS resolution fails locally
     if not is_internet_available():
         pytest.skip("Binance WebSocket not reachable (DNS resolution failed)")
 

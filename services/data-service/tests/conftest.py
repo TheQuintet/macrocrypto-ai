@@ -1,14 +1,80 @@
 """Pytest fixtures for data-service tests."""
 
+import os
+import sys
+from pathlib import Path
+from datetime import datetime, timedelta, timezone
+from typing import Generator
+
 import pytest
 from fastapi.testclient import TestClient
-from datetime import datetime, timedelta, timezone
+from dotenv import load_dotenv
 from sqlalchemy import text
+from sqlalchemy.orm import Session
 
+# ============================================
+# ENVIRONMENT SETUP - MUST BE FIRST
+# ============================================
+os.environ["TESTING"] = "true"
+
+# Add the parent directory to path so we can import app
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+# Load .env file from the data-service directory
+env_path = Path(__file__).parent.parent / ".env"
+if env_path.exists():
+    load_dotenv(dotenv_path=env_path)
+else:
+    load_dotenv()
+
+if not os.getenv("SECRET_KEY"):
+    os.environ["SECRET_KEY"] = "test-secret-key-for-testing-only"
+
+# Use PostgreSQL if DATABASE_URL is provided (CI / Docker), 
+# otherwise fall back to SQLite for local development
+TEST_DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./test_data.db")
+os.environ["DATABASE_URL"] = TEST_DATABASE_URL
+
+# ============================================
+# APP & DATABASE IMPORTS
+# ============================================
 from app.main import app
 from app.services.price_service import PriceService
 from app.services.data_processor import DataProcessor
-from app.database.session import SessionLocal
+from app.database.session import SessionLocal, engine
+from app.models.btc_price import Base # Ensure your declarative Base is imported for create_all
+
+@pytest.fixture(scope="session", autouse=True)
+def setup_database():
+    """
+    Create all tables once per session, and drop them safely using CASCADE 
+    to handle TimescaleDB hypertables.
+    """
+    Base.metadata.create_all(bind=engine)
+    yield
+    with engine.connect() as connection:
+        # Disable foreign key checks / drop schema objects with cascade
+        connection.execute(text("DROP TABLE IF EXISTS btc_dominance CASCADE;"))
+        connection.execute(text("""
+            DO $$ DECLARE
+                r RECORD;
+            BEGIN
+                FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = current_schema()) LOOP
+                    EXECUTE 'DROP TABLE IF EXISTS ' || quote_ident(r.tablename) || ' CASCADE';
+                END LOOP;
+            END $$;
+        """))
+        connection.commit()
+
+# @pytest.fixture(scope="session", autouse=True)
+# def setup_database():
+#     """
+#     Create all tables in the database once per test session 
+#     and drop them when the test suite finishes.
+#     """
+#     Base.metadata.create_all(bind=engine)
+#     yield
+#     Base.metadata.drop_all(bind=engine)
 
 
 @pytest.fixture(autouse=True)
@@ -16,9 +82,7 @@ def setup_app_state():
     """
     Ensure app.state has required attributes for testing.
     """
-
     price_service = PriceService()
-
     data_processor = DataProcessor(
         price_service=price_service
     )
@@ -40,13 +104,34 @@ def setup_app_state():
             delattr(app.state, attr)
 
 
-@pytest.fixture
-def client():
+@pytest.fixture(scope="session")
+def client() -> Generator[TestClient, None, None]:
     """
-    FastAPI test client.
+    FastAPI test client with database dependency overrides.
     """
+    def override_get_db():
+        db = SessionLocal()
+        try:
+            yield db
+        finally:
+            db.close()
 
-    return TestClient(app)
+    # Try overriding standard db dependencies if present
+    try:
+        from app.database.session import SessionLocal as get_db
+        app.dependency_overrides[get_db] = override_get_db
+    except ImportError:
+        try:
+            from app.database.session import SessionLocal as get_db
+            app.dependency_overrides[get_db] = override_get_db
+        except ImportError:
+            pass
+
+    with TestClient(app) as test_client:
+        yield test_client
+
+    if hasattr(app, "dependency_overrides"):
+        app.dependency_overrides.clear()
 
 
 @pytest.fixture
@@ -64,12 +149,9 @@ def db():
     """
     Application database session.
     """
-
     session = SessionLocal()
-
     try:
         yield session
-
     finally:
         session.rollback()
         session.close()
@@ -80,24 +162,16 @@ def clean_db():
     """
     Clean economic calendar tables before each test.
     """
-
     from app.models.economic_event import EconomicEvent
     from app.models.user_calendar_preference import UserCalendarPreference
 
     session = SessionLocal()
-
     try:
-
         session.query(EconomicEvent).delete()
-
         session.query(UserCalendarPreference).delete()
-
         session.commit()
-
         yield session
-
     finally:
-
         session.rollback()
         session.close()
 
@@ -110,12 +184,8 @@ def clean_db():
 def seed_macro_indicators():
     """
     Seed macro indicator data for integration tests.
-
-    Inserts test indicators into the database and cleans up
-    only the rows created by this fixture.
     """
     session = SessionLocal()
-
     now = datetime.now(timezone.utc)
 
     inserted_rows = [
@@ -174,7 +244,6 @@ def seed_macro_indicators():
             )
 
         session.commit()
-
         yield session
 
     except Exception:
@@ -198,18 +267,14 @@ def seed_macro_indicators():
         session.commit()
         session.close()
 
+
 @pytest.fixture
 def seed_current_regime():
     """
     Seed current regime data for integration tests.
-
-    Inserts a test current regime into the database and cleans up
-    after the test completes.
     """
     session = SessionLocal()
-
     try:
-        # Insert test current regime
         now = datetime.now(timezone.utc)
         
         session.execute(
@@ -242,7 +307,6 @@ def seed_current_regime():
         raise e
         
     finally:
-        # Clean up after test
         session.execute(text("DELETE FROM current_regime"))
         session.commit()
         session.close()
@@ -252,17 +316,11 @@ def seed_current_regime():
 def seed_regime_history():
     """
     Seed regime history data for integration tests.
-
-    Inserts test regime history records and cleans up
-    after the test completes.
     """
     session = SessionLocal()
-
     try:
-        # Insert test regime history
         now = datetime.now(timezone.utc)
         
-        # Check if table exists first
         result = session.execute(text("""
             SELECT EXISTS (
                 SELECT FROM information_schema.tables 
@@ -272,7 +330,6 @@ def seed_regime_history():
         table_exists = result.scalar()
         
         if not table_exists:
-            # If table doesn't exist, skip seeding
             yield session
             return
         
@@ -300,7 +357,6 @@ def seed_regime_history():
         
     except Exception as e:
         session.rollback()
-        # Don't raise - just log that table doesn't exist
         print(f"Note: regime_history table may not exist: {e}")
         yield session
         

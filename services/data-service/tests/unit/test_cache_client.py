@@ -23,20 +23,20 @@ async def test_connect_disabled():
 
     assert result is False
 
-
 @pytest.mark.asyncio
-async def test_connect_success():
+async def test_connect_success(monkeypatch):
     cache = CacheClient()
     cache.is_enabled = True
 
     mock_redis = MagicMock()
     mock_redis.ping = AsyncMock(return_value=True)
-    cache.client = mock_redis
-
+    
+    # Use built-in monkeypatch instead of pytest-mock's 'mocker' fixture
+    monkeypatch.setattr("redis.asyncio.Redis.from_url", lambda *args, **kwargs: mock_redis)
+    
     result = await cache.connect()
 
     assert result is True
-
 
 @pytest.mark.asyncio
 async def test_connect_redis_error():

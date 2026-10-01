@@ -34,6 +34,8 @@ jobs:
       python-files: ${{ steps.detect.outputs.python-files }}
       api-gateway: ${{ steps.detect.outputs.api-gateway }} # for api-gateway service 
       alert-service: ${{ steps.detect.outputs.alert-service }} # for alert service 
+      data-service: ${{ steps.detect.outputs.data-service }} # for data service 
+
 
     steps:
       - name: Checkout code
@@ -105,6 +107,12 @@ jobs:
             echo "alert-service=true" >> "$GITHUB_OUTPUT"
           else
             echo "alert-service=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          if [ "$WORKFLOW_CHANGED" = true ] || grep -q '^services/data-service/' "$RUNNER_TEMP/changed.txt"; then
+            echo "data-service=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "data-service=false" >> "$GITHUB_OUTPUT"
           fi
 
           { grep '\.py$' "$RUNNER_TEMP/changed.txt" || true; } > "$RUNNER_TEMP/changed-python.txt"
@@ -321,18 +329,95 @@ jobs:
           DATABASE_URL: postgresql://macro:crypto@localhost:5432/macrocrypto
           # SECRET_KEY: test-secret-key-for-testing-only
         run: pytest
-  # Backend tests are deliberately not here yet. There is no root
-  # requirements.txt, so the old repo-wide `pytest` installed nothing and
-  # collected everything - it only ever looked fine because black failed first
-  # and it never ran. Running each service against its own requirements works,
-  # but `tests/unit` is not all unit tests: much of it wants Postgres, Redis,
-  # and a FRED API key. Run today, with dependencies installed and no
-  # infrastructure:
-  #
-  #   ai-service     2117 passed, 1 failed
-  #   data-service    373 passed, 3 failed, 6 errors
-  #   api-gateway      65 passed, 13 failed
-  #   alert-service                 102 errors
-  #
-  # Gating on that would just move the permanent red. Standing up the services
-  # these tests need is its own change.
+
+
+  test-data-service:
+    name: Data Service (pytest)
+    needs: changes
+    if: needs.changes.outputs.data-service == 'true' || github.event.inputs.run-everything == 'true'
+    
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./services/data-service
+
+    services:
+      postgres:
+        image: timescale/timescaledb:2.17.2-pg15
+        env:
+          POSTGRES_USER: macro
+          POSTGRES_PASSWORD: crypto
+          POSTGRES_DB: macrocrypto
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U macro -d macrocrypto"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      rabbitmq:
+        image: rabbitmq:3-management-alpine
+        ports:
+          - 5672:5672
+          - 15672:15672
+        env:
+          RABBITMQ_DEFAULT_USER: guest
+          RABBITMQ_DEFAULT_PASS: guest
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q ping"
+          --health-interval 15s
+          --health-timeout 30s
+          --health-retries 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
+
+      - name: Run Pytest with FastAPI Server
+        env:
+          DATABASE_URL: postgresql://macro:crypto@localhost:5432/macrocrypto
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+          RABBITMQ_HOST: rabbitmq          # Updated to match config test expectation
+          RABBITMQ_PORT: 5672
+          RABBITMQ_DEFAULT_USER: guest
+          RABBITMQ_DEFAULT_PASS: guest
+          FRED_API_KEY: test-fred-key      # Added to satisfy config validation
+        run: | 
+          # 1. Start uvicorn and redirect all stdout/stderr to /dev/null to keep console completely clean
+          uvicorn app.main:app --host 127.0.0.1 --port 8001 >/dev/null 2>&1 &
+          SERVER_PID=$!
+
+          # 2. Wait until the FastAPI server is fully up and responding
+          until curl -s http://127.0.0.1:8001/docs > /dev/null; do
+            sleep 1
+          done
+
+          # 3. Run pytest quietly, ignoring ml_qa
+          pytest -q --show-capture=no --ignore=tests/ml_qa --cov=app --cov-report=term-missing
+
+          # 4. Clean up the background server process
+          kill $SERVER_PID
