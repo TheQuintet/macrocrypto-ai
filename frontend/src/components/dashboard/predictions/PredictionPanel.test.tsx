@@ -6,8 +6,10 @@ import {
 } from '@/api/predictions/btcPrediction.testHelpers'
 import { makePredictionAccuracy } from '@/api/predictions/predictionAccuracy.testHelpers'
 import { resetPredictionStore } from '@/stores/predictionStore.testHelpers'
+import type { PredictionAccuracyParams } from '@/types/predictionAccuracy'
 import type { PredictionParams } from '@/types/predictions'
 import {
+  expectAccuracyGrades,
   expectChartRendered,
   expectForecastUnavailable,
   expectLegendExplains,
@@ -68,8 +70,9 @@ describe('PredictionPanel', () => {
     fetchPredictionHistory.mockResolvedValue(makePredictionHistory())
     fetchPredictionAccuracy.mockReset()
     // Live, so the only "Simulated" badge on screen is the forecast's own.
-    fetchPredictionAccuracy.mockResolvedValue(
-      makePredictionAccuracy({ source: 'live' }),
+    fetchPredictionAccuracy.mockImplementation(
+      async (params: PredictionAccuracyParams) =>
+        makePredictionAccuracy({ source: 'live', horizon: params.horizon }),
     )
     respondWithParams()
   })
@@ -191,9 +194,10 @@ describe('PredictionPanel', () => {
     await selectHorizon('7d')
     await expectChartRendered('7d')
 
-    expect(fetchPredictionAccuracy).toHaveBeenLastCalledWith({
+    await expectAccuracyGrades('7d')
+    expect(fetchPredictionAccuracy).toHaveBeenCalledWith({
       horizon: '7d',
-      days: 30,
+      days: 90,
     })
   })
 

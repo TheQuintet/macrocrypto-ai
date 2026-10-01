@@ -1,22 +1,22 @@
-import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import {
   fetchPredictionAccuracy,
   PREDICTION_ACCURACY_DAYS,
   PREDICTION_ACCURACY_STALE_MS,
   predictionAccuracyQueryKey,
 } from '@/api/predictions/predictionAccuracy'
-import { usePredictionStore } from '@/stores/predictionStore'
 import type {
   PredictionAccuracy,
   PredictionAccuracyParams,
 } from '@/types/predictionAccuracy'
+import type { PredictionHorizon } from '@/types/predictions'
 
 /**
- * Historical accuracy for the horizon selected on the forecast chart, so the
- * card always grades the same window the trader is looking at.
+ * Historical accuracy for one horizon. The card asks for both: the trend
+ * always draws 24h and 7d together, and the chart toggle then switches the
+ * rest of the card instantly. Each horizon is cached on its own.
  */
-export function usePredictionAccuracyQuery() {
-  const horizon = usePredictionStore((state) => state.horizon)
+export function usePredictionAccuracyQuery(horizon: PredictionHorizon) {
   const params: PredictionAccuracyParams = {
     horizon,
     days: PREDICTION_ACCURACY_DAYS,
@@ -26,6 +26,5 @@ export function usePredictionAccuracyQuery() {
     queryKey: predictionAccuracyQueryKey(params),
     queryFn: () => fetchPredictionAccuracy(params),
     staleTime: PREDICTION_ACCURACY_STALE_MS,
-    placeholderData: keepPreviousData,
   })
 }

@@ -2,7 +2,8 @@ import { PredictionSummaryStat } from '@/components/dashboard/predictions/Predic
 import { PredictionAccuracyWarning } from '@/components/dashboard/predictions/accuracy/PredictionAccuracyWarning'
 import {
   accuracyScore,
-  accuracyScoreCaption,
+  accuracyScoreExplanation,
+  accuracyScoreLabel,
   findThreshold,
   formatAccuracyDate,
   formatAccuracyPercent,
@@ -39,6 +40,9 @@ export function PredictionAccuracySummary({
       <PredictionAccuracyWarning accuracy={accuracy} />
 
       <div role="group" aria-label="Accuracy score">
+        <p className="text-xs text-muted-foreground">
+          {score ? accuracyScoreLabel(score.kind) : 'Accuracy'}
+        </p>
         <p
           className={cn(
             'font-mono text-3xl font-semibold tabular-nums',
@@ -49,7 +53,7 @@ export function PredictionAccuracySummary({
         </p>
         <p className="text-sm text-muted-foreground">
           {score
-            ? accuracyScoreCaption(score.kind)
+            ? accuracyScoreExplanation(score.kind, accuracy.metrics)
             : 'Not enough scored forecasts yet'}
         </p>
       </div>
@@ -59,6 +63,11 @@ export function PredictionAccuracySummary({
           label="Typical miss"
           value={formatUsdMiss(accuracy.metrics.mae)}
           className={toneFor('mae_pct')}
+        />
+        <PredictionSummaryStat
+          label="Large misses"
+          value={formatUsdMiss(accuracy.metrics.rmse)}
+          className={toneFor('rmse_pct')}
         />
         <PredictionSummaryStat
           label="Average % miss"

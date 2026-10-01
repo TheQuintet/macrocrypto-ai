@@ -1,4 +1,4 @@
-import { expect, type Page } from '@playwright/test'
+import { expect, type Locator, type Page } from '@playwright/test'
 
 export const HORIZON_GROUP = 'Forecast horizon'
 export const CONFIDENCE_GROUP = 'Confidence level'
@@ -291,20 +291,126 @@ export function getAccuracyScore(page: Page) {
   return page.getByRole('group', { name: 'Accuracy score', exact: true })
 }
 
-/** Price accuracy is the headline the service can produce today. */
+/**
+ * Price accuracy is the headline the service can produce today, explained
+ * as how close forecasts landed rather than how often they were "right".
+ */
 export async function expectAccuracyScore(page: Page) {
-  await expect(getAccuracyScore(page)).toContainText(/\d+%/)
-  await expect(getAccuracyScore(page)).toContainText(
-    'price accuracy (100% minus the average % miss)',
+  const score = getAccuracyScore(page)
+
+  await expect(score).toContainText('Price accuracy')
+  await expect(score).toContainText(/\d+%/)
+  await expect(score).toContainText(
+    /Forecasts were within \d+\.\d{2}% of the real price on average/,
   )
 }
 
-export async function expectAccuracyTrend(page: Page) {
+function getAccuracyTrend(scope: Page | Locator) {
+  return scope.getByRole('img', { name: 'Forecast accuracy trend' })
+}
+
+/** Always both horizons, each named in the legend. */
+export async function expectAccuracyTrend(scope: Page | Locator) {
   await expect(
-    page
-      .getByRole('img', { name: 'Forecast accuracy trend' })
-      .locator('.recharts-line-curve'),
-  ).toBeVisible()
+    getAccuracyTrend(scope).locator('.recharts-line-curve'),
+  ).toHaveCount(2)
+
+  const legend = scope.getByRole('group', { name: 'Accuracy trend legend' })
+  await expect(legend).toContainText('24h forecasts')
+  await expect(legend).toContainText('7d forecasts')
+}
+
+/** The trend's lines, as drawn — unchanged by the horizon toggle. */
+export async function accuracyTrendPaths(page: Page) {
+  return getAccuracyTrend(page)
+    .locator('.recharts-line-curve')
+    .evaluateAll((paths) => paths.map((path) => path.getAttribute('d')))
+}
+
+/** The accuracy card sits below the fold; mouse and touch need it on screen. */
+async function chartCentre(chart: Locator) {
+  await chart.scrollIntoViewIfNeeded()
+  const box = await chart.boundingBox()
+  if (!box) throw new Error('chart has no bounding box')
+
+  return { x: box.x + box.width * 0.6, y: box.y + box.height / 2 }
+}
+
+export async function hoverAccuracyTrend(page: Page) {
+  const { x, y } = await chartCentre(getAccuracyTrend(page))
+  await page.mouse.move(x, y)
+}
+
+/** Touch the trend — how a phone reaches the same tooltip. */
+export async function tapAccuracyTrend(page: Page) {
+  const { x, y } = await chartCentre(getAccuracyTrend(page))
+  await page.touchscreen.tap(x, y)
+}
+
+export async function expectAccuracyTrendTooltip(page: Page) {
+  const tooltip = page.getByRole('tooltip')
+
+  await expect(tooltip).toBeVisible()
+  await expect(tooltip).toContainText(/24h forecasts\d+%/)
+  await expect(tooltip).toContainText(/7d forecasts\d+%/)
+}
+
+function getAccuracyComparison(scope: Page | Locator, horizon: string) {
+  return scope.getByRole('img', {
+    name: `Predicted vs actual BTC price, ${horizon} forecasts`,
+  })
+}
+
+export async function showAccuracyComparison(page: Page) {
+  await getOption(page, 'Accuracy chart', 'Predicted vs actual').click()
+}
+
+export async function expectAccuracyComparison(
+  scope: Page | Locator,
+  horizon: string,
+) {
+  await expect(
+    getAccuracyComparison(scope, horizon).locator('.recharts-line-curve'),
+  ).toHaveCount(2)
+  await expect(
+    scope.getByRole('group', { name: 'Predicted vs actual legend' }),
+  ).toContainText('Predicted priceActual price')
+}
+
+/** The comparison's own copy of the 24h/7d toggle, beside the chart. */
+export async function selectComparisonHorizon(page: Page, label: string) {
+  await getOption(page, 'Comparison horizon', label).click()
+}
+
+export async function zoomAccuracyComparison(
+  page: Page,
+  direction: 'in' | 'out',
+) {
+  await page
+    .getByRole('group', { name: 'Comparison zoom', exact: true })
+    .getByRole('button', { name: direction === 'in' ? 'Zoom in' : 'Zoom out' })
+    .click()
+}
+
+export async function accuracyComparisonSpanDays(page: Page) {
+  const text = await page.getByText(/^Showing the last \d+ days?$/).textContent()
+  const days = Number(text?.match(/\d+/)?.[0])
+  if (!Number.isFinite(days)) throw new Error('comparison span is not shown')
+  return days
+}
+
+export async function hoverAccuracyComparison(page: Page, horizon: string) {
+  const { x, y } = await chartCentre(getAccuracyComparison(page, horizon))
+  await page.mouse.move(x, y)
+}
+
+export async function expectAccuracyComparisonTooltip(page: Page) {
+  const tooltip = page.getByRole('tooltip')
+
+  await expect(tooltip).toBeVisible()
+  await expect(tooltip).toContainText(/Predicted\$[\d,]+/)
+  await expect(tooltip).toContainText(/Actual\$[\d,]+/)
+  await expect(tooltip).toContainText(/Gap[+-]?\$[\d,]+ \([+-]?\d+\.\d{2}%\)/)
 }
 
 export async function expectAccuracyGrades(page: Page, horizon: string) {
@@ -325,28 +431,145 @@ export async function expectNoAccuracyWarning(page: Page) {
   ).toHaveCount(0)
 }
 
+const MARKETS = ['Bull market', 'Bear market', 'Volatile', 'Neutral']
+
+const GRADE_CLASSES = {
+  good: /\btext-positive\b/,
+  medium: /\btext-warning\b/,
+  poor: /\btext-negative\b/,
+} as const
+
+type MarketGrade = keyof typeof GRADE_CLASSES
+
+function getMarketTile(page: Page, market: string) {
+  return page
+    .getByRole('region', { name: 'Accuracy by market' })
+    .getByRole('group', { name: market, exact: true })
+}
+
+/** One tile per market, each with an accuracy % and its % miss. */
+export async function expectMarketTiles(page: Page) {
+  for (const market of MARKETS) {
+    const tile = getMarketTile(page, market)
+    await expect(tile).toContainText(/\d+%/)
+    await expect(tile).toContainText(/\d+\.\d{2}% miss/)
+  }
+}
+
+export async function expectMarketTileGraded(
+  page: Page,
+  market: string,
+  grade: MarketGrade,
+) {
+  await expect(
+    getMarketTile(page, market).getByText(/^\d+%$/),
+  ).toHaveClass(GRADE_CLASSES[grade])
+}
+
+/** Two tiles a row on a phone: the third starts a new row under the first. */
+export async function expectMarketTilesTwoByTwo(page: Page) {
+  const boxes = await Promise.all(
+    MARKETS.map((market) => getMarketTile(page, market).boundingBox()),
+  )
+  if (boxes.some((box) => box == null)) throw new Error('tile not rendered')
+  const [first, second, third] = boxes as NonNullable<(typeof boxes)[number]>[]
+
+  expect(Math.abs(first.y - second.y)).toBeLessThan(2)
+  expect(third.y).toBeGreaterThan(first.y + first.height - 1)
+  expect(Math.abs(third.x - first.x)).toBeLessThan(2)
+}
+
+/** On a small screen the score sits above the chart, not beside it. */
+export async function expectAccuracyStacked(page: Page) {
+  const score = await getAccuracyScore(page).boundingBox()
+  const chart = await getAccuracyTrend(page).boundingBox()
+  if (!score || !chart) throw new Error('accuracy card not rendered')
+
+  expect(chart.y).toBeGreaterThan(score.y + score.height)
+}
+
+function getAccuracyDetails(page: Page) {
+  return page.getByRole('dialog', { name: 'Forecast accuracy details' })
+}
+
+/** The dialog is named by its title. */
 export async function openAccuracyDetails(page: Page) {
   await page.getByRole('button', { name: 'View details' }).click()
-  const dialog = page.getByRole('dialog')
-  await expect(
-    dialog.getByRole('heading', { name: 'Forecast accuracy details' }),
-  ).toBeVisible()
+  const dialog = getAccuracyDetails(page)
+  await expect(dialog).toBeVisible()
   return dialog
 }
 
 export async function expectAccuracyBreakdown(page: Page) {
-  const table = page.getByRole('table', {
+  const table = getAccuracyDetails(page).getByRole('table', {
     name: 'Accuracy by market condition',
   })
 
-  for (const market of ['Bull market', 'Bear market', 'Volatile', 'Neutral']) {
+  for (const market of MARKETS) {
     await expect(table).toContainText(market)
   }
 }
 
+/** The scorecard's own trend and comparison, scoped so the card's are ignored. */
+export async function expectAccuracyDetailsCharts(
+  dialog: Locator,
+  horizon: string,
+) {
+  await expectAccuracyTrend(dialog)
+  await expectAccuracyComparison(dialog, horizon)
+}
+
+export async function expectAccuracyDetailsFacts(dialog: Locator) {
+  for (const label of ['Forecasts checked', 'Period', 'Last scored']) {
+    await expect(dialog.getByText(label, { exact: true })).toBeVisible()
+  }
+  for (const metric of ['MAE', 'RMSE', 'MAPE']) {
+    await expect(dialog).toContainText(metric)
+  }
+}
+
+/** The dialog table's accuracy column, graded like the tiles. */
+export async function expectBreakdownGraded(
+  dialog: Locator,
+  market: string,
+  grade: MarketGrade,
+) {
+  const cell = dialog
+    .getByRole('table', { name: 'Accuracy by market condition' })
+    .getByRole('row', { name: new RegExp(market) })
+    .getByRole('cell')
+    .nth(1)
+
+  await expect(cell).toHaveClass(GRADE_CLASSES[grade])
+}
+
+export async function expectAccuracyDetailsFocused(page: Page) {
+  await expect(getAccuracyDetails(page)).toBeFocused()
+}
+
+export async function pressTabInDetails(page: Page) {
+  await page.keyboard.press('Tab')
+}
+
+/** Tab never leaves the open dialog. */
+export async function expectFocusInsideDetails(page: Page) {
+  expect(
+    await getAccuracyDetails(page).evaluate((dialog) =>
+      dialog.contains(document.activeElement),
+    ),
+  ).toBe(true)
+}
+
+export async function pressEscape(page: Page) {
+  await page.keyboard.press('Escape')
+}
+
+export async function expectFocusBackOnViewDetails(page: Page) {
+  await expect(page.getByRole('button', { name: 'View details' })).toBeFocused()
+}
+
 export async function closeAccuracyDetails(page: Page) {
-  await page
-    .getByRole('dialog')
+  await getAccuracyDetails(page)
     .getByRole('button', { name: 'Close', exact: true })
     .click()
 }

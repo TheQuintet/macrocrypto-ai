@@ -3,8 +3,11 @@ import type {
   MarketCondition,
   ModelHistoryPointResponse,
   PerformanceEntryResponse,
+  PerformancePointResponse,
+  PerformancePointsResponse,
   PerformanceResponse,
   PredictionAccuracyParams,
+  PredictionAccuracyPointsParams,
   ThresholdStatusResponse,
 } from '@/types/predictionAccuracy'
 import type { PredictionHorizon } from '@/types/predictions'
@@ -30,6 +33,9 @@ const AGGREGATION_HOUR_UTC = 6
 const MODELS = ['prophet_fresh', 'xgboost_fresh', 'lightgbm_fresh'] as const
 
 type ModelName = (typeof MODELS)[number]
+
+/** The model the simulated response names as `best_model`. */
+const BEST_MODEL: ModelName = 'prophet_fresh'
 
 /**
  * Headline figures per horizon. The 7d model's miss sits just over the MAPE
@@ -61,6 +67,27 @@ const MARKET_MIX: Record<
   bear: { share: 0.25, mapeScale: 1.1 },
   volatile: { share: 0.15, mapeScale: 1.6 },
   neutral: { share: 0.25, mapeScale: 0.75 },
+}
+
+/**
+ * Market each simulated day falls in, spread to match `MARKET_MIX` shares
+ * (7 bull, 5 bear, 3 volatile, 5 neutral in every 20 days).
+ */
+const MARKET_DAYS: MarketCondition[] = [
+  'bull', 'bear', 'neutral', 'bull', 'volatile',
+  'bear', 'bull', 'neutral', 'bull', 'bear',
+  'volatile', 'neutral', 'bull', 'bear', 'neutral',
+  'bull', 'volatile', 'bear', 'neutral', 'bull',
+]
+
+function isSimulatedModel(modelName: string): modelName is ModelName {
+  return (MODELS as readonly string[]).includes(modelName)
+}
+
+/** A model's average % miss on a horizon; unknown models get the baseline. */
+function modelMape(modelName: string, horizon: PredictionHorizon) {
+  const offset = isSimulatedModel(modelName) ? MODEL_OFFSET[modelName].mape : 0
+  return BASE[horizon].mape + offset
 }
 
 function round(value: number, digits = 2) {
@@ -137,7 +164,7 @@ function buildEntry(
 ): PerformanceEntryResponse {
   const base = BASE[horizon]
   const offset = MODEL_OFFSET[model]
-  const mape = base.mape + offset.mape
+  const mape = modelMape(model, horizon)
   const directional = base.directional + offset.directional
   const samples = base.samplesPerDay * days
   const history = buildHistory(
@@ -217,6 +244,81 @@ export function buildSimulatedPerformance(
       (total, entry) => total + entry.warning_count,
       0,
     ),
-    best_model: 'prophet_fresh',
+    best_model: BEST_MODEL,
+  }
+}
+
+/**
+ * A BTC price path both horizons are scored against, keyed on time so a 24h
+ * and a 7d forecast for the same moment meet the same actual price.
+ */
+function simulatedActualPrice(timeMs: number) {
+  const days = timeMs / DAY_MS
+  return (
+    MEAN_PRICE *
+    (1 +
+      Math.sin(days * 0.35) * 0.04 +
+      Math.cos(days * 0.9) * 0.025 +
+      Math.sin(days * 24 * 1.7) * 0.0015)
+  )
+}
+
+/**
+ * Stand-in `GET /api/v1/performance/btc/points` body for a frontend-only run.
+ *
+ * One point per scored forecast, as many as the accuracy entry counts, each
+ * missing by about that model's average % miss — scaled by how hard its
+ * market is — so the gap on the chart matches the MAPE on the card.
+ */
+export function buildSimulatedPerformancePoints(
+  params: PredictionAccuracyPointsParams,
+  nowMs: number,
+): PerformancePointsResponse {
+  const modelName = params.modelName ?? BEST_MODEL
+  const { samplesPerDay } = BASE[params.horizon]
+  const mape = modelMape(modelName, params.horizon)
+  const endMs = lastAggregationAt(nowMs)
+  const stepMs = DAY_MS / samplesPerDay
+  const count = samplesPerDay * params.days
+
+  const times = Array.from(
+    { length: count },
+    (_, index) => endMs - (count - 1 - index) * stepMs,
+  )
+  const conditions = times.map(
+    (timeMs) => MARKET_DAYS[Math.floor(timeMs / DAY_MS) % MARKET_DAYS.length],
+  )
+  // A real model's error drifts: it runs over or under for days at a time,
+  // not in a regular back-and-forth. Two slow, unrelated waves give that
+  // irregular drift, weighted by how hard each market is. Dividing by the
+  // mean size brings the average miss back to the MAPE the card reports.
+  const drift = times.map((timeMs, index) => {
+    const day = timeMs / DAY_MS
+    const wave = 0.65 * Math.sin(day * 0.21) + 0.35 * Math.sin(day * 0.57 + 1.3)
+    return wave * MARKET_MIX[conditions[index]].mapeScale
+  })
+  const meanDrift =
+    drift.reduce((total, value) => total + Math.abs(value), 0) /
+      drift.length || 1
+
+  const points = times.map((timeMs, index) => {
+    const condition = conditions[index]
+    const actual = simulatedActualPrice(timeMs)
+    const missPct = (mape * drift[index]) / meanDrift
+    const point: PerformancePointResponse = {
+      forecast_date: new Date(timeMs).toISOString(),
+      predicted_price: round(actual * (1 + missPct / 100)),
+      actual_price: round(actual),
+      market_condition: condition,
+    }
+    return point
+  })
+
+  return {
+    horizon: params.horizon,
+    model_name: modelName,
+    model_version: '1.0.0',
+    time_period_days: params.days,
+    points,
   }
 }

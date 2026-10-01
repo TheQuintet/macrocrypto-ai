@@ -70,7 +70,6 @@
   --color-regime-rising-rates: var(--regime-rising-rates);
   --color-regime-high-inflation: var(--regime-high-inflation);
   --color-regime-recession: var(--regime-recession);
-  --color-market-volatile: var(--market-volatile);
   --color-ring: var(--ring);
   --color-input: var(--input);
   --color-border: var(--border);
@@ -165,8 +164,6 @@
   --regime-rising-rates: oklch(0.68 0.13 65);
   --regime-high-inflation: oklch(0.63 0.16 40);
   --regime-recession: oklch(0.56 0.2 25);
-  /* Bull/bear/neutral reuse positive/negative/warning; volatile needs its own. */
-  --market-volatile: oklch(0.6 0.15 300);
 
   --sidebar: oklch(0.975 0.003 220);
   --sidebar-foreground: oklch(0.28 0.012 240);
@@ -250,7 +247,6 @@
   --regime-rising-rates: oklch(0.78 0.13 65);
   --regime-high-inflation: oklch(0.72 0.15 40);
   --regime-recession: oklch(0.68 0.18 25);
-  --market-volatile: oklch(0.74 0.13 300);
 
   --sidebar: oklch(0.195 0.007 240);
   --sidebar-foreground: oklch(0.9 0.004 220);

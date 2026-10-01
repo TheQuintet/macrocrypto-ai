@@ -17,8 +17,14 @@ import type { PredictionHorizon, PredictionSource } from '@/types/predictions'
 /** The service re-aggregates once a day; a few minutes stale is plenty fresh. */
 export const PREDICTION_ACCURACY_STALE_MS = 15 * 60 * 1000
 
-/** Look-back window the card reports on ("based on the last 30 days"). */
-export const PREDICTION_ACCURACY_DAYS = 30
+/**
+ * Look-back window the card reports on ("based on the last 90 days").
+ *
+ * 90, not 30, so the trend covers about three months: the service fetches
+ * history inside `days` and only then trims it to `history_limit` (capped at
+ * 90), so a longer trend needs a longer window for every figure.
+ */
+export const PREDICTION_ACCURACY_DAYS = 90
 
 /** `MAX_HISTORY_LIMIT` on the service; asking for more is a 422. */
 const HISTORY_LIMIT_MAX = 90

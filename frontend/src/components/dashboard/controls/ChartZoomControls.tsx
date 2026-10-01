@@ -13,6 +13,8 @@ type ChartZoomControlsProps = {
   max?: number
   onZoomIn: () => void
   onZoomOut: () => void
+  /** Group name; set it when a page has more than one zoomable chart. */
+  label?: string
 }
 
 export function ChartZoomControls({
@@ -21,12 +23,13 @@ export function ChartZoomControls({
   max = MAX_CHART_POINT_WIDTH,
   onZoomIn,
   onZoomOut,
+  label = 'Chart zoom',
 }: ChartZoomControlsProps) {
   return (
     <div
       className="flex items-center gap-2"
       role="group"
-      aria-label="Chart zoom"
+      aria-label={label}
     >
       <Button
         type="button"

@@ -145,3 +145,72 @@ export type AccuracyScore = {
   /** 0–100. */
   value: number
 }
+
+/** The trend line for one horizon, on the scale the whole chart shares. */
+export type AccuracyTrendRow = {
+  timeMs: number
+} & Partial<Record<PredictionHorizon, number | null>>
+
+/** A service bound on the trend's scale, and the horizons it applies to. */
+export type TrendTarget = {
+  value: number
+  horizons: PredictionHorizon[]
+}
+
+/** Which chart the accuracy card is showing. */
+export type AccuracyChartView = 'trend' | 'comparison'
+
+/**
+ * How a market's miss compares: `good` at or better than the model's overall
+ * miss, `medium` worse than overall, `poor` beyond the service's MAPE bound.
+ */
+export type MarketGrade = 'good' | 'medium' | 'poor'
+
+/**
+ * Scored forecasts, one per row of `prediction_performance` —
+ * GET /api/v1/performance/btc/points on the ai-service.
+ */
+
+/** One scored forecast on the wire. Prices in USD. */
+export type PerformancePointResponse = {
+  /** The moment the forecast was for. */
+  forecast_date: string
+  predicted_price: number
+  actual_price: number
+  market_condition: string | null
+}
+
+/** `GET /api/v1/performance/btc/points` body. Points run oldest first. */
+export type PerformancePointsResponse = {
+  horizon: string
+  model_name: string
+  model_version: string | null
+  time_period_days: number
+  points: PerformancePointResponse[]
+}
+
+export type PredictionAccuracyPointsParams = {
+  horizon: PredictionHorizon
+  days: number
+  /** The model to compare; the service picks one when it is left out. */
+  modelName?: string
+}
+
+export type PredictionAccuracyPoint = {
+  time: string
+  timeMs: number
+  predicted: number
+  actual: number
+  /** Null when the service did not classify the window, or used a new label. */
+  marketCondition: MarketCondition | null
+}
+
+/** Predicted against actual price for one model and horizon. */
+export type PredictionAccuracyPoints = {
+  source: PredictionSource
+  horizon: PredictionHorizon
+  modelName: string
+  modelVersion: string | null
+  periodDays: number
+  points: PredictionAccuracyPoint[]
+}
