@@ -14,6 +14,13 @@ Design:
     - Validates rows before insertion, then writes in a single
       bulk INSERT.
     - Does not commit — the caller controls the transaction.
+
+CLI isolation:
+    When settings.cli_mode is True, all reads and writes on the
+    prediction_performance table are routed to
+    prediction_performance_cli instead. This keeps CLI runs
+    sandboxed from production data. Routing is handled by
+    `_resolve_performance_table()`.
 """
 
 import logging
@@ -24,7 +31,11 @@ from typing import Any, Dict, List, Optional
 from sqlalchemy import desc, func, insert, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.tables import prediction_performance
+from app.config import settings
+from app.database.tables import (
+    prediction_performance,
+    prediction_performance_cli,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -104,6 +115,23 @@ class PerformanceRepository:
         self.session = session
 
     # ============================================================
+    # CLI ROUTING HELPER
+    # ============================================================
+    def _resolve_performance_table(self):
+        """Return the active prediction_performance table.
+
+        In CLI mode (settings.cli_mode=True), returns
+        prediction_performance_cli so CLI runs are sandboxed.
+        Otherwise returns the production table.
+
+        Returns:
+            A SQLAlchemy Table object.
+        """
+        if settings.cli_mode:
+            return prediction_performance_cli
+        return prediction_performance
+
+    # ============================================================
     # WRITES
     # ============================================================
     async def save_performance_rows(
@@ -113,6 +141,9 @@ class PerformanceRepository:
 
         Validates all rows before insertion. Does not commit — the
         caller controls the transaction via session_scope().
+
+        CLI mode: when settings.cli_mode is True, rows are written
+        to prediction_performance_cli instead.
 
         Args:
             rows: List of PerformanceRow instances.
@@ -133,12 +164,13 @@ class PerformanceRepository:
         dict_rows = [r.to_dict() for r in rows]
         validate_performance_rows(dict_rows)
 
-        stmt = insert(prediction_performance).values(dict_rows)
+        table = self._resolve_performance_table()
+        stmt = insert(table).values(dict_rows)
         await self.session.execute(stmt)
         await self.session.flush()
 
         logger.info(
-            f"Inserted {len(dict_rows)} prediction_performance rows"
+            f"Inserted {len(dict_rows)} rows into {table.name}"
         )
 
         return len(dict_rows)
@@ -166,24 +198,26 @@ class PerformanceRepository:
             forecast_date, mae, rmse, mape, market_condition,
             created_at. Or None if no rows exist.
         """
+        table = self._resolve_performance_table()
+
         stmt = (
             select(
-                prediction_performance.c.horizon,
-                prediction_performance.c.model_name,
-                prediction_performance.c.model_version,
-                prediction_performance.c.forecast_date,
-                prediction_performance.c.mae,
-                prediction_performance.c.rmse,
-                prediction_performance.c.mape,
-                prediction_performance.c.market_condition,
-                prediction_performance.c.created_at,
+                table.c.horizon,
+                table.c.model_name,
+                table.c.model_version,
+                table.c.forecast_date,
+                table.c.mae,
+                table.c.rmse,
+                table.c.mape,
+                table.c.market_condition,
+                table.c.created_at,
             )
             .where(
-                prediction_performance.c.horizon == horizon,
-                prediction_performance.c.model_name == model_name,
-                prediction_performance.c.mae.isnot(None),
+                table.c.horizon == horizon,
+                table.c.model_name == model_name,
+                table.c.mae.isnot(None),
             )
-            .order_by(desc(prediction_performance.c.forecast_date))
+            .order_by(desc(table.c.forecast_date))
             .limit(1)
         )
 
@@ -218,25 +252,26 @@ class PerformanceRepository:
         Returns:
             List of dicts (one per evaluation batch).
         """
+        table = self._resolve_performance_table()
         since = datetime.now(timezone.utc) - timedelta(days=days)
 
         stmt = (
             select(
-                prediction_performance.c.forecast_date,
-                prediction_performance.c.mae,
-                prediction_performance.c.rmse,
-                prediction_performance.c.mape,
-                prediction_performance.c.created_at,
+                table.c.forecast_date,
+                table.c.mae,
+                table.c.rmse,
+                table.c.mape,
+                table.c.created_at,
             )
             .where(
-                prediction_performance.c.horizon == horizon,
-                prediction_performance.c.model_name == model_name,
-                prediction_performance.c.mae.isnot(None),
-                prediction_performance.c.forecast_date >= since,
+                table.c.horizon == horizon,
+                table.c.model_name == model_name,
+                table.c.mae.isnot(None),
+                table.c.forecast_date >= since,
             )
-            .distinct(prediction_performance.c.forecast_date)
+            .distinct(table.c.forecast_date)
             .order_by(
-                prediction_performance.c.forecast_date.asc(),
+                table.c.forecast_date.asc(),
             )
         )
 
@@ -259,14 +294,13 @@ class PerformanceRepository:
         Returns:
             Row count.
         """
-        stmt = select(func.count()).select_from(prediction_performance)
+        table = self._resolve_performance_table()
+        stmt = select(func.count()).select_from(table)
 
         if horizon is not None:
-            stmt = stmt.where(prediction_performance.c.horizon == horizon)
+            stmt = stmt.where(table.c.horizon == horizon)
         if model_name is not None:
-            stmt = stmt.where(
-                prediction_performance.c.model_name == model_name
-            )
+            stmt = stmt.where(table.c.model_name == model_name)
 
         result = await self.session.execute(stmt)
         return int(result.scalar_one())
@@ -288,11 +322,13 @@ class PerformanceRepository:
         Returns:
             Latest forecast_date, or None.
         """
+        table = self._resolve_performance_table()
+
         stmt = select(
-            func.max(prediction_performance.c.forecast_date)
+            func.max(table.c.forecast_date)
         ).where(
-            prediction_performance.c.horizon == horizon,
-            prediction_performance.c.model_name == model_name,
+            table.c.horizon == horizon,
+            table.c.model_name == model_name,
         )
 
         result = await self.session.execute(stmt)
@@ -327,35 +363,34 @@ class PerformanceRepository:
             model_version, forecast_date, mae, rmse, mape,
             directional_accuracy, samples.
         """
+        table = self._resolve_performance_table()
         since = datetime.now(timezone.utc) - timedelta(days=days)
 
         # We use a correlated subquery: "the row with the max
         # forecast_date for this group". This is more portable than
         # DISTINCT ON and works with our composite PK.
         stmt = select(
-            prediction_performance.c.horizon,
-            prediction_performance.c.model_name,
-            prediction_performance.c.model_version,
-            prediction_performance.c.forecast_date,
-            prediction_performance.c.mae,
-            prediction_performance.c.rmse,
-            prediction_performance.c.mape,
+            table.c.horizon,
+            table.c.model_name,
+            table.c.model_version,
+            table.c.forecast_date,
+            table.c.mae,
+            table.c.rmse,
+            table.c.mape,
         ).where(
-            prediction_performance.c.forecast_date >= since,
-            prediction_performance.c.mae.isnot(None),
+            table.c.forecast_date >= since,
+            table.c.mae.isnot(None),
         )
 
         if horizon is not None:
-            stmt = stmt.where(prediction_performance.c.horizon == horizon)
+            stmt = stmt.where(table.c.horizon == horizon)
         if model_name is not None:
-            stmt = stmt.where(
-                prediction_performance.c.model_name == model_name
-            )
+            stmt = stmt.where(table.c.model_name == model_name)
 
         stmt = stmt.order_by(
-            prediction_performance.c.model_name.asc(),
-            prediction_performance.c.horizon.asc(),
-            desc(prediction_performance.c.forecast_date),
+            table.c.model_name.asc(),
+            table.c.horizon.asc(),
+            desc(table.c.forecast_date),
         )
 
         result = await self.session.execute(stmt)
@@ -416,27 +451,26 @@ class PerformanceRepository:
             Model name with the lowest mean MAE, or None if no
             model has MAE data in the window.
         """
+        table = self._resolve_performance_table()
         since = datetime.now(timezone.utc) - timedelta(days=days)
 
         # Build the WHERE clause before adding GROUP BY / ORDER BY /
         # LIMIT — SQLAlchemy 2.x requires this ordering.
         stmt = select(
-            prediction_performance.c.model_name,
-            func.avg(prediction_performance.c.mae).label("mean_mae"),
+            table.c.model_name,
+            func.avg(table.c.mae).label("mean_mae"),
         ).where(
-            prediction_performance.c.horizon == horizon,
-            prediction_performance.c.forecast_date >= since,
-            prediction_performance.c.mae.isnot(None),
+            table.c.horizon == horizon,
+            table.c.forecast_date >= since,
+            table.c.mae.isnot(None),
         )
 
         if model_names:
-            stmt = stmt.where(
-                prediction_performance.c.model_name.in_(model_names)
-            )
+            stmt = stmt.where(table.c.model_name.in_(model_names))
 
         stmt = (
-            stmt.group_by(prediction_performance.c.model_name)
-            .order_by(func.avg(prediction_performance.c.mae).asc())
+            stmt.group_by(table.c.model_name)
+            .order_by(func.avg(table.c.mae).asc())
             .limit(1)
         )
 
@@ -473,25 +507,26 @@ class PerformanceRepository:
             mape, samples. Only conditions with at least one row
             are returned.
         """
+        table = self._resolve_performance_table()
         since = datetime.now(timezone.utc) - timedelta(days=days)
 
         stmt = (
             select(
-                prediction_performance.c.market_condition,
-                func.avg(prediction_performance.c.mae).label("mae"),
-                func.avg(prediction_performance.c.rmse).label("rmse"),
-                func.avg(prediction_performance.c.mape).label("mape"),
+                table.c.market_condition,
+                func.avg(table.c.mae).label("mae"),
+                func.avg(table.c.rmse).label("rmse"),
+                func.avg(table.c.mape).label("mape"),
                 func.count().label("samples"),
             )
             .where(
-                prediction_performance.c.horizon == horizon,
-                prediction_performance.c.model_name == model_name,
-                prediction_performance.c.forecast_date >= since,
-                prediction_performance.c.market_condition.isnot(None),
-                prediction_performance.c.mae.isnot(None),
+                table.c.horizon == horizon,
+                table.c.model_name == model_name,
+                table.c.forecast_date >= since,
+                table.c.market_condition.isnot(None),
+                table.c.mae.isnot(None),
             )
-            .group_by(prediction_performance.c.market_condition)
-            .order_by(prediction_performance.c.market_condition.asc())
+            .group_by(table.c.market_condition)
+            .order_by(table.c.market_condition.asc())
         )
 
         result = await self.session.execute(stmt)
@@ -516,28 +551,28 @@ class PerformanceRepository:
         Returns:
             Dict keyed by (model_name, horizon), values are ints.
         """
+        table = self._resolve_performance_table()
+
         stmt = (
             select(
-                prediction_performance.c.model_name,
-                prediction_performance.c.horizon,
+                table.c.model_name,
+                table.c.horizon,
                 func.count().label("samples"),
             )
             .where(
-                prediction_performance.c.forecast_date >= since,
-                prediction_performance.c.mae.isnot(None),
+                table.c.forecast_date >= since,
+                table.c.mae.isnot(None),
             )
             .group_by(
-                prediction_performance.c.model_name,
-                prediction_performance.c.horizon,
+                table.c.model_name,
+                table.c.horizon,
             )
         )
 
         if horizon is not None:
-            stmt = stmt.where(prediction_performance.c.horizon == horizon)
+            stmt = stmt.where(table.c.horizon == horizon)
         if model_name is not None:
-            stmt = stmt.where(
-                prediction_performance.c.model_name == model_name
-            )
+            stmt = stmt.where(table.c.model_name == model_name)
 
         result = await self.session.execute(stmt)
         return {
