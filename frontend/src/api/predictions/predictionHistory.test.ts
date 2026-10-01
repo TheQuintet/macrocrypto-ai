@@ -9,6 +9,7 @@ import { HISTORY_WINDOW } from '@/api/predictions/predictionWindow'
 import type { PredictionHistoryResponse } from '@/types/predictions'
 
 const FIXED_NOW_MS = Date.UTC(2024, 5, 15, 12, 0, 0)
+const HOUR_MS = 60 * 60 * 1000
 const ANCHOR = 64_000
 
 const WIRE_RESPONSE: PredictionHistoryResponse = {
@@ -34,11 +35,11 @@ describe('historyParamsFor', () => {
     })
   })
 
-  it('fetches a month of daily candles behind the 7d forecast', () => {
+  it('fetches a month of hourly candles behind the 7d forecast', () => {
     expect(historyParamsFor('7d')).toEqual({
       horizon: '7d',
       range: '30d',
-      interval: '1d',
+      interval: '1h',
     })
   })
 })
@@ -139,29 +140,35 @@ describe('buildSimulatedHistoryPoints', () => {
     }
   })
 
-  it('gives daily candles a wider range than hourly ones', () => {
-    const meanRange = (horizon: '24h' | '7d') => {
-      const points = buildSimulatedHistoryPoints(
-        historyParamsFor(horizon),
-        FIXED_NOW_MS,
-        ANCHOR,
-      )
-      const total = points.reduce((sum, p) => sum + (p.high - p.low), 0)
-      return total / points.length
-    }
+  it('spaces the 7d history hourly, like the forecast it sits behind', () => {
+    const times = buildSimulatedHistoryPoints(
+      historyParamsFor('7d'),
+      FIXED_NOW_MS,
+      ANCHOR,
+    ).map((point) => new Date(point.timestamp).getTime())
 
-    expect(meanRange('7d')).toBeGreaterThan(meanRange('24h') * 3)
+    expect(
+      times.slice(1).every((time, index) => time - times[index] === HOUR_MS),
+    ).toBe(true)
   })
 
-  it('ends on the candle immediately before now', () => {
+  /**
+   * The data service stamps a candle at its open time. The newest simulated
+   * candle opened an hour before now and closed on the anchor at now.
+   */
+  it('stamps each candle at its open time, the newest an hour before now', () => {
     const points = buildSimulatedHistoryPoints(
       historyParamsFor('24h'),
       FIXED_NOW_MS,
       ANCHOR,
     )
+    const candles = HISTORY_WINDOW['24h'].candles
 
     expect(points[points.length - 1].timestamp).toBe(
-      new Date(FIXED_NOW_MS).toISOString(),
+      new Date(FIXED_NOW_MS - HOUR_MS).toISOString(),
+    )
+    expect(points[0].timestamp).toBe(
+      new Date(FIXED_NOW_MS - candles * HOUR_MS).toISOString(),
     )
   })
 })
@@ -177,7 +184,11 @@ describe('fetchPredictionHistory', () => {
     vi.resetModules()
   })
 
-  it('calls the gateway-proxied history route with range and interval', async () => {
+  /**
+   * max_points=0 stops the service merging the 720 hourly candles behind a
+   * 7d forecast into two-hour ones under its default 500-point cap.
+   */
+  it('calls the gateway-proxied history route uncapped, at the asked interval', async () => {
     vi.stubEnv('VITE_API_GATEWAY_BASE_URL', 'http://localhost:8000')
     const fetchSpy = vi
       .fn()
@@ -190,7 +201,7 @@ describe('fetchPredictionHistory', () => {
     await fetchPredictionHistory(historyParamsFor('7d'))
 
     expect(fetchSpy).toHaveBeenCalledWith(
-      'http://localhost:8000/api/v1/btc/price/history?range=30d&interval=1d',
+      'http://localhost:8000/api/v1/btc/price/history?range=30d&interval=1h&max_points=0',
       { headers: { Accept: 'application/json' } },
     )
   })

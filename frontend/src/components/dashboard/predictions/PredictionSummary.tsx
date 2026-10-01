@@ -1,4 +1,3 @@
-import { forecastPoints } from '@/components/dashboard/lib/predictionChart'
 import {
   formatPrice,
   formatSignedPercent,
@@ -81,13 +80,13 @@ export function PredictionSummary({ prediction }: PredictionSummaryProps) {
       <Separator />
 
       <PredictionKeyLevels
-        points={forecastPoints(prediction)}
+        points={prediction.points}
         horizon={prediction.horizon}
       />
 
       <Separator />
 
-      <ConfidenceWidthIndicator points={forecastPoints(prediction)} />
+      <ConfidenceWidthIndicator points={prediction.points} />
     </div>
   )
 }

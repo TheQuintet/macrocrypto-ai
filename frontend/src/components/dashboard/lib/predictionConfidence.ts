@@ -1,26 +1,9 @@
-import type {
-  PredictionConfidenceBand,
-  PredictionConfidenceDisplay,
-} from '@/types/predictions'
-
-/** The three intervals the endpoint computes bounds at, named for a glance. */
-export const HIGH_PREDICTION_CONFIDENCE = 0.95
-export const MODERATE_PREDICTION_CONFIDENCE = 0.85
-
-export const PREDICTION_CONFIDENCE_BAND_ORDER: PredictionConfidenceBand[] = [
-  'low',
-  'moderate',
-  'high',
-]
-
-const TONE_BY_BAND: Record<
-  PredictionConfidenceBand,
-  Pick<PredictionConfidenceDisplay, 'toneClass' | 'barClass'>
-> = {
-  low: { toneClass: 'text-negative', barClass: 'bg-negative' },
-  moderate: { toneClass: 'text-warning', barClass: 'bg-warning' },
-  high: { toneClass: 'text-positive', barClass: 'bg-positive' },
-}
+/**
+ * The `confidence` a batch carries is the coverage level its band was
+ * computed at: how often price is expected to land inside the band. It is
+ * chosen by the caller, not earned by the model, so nothing here names it
+ * high or low — a 95% band is wider than a 70% one, not better.
+ */
 
 export function clampPredictionConfidence(confidence: number) {
   if (!Number.isFinite(confidence)) {
@@ -34,46 +17,12 @@ export function predictionConfidencePercent(confidence: number) {
   return Math.round(clampPredictionConfidence(confidence) * 100)
 }
 
-export function predictionConfidenceDisplay(
-  confidence: number,
-): PredictionConfidenceDisplay {
-  const value = clampPredictionConfidence(confidence)
-
-  if (value >= HIGH_PREDICTION_CONFIDENCE) {
-    return { band: 'high', ...TONE_BY_BAND.high }
-  }
-
-  if (value >= MODERATE_PREDICTION_CONFIDENCE) {
-    return { band: 'moderate', ...TONE_BY_BAND.moderate }
-  }
-
-  return { band: 'low', ...TONE_BY_BAND.low }
+/** `0.85` -> `85% range`. */
+export function formatPredictionCoverage(confidence: number) {
+  return `${predictionConfidencePercent(confidence)}% range`
 }
 
-export function formatPredictionConfidenceBand(band: PredictionConfidenceBand) {
-  switch (band) {
-    case 'high':
-      return 'High'
-    case 'moderate':
-      return 'Moderate'
-    case 'low':
-      return 'Low'
-  }
-}
-
-export function formatPredictionConfidenceBandRange(
-  band: PredictionConfidenceBand,
-) {
-  switch (band) {
-    case 'high':
-      return '95%'
-    case 'moderate':
-      return '85%'
-    case 'low':
-      return '70%'
-  }
-}
-
-export function predictionConfidenceBandTone(band: PredictionConfidenceBand) {
-  return TONE_BY_BAND[band]
+/** What the coverage level promises, in plain terms. */
+export function describePredictionCoverage(confidence: number) {
+  return `Price expected inside the band ${predictionConfidencePercent(confidence)}% of the time`
 }

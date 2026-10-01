@@ -4,7 +4,6 @@ import { cn } from '@/lib/utils'
 type PredictionChartLegendProps = {
   confidence: number
   hasHistory: boolean
-  hasFit: boolean
 }
 
 /**
@@ -23,7 +22,6 @@ const SWATCH_BASE = 'inline-block w-7 shrink-0 rounded-[2px]'
 export function PredictionChartLegend({
   confidence,
   hasHistory,
-  hasFit,
 }: PredictionChartLegendProps) {
   const percent = formatConfidencePercent(confidence)
 
@@ -37,15 +35,6 @@ export function PredictionChartLegend({
               <span className="inline-block h-3 w-1 rounded-[2px] bg-negative" />
             </span>
             Actual price
-          </li>
-        ) : null}
-        {hasFit ? (
-          <li className="flex items-center gap-1.5">
-            <span
-              aria-hidden="true"
-              className={cn(SWATCH_BASE, 'h-0.5 bg-chart-3')}
-            />
-            Model fit
           </li>
         ) : null}
         <li className="flex items-center gap-1.5">

@@ -23,15 +23,24 @@ export async function expectSummaryValue(label: string, value: string) {
   })
 }
 
-export async function expectForecastConfidence(percent: string, band: string) {
-  const label = `${percent} ${band.charAt(0).toUpperCase()}${band.slice(1)}`
-
+export async function expectRangeCoverage(percent: string) {
   await waitFor(() => {
-    const meter = screen.getByRole('meter', { name: 'Forecast confidence' })
+    const meter = screen.getByRole('meter', { name: 'Range coverage' })
 
-    expect(screen.getByText(label)).toBeInTheDocument()
-    expect(meter).toHaveAttribute('data-confidence-band', band)
+    expect(screen.getByText(`${percent} range`)).toBeInTheDocument()
+    expect(meter).toHaveAttribute('aria-valuenow', percent.replace('%', ''))
   })
+}
+
+/** The batch timestamp, so an old forecast is not read as a current one. */
+export function expectForecastMadeAt(isoTime: string) {
+  const time = screen.getByText(
+    (_, element) =>
+      element?.tagName === 'TIME' &&
+      element.getAttribute('dateTime') === isoTime,
+  )
+
+  expect(time.closest('p')).toHaveTextContent(/^Forecast made .+ ago \(/)
 }
 
 export function expectSimulatedBadge() {

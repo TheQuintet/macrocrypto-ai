@@ -17,18 +17,21 @@ import {
   expectCandlesRendered,
   expectChartRendered,
   expectConfidenceBandRendered,
-  expectFitOverlaysHistory,
+  expectCoverageLevels,
+  expectDateTicks,
+  expectForecastLineOnly,
+  expectForecastMadeAt,
+  expectForecastStartDivider,
   expectLegendNames,
-  expectNowDivider,
+  expectLegendOmits,
   expectConfidenceSelected,
   expectHorizonSelected,
   expectKeyLevels,
   expectLegendExplains,
   expectPredictedLineRendered,
   expectPredictionTooltip,
+  expectRangeCoverage,
   expectRangeWidthIndicator,
-  expectForecastConfidence,
-  expectForecastConfidenceScale,
   expectSummaryStat,
   expectTooltipConfidence,
   keyLevelSpread,
@@ -59,16 +62,25 @@ test.describe('forecast chart UI integration', () => {
     await expectChartRendered(page, '24h')
 
     await expectCandlesRendered(page, '24h')
-    await expectNowDivider(page, '24h')
+    await expectForecastStartDivider(page, '24h')
   })
 
-  test('runs the model through the history, not only past it', async ({
+  test('draws the forecast forward only, with no model-fit line', async ({
     page,
   }) => {
     await goToRoute(page, 'forecasts')
     await expectChartRendered(page, '24h')
+    await expectCandlesRendered(page, '24h')
 
-    await expectFitOverlaysHistory(page, '24h')
+    await expectForecastLineOnly(page, '24h')
+    await expectLegendOmits(page, 'Model fit')
+  })
+
+  test('says when the forecast was made', async ({ page }) => {
+    await goToRoute(page, 'forecasts')
+    await expectChartRendered(page, '24h')
+
+    await expectForecastMadeAt(page)
   })
 
   test('explains what the shaded band means', async ({ page }) => {
@@ -78,7 +90,6 @@ test.describe('forecast chart UI integration', () => {
     await expectLegendExplains(page, '85%')
     await expectLegendNames(page, [
       'Actual price',
-      'Model fit',
       'Forecast',
       '85% confidence band',
     ])
@@ -90,9 +101,9 @@ test.describe('forecast chart UI integration', () => {
 
     await expectSummaryStat(page, 'Current price', /\$[\d,]+\.\d{2}/)
     await expectSummaryStat(page, 'Expected change', /[+-]\d+\.\d{2}%/)
-    await expectForecastConfidence(page, '85%', 'moderate')
-    await expectForecastConfidenceScale(page)
-    await expectKeyLevels(page, /Widest hourly bounds/)
+    await expectRangeCoverage(page, '85%')
+    await expectCoverageLevels(page)
+    await expectKeyLevels(page, /Widest hourly bounds across the 24-hour forecast/)
     await expectRangeWidthIndicator(page)
   })
 })
@@ -134,7 +145,19 @@ test.describe('forecast history zoom UI integration', () => {
     }
 
     await expectConfidenceBandRendered(page, '24h')
-    await expectNowDivider(page, '24h')
+    await expectForecastStartDivider(page, '24h')
+  })
+
+  test('zooms the 7d history out past its resting week', async ({ page }) => {
+    await goToRoute(page, 'forecasts')
+    await selectHorizon(page, '7d')
+    await expectChartRendered(page, '7d')
+    await expectCandleCount(page, '7d', 168)
+
+    await zoomHistoryOut(page)
+
+    await expectCandleCountAbove(page, '7d', 168)
+    await expectConfidenceBandRendered(page, '7d')
   })
 
   test('resets the window when the horizon changes', async ({ page }) => {
@@ -146,7 +169,8 @@ test.describe('forecast history zoom UI integration', () => {
     await selectHorizon(page, '7d')
     await expectChartRendered(page, '7d')
 
-    await expectCandleCount(page, '7d', 7)
+    // A week of hourly candles behind a week of hourly forecast.
+    await expectCandleCount(page, '7d', 168)
   })
 })
 
@@ -163,7 +187,8 @@ test.describe('forecast horizon toggle UI integration', () => {
     await expectChartRendered(page, '7d')
     await expectConfidenceBandRendered(page, '7d')
     await expectCandlesRendered(page, '7d')
-    await expectKeyLevels(page, /Widest daily bounds/)
+    await expectKeyLevels(page, /Widest hourly bounds across the 7-day forecast/)
+    await expectDateTicks(page, '7d')
   })
 
   test('returns to the 24h window', async ({ page }) => {
@@ -185,13 +210,13 @@ test.describe('confidence level UI integration', () => {
 
     await selectConfidence(page, '70%')
     await expectConfidenceSelected(page, '70%')
-    await expectForecastConfidence(page, '70%', 'low')
+    await expectRangeCoverage(page, '70%')
     const narrowSpread = await keyLevelSpread(page)
     const narrowPath = await bandPath(page, '24h')
 
     await selectConfidence(page, '95%')
     await expectConfidenceSelected(page, '95%')
-    await expectForecastConfidence(page, '95%', 'high')
+    await expectRangeCoverage(page, '95%')
 
     expect(await keyLevelSpread(page)).toBeGreaterThan(narrowSpread)
     expect(await bandPath(page, '24h')).not.toBe(narrowPath)
@@ -206,7 +231,7 @@ test.describe('confidence level UI integration', () => {
     await selectConfidence(page, '70%')
 
     await expectLegendExplains(page, '70%')
-    await expectForecastConfidence(page, '70%', 'low')
+    await expectRangeCoverage(page, '70%')
   })
 })
 

@@ -43,7 +43,7 @@ export const pageCopy: Record<NavItemId, PageCopy> = {
   },
   forecasts: {
     title: 'Forecasts',
-    body: "The model's 24-hour Bitcoin outlook, with a confidence read on the current signal.",
+    body: "The model's 24-hour and 7-day Bitcoin forecasts, with the price range they expect to hold.",
   },
   alerts: {
     title: 'Alerts',

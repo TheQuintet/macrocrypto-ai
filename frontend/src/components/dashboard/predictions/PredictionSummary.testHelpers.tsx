@@ -1,19 +1,12 @@
 import { render, screen, within } from '@testing-library/react'
 import { expect } from 'vitest'
-import {
-  formatPredictionConfidenceBand,
-  PREDICTION_CONFIDENCE_BAND_ORDER,
-  formatPredictionConfidenceBandRange,
-} from '@/components/dashboard/lib/predictionConfidence'
 import { PredictionSummary } from '@/components/dashboard/predictions/PredictionSummary'
 import {
   makePrediction,
   makePredictionPoint,
 } from '@/api/predictions/btcPrediction.testHelpers'
-import type {
-  BtcPrediction,
-  PredictionConfidenceBand,
-} from '@/types/predictions'
+import { PREDICTION_CONFIDENCE_OPTIONS } from '@/stores/predictionStore'
+import type { BtcPrediction } from '@/types/predictions'
 
 export { makePredictionPoint }
 
@@ -60,26 +53,32 @@ export function expectBandWidth(label: string) {
   expect(within(indicator).getByText(label)).toBeInTheDocument()
 }
 
-export function expectForecastConfidence(
-  percent: string,
-  width: string,
-  band: PredictionConfidenceBand,
-) {
-  const meter = screen.getByRole('meter', { name: 'Forecast confidence' })
+/**
+ * The meter reads the level as the range it covers, in one neutral colour —
+ * not as a green "High" or a red "Low".
+ */
+export function expectRangeCoverage(percent: string) {
+  const meter = screen.getByRole('meter', { name: 'Range coverage' })
 
+  expect(screen.getByText(`${percent} range`)).toBeInTheDocument()
   expect(
-    screen.getByText(`${percent} ${formatPredictionConfidenceBand(band)}`),
+    screen.getByText(
+      new RegExp(`Price expected inside the band ${percent} of the time`),
+    ),
   ).toBeInTheDocument()
-  expect(meter).toHaveAttribute('data-confidence-band', band)
-  expect(meter.firstElementChild).toHaveStyle({ width })
+  expect(meter.firstElementChild).toHaveStyle({ width: percent })
+  expect(meter.firstElementChild).toHaveClass('bg-chart-1')
 }
 
-export function expectForecastConfidenceScale() {
-  for (const band of PREDICTION_CONFIDENCE_BAND_ORDER) {
-    expect(
-      screen.getByText(
-        `${formatPredictionConfidenceBand(band)} ${formatPredictionConfidenceBandRange(band)}`,
-      ),
-    ).toBeInTheDocument()
+/** The old meter read `70% Low` / `95% High`; nothing grades the level now. */
+export function expectNoConfidenceGrade() {
+  expect(screen.queryByText(/\d+% (High|Moderate|Low)$/)).toBeNull()
+}
+
+export function expectCoverageLevels() {
+  const scale = screen.getByRole('list', { name: 'Coverage levels' })
+
+  for (const option of PREDICTION_CONFIDENCE_OPTIONS) {
+    expect(within(scale).getByText(option.label)).toBeInTheDocument()
   }
 }
