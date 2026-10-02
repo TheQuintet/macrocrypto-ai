@@ -28,6 +28,7 @@ import {
 } from '@/components/dashboard/lib/predictionChart'
 import { PriceCandle } from '@/components/dashboard/price/PriceCandle'
 import { PredictionTooltip } from '@/components/dashboard/predictions/PredictionTooltip'
+import { cn } from '@/lib/utils'
 import type { ChartCandle } from '@/types/chart'
 import type { BtcPrediction } from '@/types/predictions'
 
@@ -38,11 +39,16 @@ const DEFAULT_CHART_HEIGHT = 224
 const TICK_SLOT_PX = 80
 const TICK_SLOT_PX_COMPACT = 64
 
+/** The Forecasts screen's plot height; a smaller card passes its own. */
+const DEFAULT_HEIGHT_CLASS_NAME = 'h-56 sm:h-[280px] md:h-[340px]'
+
 type PredictionChartProps = {
   prediction: BtcPrediction
   candles?: ChartCandle[]
   /** Steps of history beyond the forecast's own window; 0 shows a matching one. */
   historyZoom?: number
+  /** Height at each breakpoint. The width always fills the container. */
+  heightClassName?: string
 }
 
 /**
@@ -57,6 +63,7 @@ export function PredictionChart({
   prediction,
   candles = [],
   historyZoom = 0,
+  heightClassName = DEFAULT_HEIGHT_CLASS_NAME,
 }: PredictionChartProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [size, setSize] = useState({
@@ -177,7 +184,7 @@ export function PredictionChart({
   return (
     <div
       ref={containerRef}
-      className="h-56 w-full min-w-0 sm:h-[280px] md:h-[340px]"
+      className={cn('w-full min-w-0', heightClassName)}
       role="img"
       aria-label={`BTC ${prediction.horizon} price forecast`}
     >

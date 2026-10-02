@@ -2,10 +2,17 @@ import { expect, type Page } from '@playwright/test'
 
 const CANDLE_COLORS = ['var(--positive)', 'var(--negative)']
 
+/**
+ * The dashboard's price plot, not the forecast card above it: that chart
+ * draws the same candles, so a page-wide search would land on it first.
+ */
+const PRICE_PLOT_SURFACES =
+  'svg.recharts-surface:not([aria-label$="price forecast"] *)'
+
 /** Measure the drawn candles straight off the SVG. */
 async function readCandles(page: Page) {
-  return page.evaluate((colors) => {
-    const surfaces = [...document.querySelectorAll('svg.recharts-surface')]
+  return page.evaluate(({ colors, plotSelector }) => {
+    const surfaces = [...document.querySelectorAll(plotSelector)]
     const isCandle = (value: string | null) =>
       value !== null && colors.includes(value)
     const plot =
@@ -52,7 +59,7 @@ async function readCandles(page: Page) {
         )
       }),
     }
-  }, CANDLE_COLORS)
+  }, { colors: CANDLE_COLORS, plotSelector: PRICE_PLOT_SURFACES })
 }
 
 export async function expectCandlesRendered(page: Page) {
@@ -93,8 +100,8 @@ export async function expectCandleShapesWellFormed(page: Page) {
  * outside the visible area.
  */
 export async function hoverMiddleCandle(page: Page) {
-  const point = await page.evaluate((colors) => {
-    const surface = [...document.querySelectorAll('svg.recharts-surface')].find(
+  const point = await page.evaluate(({ colors, plotSelector }) => {
+    const surface = [...document.querySelectorAll(plotSelector)].find(
       (plot) =>
         [...plot.querySelectorAll('line')].some((line) =>
           colors.includes(line.getAttribute('stroke') ?? ''),
@@ -103,6 +110,10 @@ export async function hoverMiddleCandle(page: Page) {
     if (!surface) {
       return null
     }
+
+    // The forecast card sits above the price chart, so on a short viewport
+    // the plot starts below the fold.
+    surface.scrollIntoView({ block: 'center' })
 
     const visible = [...surface.querySelectorAll('line')]
       .filter((line) => colors.includes(line.getAttribute('stroke') ?? ''))
@@ -121,7 +132,7 @@ export async function hoverMiddleCandle(page: Page) {
 
     const rect = visible[Math.floor(visible.length / 2)]
     return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }
-  }, CANDLE_COLORS)
+  }, { colors: CANDLE_COLORS, plotSelector: PRICE_PLOT_SURFACES })
 
   expect(point, 'no candle visible to hover').not.toBeNull()
   await page.mouse.move(point!.x, point!.y)
@@ -139,8 +150,8 @@ function hoverLine(page: Page) {
 export async function expectCandleHoverLine(page: Page) {
   await expect(hoverLine(page)).toBeAttached({ timeout: 10_000 })
 
-  const geometry = await page.evaluate((colors) => {
-    const surface = [...document.querySelectorAll('svg.recharts-surface')].find(
+  const geometry = await page.evaluate(({ colors, plotSelector }) => {
+    const surface = [...document.querySelectorAll(plotSelector)].find(
       (plot) =>
         [...plot.querySelectorAll('line')].some((line) =>
           colors.includes(line.getAttribute('stroke') ?? ''),
@@ -169,7 +180,7 @@ export async function expectCandleHoverLine(page: Page) {
       plotTop: Math.min(...grid),
       plotBottom: Math.max(...grid),
     }
-  }, CANDLE_COLORS)
+  }, { colors: CANDLE_COLORS, plotSelector: PRICE_PLOT_SURFACES })
 
   expect(geometry).not.toBeNull()
   expect(geometry!.isVertical).toBe(true)
