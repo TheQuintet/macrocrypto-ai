@@ -16,19 +16,19 @@ type PredictionForecastDetailsProps = {
 }
 
 /**
- * Model detail for a point: the value, its bounds where it has them, and its
- * drift from now.
+ * Forecast detail for a point: the value, its bounds where it has them, and
+ * its drift from the batch's current price.
  *
- * A row over the history carries a fitted value and no band — only the
- * forecast half has one — so the bound rows are omitted rather than printed
- * as zeroes.
+ * A row without bounds leaves the bound rows out rather than printing them
+ * as zeroes. A forecast hour that has since traded — an older batch — also
+ * shows the actual close beside the forecast.
  */
 export function PredictionForecastDetails({
   row,
   confidence,
   currentPrice,
 }: PredictionForecastDetailsProps) {
-  const predicted = row.predicted ?? row.fit ?? null
+  const predicted = row.predicted ?? null
   const hasBounds = row.lower != null && row.upper != null
   const changePercent =
     predicted != null && currentPrice != null && currentPrice !== 0
@@ -39,10 +39,10 @@ export function PredictionForecastDetails({
     <>
       <p className="mb-1 font-medium">{formatPredictionTime(row.timeMs)}</p>
       {predicted == null ? null : (
-        <PredictionTooltipRow
-          label={row.kind === 'forecast' ? 'Predicted' : 'Model fit'}
-          value={formatPrice(predicted)}
-        />
+        <PredictionTooltipRow label="Predicted" value={formatPrice(predicted)} />
+      )}
+      {row.close == null ? null : (
+        <PredictionTooltipRow label="Actual close" value={formatPrice(row.close)} />
       )}
       {hasBounds ? (
         <>

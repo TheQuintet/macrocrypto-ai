@@ -113,31 +113,62 @@ export async function expectCandlesRendered(page: Page, horizon: string) {
 }
 
 /**
- * The fitted line and the forecast are separate series sharing a colour, so
- * two curves on the plot is what tells us the model overlays the history
- * rather than only projecting past it.
+ * The endpoint returns forward points only, so the plot carries one model
+ * line — the forecast — and it starts where the candles end, not under them.
  */
-export async function expectFitOverlaysHistory(page: Page, horizon: string) {
-  const curves = getChart(page, horizon).locator('.recharts-line-curve')
+export async function expectForecastLineOnly(page: Page, horizon: string) {
+  const chart = getChart(page, horizon)
+  const curves = chart.locator('.recharts-line-curve')
 
-  await expect(curves).toHaveCount(2)
+  await expect(curves).toHaveCount(1)
 
-  const [fit, forecast] = await curves.all()
-  const fitBox = await fit.boundingBox()
-  const forecastBox = await forecast.boundingBox()
+  const curveBox = await curves.first().boundingBox()
+  const firstCandleBox = await chart
+    .locator('.recharts-bar-rectangle')
+    .first()
+    .boundingBox()
 
-  expect(fitBox).not.toBeNull()
-  expect(forecastBox).not.toBeNull()
-  // The fit sits left of where the forecast starts: it covers the past.
-  expect(fitBox!.x).toBeLessThan(forecastBox!.x)
+  expect(curveBox).not.toBeNull()
+  expect(firstCandleBox).not.toBeNull()
+  expect(curveBox!.x).toBeGreaterThan(firstCandleBox!.x)
 }
 
-/** The vertical divider marking where actual prices stop. */
-export async function expectNowDivider(page: Page, horizon: string) {
+/**
+ * The vertical divider marking the first forecast point. Labelled as the
+ * forecast start, not "now": an older batch starts before the present.
+ */
+export async function expectForecastStartDivider(page: Page, horizon: string) {
   const chart = getChart(page, horizon)
 
   await expect(chart.locator('.recharts-reference-line')).toHaveCount(1)
-  await expect(chart.getByText('now', { exact: true })).toBeVisible()
+  await expect(chart.getByText('forecast start', { exact: true })).toBeVisible()
+  await expect(chart.getByText('now', { exact: true })).toHaveCount(0)
+}
+
+/** The batch timestamp, relative and absolute, under the chart. */
+export async function expectForecastMadeAt(page: Page) {
+  await expect(page.getByText(/^Forecast made .+ \(.+\)\./)).toBeVisible()
+}
+
+/** Every x-axis label, as rendered. */
+export async function xAxisTickLabels(page: Page, horizon: string) {
+  return getChart(page, horizon)
+    .locator('.recharts-xAxis-tick-labels .recharts-cartesian-axis-tick-value')
+    .allTextContents()
+}
+
+/**
+ * A week of hourly points ticks by day, never by bare clock time. The month
+ * may be three or four letters (`Sep` or `Sept`) depending on the ICU build.
+ */
+export async function expectDateTicks(page: Page, horizon: string) {
+  await expect
+    .poll(async () => (await xAxisTickLabels(page, horizon)).length)
+    .toBeGreaterThan(1)
+
+  for (const label of await xAxisTickLabels(page, horizon)) {
+    expect(label).toMatch(/^\d{2} \w{3,4}$/)
+  }
 }
 
 /**
@@ -184,23 +215,24 @@ export async function expectSummaryStat(
   await expect(getSummaryStat(page, label)).toContainText(value)
 }
 
-export async function expectForecastConfidence(
-  page: Page,
-  percent: string,
-  band: 'low' | 'moderate' | 'high',
-) {
-  const meter = page.getByRole('meter', { name: 'Forecast confidence' })
-  const label = `${percent} ${band.charAt(0).toUpperCase()}${band.slice(1)}`
+/** The selected level, read as the range it covers — not graded high or low. */
+export async function expectRangeCoverage(page: Page, percent: string) {
+  const meter = page.getByRole('meter', { name: 'Range coverage' })
 
   await expect(meter).toBeVisible()
-  await expect(meter).toHaveAttribute('data-confidence-band', band)
-  await expect(page.getByText(label, { exact: true })).toBeVisible()
+  await expect(meter).toHaveAttribute('aria-valuenow', percent.replace('%', ''))
+  await expect(page.getByText(`${percent} range`, { exact: true })).toBeVisible()
+  await expect(
+    page.getByText(`Price expected inside the band ${percent} of the time`),
+  ).toBeVisible()
 }
 
-export async function expectForecastConfidenceScale(page: Page) {
-  await expect(page.getByText('Low 70%', { exact: true })).toBeVisible()
-  await expect(page.getByText('Moderate 85%', { exact: true })).toBeVisible()
-  await expect(page.getByText('High 95%', { exact: true })).toBeVisible()
+export async function expectCoverageLevels(page: Page) {
+  const scale = page.getByRole('list', { name: 'Coverage levels' })
+
+  for (const level of ['70%', '85%', '95%']) {
+    await expect(scale.getByText(level, { exact: true })).toBeVisible()
+  }
 }
 
 export async function expectLegendNames(page: Page, marks: string[]) {
@@ -209,6 +241,12 @@ export async function expectLegendNames(page: Page, marks: string[]) {
   for (const mark of marks) {
     await expect(legend).toContainText(mark)
   }
+}
+
+export async function expectLegendOmits(page: Page, mark: string) {
+  await expect(
+    page.getByRole('group', { name: 'Chart legend' }),
+  ).not.toContainText(mark)
 }
 
 export async function expectLegendExplains(page: Page, confidence: string) {
@@ -244,7 +282,7 @@ async function hoverAcross(page: Page, horizon: string, fraction: number) {
   await page.mouse.move(box.x + box.width * fraction, box.y + box.height / 2)
 }
 
-/** Hover the forecast half — the plot's centre is the now boundary itself. */
+/** Hover the forecast half — the plot's centre is the forecast start itself. */
 export async function hoverForecast(page: Page, horizon: string) {
   await hoverAcross(page, horizon, 0.8)
 }

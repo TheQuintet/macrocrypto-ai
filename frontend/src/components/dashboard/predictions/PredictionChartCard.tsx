@@ -1,8 +1,4 @@
 import {
-  fitPoints,
-  forecastPoints,
-} from '@/components/dashboard/lib/predictionChart'
-import {
   isFullyZoomedOut,
   PREDICTION_ZOOM_MAX,
 } from '@/components/dashboard/lib/predictionZoom'
@@ -12,6 +8,7 @@ import { ConfidenceLevelSelector } from '@/components/dashboard/predictions/Conf
 import { PredictionChart } from '@/components/dashboard/predictions/PredictionChart'
 import { PredictionChartLegend } from '@/components/dashboard/predictions/PredictionChartLegend'
 import { PredictionHorizonToggle } from '@/components/dashboard/predictions/PredictionHorizonToggle'
+import { PredictionMadeAt } from '@/components/dashboard/predictions/PredictionMadeAt'
 import { PredictionStatusMessage } from '@/components/dashboard/predictions/PredictionStatusMessage'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -43,7 +40,8 @@ export function PredictionChartCard({
   const zoomHistory = usePredictionStore((state) => state.zoomHistory)
   const hasChart = Boolean(prediction && prediction.points.length > 0)
 
-  const forecastCount = prediction ? forecastPoints(prediction).length : 0
+  // Every point the endpoint returns is a forecast; there is no fit to exclude.
+  const forecastCount = prediction?.points.length ?? 0
   const availableCandles = candles?.length ?? 0
   /**
    * Inverted on purpose: the control disables its minus at `min`, and showing
@@ -107,10 +105,10 @@ export function PredictionChartCard({
               candles={candles}
               historyZoom={historyZoom}
             />
+            <PredictionMadeAt predictionTime={prediction.predictionTime} />
             <PredictionChartLegend
               confidence={prediction.confidence}
               hasHistory={(candles?.length ?? 0) > 0}
-              hasFit={fitPoints(prediction).length > 0}
             />
           </>
         ) : (

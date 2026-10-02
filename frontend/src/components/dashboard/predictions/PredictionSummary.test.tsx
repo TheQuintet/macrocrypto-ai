@@ -2,10 +2,11 @@ import { cleanup, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
   expectBandWidth,
-  expectForecastConfidence,
-  expectForecastConfidenceScale,
+  expectCoverageLevels,
+  expectNoConfidenceGrade,
   expectPredictedPriceTone,
   expectKeyLevels,
+  expectRangeCoverage,
   expectStat,
   expectTrend,
   makePredictionPoint,
@@ -17,25 +18,31 @@ describe('PredictionSummary', () => {
     cleanup()
   })
 
-  it('reports the current price, expected change, and confidence level', () => {
+  it('reports the current price, expected change, and range coverage', () => {
     renderSummary()
 
     expectStat('Current price', '$63,500.00')
     expectStat('Expected change', '+1.10%')
-    expectForecastConfidence('85%', '85%', 'moderate')
-    expectForecastConfidenceScale()
+    expectRangeCoverage('85%')
+    expectCoverageLevels()
   })
 
-  it('names 70% as low confidence', () => {
+  /**
+   * `confidence` is the coverage that was asked for, not a score the model
+   * earned, so neither end of the scale is graded.
+   */
+  it('reads 70% as a coverage level, not as low confidence', () => {
     renderSummary({ confidence: 0.7 })
 
-    expectForecastConfidence('70%', '70%', 'low')
+    expectRangeCoverage('70%')
+    expectNoConfidenceGrade()
   })
 
-  it('names 95% as high confidence', () => {
+  it('reads 95% as a coverage level, not as high confidence', () => {
     renderSummary({ confidence: 0.95 })
 
-    expectForecastConfidence('95%', '95%', 'high')
+    expectRangeCoverage('95%')
+    expectNoConfidenceGrade()
   })
 
   it('shows the trend direction the model returned', () => {
@@ -93,11 +100,13 @@ describe('PredictionSummary', () => {
   it('labels the key levels by the horizon they were forecast over', () => {
     const { container } = renderSummary({ horizon: '7d' })
 
-    expect(container.textContent).toContain('Widest daily bounds')
+    expect(container.textContent).toContain(
+      'Widest hourly bounds across the 7-day forecast',
+    )
     expect(container.textContent).toContain('Predicted in 7 days')
   })
 
-  it('reads a tight band as a narrow, higher-certainty range', () => {
+  it('reads a tight band as narrow', () => {
     renderSummary({
       points: [
         makePredictionPoint({
@@ -111,7 +120,7 @@ describe('PredictionSummary', () => {
     expectBandWidth('Narrow')
   })
 
-  it('reads a broad band as a wide, lower-certainty range', () => {
+  it('reads a broad band as wide', () => {
     renderSummary({
       points: [
         makePredictionPoint({

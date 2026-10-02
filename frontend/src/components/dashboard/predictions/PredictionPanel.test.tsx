@@ -13,9 +13,10 @@ import {
   expectChartRendered,
   expectForecastUnavailable,
   expectLegendExplains,
+  expectForecastMadeAt,
   expectNoSimulatedBadge,
+  expectRangeCoverage,
   expectSimulatedBadge,
-  expectForecastConfidence,
   expectSummaryValue,
   renderPanel,
 } from './PredictionPanel.testHelpers'
@@ -87,7 +88,14 @@ describe('PredictionPanel', () => {
     await expectChartRendered('24h')
     expectHorizonSelected('24h')
     expectLegendExplains('85%')
-    await expectForecastConfidence('85%', 'moderate')
+    await expectRangeCoverage('85%')
+  })
+
+  it('says when the forecast was made', async () => {
+    renderPanel()
+
+    await expectChartRendered('24h')
+    expectForecastMadeAt(makePrediction().predictionTime)
   })
 
   it('redraws the same chart for the 7d horizon', async () => {
@@ -124,7 +132,7 @@ describe('PredictionPanel', () => {
       horizon: '24h',
       confidence: 0.95,
     })
-    await expectForecastConfidence('95%', 'high')
+    await expectRangeCoverage('95%')
     expectLegendExplains('95%')
   })
 
@@ -154,7 +162,7 @@ describe('PredictionPanel', () => {
     })
   })
 
-  it('switches the candles to daily when the horizon does', async () => {
+  it('keeps the candles hourly for the 7d forecast, with a month to zoom through', async () => {
     renderPanel()
     await expectChartRendered('24h')
 
@@ -164,7 +172,7 @@ describe('PredictionPanel', () => {
     expect(fetchPredictionHistory).toHaveBeenLastCalledWith({
       horizon: '7d',
       range: '30d',
-      interval: '1d',
+      interval: '1h',
     })
   })
 
@@ -174,7 +182,7 @@ describe('PredictionPanel', () => {
     const callsBefore = fetchPredictionHistory.mock.calls.length
 
     await selectConfidence('95%')
-    await expectForecastConfidence('95%', 'high')
+    await expectRangeCoverage('95%')
 
     expect(fetchPredictionHistory).toHaveBeenCalledTimes(callsBefore)
   })

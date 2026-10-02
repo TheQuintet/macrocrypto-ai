@@ -5,8 +5,20 @@ import {
   PREDICTION_ZOOM_MAX,
   PREDICTION_ZOOM_MIN,
   visibleHistoryCount,
+  visiblePredictionRows,
   zoomPredictionStep,
 } from '@/components/dashboard/lib/predictionZoom'
+import type { PredictionChartRow, PredictionRowKind } from '@/types/predictions'
+
+const HOUR = 60 * 60 * 1000
+
+function makeRows(kinds: PredictionRowKind[]): PredictionChartRow[] {
+  return kinds.map((kind, index) => ({
+    kind,
+    time: new Date(index * HOUR).toISOString(),
+    timeMs: index * HOUR,
+  }))
+}
 
 describe('zoomPredictionStep', () => {
   it('widens the window on the way out and narrows it on the way in', () => {
@@ -36,8 +48,24 @@ describe('clampPredictionZoom', () => {
 
 describe('visibleHistoryCount', () => {
   it('shows as much history as forecast at rest, so the label stays true', () => {
-    expect(visibleHistoryCount(0, 7, 30)).toBe(7)
     expect(visibleHistoryCount(0, 24, 168)).toBe(24)
+    expect(visibleHistoryCount(0, 168, 720)).toBe(168)
+  })
+
+  it('reaches every fetched candle at the last step, for either horizon', () => {
+    expect(visibleHistoryCount(PREDICTION_ZOOM_MAX, 24, 168)).toBe(168)
+    expect(visibleHistoryCount(PREDICTION_ZOOM_MAX, 168, 720)).toBe(720)
+  })
+
+  it('widens each step by roughly the same ratio', () => {
+    const counts = [0, 1, 2, 3, 4].map((zoom) =>
+      visibleHistoryCount(zoom, 168, 720),
+    )
+    const ratios = counts.slice(1).map((count, index) => count / counts[index])
+
+    for (const ratio of ratios) {
+      expect(ratio).toBeCloseTo(ratios[0], 1)
+    }
   })
 
   it('widens with each step out', () => {
@@ -68,5 +96,56 @@ describe('isFullyZoomedOut', () => {
 
   it('is immediately true when history is no longer than the forecast', () => {
     expect(isFullyZoomedOut(0, 24, 24)).toBe(true)
+  })
+})
+
+describe('visiblePredictionRows', () => {
+  it('keeps as much history as forecast at rest', () => {
+    const rows = makeRows([
+      ...Array<PredictionRowKind>(10).fill('history'),
+      ...Array<PredictionRowKind>(3).fill('forecast'),
+    ])
+
+    const shown = visiblePredictionRows(rows, 0)
+
+    expect(shown.filter((row) => row.kind === 'history')).toHaveLength(3)
+    expect(shown.filter((row) => row.kind === 'forecast')).toHaveLength(3)
+  })
+
+  it('shows the whole fetched history at the widest step', () => {
+    const rows = makeRows([
+      ...Array<PredictionRowKind>(10).fill('history'),
+      ...Array<PredictionRowKind>(3).fill('forecast'),
+    ])
+
+    expect(visiblePredictionRows(rows, PREDICTION_ZOOM_MAX)).toHaveLength(13)
+  })
+
+  /**
+   * An old batch can have candles past its forecast start. They belong to
+   * the always-visible side of the window and must stay in time order.
+   */
+  it('keeps candles past the forecast start, in time order', () => {
+    const rows = makeRows([
+      'history',
+      'history',
+      'history',
+      'forecast',
+      'forecast',
+      'history',
+    ])
+
+    const shown = visiblePredictionRows(rows, 0)
+
+    expect(shown.map((row) => row.timeMs)).toEqual(
+      [...shown].sort((a, b) => a.timeMs - b.timeMs).map((row) => row.timeMs),
+    )
+    expect(shown[shown.length - 1]).toBe(rows[rows.length - 1])
+  })
+
+  it('leaves a history-only set untouched', () => {
+    const rows = makeRows(['history', 'history'])
+
+    expect(visiblePredictionRows(rows, 0)).toEqual(rows)
   })
 })

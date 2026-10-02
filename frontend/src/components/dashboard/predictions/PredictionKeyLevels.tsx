@@ -8,10 +8,14 @@ type PredictionKeyLevelsProps = {
   horizon: PredictionHorizon
 }
 
-/** Point cadence the bounds are drawn from — hourly for 24h, daily for 7d. */
+/**
+ * Point cadence the bounds are drawn from — hourly for both horizons. Worded
+ * as the forecast's window rather than "the next N hours", since a batch may
+ * have been made a while before it is read.
+ */
 const levelCaption: Record<PredictionHorizon, string> = {
-  '24h': 'Widest hourly bounds over the next 24 hours',
-  '7d': 'Widest daily bounds over the next 7 days',
+  '24h': 'Widest hourly bounds across the 24-hour forecast',
+  '7d': 'Widest hourly bounds across the 7-day forecast',
 }
 
 /**

@@ -16,6 +16,14 @@ type PredictionHistoryPoint = PredictionHistoryResponse['points'][number]
 
 const MOCK_LATENCY_MS = 180
 
+/**
+ * `max_points=0` switches off the data service's point cap. Left on, it
+ * merges the 720 hourly candles behind a 7d forecast into two-hour ones,
+ * which then no longer line up with the hourly forecast buckets. The window
+ * itself is still bounded by `range`.
+ */
+const UNCAPPED_MAX_POINTS = '0'
+
 export function predictionHistoryQueryKey(params: PredictionHistoryParams) {
   return ['btc-prediction-history', params.range, params.interval] as const
 }
@@ -96,6 +104,7 @@ export async function fetchPredictionHistory(
   const search = new URLSearchParams({
     range: params.range,
     interval: params.interval,
+    max_points: UNCAPPED_MAX_POINTS,
   })
 
   const response = await fetch(`${url}?${search}`, {

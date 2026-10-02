@@ -23,15 +23,6 @@ export type PredictionSource = 'live' | 'simulated'
 /** How wide the confidence band is relative to the predicted price. */
 export type PredictionBandWidth = 'narrow' | 'medium' | 'wide'
 
-/** Named read of the selected interval — 70% low, 85% moderate, 95% high. */
-export type PredictionConfidenceBand = 'low' | 'moderate' | 'high'
-
-export type PredictionConfidenceDisplay = {
-  band: PredictionConfidenceBand
-  toneClass: 'text-positive' | 'text-negative' | 'text-warning'
-  barClass: 'bg-positive' | 'bg-negative' | 'bg-warning'
-}
-
 export type PredictionParams = {
   horizon: PredictionHorizon
   confidence: PredictionConfidence
@@ -135,12 +126,12 @@ export type PredictionRowKind = 'history' | 'forecast'
 
 /**
  * One plotted row. A row is a moment in time, carrying whatever is known
- * about it — so the model's line and the actual candles share the same rows
- * over the history rather than sitting beside each other.
+ * about it — so a forecast point and an actual candle for the same hour share
+ * one row rather than sitting beside each other.
  *
- * `fit` is the model's in-sample value for a moment that has already
- * happened; `predicted` is its forecast for one that has not. The row at the
- * boundary carries both, so the two lines join instead of breaking.
+ * `predicted` is the model's forecast. The endpoint returns forward points
+ * only, so no row carries an in-sample value; the last history row borrows
+ * its close as `predicted` so the forecast line starts from actual price.
  */
 export type PredictionChartRow = {
   kind: PredictionRowKind
@@ -152,9 +143,7 @@ export type PredictionChartRow = {
   close?: number
   /** The `[low, high]` pair the candle bar spans, where a candle exists. */
   candle?: [number, number]
-  /** Model value over history — what it would have said at the time. */
-  fit?: number
-  /** Model value ahead of now. */
+  /** Forecast value for this moment. */
   predicted?: number
   lower?: number
   upper?: number

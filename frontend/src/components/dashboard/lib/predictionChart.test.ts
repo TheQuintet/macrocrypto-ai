@@ -1,18 +1,20 @@
 import { describe, expect, it } from 'vitest'
 import {
   changeFromCurrentPercent,
-  fitPoints,
-  forecastPoints,
   inferStepMs,
   forecastStartMs,
   formatConfidencePercent,
+  formatForecastAge,
   formatPredictionTick,
+  formatPredictionTime,
   MEDIUM_BAND_MAX_PERCENT,
   NARROW_BAND_MAX_PERCENT,
   predictionBandWidth,
   predictionBandWidthPercent,
   predictionChartRows,
   predictionKeyLevels,
+  predictionTickStepMs,
+  predictionTicks,
   predictionYDomain,
   usesCompactTicks,
 } from '@/components/dashboard/lib/predictionChart'
@@ -65,23 +67,117 @@ describe('formatConfidencePercent', () => {
   })
 })
 
-describe('formatPredictionTick', () => {
-  it('ticks hourly points by clock time', () => {
-    expect(formatPredictionTick(Date.UTC(2024, 5, 15, 13, 30), '24h')).toMatch(
-      /^\d{2}:\d{2}$/,
-    )
+const HOUR = 60 * 60 * 1000
+const DAY = 24 * HOUR
+
+describe('predictionTickStepMs', () => {
+  it('steps a 24h axis in hours when there is room', () => {
+    expect(predictionTickStepMs(48 * HOUR, 10, '24h')).toBe(6 * HOUR)
   })
 
-  it('ticks daily points by date', () => {
-    expect(formatPredictionTick(Date.UTC(2024, 5, 15), '7d')).toMatch(
-      /^\d{2} \w{3}$/,
-    )
+  it('never ticks a 7d axis finer than daily, however wide the plot', () => {
+    expect(predictionTickStepMs(14 * DAY, 100, '7d')).toBe(DAY)
+  })
+
+  it('coarsens the step so a narrow plot keeps to its label budget', () => {
+    const step = predictionTickStepMs(14 * DAY, 4, '7d')
+
+    expect((14 * DAY) / step).toBeLessThanOrEqual(4)
+  })
+
+  it('tops out at weekly ticks for the widest zoom', () => {
+    expect(predictionTickStepMs(400 * DAY, 2, '7d')).toBe(7 * DAY)
+  })
+})
+
+describe('predictionTicks', () => {
+  const start = Date.UTC(2024, 5, 15, 12, 30)
+
+  it('places sub-day ticks on whole local hours at the step', () => {
+    const ticks = predictionTicks(start, start + 48 * HOUR, 6 * HOUR)
+
+    expect(ticks.length).toBeGreaterThanOrEqual(7)
+    for (const tick of ticks) {
+      const date = new Date(tick)
+      expect(date.getMinutes()).toBe(0)
+      expect(date.getHours() % 6).toBe(0)
+    }
+  })
+
+  it('places day ticks on local midnights', () => {
+    const ticks = predictionTicks(start, start + 14 * DAY, DAY)
+
+    expect(ticks).toHaveLength(14)
+    for (const tick of ticks) {
+      const date = new Date(tick)
+      expect(date.getHours()).toBe(0)
+      expect(date.getMinutes()).toBe(0)
+    }
+  })
+
+  it('skips days for a multi-day step', () => {
+    const ticks = predictionTicks(start, start + 14 * DAY, 7 * DAY)
+
+    expect(ticks).toHaveLength(2)
+    expect(ticks[1] - ticks[0]).toBeGreaterThanOrEqual(7 * DAY - HOUR)
+  })
+
+  it('keeps every tick inside the plotted span', () => {
+    const end = start + 36 * HOUR
+    const ticks = predictionTicks(start, end, 3 * HOUR)
+
+    expect(ticks.every((tick) => tick >= start && tick <= end)).toBe(true)
+  })
+})
+
+describe('formatPredictionTick', () => {
+  const midday = new Date(2024, 5, 15, 13, 0).getTime()
+  const midnight = new Date(2024, 5, 16, 0, 0).getTime()
+
+  it('reads sub-day ticks as clock times', () => {
+    expect(formatPredictionTick(midday, 6 * HOUR)).toMatch(/^\d{2}:\d{2}$/)
+  })
+
+  it('reads a sub-day tick at midnight as the new date', () => {
+    expect(formatPredictionTick(midnight, 6 * HOUR)).toMatch(/^\d{2} \w{3}$/)
+  })
+
+  it('reads day ticks as dates', () => {
+    expect(formatPredictionTick(midday, DAY)).toMatch(/^\d{2} \w{3}$/)
+  })
+})
+
+describe('formatPredictionTime', () => {
+  it('gives the weekday, date and hour, so a point places within a week', () => {
+    const label = formatPredictionTime(new Date(2024, 5, 15, 13).getTime())
+
+    expect(label).toMatch(/Sat/)
+    expect(label).toMatch(/15 Jun/)
+    expect(label).toMatch(/13:00/)
+  })
+})
+
+describe('formatForecastAge', () => {
+  const made = Date.UTC(2024, 5, 15, 12)
+
+  it('reads a batch under a minute old as just made', () => {
+    expect(formatForecastAge(made, made + 20_000)).toBe('just now')
+  })
+
+  it('counts minutes, then hours, then days', () => {
+    expect(formatForecastAge(made, made + 12 * 60_000)).toBe('12 min ago')
+    expect(formatForecastAge(made, made + 20 * HOUR)).toBe('20 h ago')
+    expect(formatForecastAge(made, made + 3 * DAY)).toBe('3 d ago')
+  })
+
+  it('does not report a future age when the clocks disagree', () => {
+    expect(formatForecastAge(made, made - 5_000)).toBe('just now')
   })
 })
 
 const BOUNDARY_MS = Date.UTC(2024, 5, 15, 12, 30)
 
-/** A batch whose points straddle `prediction_time`, as a fitted one does. */
+/** A forward-only batch, as the endpoint returns one. */
 function makeBatch(points: PredictionPoint[] = POINTS): BtcPrediction {
   return {
     source: 'simulated',
@@ -97,27 +193,12 @@ function makeBatch(points: PredictionPoint[] = POINTS): BtcPrediction {
   }
 }
 
-const FIT_POINT = makePoint({
+/** A forecast point dated at or before `prediction_time`, as a stale batch has. */
+const EARLY_POINT = makePoint({
   timeMs: Date.UTC(2024, 5, 15, 12),
   predictedPrice: 63_600,
   lowerBound: 63_500,
   upperBound: 63_700,
-})
-
-describe('fitPoints / forecastPoints', () => {
-  it('splits the batch at the moment it was generated', () => {
-    const batch = makeBatch([FIT_POINT, ...POINTS])
-
-    expect(fitPoints(batch)).toEqual([FIT_POINT])
-    expect(forecastPoints(batch)).toEqual(POINTS)
-  })
-
-  it("reads today's forward-only batch as all forecast, no fit", () => {
-    const batch = makeBatch()
-
-    expect(fitPoints(batch)).toEqual([])
-    expect(forecastPoints(batch)).toHaveLength(POINTS.length)
-  })
 })
 
 describe('predictionChartRows', () => {
@@ -138,72 +219,63 @@ describe('predictionChartRows', () => {
     )
   })
 
-  it('merges a candle and the model value for the same moment into one row', () => {
-    const candle = makeCandle({ timeMs: FIT_POINT.timeMs })
-    const rows = predictionChartRows(makeBatch([FIT_POINT, ...POINTS]), [candle])
-    const merged = rows.find((row) => row.timeMs === FIT_POINT.timeMs)!
-
-    expect(merged.kind).toBe('history')
-    expect(merged.candle).toEqual([candle.low, candle.high])
-    expect(merged.fit).toBe(FIT_POINT.predictedPrice)
-  })
-
-  it('puts the model value on `fit` behind now and `predicted` ahead of it', () => {
-    const earlier = makePoint({
-      timeMs: Date.UTC(2024, 5, 15, 11),
-      predictedPrice: 63_300,
-    })
-    const rows = predictionChartRows(
-      makeBatch([earlier, FIT_POINT, ...POINTS]),
-    )
-    const past = rows.find((row) => row.timeMs === earlier.timeMs)!
-    const ahead = rows.find((row) => row.timeMs === POINTS[1].timeMs)!
-
-    expect(past.fit).toBe(63_300)
-    expect(past.predicted).toBeUndefined()
-    expect(ahead.predicted).toBe(POINTS[1].predictedPrice)
-    expect(ahead.fit).toBeUndefined()
-  })
-
-  it('joins the fitted line to the forecast so they do not break at now', () => {
-    const rows = predictionChartRows(makeBatch([FIT_POINT, ...POINTS]))
-    const join = rows.find((row) => row.timeMs === FIT_POINT.timeMs)!
-
-    expect(join.predicted).toBe(join.fit)
-  })
-
   /**
-   * The candles and the fit come from different services and need not end on
-   * the same bucket. Handing over from the last *fitted* row keeps the line
-   * continuous when the fit stops short.
+   * The endpoint never returns fitted values, so a point dated at or before
+   * `prediction_time` is still a forecast — drawn, banded, and counted.
    */
-  it('hands over from the last fitted bucket, not the last candle', () => {
-    const hour = 60 * 60 * 1000
-    const stale = makePoint({
-      timeMs: Date.UTC(2024, 5, 15, 11),
-      predictedPrice: 63_100,
-    })
-    const laterCandle = makeCandle({
-      timeMs: Date.UTC(2024, 5, 15, 11) + hour,
-      close: 63_900,
-    })
+  it('draws a point at or before the batch time as forecast, not fit', () => {
+    const rows = predictionChartRows(makeBatch([EARLY_POINT, ...POINTS]))
+    const early = rows.find((row) => row.timeMs === EARLY_POINT.timeMs)!
 
-    const rows = predictionChartRows(makeBatch([stale, ...POINTS]), [
-      laterCandle,
-    ])
-    const fitted = rows.find((row) => row.timeMs === stale.timeMs)!
-    const trailing = rows.find((row) => row.timeMs === laterCandle.timeMs)!
-
-    expect(fitted.predicted).toBe(63_100)
-    expect(trailing.predicted).toBeUndefined()
+    expect(early.kind).toBe('forecast')
+    expect(early.predicted).toBe(EARLY_POINT.predictedPrice)
+    expect(early.band).toEqual([EARLY_POINT.lowerBound, EARLY_POINT.upperBound])
+    expect(rows.filter((row) => row.kind === 'forecast')).toHaveLength(
+      POINTS.length + 1,
+    )
   })
 
-  it('falls back to the last close when the model has no fit to join from', () => {
+  it('overlays a candle on the forecast hour it traded in', () => {
+    const candle = makeCandle({ timeMs: EARLY_POINT.timeMs })
+    const rows = predictionChartRows(makeBatch([EARLY_POINT, ...POINTS]), [
+      candle,
+    ])
+    const merged = rows.find((row) => row.timeMs === EARLY_POINT.timeMs)!
+
+    expect(merged.kind).toBe('forecast')
+    expect(merged.candle).toEqual([candle.low, candle.high])
+    expect(merged.predicted).toBe(EARLY_POINT.predictedPrice)
+  })
+
+  it('files candles before the first forecast point as history', () => {
+    const candle = makeCandle({ timeMs: Date.UTC(2024, 5, 15, 11) })
+    const rows = predictionChartRows(makeBatch(), [candle])
+    const row = rows.find((r) => r.timeMs === candle.timeMs)!
+
+    expect(row.kind).toBe('history')
+    expect(row.lower).toBeUndefined()
+  })
+
+  it('starts the forecast line from the last close before it', () => {
     const candle = makeCandle({ timeMs: Date.UTC(2024, 5, 15, 12), close: 63_450 })
     const rows = predictionChartRows(makeBatch(), [candle])
     const join = rows.find((row) => row.timeMs === candle.timeMs)!
 
     expect(join.predicted).toBe(63_450)
+  })
+
+  it('opens the cone from a point rather than starting it already wide', () => {
+    const candle = makeCandle({ timeMs: Date.UTC(2024, 5, 15, 12), close: 63_450 })
+    const rows = predictionChartRows(makeBatch(), [candle])
+    const join = rows.find((row) => row.timeMs === candle.timeMs)!
+
+    expect(join.band).toEqual([63_450, 63_450])
+  })
+
+  it('joins nothing when there are no candles to start from', () => {
+    const rows = predictionChartRows(makeBatch())
+
+    expect(rows.every((row) => row.kind === 'forecast')).toBe(true)
   })
 
   it('emits rows in time order however the inputs arrive', () => {
@@ -217,71 +289,56 @@ describe('predictionChartRows', () => {
   })
 
   /**
-   * The two queries read the clock separately and a real candle is stamped
-   * with its bucket start, so their timestamps agree on the hour, not the
-   * millisecond. Keying on the raw instant left every candle in a row of its
-   * own beside an empty one for the fit, halving the history on screen.
+   * The candles and the forecast come from different services, so their
+   * timestamps agree on the hour, not the millisecond. Keying on the raw
+   * instant would leave each candle in a row of its own beside the point.
    */
-  it('merges a candle and a fit point that are seconds apart', () => {
-    const hour = 60 * 60 * 1000
-    const base = Date.UTC(2024, 5, 15, 8)
-    const fit = [0, 1, 2].map((index) =>
-      makePoint({
-        timeMs: base + index * hour,
-        predictedPrice: 63_000 + index,
-      }),
-    )
-    const drifted = [0, 1, 2].map((index) =>
-      makeCandle({ timeMs: base + index * hour + 1_400 }),
+  it('merges a candle and a forecast point that are seconds apart', () => {
+    const drifted = POINTS.map((point) =>
+      makeCandle({ timeMs: point.timeMs + 1_400 }),
     )
 
-    const rows = predictionChartRows(makeBatch([...fit, ...POINTS]), drifted)
-    const history = rows.filter((row) => row.kind === 'history')
+    const rows = predictionChartRows(makeBatch(), drifted)
 
-    expect(history).toHaveLength(3)
-    expect(history.every((row) => row.candle && row.fit != null)).toBe(true)
+    expect(rows).toHaveLength(POINTS.length)
+    expect(rows.every((row) => row.candle && row.predicted != null)).toBe(true)
   })
 
-  it('shades only the forecast half, where the legend applies', () => {
-    const rows = predictionChartRows(makeBatch([FIT_POINT, ...POINTS]))
-    const banded = rows.filter((row) => row.band)
-
-    expect(banded.every((row) => row.kind === 'forecast' || row === rows[0])).toBe(
-      true,
-    )
-    expect(rows.filter((row) => row.kind === 'forecast' && !row.band)).toEqual([])
-  })
-
-  it('opens the cone from a point rather than starting it already wide', () => {
-    const rows = predictionChartRows(makeBatch([FIT_POINT, ...POINTS]))
-    const join = rows.find((row) => row.timeMs === FIT_POINT.timeMs)!
-
-    expect(join.band).toEqual([join.fit, join.fit])
-  })
-
-  /**
-   * The history and forecast queries read the clock a moment apart, so the
-   * newest candle can carry a timestamp a few milliseconds past
-   * `prediction_time`. It is still a traded candle, not a projection.
-   */
-  it('files a candle stamped just past the boundary as history', () => {
-    const boundaryCandle = makeCandle({ timeMs: BOUNDARY_MS + 120 })
-    const rows = predictionChartRows(makeBatch([FIT_POINT, ...POINTS]), [
-      boundaryCandle,
-    ])
+  it('keeps a candle stamped just before the forecast start as history', () => {
+    const candle = makeCandle({ timeMs: POINTS[0].timeMs - 60 * 60 * 1000 + 120 })
+    const rows = predictionChartRows(makeBatch(), [candle])
     const row = rows.find((r) => r.candle)!
 
     expect(row.kind).toBe('history')
     expect(rows.filter((r) => r.kind === 'forecast')).toHaveLength(POINTS.length)
   })
 
+  it('shades every forecast row and no history row but the join', () => {
+    const candles = [
+      makeCandle({ timeMs: Date.UTC(2024, 5, 15, 10) }),
+      makeCandle({ timeMs: Date.UTC(2024, 5, 15, 11) }),
+    ]
+    const rows = predictionChartRows(makeBatch(), candles)
+    const bandedHistory = rows.filter(
+      (row) => row.kind === 'history' && row.band,
+    )
+
+    expect(bandedHistory.map((row) => row.timeMs)).toEqual([
+      Date.UTC(2024, 5, 15, 11),
+    ])
+    expect(rows.filter((row) => row.kind === 'forecast' && !row.band)).toEqual([])
+  })
+
   it('still plots a candle the model has no value for', () => {
     const orphan = makeCandle({ timeMs: Date.UTC(2024, 5, 15, 9) })
-    const rows = predictionChartRows(makeBatch(), [orphan])
+    const rows = predictionChartRows(makeBatch(), [
+      orphan,
+      makeCandle({ timeMs: Date.UTC(2024, 5, 15, 12) }),
+    ])
     const row = rows.find((r) => r.timeMs === orphan.timeMs)!
 
     expect(row.candle).toEqual([orphan.low, orphan.high])
-    expect(row.fit).toBeUndefined()
+    expect(row.predicted).toBeUndefined()
   })
 })
 
@@ -303,14 +360,16 @@ describe('inferStepMs', () => {
 })
 
 describe('forecastStartMs', () => {
-  it('reports where the model stops describing the past', () => {
-    const rows = predictionChartRows(makeBatch([FIT_POINT, ...POINTS]))
+  it('reports the first forecast point, even one before the batch time', () => {
+    const rows = predictionChartRows(makeBatch([EARLY_POINT, ...POINTS]))
 
-    expect(forecastStartMs(rows)).toBe(POINTS[0].timeMs)
+    expect(forecastStartMs(rows)).toBe(EARLY_POINT.timeMs)
   })
 
   it('has no boundary to report without a forecast', () => {
-    expect(forecastStartMs(predictionChartRows(makeBatch([FIT_POINT])))).toBeNull()
+    expect(
+      forecastStartMs(predictionChartRows(makeBatch([]), CANDLES)),
+    ).toBeNull()
   })
 })
 
