@@ -6,6 +6,7 @@ prediction_performance table (created in T5.1):
     - Reading the latest aggregated metrics per (horizon, model)
     - Reading historical metrics over a time window
     - Batch reads for the T5.5 performance API
+    - Ranking queries for the champion promotion job (Phase 3)
 
 Design:
     - Takes an AsyncSession in the constructor. Callers wire the
@@ -21,6 +22,12 @@ CLI isolation:
     prediction_performance_cli instead. This keeps CLI runs
     sandboxed from production data. Routing is handled by
     `_resolve_performance_table()`.
+
+Champion ranking:
+    `fetch_metrics_for_ranking()` powers the daily champion
+    promotion job. It returns per-model metrics over two rolling
+    windows (primary + secondary) in a single query, so the
+    promotion job can rank candidates without N round-trips.
 """
 
 import logging
@@ -28,7 +35,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
-from sqlalchemy import desc, func, insert, select
+from sqlalchemy import case, desc, func, insert, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
@@ -532,6 +539,143 @@ class PerformanceRepository:
         result = await self.session.execute(stmt)
         return [dict(row) for row in result.mappings().all()]
 
+    # ============================================================
+    # READS — champion ranking (Phase 3)
+    # ============================================================
+    async def fetch_metrics_for_ranking(
+        self,
+        horizon: str,
+        metric_name: str,
+        primary_days: int,
+        secondary_days: int,
+        market_condition: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
+        """Fetch per-model average metrics over two rolling windows.
+
+        Returns one row per model with the average of `metric_name`
+        over two windows:
+            - primary: the last `primary_days` days.
+            - secondary: the last `secondary_days` days.
+
+        Both windows are computed in a single query using conditional
+        aggregation. Sample sizes are included so the caller can
+        apply the minimum-sample gate without a second query.
+
+        This is the primary read for the champion promotion job.
+
+        Args:
+            horizon: Horizon label ('24h' or '7d').
+            metric_name: Column name on prediction_performance.
+                Must be one of: mae, rmse, mape.
+                (directional_accuracy isn't stored on
+                prediction_performance; it lives on
+                model_performance. The promotion job uses
+                model_performance if it needs directional accuracy;
+                for now the champion metric is always an error
+                metric.)
+            primary_days: Window size in days for the primary metric.
+            secondary_days: Window size in days for the secondary
+                metric. Must be >= primary_days.
+            market_condition: Optional regime filter. When provided,
+                only rows with this market_condition are considered.
+                When None, all rows are considered (no filtering on
+                market_condition).
+
+        Returns:
+            List of dicts, one per model that has at least one row
+            in either window. Keys:
+                model_name
+                primary_metric_value   (or None if no rows)
+                primary_sample_size    (0 if none)
+                secondary_metric_value (or None if no rows)
+                secondary_sample_size  (0 if none)
+
+        Raises:
+            ValueError: If metric_name is not a supported column, or
+                if secondary_days < primary_days.
+        """
+        allowed_metrics = ("mae", "rmse", "mape")
+        if metric_name not in allowed_metrics:
+            raise ValueError(
+                f"Unsupported metric_name '{metric_name}'. "
+                f"Must be one of {allowed_metrics}."
+            )
+        if secondary_days < primary_days:
+            raise ValueError(
+                f"secondary_days ({secondary_days}) must be >= "
+                f"primary_days ({primary_days})"
+            )
+
+        table = self._resolve_performance_table()
+
+        now = datetime.now(timezone.utc)
+        primary_since = now - timedelta(days=primary_days)
+        secondary_since = now - timedelta(days=secondary_days)
+
+        metric_col = getattr(table.c, metric_name)
+
+        # Conditional aggregation: for each model, compute two
+        # averages and two counts. The CASE expressions produce
+        # NULL for rows outside each window, and avg() ignores NULL.
+        primary_value = func.avg(
+            case(
+                (table.c.forecast_date >= primary_since, metric_col),
+                else_=None,
+            )
+        ).label("primary_metric_value")
+
+        primary_count = func.count(
+            case(
+                (table.c.forecast_date >= primary_since, 1),
+                else_=None,
+            )
+        ).label("primary_sample_size")
+
+        secondary_value = func.avg(metric_col).label(
+            "secondary_metric_value"
+        )
+
+        secondary_count = func.count(metric_col).label(
+            "secondary_sample_size"
+        )
+
+        stmt = (
+            select(
+                table.c.model_name,
+                primary_value,
+                primary_count,
+                secondary_value,
+                secondary_count,
+            )
+            .where(
+                table.c.horizon == horizon,
+                table.c.forecast_date >= secondary_since,
+                metric_col.isnot(None),
+            )
+            .group_by(table.c.model_name)
+            .order_by(table.c.model_name.asc())
+        )
+
+        if market_condition is not None:
+            stmt = stmt.where(
+                table.c.market_condition == market_condition
+            )
+
+        result = await self.session.execute(stmt)
+        rows = result.mappings().all()
+
+        logger.debug(
+            f"fetch_metrics_for_ranking: {len(rows)} models, "
+            f"metric={metric_name}, primary={primary_days}d, "
+            f"secondary={secondary_days}d, "
+            f"market_condition={market_condition!r}"
+        )
+
+        return [dict(row) for row in rows]
+
+    # ============================================================
+    # INTERNAL HELPERS
+    # ============================================================
     async def _fetch_sample_counts(
         self,
         since: datetime,
