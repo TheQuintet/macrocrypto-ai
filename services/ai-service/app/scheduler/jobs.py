@@ -56,6 +56,15 @@ Simulation:
     the CLI's `simulate` subcommand replay N historical days in a
     single invocation. Only export-cleanup currently consumes the
     value; the other two accept it for interface consistency.
+
+Champion-aware prediction:
+    The two prediction jobs (hourly_prediction_job for 24h,
+    daily_7d_prediction_job for 7d) no longer hardcode Prophet.
+    Each loads the current champion for its horizon via
+    ``_load_champion_model``, which falls back through the
+    incumbent's predecessor and finally ``prophet_fresh`` when the
+    champion artifact is missing or broken. See the helper's
+    docstring for the exact chain.
 """
 
 import logging
@@ -218,6 +227,22 @@ ACCURACY_CHECK_MATRIX: List[Tuple[str, str]] = [
 CHAMPION_HORIZONS: Tuple[str, ...] = ("24h", "7d")
 
 
+# ============================================================
+# MODEL VARIANT NAMES
+# ============================================================
+# The complete set of model variants the service ships. Used by
+# the champion fallback chain to validate that a variant name is
+# known before trying to load it.
+ALL_VARIANTS: Tuple[str, ...] = (
+    "prophet_fresh",
+    "prophet_warm",
+    "xgboost_fresh",
+    "xgboost_incremental",
+    "lightgbm_fresh",
+    "lightgbm_incremental",
+)
+
+
 def _variant_factory(variant_name: str) -> Callable[[], Any]:
     """Return a factory for the given model variant name.
 
@@ -264,6 +289,11 @@ def _load_variant_model(variant_name: str) -> Any:
     that path exactly, so the two jobs always agree on where a
     given variant lives.
 
+    This helper handles only the 5 non-prophet_fresh variants
+    (prophet_fresh is excluded from MULTI_MODEL_VARIANTS). For the
+    champion fallback chain, which must be able to load any of the
+    6 variants, see ``_load_variant_model_generic``.
+
     Args:
         variant_name: One of the names appearing in MULTI_MODEL_VARIANTS.
 
@@ -290,6 +320,68 @@ def _load_variant_model(variant_name: str) -> Any:
 
     save_path = f"{settings.model_save_dir}/{variant_name}.pkl"
     logger.debug(f"Loading model '{variant_name}' from '{save_path}'")
+    model.load(save_path)
+
+    if not model.is_model_trained():
+        raise RuntimeError(
+            f"Loaded model '{variant_name}' from '{save_path}' is not "
+            f"marked as trained"
+        )
+
+    return model
+
+
+def _load_variant_model_generic(variant_name: str) -> Any:
+    """Load any model variant by name, including ``prophet_fresh``.
+
+    ``_load_variant_model`` deliberately excludes prophet_fresh
+    because the multi-model prediction job does not need it. The
+    champion fallback chain, however, must be able to load any of
+    the 6 variants (a champion could be any of them, and the
+    fallback chain may end on prophet_fresh). This helper covers
+    that case.
+
+    The load path is identical to ``_load_variant_model``:
+    ``{settings.model_save_dir}/{variant_name}.pkl``, matching the
+    path the retrain orchestrator writes to. The only difference is
+    the accepted variant set.
+
+    Args:
+        variant_name: One of ALL_VARIANTS.
+
+    Returns:
+        A loaded ForecastModel instance, marked as trained.
+
+    Raises:
+        ValueError: If variant_name is not one of ALL_VARIANTS.
+        FileNotFoundError: If the saved artifact does not exist.
+        RuntimeError: If the loaded model does not report as trained.
+    """
+    if variant_name not in ALL_VARIANTS:
+        raise ValueError(f"Unknown variant: {variant_name}")
+
+    # Map variant name to a fresh, strategy-configured instance.
+    if variant_name == "prophet_fresh":
+        model = ProphetModel(strategy="fresh")
+    elif variant_name == "prophet_warm":
+        model = ProphetModel(strategy="warm")
+    elif variant_name == "xgboost_fresh":
+        model = XGBoostModel(strategy="fresh")
+    elif variant_name == "xgboost_incremental":
+        model = XGBoostModel(strategy="incremental")
+    elif variant_name == "lightgbm_fresh":
+        model = LightGBMModel(strategy="fresh")
+    elif variant_name == "lightgbm_incremental":
+        model = LightGBMModel(strategy="incremental")
+    else:
+        # Unreachable given the membership check above, but keeps
+        # the branch exhaustive for the type checker.
+        raise ValueError(f"Unknown variant: {variant_name}")
+
+    save_path = f"{settings.model_save_dir}/{variant_name}.pkl"
+    logger.debug(
+        f"Loading variant '{variant_name}' from '{save_path}'"
+    )
     model.load(save_path)
 
     if not model.is_model_trained():
@@ -331,6 +423,122 @@ def _build_model_registry() -> Dict[str, Any]:
         "lightgbm_fresh": LightGBMModel(strategy="fresh"),
         "lightgbm_incremental": LightGBMModel(strategy="incremental"),
     }
+
+
+# ============================================================
+# CHAMPION MODEL LOADING (Phase 3)
+# ============================================================
+async def _load_champion_model(
+    champion_repo: ChampionRepository,
+    horizon: str,
+    market_condition: Optional[str] = None,
+) -> Any:
+    """Load the champion model for a horizon with hierarchical fallback.
+
+    The prediction jobs serve whatever the promotion job most
+    recently crowned. But model artifacts can be missing (first
+    run, failed retrain, manual deletion) — so this helper walks a
+    short fallback chain rather than failing outright:
+
+        1. Read the current champion for (horizon, market_condition)
+           via ``champion_repo.get_champion()``.
+        2. If a champion row exists:
+             a. Try ``models/{champion.model_name}.pkl``.
+             b. On failure, try ``models/{previous_champion}.pkl``
+                (only if ``previous_champion`` is not None).
+             c. On failure, try ``models/prophet_fresh.pkl``.
+             d. If prophet_fresh is also missing, raise
+                ``RuntimeError`` — there is nothing left to serve.
+        3. If no champion row exists (first-ever run):
+             → Load ``models/prophet_fresh.pkl`` directly. This is
+               the only sane default when no promotion has ever
+               happened.
+
+    Why one level of predecessor fallback:
+        ``previous_champion`` records only the immediate
+        predecessor of the current champion and is overwritten on
+        every promotion. A full history is not preserved, so the
+        chain cannot go deeper than one level. One level is enough
+        to survive the common failure mode (the just-promoted
+        model's artifact is missing or corrupt) without pretending
+        we have more history than we do.
+
+    Why prophet_fresh as the final fallback:
+        It is the model every fresh install can retrain from
+        scratch, and it is always among the 6 variants the retrain
+        job writes. If it is missing too, the service genuinely
+        cannot predict, and a RuntimeError is the correct outcome:
+        the scheduler records the failure and retries later.
+
+    Regime awareness:
+        ``market_condition`` defaults to None (global champion).
+        Regime-aware serving is deferred to Phase 4; until then,
+        the prediction jobs pass None. The parameter is in the
+        signature now so the Phase 4 change is a one-liner at the
+        call site.
+
+    Args:
+        champion_repo: An open ChampionRepository.
+        horizon: '24h' or '7d'.
+        market_condition: Regime label or None for global.
+
+    Returns:
+        A loaded ForecastModel instance, marked as trained.
+
+    Raises:
+        RuntimeError: If every candidate in the fallback chain
+            failed to load.
+    """
+    champion = await champion_repo.get_champion(
+        horizon=horizon,
+        market_condition=market_condition,
+    )
+
+    # ---- Case 3: no champion row at all (first-ever run) ----
+    if champion is None:
+        logger.info(
+            f"No champion for horizon={horizon!r} "
+            f"market_condition={market_condition!r}; "
+            f"falling back to 'prophet_fresh'"
+        )
+        return _load_variant_model_generic("prophet_fresh")
+
+    champion_name = champion["model_name"]
+    previous_name = champion.get("previous_champion")
+
+    # ---- Case 2: walk the fallback chain ----
+    # Build the chain as a list of (variant_name, label) so we can
+    # log the reason for each failure and identify which one
+    # succeeded.
+    chain: List[Tuple[str, str]] = [(champion_name, "champion")]
+    if previous_name is not None and previous_name != champion_name:
+        chain.append((previous_name, "previous_champion"))
+    if champion_name != "prophet_fresh" and previous_name != "prophet_fresh":
+        chain.append(("prophet_fresh", "last_resort"))
+
+    last_error: Optional[Exception] = None
+
+    for variant_name, label in chain:
+        try:
+            logger.info(
+                f"Loading champion for horizon={horizon!r} "
+                f"({label}={variant_name!r})"
+            )
+            return _load_variant_model_generic(variant_name)
+        except (FileNotFoundError, RuntimeError, ValueError) as e:
+            logger.warning(
+                f"Failed to load {label} {variant_name!r} for "
+                f"horizon={horizon!r}: {e}"
+            )
+            last_error = e
+            continue
+
+    # ---- Every candidate failed ----
+    chain_names = [name for name, _ in chain]
+    raise RuntimeError(
+        f"Could not load any champion candidate for horizon={horizon!r} "
+        f"(tried {chain_names}); last error: {last_error}"
+    )
 
 
 # ============================================================
@@ -992,9 +1200,12 @@ async def _build_breach_rows(
 async def hourly_prediction_job() -> Dict[str, Any]:
     """Generate 24h BTC predictions for the current hour.
 
-    Steps:
-        1. Load the trained Prophet model from disk.
-        2. Open a DB session.
+    Loads the *champion* for the 24h horizon (with hierarchical
+    fallback — see ``_load_champion_model``) instead of a hardcoded
+    Prophet. Steps:
+        1. Open a DB session, read the 24h champion row, and load
+           the champion's model artifact (with fallback).
+        2. Open a second DB session for prediction generation.
         3. Build a PredictionGenerator (24h horizon, 0.85 confidence,
            history_source=FeatureContext.PREDICTION).
         4. Run generate().
@@ -1005,27 +1216,47 @@ async def hourly_prediction_job() -> Dict[str, Any]:
     update job state. This keeps the job function focused on the
     work itself.
 
+    Champion fallback:
+        If the 24h champion artifact is missing or fails to load,
+        ``_load_champion_model`` tries the incumbent's
+        ``previous_champion``, then falls back to
+        ``prophet_fresh``. If everything fails, the helper raises
+        RuntimeError, which the manager records as a job failure.
+
+    Regime awareness:
+        Regime-specific serving is deferred to Phase 4. Until
+        then, this job loads the global champion
+        (``market_condition=None``).
+
     Returns:
         Dict with keys: horizon, model_name, rows_generated,
         rows_saved, elapsed_seconds, prediction_time, succeeded.
 
     Raises:
-        FileNotFoundError: If the trained model is missing.
+        FileNotFoundError: If no model artifact could be loaded.
         RuntimeError: If generation fails for any other reason.
     """
     logger.info("Running hourly_prediction_job")
 
-    model_path = settings.prophet_24h_model_path
-    logger.debug(f"Loading Prophet model from '{model_path}'")
-
-    model = ProphetModel(strategy="fresh")
-    model.load(model_path)
-
-    if not model.is_model_trained():
-        raise RuntimeError(
-            f"Loaded model from '{model_path}' is not marked as trained"
+    # ---- 1. Load the 24h champion (with fallback) ----
+    # The champion read happens in its own session so the
+    # prediction generator's session below is a clean, dedicated
+    # scope for the actual generation work.
+    async with session_scope() as session:
+        champion_repo = ChampionRepository(session)
+        model = await _load_champion_model(
+            champion_repo=champion_repo,
+            horizon="24h",
+            market_condition=None,
         )
 
+    logger.info(
+        f"hourly_prediction_job using model "
+        f"'{type(model).__name__}' (strategy="
+        f"'{getattr(model, 'strategy', 'n/a')}')"
+    )
+
+    # ---- 2. Generate predictions in a fresh session ----
     async with session_scope() as session:
         repository = PredictionRepository(session)
 
@@ -1070,11 +1301,15 @@ async def daily_7d_prediction_job() -> Dict[str, Any]:
     """Generate 7d BTC predictions once per day.
 
     Runs daily at 6:30 AM UTC, shortly after the daily retrain
-    (6:00 AM UTC) so the 7d forecast always uses a fresh model.
+    (6:00 AM UTC) so the 7d forecast uses the freshest available
+    champion artifact.
 
-    Steps:
-        1. Load the trained 7d Prophet model from disk.
-        2. Open a DB session.
+    Loads the *champion* for the 7d horizon (with hierarchical
+    fallback — see ``_load_champion_model``) instead of a hardcoded
+    Prophet. Steps:
+        1. Open a DB session, read the 7d champion row, and load
+           the champion's model artifact (with fallback).
+        2. Open a second DB session for prediction generation.
         3. Build a PredictionGenerator (7d horizon, 0.85 confidence,
            history_source=FeatureContext.PREDICTION).
         4. Run generate().
@@ -1083,27 +1318,43 @@ async def daily_7d_prediction_job() -> Dict[str, Any]:
     The job raises on failure so the SchedulerManager records the
     failure and applies retries.
 
+    Champion fallback:
+        Same chain as ``hourly_prediction_job`` — the 7d champion,
+        then its predecessor, then ``prophet_fresh``. The two jobs
+        are independent: a 24h champion failure does not affect the
+        7d job and vice versa.
+
+    Regime awareness:
+        Regime-specific serving is deferred to Phase 4. Until
+        then, this job loads the global champion
+        (``market_condition=None``).
+
     Returns:
         Dict with keys: horizon, model_name, rows_generated,
         rows_saved, elapsed_seconds, prediction_time, succeeded.
 
     Raises:
-        FileNotFoundError: If the trained model is missing.
+        FileNotFoundError: If no model artifact could be loaded.
         RuntimeError: If generation fails for any other reason.
     """
     logger.info("Running daily_7d_prediction_job")
 
-    model_path = settings.prophet_7d_model_path
-    logger.debug(f"Loading Prophet model from '{model_path}'")
-
-    model = ProphetModel(strategy="fresh")
-    model.load(model_path)
-
-    if not model.is_model_trained():
-        raise RuntimeError(
-            f"Loaded model from '{model_path}' is not marked as trained"
+    # ---- 1. Load the 7d champion (with fallback) ----
+    async with session_scope() as session:
+        champion_repo = ChampionRepository(session)
+        model = await _load_champion_model(
+            champion_repo=champion_repo,
+            horizon="7d",
+            market_condition=None,
         )
 
+    logger.info(
+        f"daily_7d_prediction_job using model "
+        f"'{type(model).__name__}' (strategy="
+        f"'{getattr(model, 'strategy', 'n/a')}')"
+    )
+
+    # ---- 2. Generate predictions in a fresh session ----
     async with session_scope() as session:
         repository = PredictionRepository(session)
 
