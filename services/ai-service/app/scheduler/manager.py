@@ -2,14 +2,14 @@
 
 Wraps APScheduler's AsyncIOScheduler with:
     - Conditional job registration gated by two category toggles:
-        * scheduler_ml_jobs_enabled  — the 7 ML jobs
+        * scheduler_ml_jobs_enabled  — the 8 ML jobs
         * scheduler_analytics_jobs_enabled — the 3 analytics jobs
     - Lifecycle (start, shutdown) tied to FastAPI's lifespan
     - Failure handling (retries per settings.scheduler_max_retries)
     - Run history in SchedulerState
 
 Job categories:
-    ML jobs (7) — depend on trained models:
+    ML jobs (8) — depend on trained models:
         - daily_retrain
         - hourly_prediction
         - daily_7d_prediction
@@ -17,6 +17,7 @@ Job categories:
         - daily_accuracy
         - daily_multi_model_predictions
         - daily_model_performance_aggregation
+        - daily_promote_champion
 
     Analytics + housekeeping jobs (3) — independent of models:
         - daily_correlation
@@ -54,6 +55,7 @@ from app.scheduler.jobs import (
     JOB_DAILY_EXPORT_CLEANUP,
     JOB_DAILY_MODEL_PERFORMANCE_AGGREGATION,
     JOB_DAILY_MULTI_MODEL_PREDICTIONS,
+    JOB_DAILY_PROMOTE_CHAMPION,
     JOB_DAILY_RETRAIN,
     JOB_HOURLY_PREDICTION,
     daily_7d_prediction_job,
@@ -64,6 +66,7 @@ from app.scheduler.jobs import (
     daily_export_cleanup_job,
     daily_model_performance_aggregation_job,
     daily_multi_model_predictions_job,
+    daily_promote_champion_job,
     daily_retrain_job,
     hourly_prediction_job,
 )
@@ -88,6 +91,7 @@ JOB_ID_DAILY_MULTI_MODEL_PREDICTIONS = "daily_multi_model_predictions"
 JOB_ID_DAILY_MODEL_PERFORMANCE_AGGREGATION = (
     "daily_model_performance_aggregation"
 )
+JOB_ID_DAILY_PROMOTE_CHAMPION = "daily_promote_champion"
 JOB_ID_DAILY_CORRELATION = "daily_correlation"
 JOB_ID_DAILY_EXPORT_CLEANUP = "daily_export_cleanup"
 JOB_ID_DAILY_EVENT_IMPACT_UPDATE = "daily_event_impact_update"
@@ -154,7 +158,7 @@ class SchedulerManager:
 
         The registration is conditional:
 
-            - ML jobs (7) are registered only when
+            - ML jobs (8) are registered only when
               ``settings.scheduler_ml_jobs_enabled`` is True.
             - Analytics jobs (3) are registered only when
               ``settings.scheduler_analytics_jobs_enabled`` is True.
@@ -174,7 +178,7 @@ class SchedulerManager:
         )
 
         # ------------------------------------------------------------
-        # ML jobs (7) — gated by scheduler_ml_jobs_enabled
+        # ML jobs (8) — gated by scheduler_ml_jobs_enabled
         # ------------------------------------------------------------
         if settings.scheduler_ml_jobs_enabled:
             self._register_daily_retrain_job()
@@ -184,13 +188,14 @@ class SchedulerManager:
             self._register_daily_accuracy_job()
             self._register_daily_multi_model_predictions_job()
             self._register_daily_model_performance_aggregation_job()
+            self._register_daily_promote_champion_job()
             logger.info(
-                "Registered 7 ML jobs "
+                "Registered 8 ML jobs "
                 "(SCHEDULER_ML_JOBS_ENABLED=true)"
             )
         else:
             logger.info(
-                "Skipping 7 ML jobs "
+                "Skipping 8 ML jobs "
                 "(SCHEDULER_ML_JOBS_ENABLED=false)"
             )
 
@@ -480,6 +485,56 @@ class SchedulerManager:
             f"'{JOB_ID_DAILY_MODEL_PERFORMANCE_AGGREGATION}' "
             f"(trigger: hour={settings.model_performance_aggregation_hour} "
             f"minute={settings.model_performance_aggregation_minute} "
+            f"tz={settings.retrain_timezone})"
+        )
+
+    def _register_daily_promote_champion_job(self) -> None:
+        """Register the daily champion promotion job (7:30 AM UTC).
+
+        Sits after the 7:15 model-performance aggregation job so both
+        source tables — prediction_performance (written at 6:45) and
+        model_performance (written at 7:15) — are fresh when the
+        promotion job reads them.
+
+        The job ranks candidate models by backtested metrics over
+        two rolling windows, applies three safety gates (minimum
+        sample size, meaningful lead, stability streak), and promotes
+        a new champion per horizon (and optionally per regime).
+
+        Runs at champion_promotion_hour:champion_promotion_minute
+        (default 7:30 AM UTC). Configurable via Settings.
+
+        misfire_grace_time=1800 (30 min): if the scheduler was down
+        and misses the 7:30 tick, run anyway so the champion set is
+        still refreshed that day.
+        """
+        if self._scheduler is None:
+            raise RuntimeError("Scheduler not set up")
+
+        trigger = CronTrigger(
+            hour=settings.champion_promotion_hour,
+            minute=settings.champion_promotion_minute,
+            timezone=settings.retrain_timezone,
+        )
+
+        self._scheduler.add_job(
+            func=self._wrap_job(
+                JOB_DAILY_PROMOTE_CHAMPION,
+                daily_promote_champion_job,
+            ),
+            trigger=trigger,
+            id=JOB_ID_DAILY_PROMOTE_CHAMPION,
+            name="Daily champion promotion",
+            replace_existing=True,
+            max_instances=1,
+            coalesce=True,
+            misfire_grace_time=1800,
+        )
+
+        logger.info(
+            f"Registered job '{JOB_ID_DAILY_PROMOTE_CHAMPION}' "
+            f"(trigger: hour={settings.champion_promotion_hour} "
+            f"minute={settings.champion_promotion_minute} "
             f"tz={settings.retrain_timezone})"
         )
 
