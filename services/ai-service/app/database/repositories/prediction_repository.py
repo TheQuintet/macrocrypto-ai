@@ -51,6 +51,17 @@ CLI isolation:
     The routing is handled by `_resolve_predictions_table()`, which
     returns the production or CLI variant based on the current
     settings. Every method that touches btc_predictions calls it.
+
+Simulation:
+    The two source fetches used by the correlation calculator
+    (``fetch_recent_btc_data`` and ``fetch_recent_macro_data``)
+    accept an optional ``as_of`` datetime. When provided, it
+    replaces the wall-clock "now" as the reference point for the
+    ``hours`` lookback window. This is what lets the CLI's
+    ``simulate`` subcommand replay N historical days in a single
+    invocation. Other read methods on this repository do not
+    currently take ``as_of`` — they either read a specific
+    historical timestamp or a stored prediction batch.
 """
 
 import logging
@@ -177,7 +188,11 @@ class PredictionRepository:
     # ============================================================
     # READS — source data
     # ============================================================
-    async def fetch_recent_btc_data(self, hours: int) -> pd.DataFrame:
+    async def fetch_recent_btc_data(
+        self,
+        hours: int,
+        as_of: Optional[datetime] = None,
+    ) -> pd.DataFrame:
         """Fetch the last `hours` of BTC price data.
 
         Note: this reads the shared `btc_prices` source table,
@@ -186,6 +201,12 @@ class PredictionRepository:
 
         Args:
             hours: Number of most recent hours to fetch.
+            as_of: Optional reference point for "now". When provided,
+                the cutoff is ``as_of - hours`` instead of
+                ``datetime.now(timezone.utc) - hours``. A naive
+                datetime is interpreted as UTC. Used by the CLI's
+                ``simulate`` subcommand to replay a historical
+                window.
 
         Returns:
             DataFrame with columns:
@@ -193,7 +214,8 @@ class PredictionRepository:
                 active_addresses, price_lag_7d
             Sorted ascending by time.
         """
-        since = datetime.now(timezone.utc) - timedelta(hours=hours)
+        reference = _resolve_as_of(as_of)
+        since = reference - timedelta(hours=hours)
 
         stmt = (
             select(
@@ -213,7 +235,8 @@ class PredictionRepository:
         rows = result.mappings().all()
 
         logger.debug(
-            f"Fetched {len(rows)} BTC price rows (hours={hours})"
+            f"Fetched {len(rows)} BTC price rows "
+            f"(hours={hours}, since={since.isoformat()})"
         )
 
         return pd.DataFrame(
@@ -231,7 +254,11 @@ class PredictionRepository:
             ]
         )
 
-    async def fetch_recent_macro_data(self, hours: int) -> pd.DataFrame:
+    async def fetch_recent_macro_data(
+        self,
+        hours: int,
+        as_of: Optional[datetime] = None,
+    ) -> pd.DataFrame:
         """Fetch the last `hours` of macro indicator data.
 
         Note: this reads the shared `macro_indicators` source
@@ -239,13 +266,18 @@ class PredictionRepository:
 
         Args:
             hours: Number of most recent hours to fetch.
+            as_of: Optional reference point for "now". When provided,
+                the cutoff is ``as_of - hours`` instead of
+                ``datetime.now(timezone.utc) - hours``. A naive
+                datetime is interpreted as UTC.
 
         Returns:
             DataFrame with columns:
                 time, cpi, interest_rate, m2_growth, dxy, treasury_yield
             Sorted ascending by time.
         """
-        since = datetime.now(timezone.utc) - timedelta(hours=hours)
+        reference = _resolve_as_of(as_of)
+        since = reference - timedelta(hours=hours)
 
         stmt = (
             select(
@@ -264,7 +296,8 @@ class PredictionRepository:
         rows = result.mappings().all()
 
         logger.debug(
-            f"Fetched {len(rows)} macro rows (hours={hours})"
+            f"Fetched {len(rows)} macro rows "
+            f"(hours={hours}, since={since.isoformat()})"
         )
 
         return pd.DataFrame(
@@ -1003,3 +1036,31 @@ class PredictionRepository:
         value = result.scalar_one_or_none()
 
         return value
+
+
+# ============================================================
+# MODULE-LEVEL HELPERS
+# ============================================================
+def _resolve_as_of(as_of: Optional[datetime]) -> datetime:
+    """Return the reference "now" for a lookback window.
+
+    When ``as_of`` is provided, use it directly (converting a naive
+    datetime to UTC for consistency with the tz-aware columns in
+    ``btc_prices`` and ``macro_indicators``). Otherwise return the
+    current UTC time.
+
+    Extracted so both ``fetch_recent_btc_data`` and
+    ``fetch_recent_macro_data`` share exactly one implementation of
+    the "which now" rule.
+
+    Args:
+        as_of: Optional historical reference point.
+
+    Returns:
+        A timezone-aware UTC datetime.
+    """
+    if as_of is None:
+        return datetime.now(timezone.utc)
+    if as_of.tzinfo is None:
+        return as_of.replace(tzinfo=timezone.utc)
+    return as_of
