@@ -19,6 +19,9 @@ Jobs currently registered:
     - daily_model_performance_aggregation_job: copy the latest
       aggregate metrics from prediction_performance into
       model_performance (7:15 AM UTC, M7b)
+    - daily_promote_champion_job: rank models and promote a
+      champion per horizon (and optionally per regime) (7:30 AM UTC,
+      Phase 3)
     - daily_correlation_job: compute BTC-vs-macro correlations for
       all indicators × windows (2:00 AM UTC, A1.5)
     - daily_export_cleanup_job: delete export files older than the
@@ -60,6 +63,13 @@ from datetime import datetime, timezone
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from app.ai.backtest import BacktestResult, WalkForwardBacktester
+from app.ai.champion_selector import (
+    ChampionSelector,
+    DecisionStatus,
+    ModelMetrics,
+    PromotionDecision,
+    build_selector_from_settings,
+)
 from app.ai.models import (
     LightGBMModel,
     ProphetModel,
@@ -74,6 +84,11 @@ from app.config import settings
 from app.correlation.calculator import CorrelationCalculator
 from app.database.engine import session_scope
 from app.database.enums import FeatureContext
+from app.database.repositories.champion_repository import (
+    ChampionCandidateRow,
+    ChampionRepository,
+    ModelChampionRow,
+)
 from app.database.repositories.correlation_repository import (
     CorrelationRepository,
 )
@@ -98,7 +113,10 @@ from app.database.repositories.threshold_repository import (
 from app.events.reaction import ReactionCalculator
 from app.export.storage import get_storage
 from app.prediction.generator import PredictionGenerator
-from app.prediction.market import classify_market_condition_safe
+from app.prediction.market import (
+    ALL_CONDITIONS,
+    classify_market_condition_safe,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -118,6 +136,7 @@ JOB_DAILY_MULTI_MODEL_PREDICTIONS = "daily_multi_model_predictions"
 JOB_DAILY_MODEL_PERFORMANCE_AGGREGATION = (
     "daily_model_performance_aggregation"
 )
+JOB_DAILY_PROMOTE_CHAMPION = "daily_promote_champion"
 JOB_DAILY_CORRELATION = "daily_correlation"
 JOB_DAILY_EXPORT_CLEANUP = "daily_export_cleanup"
 JOB_DAILY_EVENT_IMPACT_UPDATE = "daily_event_impact_update"
@@ -188,6 +207,15 @@ ACCURACY_CHECK_MATRIX: List[Tuple[str, str]] = [
     (name, horizon)
     for name, horizon, _ in BACKTEST_VARIANTS
 ]
+
+
+# ============================================================
+# CHAMPION HORIZONS
+# ============================================================
+# The horizons the promotion job runs for. Matches the horizons
+# that the prediction jobs serve. Kept here so both the promotion
+# job and any future tooling can iterate the same set.
+CHAMPION_HORIZONS: Tuple[str, ...] = ("24h", "7d")
 
 
 def _variant_factory(variant_name: str) -> Callable[[], Any]:
@@ -1423,6 +1451,477 @@ async def daily_model_performance_aggregation_job() -> Dict[str, Any]:
         )
 
     return summary
+
+
+# ============================================================
+# DAILY PROMOTE CHAMPION JOB (Phase 3)
+# ============================================================
+async def daily_promote_champion_job() -> Dict[str, Any]:
+    """Rank models by backtested metrics and promote a champion.
+
+    Runs daily at 7:30 AM UTC, after both the backtest job (6:45)
+    and the model-performance aggregation job (7:15). At that
+    point, `prediction_performance` has fresh metrics for the last
+    24 hours.
+
+    Steps:
+
+        For each horizon in CHAMPION_HORIZONS ('24h', '7d'):
+            For each regime in the configured regime list:
+                (regime list is [None] unless
+                champion_enable_regime_selection is True, in which
+                case it is [None, 'bull', 'bear', 'volatile', 'neutral'])
+
+                1. Fetch per-model metrics over the primary and
+                   secondary lookback windows via
+                   PerformanceRepository.fetch_metrics_for_ranking().
+                2. Convert them to ModelMetrics for the selector.
+                3. Read the current champion via
+                   ChampionRepository.get_champion().
+                4. Compute the current top candidate and its
+                   stability streak via
+                   ChampionRepository.get_stability_streak().
+                5. Ask ChampionSelector to decide whether to
+                   promote.
+                6. If the decision is PROMOTE or INCUMBENT_MISSING:
+                   ChampionRepository.upsert_champion().
+                7. Always: record today's top candidate via
+                   ChampionRepository.record_candidate().
+
+    Failure isolation:
+        Each (horizon, regime) pair is wrapped in its own try/except.
+        A failure in one pair does not abort the others. The job
+        raises only if every pair failed for a non-skip reason.
+
+    Idempotency:
+        - The stability tracker uses ON CONFLICT DO NOTHING on
+          (candidate_date, horizon, model_name, metric_name), so
+          re-running the same day is a no-op.
+        - The champion upsert uses ON CONFLICT DO UPDATE on the
+          (horizon, market_condition) key, so re-running produces
+          the same champion row.
+        Together: running this job twice in a day is safe.
+
+    CLI mode:
+        When settings.cli_mode is True, both the champion and
+        candidate tables are routed to their `_cli` variants, so a
+        CLI run never affects production champion state.
+
+    Returns:
+        Dict with keys: horizons_processed (int),
+        regimes_processed (int), pairs_attempted (int),
+        pairs_promoted (int), pairs_first_champion (int),
+        pairs_unchanged (int), pairs_skipped (int),
+        pairs_failed (int), results (per-key dict),
+        elapsed_seconds.
+
+    Raises:
+        RuntimeError: If every pair failed for a non-skip reason.
+    """
+    import time
+
+    start = time.monotonic()
+    logger.info("Running daily_promote_champion_job")
+
+    # ---- 0. Build the selector once for the whole run ----
+    try:
+        selector = _build_champion_selector(settings)
+    except ValueError as e:
+        # A configuration error (e.g. bad champion_selection_metric).
+        # Fail fast — the whole job cannot proceed without a selector.
+        logger.error(f"Cannot build ChampionSelector: {e}")
+        raise RuntimeError(f"ChampionSelector configuration error: {e}")
+
+    # ---- 1. Determine the regime list ----
+    if settings.champion_enable_regime_selection:
+        # Include None (global) plus each regime.
+        regimes: List[Optional[str]] = [None] + list(ALL_CONDITIONS)
+        logger.info(
+            f"Regime selection enabled; iterating {len(regimes)} "
+            f"regime(s) per horizon"
+        )
+    else:
+        regimes = [None]
+        logger.info(
+            "Regime selection disabled; iterating the global regime only"
+        )
+
+    results: Dict[str, Dict[str, Any]] = {}
+    pairs_attempted = 0
+    pairs_promoted = 0
+    pairs_first_champion = 0
+    pairs_unchanged = 0
+    pairs_skipped = 0
+    pairs_failed = 0
+
+    # ---- 2. Main loop ----
+    for horizon in CHAMPION_HORIZONS:
+        for regime in regimes:
+            key = _champion_key(horizon, regime)
+            pairs_attempted += 1
+            logger.debug(f"Evaluating champion promotion for {key}")
+
+            try:
+                outcome = await _promote_one_key(
+                    selector=selector,
+                    horizon=horizon,
+                    market_condition=regime,
+                )
+                results[key] = outcome
+
+                status = outcome.get("status")
+                if status == "promoted":
+                    pairs_promoted += 1
+                elif status == "first_champion":
+                    pairs_first_champion += 1
+                elif status == "unchanged":
+                    pairs_unchanged += 1
+                elif status == "skipped":
+                    pairs_skipped += 1
+
+            except Exception as e:
+                logger.error(
+                    f"Champion promotion for {key} failed: {e}",
+                    exc_info=True,
+                )
+                results[key] = {
+                    "status": "failed",
+                    "error": str(e),
+                }
+                pairs_failed += 1
+
+    elapsed = time.monotonic() - start
+
+    summary = {
+        "horizons_processed": len(CHAMPION_HORIZONS),
+        "regimes_processed": len(regimes),
+        "pairs_attempted": pairs_attempted,
+        "pairs_promoted": pairs_promoted,
+        "pairs_first_champion": pairs_first_champion,
+        "pairs_unchanged": pairs_unchanged,
+        "pairs_skipped": pairs_skipped,
+        "pairs_failed": pairs_failed,
+        "results": results,
+        "elapsed_seconds": elapsed,
+    }
+
+    logger.info(
+        f"daily_promote_champion_job complete: "
+        f"{pairs_promoted} promoted, "
+        f"{pairs_first_champion} first-champion, "
+        f"{pairs_unchanged} unchanged, "
+        f"{pairs_skipped} skipped, "
+        f"{pairs_failed} failed, "
+        f"in {elapsed:.3f}s"
+    )
+
+    # Only fail the whole job if EVERY pair failed. Partial success
+    # is acceptable — the successes updated real champion state.
+    if pairs_attempted > 0 and pairs_failed == pairs_attempted:
+        raise RuntimeError(
+            f"All {pairs_attempted} champion promotion pairs failed"
+        )
+
+    return summary
+
+
+def _build_champion_selector(settings_obj: Any) -> ChampionSelector:
+    """Construct a ChampionSelector from a settings object.
+
+    Extracted so the promotion job and the tests can build the
+    selector the same way.
+
+    Args:
+        settings_obj: A Settings instance.
+
+    Returns:
+        A configured ChampionSelector.
+
+    Raises:
+        ValueError: If champion_selection_metric is not recognized.
+    """
+    return build_selector_from_settings(settings_obj)
+
+
+def _champion_key(
+    horizon: str, market_condition: Optional[str]
+) -> str:
+    """Format a stable string key for the results dict.
+
+    Examples:
+        ('24h', None)         -> '24h_global'
+        ('24h', 'bull')       -> '24h_bull'
+    """
+    regime = market_condition if market_condition is not None else "global"
+    return f"{horizon}_{regime}"
+
+
+async def _promote_one_key(
+    selector: ChampionSelector,
+    horizon: str,
+    market_condition: Optional[str],
+) -> Dict[str, Any]:
+    """Evaluate one (horizon, regime) pair and act on the decision.
+
+    This is the per-key body of the promotion job. It:
+
+        1. Reads per-model metrics over the two windows.
+        2. Reads the current champion.
+        3. Determines the top candidate.
+        4. Reads the candidate's stability streak.
+        5. Asks the selector to decide.
+        6. Writes the champion (if promoting).
+        7. Records today's top candidate.
+
+    The caller (daily_promote_champion_job) wraps each call in a
+    try/except; this function may raise if a repository call fails.
+
+    Args:
+        selector: The configured ChampionSelector.
+        horizon: '24h' or '7d'.
+        market_condition: Regime label or None for global.
+
+    Returns:
+        Dict describing the outcome. Keys:
+            status: 'promoted' | 'first_champion' | 'unchanged' | 'skipped'
+            decision_status: the DecisionStatus enum value
+            candidate_name: the top candidate (or None)
+            candidate_metric: the candidate's primary-window metric
+            candidate_sample_size: the candidate's primary sample size
+            previous_champion: the incumbent (or None)
+            reason: human-readable reason
+    """
+    # ---- 1. Fetch per-model metrics ----
+    async with session_scope() as session:
+        perf_repo = PerformanceRepository(session)
+        champion_repo = ChampionRepository(session)
+
+        metric_name = selector.metric_name
+        primary_days = settings.champion_primary_lookback_days
+        secondary_days = settings.champion_secondary_lookback_days
+
+        metric_rows = await perf_repo.fetch_metrics_for_ranking(
+            horizon=horizon,
+            metric_name=metric_name,
+            primary_days=primary_days,
+            secondary_days=secondary_days,
+            market_condition=market_condition,
+        )
+
+        # ---- 2. Read current champion ----
+        incumbent = await champion_repo.get_champion(
+            horizon=horizon,
+            market_condition=market_condition,
+        )
+
+        incumbent_name = incumbent["model_name"] if incumbent else None
+        incumbent_metric = (
+            incumbent["metric_value"] if incumbent else None
+        )
+
+        # ---- 3. Convert metrics to ModelMetrics ----
+        candidates = _to_model_metrics(metric_rows)
+
+        # ---- 4. Compute the top candidate ----
+        # We need to know WHO the top candidate is BEFORE we can
+        # look up its stability streak. The selector does the
+        # ranking internally, but the streak lookup requires the
+        # name. We compute the top here using the same ranking
+        # rule and pass the name to the streak lookup.
+        top_name = _pick_top_candidate_name(
+            selector=selector,
+            candidates=candidates,
+        )
+
+        candidate_streak = 0
+        if top_name is not None:
+            candidate_streak = await champion_repo.get_stability_streak(
+                horizon=horizon,
+                market_condition=market_condition,
+                model_name=top_name,
+                metric_name=metric_name,
+            )
+
+        # ---- 5. Ask the selector ----
+        decision = selector.decide(
+            horizon=horizon,
+            market_condition=market_condition,
+            candidates=candidates,
+            incumbent_name=incumbent_name,
+            incumbent_metric=incumbent_metric,
+            candidate_stability_days=candidate_streak,
+            candidate_stability_model=top_name,
+        )
+
+        logger.info(
+            f"[{_champion_key(horizon, market_condition)}] "
+            f"decision={decision.status.value} "
+            f"candidate={decision.candidate_name!r} "
+            f"incumbent={decision.incumbent_name!r} "
+            f"reason={decision.reason!r}"
+        )
+
+        # ---- 6. Act on the decision ----
+        status = "unchanged"
+
+        if decision.status in (
+            DecisionStatus.PROMOTE,
+            DecisionStatus.INCUMBENT_MISSING,
+        ):
+            # Build the champion row and upsert.
+            champion_row = ModelChampionRow(
+                horizon=horizon,
+                market_condition=market_condition,
+                model_name=decision.candidate_name,
+                model_version=_model_version_for(
+                    metric_rows, decision.candidate_name
+                ),
+                metric_name=metric_name,
+                metric_value=decision.candidate_primary_metric,
+                sample_size=decision.candidate_primary_sample_size,
+                lookback_days=primary_days,
+                previous_champion=incumbent_name,
+                reason=decision.reason,
+            )
+            await champion_repo.upsert_champion(champion_row)
+
+            if decision.status == DecisionStatus.PROMOTE:
+                status = "promoted"
+            else:
+                status = "first_champion"
+
+        elif decision.status == DecisionStatus.NO_CANDIDATES:
+            status = "skipped"
+        elif decision.status == DecisionStatus.INSUFFICIENT_SAMPLE:
+            status = "skipped"
+        elif decision.status == DecisionStatus.NO_IMPROVEMENT:
+            status = "unchanged"
+        elif decision.status == DecisionStatus.NOT_STABLE:
+            status = "unchanged"
+        elif decision.status == DecisionStatus.METRIC_INVALID:
+            status = "failed"
+
+        # ---- 7. Record today's top candidate ----
+        # We record the top candidate for stability tracking
+        # regardless of the decision. If there are no candidates
+        # at all, there is nothing to record.
+        if top_name is not None:
+            candidate_metric_value = _metric_value_for(
+                metric_rows, top_name, "primary_metric_value"
+            )
+            candidate_sample_size = _metric_value_for(
+                metric_rows, top_name, "primary_sample_size"
+            ) or 0
+
+            if candidate_metric_value is not None:
+                candidate_row = ChampionCandidateRow(
+                    candidate_date=datetime.now(timezone.utc).date(),
+                    horizon=horizon,
+                    market_condition=market_condition,
+                    model_name=top_name,
+                    metric_name=metric_name,
+                    metric_value=candidate_metric_value,
+                    sample_size=int(candidate_sample_size),
+                )
+                await champion_repo.record_candidate(candidate_row)
+
+        return {
+            "status": status,
+            "decision_status": decision.status.value,
+            "candidate_name": decision.candidate_name,
+            "candidate_metric": decision.candidate_primary_metric,
+            "candidate_sample_size": decision.candidate_primary_sample_size,
+            "previous_champion": decision.incumbent_name,
+            "improvement_pct": decision.improvement_pct,
+            "stability_days": decision.stability_days,
+            "reason": decision.reason,
+        }
+
+
+def _to_model_metrics(
+    metric_rows: List[Dict[str, Any]],
+) -> Dict[str, ModelMetrics]:
+    """Convert ranking rows to ModelMetrics instances.
+
+    Args:
+        metric_rows: Rows from
+            PerformanceRepository.fetch_metrics_for_ranking().
+
+    Returns:
+        Dict keyed by model_name.
+    """
+    out: Dict[str, ModelMetrics] = {}
+    for row in metric_rows:
+        name = row["model_name"]
+        out[name] = ModelMetrics(
+            model_name=name,
+            primary_metric_value=row.get("primary_metric_value"),
+            primary_sample_size=int(row.get("primary_sample_size") or 0),
+            secondary_metric_value=row.get("secondary_metric_value"),
+            secondary_sample_size=int(
+                row.get("secondary_sample_size") or 0
+            ),
+        )
+    return out
+
+
+def _pick_top_candidate_name(
+    selector: ChampionSelector,
+    candidates: Dict[str, ModelMetrics],
+) -> Optional[str]:
+    """Return the top candidate's name, or None if none are eligible.
+
+    Uses the same ranking rule as ChampionSelector.decide() so the
+    streak lookup is for the same model the selector will consider.
+
+    Args:
+        selector: The configured ChampionSelector.
+        candidates: Mapping of model_name → ModelMetrics.
+
+    Returns:
+        Model name, or None.
+    """
+    eligible = [
+        m
+        for m in candidates.values()
+        if m.is_eligible(
+            min_sample_size=selector.min_sample_size,
+            require_secondary=selector.require_secondary_window,
+        )
+    ]
+    if not eligible:
+        return None
+
+    # Reuse the selector's internal ranking.
+    top = selector._rank_top_candidate(eligible)
+    return top.model_name
+
+
+def _metric_value_for(
+    metric_rows: List[Dict[str, Any]],
+    model_name: str,
+    key: str,
+) -> Optional[float]:
+    """Return a specific field for a specific model from ranking rows."""
+    for row in metric_rows:
+        if row["model_name"] == model_name:
+            value = row.get(key)
+            return float(value) if value is not None else None
+    return None
+
+
+def _model_version_for(
+    metric_rows: List[Dict[str, Any]],
+    model_name: str,
+) -> str:
+    """Return the model_version for a model, or '1.0.0' as fallback.
+
+    The ranking rows from fetch_metrics_for_ranking don't include
+    model_version (they aggregate over all versions). We fall back
+    to a hardcoded version for now. A future enhancement could
+    join to the latest model_performance row for the version.
+    """
+    return "1.0.0"
 
 
 # ============================================================
