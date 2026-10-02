@@ -54,8 +54,18 @@ Simulation:
     cleanup) accept an optional ``as_of`` datetime. When provided,
     it overrides the wall clock the job uses internally. This lets
     the CLI's `simulate` subcommand replay N historical days in a
-    single invocation. Only export-cleanup currently consumes the
-    value; the other two accept it for interface consistency.
+    single invocation.
+
+    Two of the three currently consume the value:
+        - daily_correlation_job forwards as_of to the correlation
+          calculator, which uses it as the reference point for the
+          "last N days" source fetches.
+        - daily_export_cleanup_job uses as_of as the reference
+          point for the file-age TTL cutoff.
+
+    daily_event_impact_update_job accepts as_of for interface
+    consistency but does not use it — the reaction calculator works
+    on stored event dates, not on "now". See that job's docstring.
 
 Champion-aware prediction:
     The two prediction jobs (hourly_prediction_job for 24h,
@@ -2194,16 +2204,18 @@ async def daily_correlation_job(
         1. Open a DB session.
         2. Build a CorrelationCalculator with the two repositories
            it needs (CorrelationRepository + PredictionRepository).
-        3. Call calc.run().
+        3. Call calc.run(as_of=as_of).
         4. Return a summary dict derived from the calculation result.
 
     Simulation:
-        ``as_of`` (when provided) overrides the wall clock for
-        simulation. Currently unused by this job — the correlation
-        calculator reads "the last N days" relative to now(), which
-        we don't currently thread through. Retained in the
-        signature for interface consistency with the other
-        analytics jobs.
+        ``as_of`` (when provided) is forwarded to the correlation
+        calculator, which uses it as the reference point for its
+        "last N days" source fetches. This makes
+        ``simulate correlation`` produce day-accurate results: two
+        runs with different ``as_of`` values read different windows
+        of BTC and macro data and therefore produce different
+        correlation rows. A naive datetime is interpreted as UTC by
+        the calculator's own resolver.
 
     Failure semantics:
         The calculator already isolates failures per (indicator,
@@ -2246,7 +2258,7 @@ async def daily_correlation_job(
             prediction_repo=prediction_repo,
         )
 
-        result = await calculator.run()
+        result = await calculator.run(as_of=as_of)
 
     elapsed = time.monotonic() - start
 
@@ -2319,8 +2331,7 @@ async def daily_export_cleanup_job(
 
     Simulation:
         ``as_of`` (when provided) shifts the "now" reference point
-        so the cleanup reflects a historical moment. This is the
-        only analytics job that currently consumes ``as_of``.
+        so the cleanup reflects a historical moment.
 
     Failure semantics:
         Per-key deletion errors are caught and counted, not
