@@ -106,6 +106,174 @@ class Settings(BaseSettings):
     cli_data_dir: str = Field(default="cli_data")
 
     # ============================================================
+    # CHAMPION SELECTION
+    # ============================================================
+    # The champion is the model currently authorized to serve
+    # predictions for a given horizon. A daily promotion job
+    # (daily_promote_champion_job) ranks candidate models by a
+    # configured metric over rolling windows and, when a candidate
+    # beats the incumbent by a meaningful margin and has been
+    # stable for N consecutive days, promotes it.
+    #
+    # The prediction jobs then load the champion (per horizon, and
+    # optionally per market regime) instead of using a hardcoded
+    # model.
+    #
+    # See docs/champion_selection_investigation.md for the full
+    # design and rationale.
+
+    # ------------------------------------------------------------
+    # Ranking metric
+    # ------------------------------------------------------------
+    # Which metric the promotion job ranks candidates by. Lower is
+    # better for "mae", "rmse", "mape". Higher is better for
+    # "directional_accuracy".
+    #
+    # The metric is read from the prediction_performance table
+    # (per-point backtest metrics), NOT from model_performance
+    # (which is an aggregate written after backtest). We use
+    # prediction_performance because it carries the sample_size
+    # needed for the minimum-sample gate.
+    #
+    # Recommended values:
+    #   "mae"  — default, matches the pre-existing in-sample ranking
+    #            and is scale-invariant with the price
+    #   "rmse" — penalizes large errors more
+    #   "mape" — scale-independent
+    #   "directional_accuracy" — flipped comparison (higher is better)
+    champion_selection_metric: str = Field(default="mae")
+
+    # ------------------------------------------------------------
+    # Look-back windows
+    # ------------------------------------------------------------
+    # The candidate must win on BOTH windows to be eligible. This
+    # prevents a model from being promoted on a short window of
+    # lucky results that wouldn't hold over a longer period.
+    #
+    # primary: 30 days. The current regime.
+    # secondary: 90 days. Broader stability.
+    #
+    # Both are measured from `datetime.now(timezone.utc)` at
+    # promotion time, applied to `prediction_performance.forecast_date`.
+    champion_primary_lookback_days: int = Field(default=30)
+    champion_secondary_lookback_days: int = Field(default=90)
+
+    # ------------------------------------------------------------
+    # Safety gates
+    # ------------------------------------------------------------
+    # A candidate must pass ALL of these gates to be promoted:
+    #
+    # 1) Minimum sample size
+    #    The candidate must have at least this many matched points
+    #    in the primary window. A model that only ran 3 backtests
+    #    this month shouldn't displace a well-tested champion.
+    #
+    #    Rule of thumb: 100 points ≈ 4 full days of hourly
+    #    backtest output for a 24h horizon, or ~0.5 days for 7d.
+    #    The default is a conservative floor for either horizon.
+    #
+    # 2) Meaningful lead
+    #    The candidate's metric must be better than the incumbent's
+    #    by at least this fraction. E.g., 0.05 = 5%.
+    #
+    #    Why: a lead of 0.1% is noise. Promoting on noise causes
+    #    the champion to flip back and forth, which is bad for
+    #    interpretability and produces operational churn.
+    #
+    #    Rule of thumb: 0.05 (5%) filters out most noise. Tighten
+    #    to 0.10 for very conservative regimes; loosen to 0.02
+    #    only if the model set changes frequently.
+    #
+    #    Comparison direction depends on the metric:
+    #      - For "mae" / "rmse" / "mape": candidate < incumbent * (1 - lead)
+    #      - For "directional_accuracy": candidate > incumbent * (1 + lead)
+    #
+    # 3) Stability
+    #    The candidate must have been the top-ranked model for at
+    #    least this many CONSECUTIVE DAYS. The stability check
+    #    reads champion_candidates, which is written once per day
+    #    by the promotion job.
+    #
+    #    Why: a single day's ranking is noisy. Requiring a run of
+    #    consecutive days filters out one-off wins.
+    #
+    #    Rule of thumb: 3 days. Higher for very stable regimes (5),
+    #    lower only if you're prepared for more churn.
+    champion_min_sample_size: int = Field(default=100)
+    champion_min_lead_pct: float = Field(default=0.05)
+    champion_stability_days: int = Field(default=3)
+
+    # ------------------------------------------------------------
+    # Regime-aware champion selection
+    # ------------------------------------------------------------
+    # When True, the promotion job ranks candidates PER MARKET
+    # REGIME (bull / bear / volatile / neutral) in addition to
+    # globally, and the prediction jobs pick the champion for the
+    # CURRENT regime (with the global champion as fallback).
+    #
+    # When False (default), only global champions are written and
+    # consulted. The market_condition column in model_champions
+    # stays NULL.
+    #
+    # ------------------------------------------------------------------
+    # Why default to False
+    # ------------------------------------------------------------------
+    # Regime-aware selection is a strict improvement in theory, but
+    # it requires enough data per regime to be meaningful. With the
+    # current data volume, most regimes will have fewer than
+    # champion_min_sample_size matched points within a 30-day
+    # window, so the promotion job would fall back to the global
+    # champion anyway.
+    #
+    # Turning it on before there's enough per-regime data creates
+    # the illusion of regime-awareness without the substance: the
+    # promotion job will run every regime candidate through the
+    # same gates, most will be skipped, and the output will look
+    # identical to running with regime=False.
+    #
+    # ------------------------------------------------------------------
+    # When to enable it
+    # ------------------------------------------------------------------
+    # Enable this once:
+    #   - The backtest has produced at least ~90 days of prediction
+    #     history (so each regime has multiple 30-day windows).
+    #   - The three regimes ('bull', 'bear', 'volatile') each show
+    #     enough samples in the primary window across the model
+    #     set to be able to distinguish winners.
+    #   - You've verified the classifier in app.prediction.market
+    #     is producing the expected regime labels on recent data.
+    #
+    # A reasonable rollout:
+    #   1. Leave False while populating prediction_performance.
+    #   2. Run a dry pass of the promotion job with regime=True to
+    #      inspect the candidate rankings and see how many regimes
+    #      clear the sample-size gate. If most don't, keep False.
+    #   3. When enough regimes have data, flip to True. The
+    #      promotion job will start writing per-regime champions
+    #      and the prediction jobs will start picking them.
+    #
+    # Turning this off later is safe: existing per-regime champions
+    # remain in the table but are ignored, and the prediction jobs
+    # fall back to the global champion.
+    champion_enable_regime_selection: bool = Field(default=False)
+
+    # ------------------------------------------------------------
+    # Promotion schedule
+    # ------------------------------------------------------------
+    # When the daily promotion job runs. Must be AFTER both:
+    #   - The backtest job (6:45 AM UTC) — populates prediction_performance
+    #   - The aggregation job (7:15 AM UTC) — populates model_performance
+    #
+    # The default (7:30 AM UTC) sits right after aggregation, giving
+    # the promotion job a fresh view of both source tables.
+    #
+    # Changing this to a time before 7:15 will cause the promotion
+    # job to read stale metrics on days when the aggregation job is
+    # delayed.
+    champion_promotion_hour: int = Field(default=7)
+    champion_promotion_minute: int = Field(default=30)
+
+    # ============================================================
     # REDIS
     # ============================================================
     redis_host: str = Field(default="redis")
@@ -217,6 +385,10 @@ class Settings(BaseSettings):
     #   - daily_accuracy
     #   - daily_multi_model_predictions
     #   - daily_model_performance_aggregation
+    #
+    # The daily_promote_champion_job is also gated by this flag,
+    # because it depends on the ML pipeline having produced fresh
+    # metrics.
     #
     # Default: False. Enable once the live path is ready to run
     # against the "features_db" source.
@@ -443,6 +615,36 @@ class Settings(BaseSettings):
         if not base.is_absolute():
             base = Path.cwd() / base
         return base
+
+    # ------------------------------------------------------------
+    # Champion-related helpers
+    # ------------------------------------------------------------
+    @property
+    def champion_metric_eligible_values(self) -> tuple:
+        """Return the set of allowed values for champion_selection_metric.
+
+        Returned as a tuple so it can be used directly in `in` checks
+        and validations. The promotion job validates
+        `champion_selection_metric` against this tuple at startup, so
+        a typo in the env var produces a clear error rather than
+        silently ranking on an unknown metric.
+
+        Returns:
+            Tuple of allowed metric names. Same set as the CHECK
+            constraint on threshold_breaches.metric and
+            model_champions.metric_name.
+        """
+        return ("mae", "rmse", "mape", "directional_accuracy")
+
+    @property
+    def champion_metric_is_higher_better(self) -> bool:
+        """Return True if higher metric values are better.
+
+        Used by the promotion job to decide the comparison direction:
+            - For mae, rmse, mape: lower is better → False
+            - For directional_accuracy: higher is better → True
+        """
+        return self.champion_selection_metric == "directional_accuracy"
 
 
 # Global settings instance
