@@ -5,6 +5,10 @@ type PredictionStatusMessageProps = {
   error: Error | null
   /** Rendered while loading — a chart pane needs a taller block than a stat list. */
   skeletonClassName?: string
+  /** Heading of the failure state. */
+  unavailableTitle?: string
+  /** Shown when the request succeeded but returned nothing to draw. */
+  emptyMessage?: string
 }
 
 /**
@@ -17,6 +21,8 @@ export function PredictionStatusMessage({
   isPending,
   error,
   skeletonClassName = 'h-40 w-full',
+  unavailableTitle = 'Forecast unavailable',
+  emptyMessage = 'No forecast available for this window',
 }: PredictionStatusMessageProps) {
   if (isPending) {
     return <Skeleton className={skeletonClassName} />
@@ -25,15 +31,13 @@ export function PredictionStatusMessage({
   if (error) {
     return (
       <div role="alert" className="flex flex-col gap-1">
-        <p className="text-sm text-negative">Forecast unavailable</p>
+        <p className="text-sm text-negative">{unavailableTitle}</p>
         <p className="text-xs text-muted-foreground">{error.message}</p>
       </div>
     )
   }
 
   return (
-    <p className="text-sm text-muted-foreground">
-      No forecast available for this window
-    </p>
+    <p className="text-sm text-muted-foreground">{emptyMessage}</p>
   )
 }

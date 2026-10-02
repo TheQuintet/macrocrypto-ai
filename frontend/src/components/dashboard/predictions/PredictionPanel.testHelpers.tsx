@@ -65,3 +65,9 @@ export async function expectForecastUnavailable(message: string) {
   expect(screen.getAllByText('Forecast unavailable').length).toBeGreaterThan(0)
   expect(screen.getAllByText(message).length).toBeGreaterThan(0)
 }
+
+export async function expectAccuracyGrades(horizon: string) {
+  expect(
+    await screen.findByText(new RegExp(`past ${horizon} forecasts`)),
+  ).toBeInTheDocument()
+}

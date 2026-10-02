@@ -4,9 +4,12 @@ import {
   makePrediction,
   makePredictionHistory,
 } from '@/api/predictions/btcPrediction.testHelpers'
+import { makePredictionAccuracy } from '@/api/predictions/predictionAccuracy.testHelpers'
 import { resetPredictionStore } from '@/stores/predictionStore.testHelpers'
+import type { PredictionAccuracyParams } from '@/types/predictionAccuracy'
 import type { PredictionParams } from '@/types/predictions'
 import {
+  expectAccuracyGrades,
   expectChartRendered,
   expectForecastUnavailable,
   expectLegendExplains,
@@ -23,10 +26,12 @@ import {
   selectHorizon,
 } from './PredictionControls.testHelpers'
 
-const { fetchBtcPrediction, fetchPredictionHistory } = vi.hoisted(() => ({
-  fetchBtcPrediction: vi.fn(),
-  fetchPredictionHistory: vi.fn(),
-}))
+const { fetchBtcPrediction, fetchPredictionHistory, fetchPredictionAccuracy } =
+  vi.hoisted(() => ({
+    fetchBtcPrediction: vi.fn(),
+    fetchPredictionHistory: vi.fn(),
+    fetchPredictionAccuracy: vi.fn(),
+  }))
 
 vi.mock('@/api/predictions/btcPrediction', async (importOriginal) => {
   const actual =
@@ -38,6 +43,12 @@ vi.mock('@/api/predictions/predictionHistory', async (importOriginal) => {
   const actual =
     await importOriginal<typeof import('@/api/predictions/predictionHistory')>()
   return { ...actual, fetchPredictionHistory }
+})
+
+vi.mock('@/api/predictions/predictionAccuracy', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('@/api/predictions/predictionAccuracy')>()
+  return { ...actual, fetchPredictionAccuracy }
 })
 
 /** Echo the requested params back, so assertions can see what was asked for. */
@@ -57,6 +68,12 @@ describe('PredictionPanel', () => {
     fetchBtcPrediction.mockReset()
     fetchPredictionHistory.mockReset()
     fetchPredictionHistory.mockResolvedValue(makePredictionHistory())
+    fetchPredictionAccuracy.mockReset()
+    // Live, so the only "Simulated" badge on screen is the forecast's own.
+    fetchPredictionAccuracy.mockImplementation(
+      async (params: PredictionAccuracyParams) =>
+        makePredictionAccuracy({ source: 'live', horizon: params.horizon }),
+    )
     respondWithParams()
   })
 
@@ -168,6 +185,20 @@ describe('PredictionPanel', () => {
 
     await expectChartRendered('24h')
     expectLegendExplains('85%')
+  })
+
+  it('grades past forecasts for the horizon on the chart', async () => {
+    renderPanel()
+    await expectChartRendered('24h')
+
+    await selectHorizon('7d')
+    await expectChartRendered('7d')
+
+    await expectAccuracyGrades('7d')
+    expect(fetchPredictionAccuracy).toHaveBeenCalledWith({
+      horizon: '7d',
+      days: 90,
+    })
   })
 
   it('surfaces a failed request instead of falling back to fake forecasts', async () => {
