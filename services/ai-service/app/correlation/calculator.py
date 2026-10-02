@@ -63,6 +63,16 @@ Statistical significance (A1.4):
     p-value to a confidence level as a percentage
     ((1 - p_value) * 100). Both are pure functions so the API layer
     uses the same rules as the storage layer.
+
+Simulation:
+    ``CorrelationCalculator.run`` accepts an optional ``as_of``
+    datetime. When provided, it is forwarded to the two source
+    fetches so the calculator reads "the last N days relative to
+    as_of" instead of "the last N days relative to now". This is
+    what lets the CLI's ``simulate`` subcommand replay a historical
+    window and produce day-accurate correlation rows. Every other
+    piece of the calculator is unchanged — only the reference "now"
+    moves.
 """
 
 import logging
@@ -529,13 +539,24 @@ class CorrelationCalculator:
     # ============================================================
     # PUBLIC API
     # ============================================================
-    async def run(self) -> CalculationResult:
+    async def run(
+        self,
+        as_of: Optional[datetime] = None,
+    ) -> CalculationResult:
         """Run one full correlation calculation.
 
         Fetches source data once, computes every (indicator, window)
         pair, and persists the built rows. Skips and errors are
         captured in the result — this method does not raise on
         data-related failures.
+
+        Args:
+            as_of: Optional reference point for "now". When provided,
+                the two source fetches use ``as_of - hours`` as their
+                cutoff instead of ``datetime.now(timezone.utc) -
+                hours``. A naive datetime is interpreted as UTC. Used
+                by the CLI's ``simulate`` subcommand to replay a
+                historical window.
 
         Returns:
             CalculationResult with what was built, written, skipped,
@@ -555,7 +576,8 @@ class CorrelationCalculator:
 
         try:
             btc_df = await self.prediction_repo.fetch_recent_btc_data(
-                hours=btc_hours
+                hours=btc_hours,
+                as_of=as_of,
             )
         except Exception as e:
             logger.error(f"Failed to fetch BTC data: {e}", exc_info=True)
@@ -566,7 +588,8 @@ class CorrelationCalculator:
 
         try:
             macro_df = await self.prediction_repo.fetch_recent_macro_data(
-                hours=macro_hours
+                hours=macro_hours,
+                as_of=as_of,
             )
         except Exception as e:
             logger.error(f"Failed to fetch macro data: {e}", exc_info=True)
