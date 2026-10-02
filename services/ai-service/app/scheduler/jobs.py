@@ -45,9 +45,18 @@ Feature source:
     Analytics jobs (correlation, event impact, export cleanup) read
     directly from the source tables — they do not go through the
     feature-source dispatcher.
+
+Simulation:
+    The three analytics jobs (correlation, event impact, export
+    cleanup) accept an optional ``as_of`` datetime. When provided,
+    it overrides the wall clock the job uses internally. This lets
+    the CLI's `simulate` subcommand replay N historical days in a
+    single invocation. Only export-cleanup currently consumes the
+    value; the other two accept it for interface consistency.
 """
 
 import logging
+from datetime import datetime, timezone
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from app.ai.backtest import BacktestResult, WalkForwardBacktester
@@ -1419,7 +1428,9 @@ async def daily_model_performance_aggregation_job() -> Dict[str, Any]:
 # ============================================================
 # DAILY CORRELATION JOB (A1.5)
 # ============================================================
-async def daily_correlation_job() -> Dict[str, Any]:
+async def daily_correlation_job(
+    as_of: Optional[datetime] = None,
+) -> Dict[str, Any]:
     """Compute BTC-vs-macro correlations for all indicators × windows.
 
     Runs daily at 2:00 AM UTC, well before the 6:00 retrain. Fetches
@@ -1435,6 +1446,14 @@ async def daily_correlation_job() -> Dict[str, Any]:
            it needs (CorrelationRepository + PredictionRepository).
         3. Call calc.run().
         4. Return a summary dict derived from the calculation result.
+
+    Simulation:
+        ``as_of`` (when provided) overrides the wall clock for
+        simulation. Currently unused by this job — the correlation
+        calculator reads "the last N days" relative to now(), which
+        we don't currently thread through. Retained in the
+        signature for interface consistency with the other
+        analytics jobs.
 
     Failure semantics:
         The calculator already isolates failures per (indicator,
@@ -1520,7 +1539,9 @@ async def daily_correlation_job() -> Dict[str, Any]:
 # ============================================================
 # DAILY EXPORT CLEANUP JOB (A2.6)
 # ============================================================
-async def daily_export_cleanup_job() -> Dict[str, Any]:
+async def daily_export_cleanup_job(
+    as_of: Optional[datetime] = None,
+) -> Dict[str, Any]:
     """Delete export files older than the configured TTL.
 
     Runs daily at 3:00 AM UTC. Iterates the keys currently in
@@ -1545,6 +1566,11 @@ async def daily_export_cleanup_job() -> Dict[str, Any]:
         endpoint's "no file found" 404 is what enforces link
         expiry on this branch. The cleanup job is what produces
         that state.
+
+    Simulation:
+        ``as_of`` (when provided) shifts the "now" reference point
+        so the cleanup reflects a historical moment. This is the
+        only analytics job that currently consumes ``as_of``.
 
     Failure semantics:
         Per-key deletion errors are caught and counted, not
@@ -1600,7 +1626,12 @@ async def daily_export_cleanup_job() -> Dict[str, Any]:
         }
 
     ttl_seconds = settings.export_file_ttl_seconds
-    now = time.time()
+    # In simulate mode, `as_of` shifts the "now" reference point so
+    # the cleanup reflects a historical moment.
+    if as_of is not None:
+        now = as_of.timestamp()
+    else:
+        now = time.time()
     cutoff = now - ttl_seconds
 
     results: Dict[str, Dict[str, Any]] = {}
@@ -1698,7 +1729,9 @@ async def daily_export_cleanup_job() -> Dict[str, Any]:
 # ============================================================
 # DAILY EVENT IMPACT UPDATE JOB (A5.5)
 # ============================================================
-async def daily_event_impact_update_job() -> Dict[str, Any]:
+async def daily_event_impact_update_job(
+    as_of: Optional[datetime] = None,
+) -> Dict[str, Any]:
     """Recompute BTC reactions for every stored event and update on change.
 
     Runs daily at 4:00 AM UTC. The AI Service has no external
@@ -1726,6 +1759,13 @@ async def daily_event_impact_update_job() -> Dict[str, Any]:
         Ingestion Service backfills or corrects BTC prices, the
         stored reactions become stale, and this job corrects them
         on the next daily run.
+
+    Simulation:
+        ``as_of`` (when provided) overrides the wall clock for
+        simulation. Currently unused by this job — the reaction
+        calculator works on stored event dates, not on "now".
+        Retained in the signature for interface consistency with
+        the other analytics jobs.
 
     Idempotency:
         Re-running the same day produces zero writes on the second
