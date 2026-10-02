@@ -26,7 +26,7 @@ Tables:
     - champion_candidates:     State — daily top candidate per (horizon, regime)
 
 CLI isolation (_cli variants):
-    Six of the target tables have `_cli` mirror variants that the
+    Eight of the target tables have `_cli` mirror variants that the
     manual CLI (app.cli.pipeline) writes to when CLI_MODE=true.
     This keeps CLI runs sandboxed away from production tables.
 
@@ -36,17 +36,17 @@ CLI isolation (_cli variants):
         model_performance       <-> model_performance_cli
         btc_macro_correlation   <-> btc_macro_correlation_cli
         historical_event_impacts<-> historical_event_impacts_cli
+        model_champions         <-> model_champions_cli
+        champion_candidates     <-> champion_candidates_cli
 
     The `_cli` tables are structurally identical (same columns,
     constraints, indexes) via SQLAlchemy's to_metadata() helper.
     They are created by migrations, and populated only by the CLI.
 
-    The state tables (model_champions, champion_candidates) do NOT
-    have CLI variants. They represent the promotion state, which is
-    shared: a champion promoted in CLI mode is a real promotion and
-    applies to production. This is intentional — the CLI is meant
-    to be able to run the promotion job for testing, and the result
-    is authoritative.
+    Note: SQLAlchemy's to_metadata() cannot express the partial
+    unique index on model_champions (it uses COALESCE), so the DB
+    index is created by the migration only. The Core Table
+    definition is used for queries and inserts.
 
 Naming:
     Table names are pulled from Settings so they can be overridden
@@ -582,9 +582,10 @@ historical_event_impacts = Table(
 # the prediction jobs pick the corresponding one (with global as
 # fallback).
 #
-# This table has NO _cli variant. Promotions are authoritative
-# regardless of whether the promotion job was invoked by the
-# scheduler or the CLI.
+# This table HAS a _cli variant (model_champions_cli), created
+# by migration 014. When CLI_MODE=true, all reads and writes go
+# to the CLI table instead, so CLI promotions never affect
+# production state.
 model_champions = Table(
     "model_champions",
     metadata,
@@ -630,7 +631,8 @@ model_champions = Table(
 # One row per (candidate_date, horizon, market_condition,
 # model_name, metric_name).
 #
-# No _cli variant, same reasoning as model_champions.
+# Has a _cli variant (champion_candidates_cli), created by
+# migration 014. Routed via CLI mode.
 champion_candidates = Table(
     "champion_candidates",
     metadata,
@@ -668,11 +670,21 @@ champion_candidates = Table(
 # the repository picks the CLI variant when settings.cli_mode is
 # True (see each repository's _resolve_table helper).
 #
-# Only the 6 write-target tables get CLI variants. Source tables
+# Every write-target table gets a CLI variant. Source tables
 # (btc_prices, macro_indicators, features_db) do NOT — they are
-# shared, read-only inputs. State tables (model_champions,
-# champion_candidates) do NOT either — they represent promotion
-# state, which is authoritative and shared.
+# shared, read-only inputs. The 8 write-targets are:
+#
+#     btc_predictions
+#     prediction_performance
+#     threshold_breaches
+#     model_performance
+#     btc_macro_correlation
+#     historical_event_impacts
+#     model_champions
+#     champion_candidates
+#
+# All 8 have _cli variants, so a CLI run never touches
+# production data — including the champion state.
 
 btc_predictions_cli = btc_predictions.to_metadata(
     metadata,
@@ -702,6 +714,20 @@ btc_macro_correlation_cli = btc_macro_correlation.to_metadata(
 historical_event_impacts_cli = historical_event_impacts.to_metadata(
     metadata,
     name=f"{historical_event_impacts.name}_cli",
+)
+
+# The champion-state tables also get CLI mirrors. This was not
+# part of the original six because we initially assumed champion
+# state was a single source of truth. On reflection, full CLI
+# isolation requires the champion state to be sandboxed too.
+model_champions_cli = model_champions.to_metadata(
+    metadata,
+    name=f"{model_champions.name}_cli",
+)
+
+champion_candidates_cli = champion_candidates.to_metadata(
+    metadata,
+    name=f"{champion_candidates.name}_cli",
 )
 
 
@@ -928,3 +954,5 @@ TABLE_THRESHOLD_BREACHES_CLI = "threshold_breaches_cli"
 TABLE_MODEL_PERFORMANCE_CLI = "model_performance_cli"
 TABLE_BTC_MACRO_CORRELATION_CLI = "btc_macro_correlation_cli"
 TABLE_HISTORICAL_EVENT_IMPACTS_CLI = "historical_event_impacts_cli"
+TABLE_MODEL_CHAMPIONS_CLI = "model_champions_cli"
+TABLE_CHAMPION_CANDIDATES_CLI = "champion_candidates_cli"
