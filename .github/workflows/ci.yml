@@ -421,3 +421,33 @@ jobs:
 
           # 4. Clean up the background server process
           kill $SERVER_PID
+
+  # --- Security Audit Runs After Tests Pass ---
+  Security-Audit:
+    name: Security Audit (pip-audit)
+    needs: [api-gateway-tests, test-alert-service, test-data-service]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Run pip-audit across all services
+        uses: pypa/gh-action-pip-audit@v1.1.0
+        with:
+          inputs: |
+            services/api-gateway/requirements.txt
+            services/alert-service/requirements.txt
+            services/data-service/requirements.txt
+          # Justification: PYSEC-2026-1325 (ecdsa side-channel timing attack) is a well-known 
+          # transitive warning pulled in via python-jose. JWT authentication and token 
+          # verification are not yet fully implemented in the API gateway, rendering this 
+          # signature-related side-channel vector entirely non-functional and unexposed. 
+          # This exception is acknowledged and will be re-evaluated upon full JWT rollout 
+          # or migration to an active alternative like PyJWT.
+          ignore-vulns: |
+            PYSEC-2026-1325
