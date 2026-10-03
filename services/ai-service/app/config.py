@@ -204,16 +204,34 @@ class Settings(BaseSettings):
     champion_stability_days: int = Field(default=3)
 
     # ------------------------------------------------------------
-    # Regime-aware champion selection
+    # Regime-aware champion selection — PROMOTION SIDE
     # ------------------------------------------------------------
     # When True, the promotion job ranks candidates PER MARKET
     # REGIME (bull / bear / volatile / neutral) in addition to
-    # globally, and the prediction jobs pick the champion for the
-    # CURRENT regime (with the global champion as fallback).
+    # globally. That produces up to five champion rows per horizon:
+    # one for the global champion (market_condition IS NULL) and
+    # one for each regime that has enough data to clear the gates.
     #
-    # When False (default), only global champions are written and
-    # consulted. The market_condition column in model_champions
-    # stays NULL.
+    # When False (default), only global champions are written. The
+    # market_condition column in model_champions stays NULL.
+    #
+    # ------------------------------------------------------------------
+    # This flag does NOT enable regime-aware serving.
+    # ------------------------------------------------------------------
+    # Enabling this flag alone makes the promotion job write
+    # per-regime champion rows — but the prediction jobs still load
+    # the global champion, because serving is gated separately by
+    # `champion_serve_regime_aware`. The two flags are independent
+    # so you can:
+    #
+    #   1. Enable promotion alone to observe which regimes would
+    #      promote which models, without affecting production
+    #      forecasts.
+    #   2. Enable serving later, once you're confident in the
+    #      per-regime champions.
+    #   3. Disable serving without losing the accumulated
+    #      per-regime history (the rows stay; they're just not
+    #      consulted).
     #
     # ------------------------------------------------------------------
     # Why default to False
@@ -249,13 +267,68 @@ class Settings(BaseSettings):
     #      inspect the candidate rankings and see how many regimes
     #      clear the sample-size gate. If most don't, keep False.
     #   3. When enough regimes have data, flip to True. The
-    #      promotion job will start writing per-regime champions
-    #      and the prediction jobs will start picking them.
+    #      promotion job will start writing per-regime champions.
     #
     # Turning this off later is safe: existing per-regime champions
-    # remain in the table but are ignored, and the prediction jobs
-    # fall back to the global champion.
+    # remain in the table but are ignored, and the promotion job
+    # reverts to writing only the global champion.
     champion_enable_regime_selection: bool = Field(default=False)
+
+    # ------------------------------------------------------------
+    # Regime-aware champion selection — SERVING SIDE
+    # ------------------------------------------------------------
+    # When True, the prediction jobs classify the CURRENT BTC
+    # price regime before loading a champion, and load the
+    # champion for that regime. The classification uses the same
+    # function the backtest uses (`classify_market_condition_safe`
+    # in app.prediction.market), applied to a trailing window of
+    # real BTC prices.
+    #
+    # The trailing window length matches the horizon:
+    #   - hourly_prediction_job (24h horizon) — last 24 hours
+    #   - daily_7d_prediction_job (7d horizon) — last 168 hours
+    #
+    # This mirrors the backtest, where each iteration classifies
+    # its full forecast window (24h or 168h). Serving and backtest
+    # therefore assign labels with the same semantics.
+    #
+    # ------------------------------------------------------------------
+    # Fallback chain
+    # ------------------------------------------------------------------
+    # With this flag on, the champion loading chain becomes:
+    #
+    #   regime_champion        (horizon, classified_regime)
+    #     → global_champion    (horizon, None)
+    #       → previous_champion
+    #         → prophet_fresh
+    #
+    # The regime_champion step is skipped when:
+    #   - this flag is False, OR
+    #   - the classifier returned None (couldn't decide)
+    #
+    # In those cases the chain falls back to today's three-level
+    # behavior: global → previous → prophet_fresh.
+    #
+    # ------------------------------------------------------------------
+    # Why default to False
+    # ------------------------------------------------------------------
+    # This flag is meaningful only when `champion_enable_regime_selection`
+    # is also True — there must be per-regime champion rows to
+    # consult. Enable it after:
+    #
+    #   1. Promotion has been running with regime selection on for
+    #      long enough to have written per-regime champions.
+    #   2. You've inspected `model_champions` and are satisfied
+    #      that the per-regime picks are sensible.
+    #   3. You've checked the classifier logs to confirm the
+    #      current-regime classifications are reasonable.
+    #
+    # With this flag on and no regime champions yet in the table,
+    # the chain simply falls through to the global champion on
+    # every run — no harm done, but no benefit either. The
+    # WARNING log line (see the classifier helper) tells you when
+    # the classifier couldn't decide.
+    champion_serve_regime_aware: bool = Field(default=False)
 
     # ------------------------------------------------------------
     # Promotion schedule
