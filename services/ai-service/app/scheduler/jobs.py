@@ -19,6 +19,9 @@ Jobs currently registered:
     - daily_model_performance_aggregation_job: copy the latest
       aggregate metrics from prediction_performance into
       model_performance (7:15 AM UTC, M7b)
+    - daily_promote_champion_job: rank models and promote a
+      champion per horizon (and optionally per regime) (7:30 AM UTC,
+      Phase 3)
     - daily_correlation_job: compute BTC-vs-macro correlations for
       all indicators × windows (2:00 AM UTC, A1.5)
     - daily_export_cleanup_job: delete export files older than the
@@ -51,8 +54,27 @@ Simulation:
     cleanup) accept an optional ``as_of`` datetime. When provided,
     it overrides the wall clock the job uses internally. This lets
     the CLI's `simulate` subcommand replay N historical days in a
-    single invocation. Only export-cleanup currently consumes the
-    value; the other two accept it for interface consistency.
+    single invocation.
+
+    Two of the three currently consume the value:
+        - daily_correlation_job forwards as_of to the correlation
+          calculator, which uses it as the reference point for the
+          "last N days" source fetches.
+        - daily_export_cleanup_job uses as_of as the reference
+          point for the file-age TTL cutoff.
+
+    daily_event_impact_update_job accepts as_of for interface
+    consistency but does not use it — the reaction calculator works
+    on stored event dates, not on "now". See that job's docstring.
+
+Champion-aware prediction:
+    The two prediction jobs (hourly_prediction_job for 24h,
+    daily_7d_prediction_job for 7d) no longer hardcode Prophet.
+    Each loads the current champion for its horizon via
+    ``_load_champion_model``, which falls back through the
+    incumbent's predecessor and finally ``prophet_fresh`` when the
+    champion artifact is missing or broken. See the helper's
+    docstring for the exact chain.
 """
 
 import logging
@@ -60,6 +82,13 @@ from datetime import datetime, timezone
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from app.ai.backtest import BacktestResult, WalkForwardBacktester
+from app.ai.champion_selector import (
+    ChampionSelector,
+    DecisionStatus,
+    ModelMetrics,
+    PromotionDecision,
+    build_selector_from_settings,
+)
 from app.ai.models import (
     LightGBMModel,
     ProphetModel,
@@ -74,6 +103,11 @@ from app.config import settings
 from app.correlation.calculator import CorrelationCalculator
 from app.database.engine import session_scope
 from app.database.enums import FeatureContext
+from app.database.repositories.champion_repository import (
+    ChampionCandidateRow,
+    ChampionRepository,
+    ModelChampionRow,
+)
 from app.database.repositories.correlation_repository import (
     CorrelationRepository,
 )
@@ -98,7 +132,10 @@ from app.database.repositories.threshold_repository import (
 from app.events.reaction import ReactionCalculator
 from app.export.storage import get_storage
 from app.prediction.generator import PredictionGenerator
-from app.prediction.market import classify_market_condition_safe
+from app.prediction.market import (
+    ALL_CONDITIONS,
+    classify_market_condition_safe,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -118,6 +155,7 @@ JOB_DAILY_MULTI_MODEL_PREDICTIONS = "daily_multi_model_predictions"
 JOB_DAILY_MODEL_PERFORMANCE_AGGREGATION = (
     "daily_model_performance_aggregation"
 )
+JOB_DAILY_PROMOTE_CHAMPION = "daily_promote_champion"
 JOB_DAILY_CORRELATION = "daily_correlation"
 JOB_DAILY_EXPORT_CLEANUP = "daily_export_cleanup"
 JOB_DAILY_EVENT_IMPACT_UPDATE = "daily_event_impact_update"
@@ -190,6 +228,31 @@ ACCURACY_CHECK_MATRIX: List[Tuple[str, str]] = [
 ]
 
 
+# ============================================================
+# CHAMPION HORIZONS
+# ============================================================
+# The horizons the promotion job runs for. Matches the horizons
+# that the prediction jobs serve. Kept here so both the promotion
+# job and any future tooling can iterate the same set.
+CHAMPION_HORIZONS: Tuple[str, ...] = ("24h", "7d")
+
+
+# ============================================================
+# MODEL VARIANT NAMES
+# ============================================================
+# The complete set of model variants the service ships. Used by
+# the champion fallback chain to validate that a variant name is
+# known before trying to load it.
+ALL_VARIANTS: Tuple[str, ...] = (
+    "prophet_fresh",
+    "prophet_warm",
+    "xgboost_fresh",
+    "xgboost_incremental",
+    "lightgbm_fresh",
+    "lightgbm_incremental",
+)
+
+
 def _variant_factory(variant_name: str) -> Callable[[], Any]:
     """Return a factory for the given model variant name.
 
@@ -236,6 +299,11 @@ def _load_variant_model(variant_name: str) -> Any:
     that path exactly, so the two jobs always agree on where a
     given variant lives.
 
+    This helper handles only the 5 non-prophet_fresh variants
+    (prophet_fresh is excluded from MULTI_MODEL_VARIANTS). For the
+    champion fallback chain, which must be able to load any of the
+    6 variants, see ``_load_variant_model_generic``.
+
     Args:
         variant_name: One of the names appearing in MULTI_MODEL_VARIANTS.
 
@@ -262,6 +330,68 @@ def _load_variant_model(variant_name: str) -> Any:
 
     save_path = f"{settings.model_save_dir}/{variant_name}.pkl"
     logger.debug(f"Loading model '{variant_name}' from '{save_path}'")
+    model.load(save_path)
+
+    if not model.is_model_trained():
+        raise RuntimeError(
+            f"Loaded model '{variant_name}' from '{save_path}' is not "
+            f"marked as trained"
+        )
+
+    return model
+
+
+def _load_variant_model_generic(variant_name: str) -> Any:
+    """Load any model variant by name, including ``prophet_fresh``.
+
+    ``_load_variant_model`` deliberately excludes prophet_fresh
+    because the multi-model prediction job does not need it. The
+    champion fallback chain, however, must be able to load any of
+    the 6 variants (a champion could be any of them, and the
+    fallback chain may end on prophet_fresh). This helper covers
+    that case.
+
+    The load path is identical to ``_load_variant_model``:
+    ``{settings.model_save_dir}/{variant_name}.pkl``, matching the
+    path the retrain orchestrator writes to. The only difference is
+    the accepted variant set.
+
+    Args:
+        variant_name: One of ALL_VARIANTS.
+
+    Returns:
+        A loaded ForecastModel instance, marked as trained.
+
+    Raises:
+        ValueError: If variant_name is not one of ALL_VARIANTS.
+        FileNotFoundError: If the saved artifact does not exist.
+        RuntimeError: If the loaded model does not report as trained.
+    """
+    if variant_name not in ALL_VARIANTS:
+        raise ValueError(f"Unknown variant: {variant_name}")
+
+    # Map variant name to a fresh, strategy-configured instance.
+    if variant_name == "prophet_fresh":
+        model = ProphetModel(strategy="fresh")
+    elif variant_name == "prophet_warm":
+        model = ProphetModel(strategy="warm")
+    elif variant_name == "xgboost_fresh":
+        model = XGBoostModel(strategy="fresh")
+    elif variant_name == "xgboost_incremental":
+        model = XGBoostModel(strategy="incremental")
+    elif variant_name == "lightgbm_fresh":
+        model = LightGBMModel(strategy="fresh")
+    elif variant_name == "lightgbm_incremental":
+        model = LightGBMModel(strategy="incremental")
+    else:
+        # Unreachable given the membership check above, but keeps
+        # the branch exhaustive for the type checker.
+        raise ValueError(f"Unknown variant: {variant_name}")
+
+    save_path = f"{settings.model_save_dir}/{variant_name}.pkl"
+    logger.debug(
+        f"Loading variant '{variant_name}' from '{save_path}'"
+    )
     model.load(save_path)
 
     if not model.is_model_trained():
@@ -303,6 +433,122 @@ def _build_model_registry() -> Dict[str, Any]:
         "lightgbm_fresh": LightGBMModel(strategy="fresh"),
         "lightgbm_incremental": LightGBMModel(strategy="incremental"),
     }
+
+
+# ============================================================
+# CHAMPION MODEL LOADING (Phase 3)
+# ============================================================
+async def _load_champion_model(
+    champion_repo: ChampionRepository,
+    horizon: str,
+    market_condition: Optional[str] = None,
+) -> Any:
+    """Load the champion model for a horizon with hierarchical fallback.
+
+    The prediction jobs serve whatever the promotion job most
+    recently crowned. But model artifacts can be missing (first
+    run, failed retrain, manual deletion) — so this helper walks a
+    short fallback chain rather than failing outright:
+
+        1. Read the current champion for (horizon, market_condition)
+           via ``champion_repo.get_champion()``.
+        2. If a champion row exists:
+             a. Try ``models/{champion.model_name}.pkl``.
+             b. On failure, try ``models/{previous_champion}.pkl``
+                (only if ``previous_champion`` is not None).
+             c. On failure, try ``models/prophet_fresh.pkl``.
+             d. If prophet_fresh is also missing, raise
+                ``RuntimeError`` — there is nothing left to serve.
+        3. If no champion row exists (first-ever run):
+             → Load ``models/prophet_fresh.pkl`` directly. This is
+               the only sane default when no promotion has ever
+               happened.
+
+    Why one level of predecessor fallback:
+        ``previous_champion`` records only the immediate
+        predecessor of the current champion and is overwritten on
+        every promotion. A full history is not preserved, so the
+        chain cannot go deeper than one level. One level is enough
+        to survive the common failure mode (the just-promoted
+        model's artifact is missing or corrupt) without pretending
+        we have more history than we do.
+
+    Why prophet_fresh as the final fallback:
+        It is the model every fresh install can retrain from
+        scratch, and it is always among the 6 variants the retrain
+        job writes. If it is missing too, the service genuinely
+        cannot predict, and a RuntimeError is the correct outcome:
+        the scheduler records the failure and retries later.
+
+    Regime awareness:
+        ``market_condition`` defaults to None (global champion).
+        Regime-aware serving is deferred to Phase 4; until then,
+        the prediction jobs pass None. The parameter is in the
+        signature now so the Phase 4 change is a one-liner at the
+        call site.
+
+    Args:
+        champion_repo: An open ChampionRepository.
+        horizon: '24h' or '7d'.
+        market_condition: Regime label or None for global.
+
+    Returns:
+        A loaded ForecastModel instance, marked as trained.
+
+    Raises:
+        RuntimeError: If every candidate in the fallback chain
+            failed to load.
+    """
+    champion = await champion_repo.get_champion(
+        horizon=horizon,
+        market_condition=market_condition,
+    )
+
+    # ---- Case 3: no champion row at all (first-ever run) ----
+    if champion is None:
+        logger.info(
+            f"No champion for horizon={horizon!r} "
+            f"market_condition={market_condition!r}; "
+            f"falling back to 'prophet_fresh'"
+        )
+        return _load_variant_model_generic("prophet_fresh")
+
+    champion_name = champion["model_name"]
+    previous_name = champion.get("previous_champion")
+
+    # ---- Case 2: walk the fallback chain ----
+    # Build the chain as a list of (variant_name, label) so we can
+    # log the reason for each failure and identify which one
+    # succeeded.
+    chain: List[Tuple[str, str]] = [(champion_name, "champion")]
+    if previous_name is not None and previous_name != champion_name:
+        chain.append((previous_name, "previous_champion"))
+    if champion_name != "prophet_fresh" and previous_name != "prophet_fresh":
+        chain.append(("prophet_fresh", "last_resort"))
+
+    last_error: Optional[Exception] = None
+
+    for variant_name, label in chain:
+        try:
+            logger.info(
+                f"Loading champion for horizon={horizon!r} "
+                f"({label}={variant_name!r})"
+            )
+            return _load_variant_model_generic(variant_name)
+        except (FileNotFoundError, RuntimeError, ValueError) as e:
+            logger.warning(
+                f"Failed to load {label} {variant_name!r} for "
+                f"horizon={horizon!r}: {e}"
+            )
+            last_error = e
+            continue
+
+    # ---- Every candidate failed ----
+    chain_names = [name for name, _ in chain]
+    raise RuntimeError(
+        f"Could not load any champion candidate for horizon={horizon!r} "
+        f"(tried {chain_names}); last error: {last_error}"
+    )
 
 
 # ============================================================
@@ -964,9 +1210,12 @@ async def _build_breach_rows(
 async def hourly_prediction_job() -> Dict[str, Any]:
     """Generate 24h BTC predictions for the current hour.
 
-    Steps:
-        1. Load the trained Prophet model from disk.
-        2. Open a DB session.
+    Loads the *champion* for the 24h horizon (with hierarchical
+    fallback — see ``_load_champion_model``) instead of a hardcoded
+    Prophet. Steps:
+        1. Open a DB session, read the 24h champion row, and load
+           the champion's model artifact (with fallback).
+        2. Open a second DB session for prediction generation.
         3. Build a PredictionGenerator (24h horizon, 0.85 confidence,
            history_source=FeatureContext.PREDICTION).
         4. Run generate().
@@ -977,27 +1226,47 @@ async def hourly_prediction_job() -> Dict[str, Any]:
     update job state. This keeps the job function focused on the
     work itself.
 
+    Champion fallback:
+        If the 24h champion artifact is missing or fails to load,
+        ``_load_champion_model`` tries the incumbent's
+        ``previous_champion``, then falls back to
+        ``prophet_fresh``. If everything fails, the helper raises
+        RuntimeError, which the manager records as a job failure.
+
+    Regime awareness:
+        Regime-specific serving is deferred to Phase 4. Until
+        then, this job loads the global champion
+        (``market_condition=None``).
+
     Returns:
         Dict with keys: horizon, model_name, rows_generated,
         rows_saved, elapsed_seconds, prediction_time, succeeded.
 
     Raises:
-        FileNotFoundError: If the trained model is missing.
+        FileNotFoundError: If no model artifact could be loaded.
         RuntimeError: If generation fails for any other reason.
     """
     logger.info("Running hourly_prediction_job")
 
-    model_path = settings.prophet_24h_model_path
-    logger.debug(f"Loading Prophet model from '{model_path}'")
-
-    model = ProphetModel(strategy="fresh")
-    model.load(model_path)
-
-    if not model.is_model_trained():
-        raise RuntimeError(
-            f"Loaded model from '{model_path}' is not marked as trained"
+    # ---- 1. Load the 24h champion (with fallback) ----
+    # The champion read happens in its own session so the
+    # prediction generator's session below is a clean, dedicated
+    # scope for the actual generation work.
+    async with session_scope() as session:
+        champion_repo = ChampionRepository(session)
+        model = await _load_champion_model(
+            champion_repo=champion_repo,
+            horizon="24h",
+            market_condition=None,
         )
 
+    logger.info(
+        f"hourly_prediction_job using model "
+        f"'{type(model).__name__}' (strategy="
+        f"'{getattr(model, 'strategy', 'n/a')}')"
+    )
+
+    # ---- 2. Generate predictions in a fresh session ----
     async with session_scope() as session:
         repository = PredictionRepository(session)
 
@@ -1042,11 +1311,15 @@ async def daily_7d_prediction_job() -> Dict[str, Any]:
     """Generate 7d BTC predictions once per day.
 
     Runs daily at 6:30 AM UTC, shortly after the daily retrain
-    (6:00 AM UTC) so the 7d forecast always uses a fresh model.
+    (6:00 AM UTC) so the 7d forecast uses the freshest available
+    champion artifact.
 
-    Steps:
-        1. Load the trained 7d Prophet model from disk.
-        2. Open a DB session.
+    Loads the *champion* for the 7d horizon (with hierarchical
+    fallback — see ``_load_champion_model``) instead of a hardcoded
+    Prophet. Steps:
+        1. Open a DB session, read the 7d champion row, and load
+           the champion's model artifact (with fallback).
+        2. Open a second DB session for prediction generation.
         3. Build a PredictionGenerator (7d horizon, 0.85 confidence,
            history_source=FeatureContext.PREDICTION).
         4. Run generate().
@@ -1055,27 +1328,43 @@ async def daily_7d_prediction_job() -> Dict[str, Any]:
     The job raises on failure so the SchedulerManager records the
     failure and applies retries.
 
+    Champion fallback:
+        Same chain as ``hourly_prediction_job`` — the 7d champion,
+        then its predecessor, then ``prophet_fresh``. The two jobs
+        are independent: a 24h champion failure does not affect the
+        7d job and vice versa.
+
+    Regime awareness:
+        Regime-specific serving is deferred to Phase 4. Until
+        then, this job loads the global champion
+        (``market_condition=None``).
+
     Returns:
         Dict with keys: horizon, model_name, rows_generated,
         rows_saved, elapsed_seconds, prediction_time, succeeded.
 
     Raises:
-        FileNotFoundError: If the trained model is missing.
+        FileNotFoundError: If no model artifact could be loaded.
         RuntimeError: If generation fails for any other reason.
     """
     logger.info("Running daily_7d_prediction_job")
 
-    model_path = settings.prophet_7d_model_path
-    logger.debug(f"Loading Prophet model from '{model_path}'")
-
-    model = ProphetModel(strategy="fresh")
-    model.load(model_path)
-
-    if not model.is_model_trained():
-        raise RuntimeError(
-            f"Loaded model from '{model_path}' is not marked as trained"
+    # ---- 1. Load the 7d champion (with fallback) ----
+    async with session_scope() as session:
+        champion_repo = ChampionRepository(session)
+        model = await _load_champion_model(
+            champion_repo=champion_repo,
+            horizon="7d",
+            market_condition=None,
         )
 
+    logger.info(
+        f"daily_7d_prediction_job using model "
+        f"'{type(model).__name__}' (strategy="
+        f"'{getattr(model, 'strategy', 'n/a')}')"
+    )
+
+    # ---- 2. Generate predictions in a fresh session ----
     async with session_scope() as session:
         repository = PredictionRepository(session)
 
@@ -1426,6 +1715,477 @@ async def daily_model_performance_aggregation_job() -> Dict[str, Any]:
 
 
 # ============================================================
+# DAILY PROMOTE CHAMPION JOB (Phase 3)
+# ============================================================
+async def daily_promote_champion_job() -> Dict[str, Any]:
+    """Rank models by backtested metrics and promote a champion.
+
+    Runs daily at 7:30 AM UTC, after both the backtest job (6:45)
+    and the model-performance aggregation job (7:15). At that
+    point, `prediction_performance` has fresh metrics for the last
+    24 hours.
+
+    Steps:
+
+        For each horizon in CHAMPION_HORIZONS ('24h', '7d'):
+            For each regime in the configured regime list:
+                (regime list is [None] unless
+                champion_enable_regime_selection is True, in which
+                case it is [None, 'bull', 'bear', 'volatile', 'neutral'])
+
+                1. Fetch per-model metrics over the primary and
+                   secondary lookback windows via
+                   PerformanceRepository.fetch_metrics_for_ranking().
+                2. Convert them to ModelMetrics for the selector.
+                3. Read the current champion via
+                   ChampionRepository.get_champion().
+                4. Compute the current top candidate and its
+                   stability streak via
+                   ChampionRepository.get_stability_streak().
+                5. Ask ChampionSelector to decide whether to
+                   promote.
+                6. If the decision is PROMOTE or INCUMBENT_MISSING:
+                   ChampionRepository.upsert_champion().
+                7. Always: record today's top candidate via
+                   ChampionRepository.record_candidate().
+
+    Failure isolation:
+        Each (horizon, regime) pair is wrapped in its own try/except.
+        A failure in one pair does not abort the others. The job
+        raises only if every pair failed for a non-skip reason.
+
+    Idempotency:
+        - The stability tracker uses ON CONFLICT DO NOTHING on
+          (candidate_date, horizon, model_name, metric_name), so
+          re-running the same day is a no-op.
+        - The champion upsert uses ON CONFLICT DO UPDATE on the
+          (horizon, market_condition) key, so re-running produces
+          the same champion row.
+        Together: running this job twice in a day is safe.
+
+    CLI mode:
+        When settings.cli_mode is True, both the champion and
+        candidate tables are routed to their `_cli` variants, so a
+        CLI run never affects production champion state.
+
+    Returns:
+        Dict with keys: horizons_processed (int),
+        regimes_processed (int), pairs_attempted (int),
+        pairs_promoted (int), pairs_first_champion (int),
+        pairs_unchanged (int), pairs_skipped (int),
+        pairs_failed (int), results (per-key dict),
+        elapsed_seconds.
+
+    Raises:
+        RuntimeError: If every pair failed for a non-skip reason.
+    """
+    import time
+
+    start = time.monotonic()
+    logger.info("Running daily_promote_champion_job")
+
+    # ---- 0. Build the selector once for the whole run ----
+    try:
+        selector = _build_champion_selector(settings)
+    except ValueError as e:
+        # A configuration error (e.g. bad champion_selection_metric).
+        # Fail fast — the whole job cannot proceed without a selector.
+        logger.error(f"Cannot build ChampionSelector: {e}")
+        raise RuntimeError(f"ChampionSelector configuration error: {e}")
+
+    # ---- 1. Determine the regime list ----
+    if settings.champion_enable_regime_selection:
+        # Include None (global) plus each regime.
+        regimes: List[Optional[str]] = [None] + list(ALL_CONDITIONS)
+        logger.info(
+            f"Regime selection enabled; iterating {len(regimes)} "
+            f"regime(s) per horizon"
+        )
+    else:
+        regimes = [None]
+        logger.info(
+            "Regime selection disabled; iterating the global regime only"
+        )
+
+    results: Dict[str, Dict[str, Any]] = {}
+    pairs_attempted = 0
+    pairs_promoted = 0
+    pairs_first_champion = 0
+    pairs_unchanged = 0
+    pairs_skipped = 0
+    pairs_failed = 0
+
+    # ---- 2. Main loop ----
+    for horizon in CHAMPION_HORIZONS:
+        for regime in regimes:
+            key = _champion_key(horizon, regime)
+            pairs_attempted += 1
+            logger.debug(f"Evaluating champion promotion for {key}")
+
+            try:
+                outcome = await _promote_one_key(
+                    selector=selector,
+                    horizon=horizon,
+                    market_condition=regime,
+                )
+                results[key] = outcome
+
+                status = outcome.get("status")
+                if status == "promoted":
+                    pairs_promoted += 1
+                elif status == "first_champion":
+                    pairs_first_champion += 1
+                elif status == "unchanged":
+                    pairs_unchanged += 1
+                elif status == "skipped":
+                    pairs_skipped += 1
+
+            except Exception as e:
+                logger.error(
+                    f"Champion promotion for {key} failed: {e}",
+                    exc_info=True,
+                )
+                results[key] = {
+                    "status": "failed",
+                    "error": str(e),
+                }
+                pairs_failed += 1
+
+    elapsed = time.monotonic() - start
+
+    summary = {
+        "horizons_processed": len(CHAMPION_HORIZONS),
+        "regimes_processed": len(regimes),
+        "pairs_attempted": pairs_attempted,
+        "pairs_promoted": pairs_promoted,
+        "pairs_first_champion": pairs_first_champion,
+        "pairs_unchanged": pairs_unchanged,
+        "pairs_skipped": pairs_skipped,
+        "pairs_failed": pairs_failed,
+        "results": results,
+        "elapsed_seconds": elapsed,
+    }
+
+    logger.info(
+        f"daily_promote_champion_job complete: "
+        f"{pairs_promoted} promoted, "
+        f"{pairs_first_champion} first-champion, "
+        f"{pairs_unchanged} unchanged, "
+        f"{pairs_skipped} skipped, "
+        f"{pairs_failed} failed, "
+        f"in {elapsed:.3f}s"
+    )
+
+    # Only fail the whole job if EVERY pair failed. Partial success
+    # is acceptable — the successes updated real champion state.
+    if pairs_attempted > 0 and pairs_failed == pairs_attempted:
+        raise RuntimeError(
+            f"All {pairs_attempted} champion promotion pairs failed"
+        )
+
+    return summary
+
+
+def _build_champion_selector(settings_obj: Any) -> ChampionSelector:
+    """Construct a ChampionSelector from a settings object.
+
+    Extracted so the promotion job and the tests can build the
+    selector the same way.
+
+    Args:
+        settings_obj: A Settings instance.
+
+    Returns:
+        A configured ChampionSelector.
+
+    Raises:
+        ValueError: If champion_selection_metric is not recognized.
+    """
+    return build_selector_from_settings(settings_obj)
+
+
+def _champion_key(
+    horizon: str, market_condition: Optional[str]
+) -> str:
+    """Format a stable string key for the results dict.
+
+    Examples:
+        ('24h', None)         -> '24h_global'
+        ('24h', 'bull')       -> '24h_bull'
+    """
+    regime = market_condition if market_condition is not None else "global"
+    return f"{horizon}_{regime}"
+
+
+async def _promote_one_key(
+    selector: ChampionSelector,
+    horizon: str,
+    market_condition: Optional[str],
+) -> Dict[str, Any]:
+    """Evaluate one (horizon, regime) pair and act on the decision.
+
+    This is the per-key body of the promotion job. It:
+
+        1. Reads per-model metrics over the two windows.
+        2. Reads the current champion.
+        3. Determines the top candidate.
+        4. Reads the candidate's stability streak.
+        5. Asks the selector to decide.
+        6. Writes the champion (if promoting).
+        7. Records today's top candidate.
+
+    The caller (daily_promote_champion_job) wraps each call in a
+    try/except; this function may raise if a repository call fails.
+
+    Args:
+        selector: The configured ChampionSelector.
+        horizon: '24h' or '7d'.
+        market_condition: Regime label or None for global.
+
+    Returns:
+        Dict describing the outcome. Keys:
+            status: 'promoted' | 'first_champion' | 'unchanged' | 'skipped'
+            decision_status: the DecisionStatus enum value
+            candidate_name: the top candidate (or None)
+            candidate_metric: the candidate's primary-window metric
+            candidate_sample_size: the candidate's primary sample size
+            previous_champion: the incumbent (or None)
+            reason: human-readable reason
+    """
+    # ---- 1. Fetch per-model metrics ----
+    async with session_scope() as session:
+        perf_repo = PerformanceRepository(session)
+        champion_repo = ChampionRepository(session)
+
+        metric_name = selector.metric_name
+        primary_days = settings.champion_primary_lookback_days
+        secondary_days = settings.champion_secondary_lookback_days
+
+        metric_rows = await perf_repo.fetch_metrics_for_ranking(
+            horizon=horizon,
+            metric_name=metric_name,
+            primary_days=primary_days,
+            secondary_days=secondary_days,
+            market_condition=market_condition,
+        )
+
+        # ---- 2. Read current champion ----
+        incumbent = await champion_repo.get_champion(
+            horizon=horizon,
+            market_condition=market_condition,
+        )
+
+        incumbent_name = incumbent["model_name"] if incumbent else None
+        incumbent_metric = (
+            incumbent["metric_value"] if incumbent else None
+        )
+
+        # ---- 3. Convert metrics to ModelMetrics ----
+        candidates = _to_model_metrics(metric_rows)
+
+        # ---- 4. Compute the top candidate ----
+        # We need to know WHO the top candidate is BEFORE we can
+        # look up its stability streak. The selector does the
+        # ranking internally, but the streak lookup requires the
+        # name. We compute the top here using the same ranking
+        # rule and pass the name to the streak lookup.
+        top_name = _pick_top_candidate_name(
+            selector=selector,
+            candidates=candidates,
+        )
+
+        candidate_streak = 0
+        if top_name is not None:
+            candidate_streak = await champion_repo.get_stability_streak(
+                horizon=horizon,
+                market_condition=market_condition,
+                model_name=top_name,
+                metric_name=metric_name,
+            )
+
+        # ---- 5. Ask the selector ----
+        decision = selector.decide(
+            horizon=horizon,
+            market_condition=market_condition,
+            candidates=candidates,
+            incumbent_name=incumbent_name,
+            incumbent_metric=incumbent_metric,
+            candidate_stability_days=candidate_streak,
+            candidate_stability_model=top_name,
+        )
+
+        logger.info(
+            f"[{_champion_key(horizon, market_condition)}] "
+            f"decision={decision.status.value} "
+            f"candidate={decision.candidate_name!r} "
+            f"incumbent={decision.incumbent_name!r} "
+            f"reason={decision.reason!r}"
+        )
+
+        # ---- 6. Act on the decision ----
+        status = "unchanged"
+
+        if decision.status in (
+            DecisionStatus.PROMOTE,
+            DecisionStatus.INCUMBENT_MISSING,
+        ):
+            # Build the champion row and upsert.
+            champion_row = ModelChampionRow(
+                horizon=horizon,
+                market_condition=market_condition,
+                model_name=decision.candidate_name,
+                model_version=_model_version_for(
+                    metric_rows, decision.candidate_name
+                ),
+                metric_name=metric_name,
+                metric_value=decision.candidate_primary_metric,
+                sample_size=decision.candidate_primary_sample_size,
+                lookback_days=primary_days,
+                previous_champion=incumbent_name,
+                reason=decision.reason,
+            )
+            await champion_repo.upsert_champion(champion_row)
+
+            if decision.status == DecisionStatus.PROMOTE:
+                status = "promoted"
+            else:
+                status = "first_champion"
+
+        elif decision.status == DecisionStatus.NO_CANDIDATES:
+            status = "skipped"
+        elif decision.status == DecisionStatus.INSUFFICIENT_SAMPLE:
+            status = "skipped"
+        elif decision.status == DecisionStatus.NO_IMPROVEMENT:
+            status = "unchanged"
+        elif decision.status == DecisionStatus.NOT_STABLE:
+            status = "unchanged"
+        elif decision.status == DecisionStatus.METRIC_INVALID:
+            status = "failed"
+
+        # ---- 7. Record today's top candidate ----
+        # We record the top candidate for stability tracking
+        # regardless of the decision. If there are no candidates
+        # at all, there is nothing to record.
+        if top_name is not None:
+            candidate_metric_value = _metric_value_for(
+                metric_rows, top_name, "primary_metric_value"
+            )
+            candidate_sample_size = _metric_value_for(
+                metric_rows, top_name, "primary_sample_size"
+            ) or 0
+
+            if candidate_metric_value is not None:
+                candidate_row = ChampionCandidateRow(
+                    candidate_date=datetime.now(timezone.utc).date(),
+                    horizon=horizon,
+                    market_condition=market_condition,
+                    model_name=top_name,
+                    metric_name=metric_name,
+                    metric_value=candidate_metric_value,
+                    sample_size=int(candidate_sample_size),
+                )
+                await champion_repo.record_candidate(candidate_row)
+
+        return {
+            "status": status,
+            "decision_status": decision.status.value,
+            "candidate_name": decision.candidate_name,
+            "candidate_metric": decision.candidate_primary_metric,
+            "candidate_sample_size": decision.candidate_primary_sample_size,
+            "previous_champion": decision.incumbent_name,
+            "improvement_pct": decision.improvement_pct,
+            "stability_days": decision.stability_days,
+            "reason": decision.reason,
+        }
+
+
+def _to_model_metrics(
+    metric_rows: List[Dict[str, Any]],
+) -> Dict[str, ModelMetrics]:
+    """Convert ranking rows to ModelMetrics instances.
+
+    Args:
+        metric_rows: Rows from
+            PerformanceRepository.fetch_metrics_for_ranking().
+
+    Returns:
+        Dict keyed by model_name.
+    """
+    out: Dict[str, ModelMetrics] = {}
+    for row in metric_rows:
+        name = row["model_name"]
+        out[name] = ModelMetrics(
+            model_name=name,
+            primary_metric_value=row.get("primary_metric_value"),
+            primary_sample_size=int(row.get("primary_sample_size") or 0),
+            secondary_metric_value=row.get("secondary_metric_value"),
+            secondary_sample_size=int(
+                row.get("secondary_sample_size") or 0
+            ),
+        )
+    return out
+
+
+def _pick_top_candidate_name(
+    selector: ChampionSelector,
+    candidates: Dict[str, ModelMetrics],
+) -> Optional[str]:
+    """Return the top candidate's name, or None if none are eligible.
+
+    Uses the same ranking rule as ChampionSelector.decide() so the
+    streak lookup is for the same model the selector will consider.
+
+    Args:
+        selector: The configured ChampionSelector.
+        candidates: Mapping of model_name → ModelMetrics.
+
+    Returns:
+        Model name, or None.
+    """
+    eligible = [
+        m
+        for m in candidates.values()
+        if m.is_eligible(
+            min_sample_size=selector.min_sample_size,
+            require_secondary=selector.require_secondary_window,
+        )
+    ]
+    if not eligible:
+        return None
+
+    # Reuse the selector's internal ranking.
+    top = selector._rank_top_candidate(eligible)
+    return top.model_name
+
+
+def _metric_value_for(
+    metric_rows: List[Dict[str, Any]],
+    model_name: str,
+    key: str,
+) -> Optional[float]:
+    """Return a specific field for a specific model from ranking rows."""
+    for row in metric_rows:
+        if row["model_name"] == model_name:
+            value = row.get(key)
+            return float(value) if value is not None else None
+    return None
+
+
+def _model_version_for(
+    metric_rows: List[Dict[str, Any]],
+    model_name: str,
+) -> str:
+    """Return the model_version for a model, or '1.0.0' as fallback.
+
+    The ranking rows from fetch_metrics_for_ranking don't include
+    model_version (they aggregate over all versions). We fall back
+    to a hardcoded version for now. A future enhancement could
+    join to the latest model_performance row for the version.
+    """
+    return "1.0.0"
+
+
+# ============================================================
 # DAILY CORRELATION JOB (A1.5)
 # ============================================================
 async def daily_correlation_job(
@@ -1444,16 +2204,18 @@ async def daily_correlation_job(
         1. Open a DB session.
         2. Build a CorrelationCalculator with the two repositories
            it needs (CorrelationRepository + PredictionRepository).
-        3. Call calc.run().
+        3. Call calc.run(as_of=as_of).
         4. Return a summary dict derived from the calculation result.
 
     Simulation:
-        ``as_of`` (when provided) overrides the wall clock for
-        simulation. Currently unused by this job — the correlation
-        calculator reads "the last N days" relative to now(), which
-        we don't currently thread through. Retained in the
-        signature for interface consistency with the other
-        analytics jobs.
+        ``as_of`` (when provided) is forwarded to the correlation
+        calculator, which uses it as the reference point for its
+        "last N days" source fetches. This makes
+        ``simulate correlation`` produce day-accurate results: two
+        runs with different ``as_of`` values read different windows
+        of BTC and macro data and therefore produce different
+        correlation rows. A naive datetime is interpreted as UTC by
+        the calculator's own resolver.
 
     Failure semantics:
         The calculator already isolates failures per (indicator,
@@ -1496,7 +2258,7 @@ async def daily_correlation_job(
             prediction_repo=prediction_repo,
         )
 
-        result = await calculator.run()
+        result = await calculator.run(as_of=as_of)
 
     elapsed = time.monotonic() - start
 
@@ -1569,8 +2331,7 @@ async def daily_export_cleanup_job(
 
     Simulation:
         ``as_of`` (when provided) shifts the "now" reference point
-        so the cleanup reflects a historical moment. This is the
-        only analytics job that currently consumes ``as_of``.
+        so the cleanup reflects a historical moment.
 
     Failure semantics:
         Per-key deletion errors are caught and counted, not

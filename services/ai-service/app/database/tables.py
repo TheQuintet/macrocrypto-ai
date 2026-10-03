@@ -22,9 +22,11 @@ Tables:
     - btc_macro_correlation:   Target — BTC-vs-macro correlation metrics (A1.1)
     - export_history:          Target — export request history (A2.1)
     - historical_event_impacts: Target — historical event impact data (A5.1)
+    - model_champions:         State — the active champion per (horizon, regime)
+    - champion_candidates:     State — daily top candidate per (horizon, regime)
 
 CLI isolation (_cli variants):
-    Six of the target tables have `_cli` mirror variants that the
+    Eight of the target tables have `_cli` mirror variants that the
     manual CLI (app.cli.pipeline) writes to when CLI_MODE=true.
     This keeps CLI runs sandboxed away from production tables.
 
@@ -34,10 +36,17 @@ CLI isolation (_cli variants):
         model_performance       <-> model_performance_cli
         btc_macro_correlation   <-> btc_macro_correlation_cli
         historical_event_impacts<-> historical_event_impacts_cli
+        model_champions         <-> model_champions_cli
+        champion_candidates     <-> champion_candidates_cli
 
     The `_cli` tables are structurally identical (same columns,
     constraints, indexes) via SQLAlchemy's to_metadata() helper.
     They are created by migrations, and populated only by the CLI.
+
+    Note: SQLAlchemy's to_metadata() cannot express the partial
+    unique index on model_champions (it uses COALESCE), so the DB
+    index is created by the migration only. The Core Table
+    definition is used for queries and inserts.
 
 Naming:
     Table names are pulled from Settings so they can be overridden
@@ -550,6 +559,104 @@ historical_event_impacts = Table(
 
 
 # ============================================================
+# STATE TABLE: model_champions
+# ============================================================
+# Stores the currently-active champion model per (horizon,
+# market_condition). One row per active champion.
+#
+# Written by daily_promote_champion_job (Phase 3). Read by the
+# prediction jobs to decide which model to load for a given
+# horizon (and, when regime selection is enabled, for a given
+# market regime).
+#
+# market_condition semantics:
+#   NULL       — global champion for the horizon
+#   'bull'     — champion when the market is in a bull regime
+#   'bear'     — champion when the market is in a bear regime
+#   'volatile' — champion when the market is volatile
+#   'neutral'  — champion when the market is neutral
+#
+# When champion_enable_regime_selection is false (default), only
+# global champions (market_condition IS NULL) are written and
+# consulted. When true, per-regime champions are also written and
+# the prediction jobs pick the corresponding one (with global as
+# fallback).
+#
+# This table HAS a _cli variant (model_champions_cli), created
+# by migration 014. When CLI_MODE=true, all reads and writes go
+# to the CLI table instead, so CLI promotions never affect
+# production state.
+model_champions = Table(
+    "model_champions",
+    metadata,
+    # Surrogate primary key
+    Column("id", BigInteger, primary_key=True),
+    # Which horizon this champion is for
+    Column("horizon", String(8), nullable=False),
+    # Which market regime. NULL = global champion.
+    Column("market_condition", String(16), nullable=True),
+    # The champion model
+    Column("model_name", String(64), nullable=False),
+    Column("model_version", String(64), nullable=False),
+    # When the champion was promoted
+    Column(
+        "promoted_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+    ),
+    # The metric and value that justified the promotion
+    Column("metric_name", String(16), nullable=False),
+    Column("metric_value", Float, nullable=False),
+    # Sample size and window used to compute metric_value
+    Column("sample_size", Integer, nullable=False),
+    Column("lookback_days", Integer, nullable=False),
+    # The model that was displaced (NULL for the first champion)
+    Column("previous_champion", String(64), nullable=True),
+    # Free-form reason for the promotion (audit trail)
+    Column("reason", Text, nullable=True),
+    # Housekeeping
+    Column("created_at", DateTime(timezone=True), server_default=text("now()")),
+)
+
+
+# ============================================================
+# STATE TABLE: champion_candidates
+# ============================================================
+# Daily top-ranked candidate per (horizon, market_condition).
+# Feeds the stability gate: "has this model been the top
+# candidate for N consecutive days?"
+#
+# Written by daily_promote_champion_job each time it runs.
+# One row per (candidate_date, horizon, market_condition,
+# model_name, metric_name).
+#
+# Has a _cli variant (champion_candidates_cli), created by
+# migration 014. Routed via CLI mode.
+champion_candidates = Table(
+    "champion_candidates",
+    metadata,
+    # Surrogate primary key
+    Column("id", BigInteger, primary_key=True),
+    # The date this candidate was the top pick
+    Column("candidate_date", Date, nullable=False),
+    # Which horizon this candidate is for
+    Column("horizon", String(8), nullable=False),
+    # Which market regime. NULL = global candidate.
+    Column("market_condition", String(16), nullable=True),
+    # The top-ranked model for this (date, horizon, regime)
+    Column("model_name", String(64), nullable=False),
+    # The metric and value that made this model the top candidate
+    Column("metric_name", String(16), nullable=False),
+    Column("metric_value", Float, nullable=False),
+    # Sample size used to compute metric_value
+    Column("sample_size", Integer, nullable=False),
+    # Housekeeping
+    Column("created_at", DateTime(timezone=True), server_default=text("now()")),
+)
+
+
+# ============================================================
 # CLI MIRROR TABLES (_cli variants)
 # ============================================================
 # The manual CLI (app.cli.pipeline) writes to these sandboxed
@@ -558,14 +665,26 @@ historical_event_impacts = Table(
 # indexes — created via SQLAlchemy's Table.to_metadata() which
 # deep-copies the table definition under a new name.
 #
-# The tables are created by migrations/013_create_cli_tables.sql.
+# The tables are created by migrations/011_create_cli_tables.sql.
 # The AI Service reads/writes them via the same repository methods;
 # the repository picks the CLI variant when settings.cli_mode is
 # True (see each repository's _resolve_table helper).
 #
-# Only the 6 write-target tables get CLI variants. Source tables
+# Every write-target table gets a CLI variant. Source tables
 # (btc_prices, macro_indicators, features_db) do NOT — they are
-# shared, read-only inputs.
+# shared, read-only inputs. The 8 write-targets are:
+#
+#     btc_predictions
+#     prediction_performance
+#     threshold_breaches
+#     model_performance
+#     btc_macro_correlation
+#     historical_event_impacts
+#     model_champions
+#     champion_candidates
+#
+# All 8 have _cli variants, so a CLI run never touches
+# production data — including the champion state.
 
 btc_predictions_cli = btc_predictions.to_metadata(
     metadata,
@@ -595,6 +714,20 @@ btc_macro_correlation_cli = btc_macro_correlation.to_metadata(
 historical_event_impacts_cli = historical_event_impacts.to_metadata(
     metadata,
     name=f"{historical_event_impacts.name}_cli",
+)
+
+# The champion-state tables also get CLI mirrors. This was not
+# part of the original six because we initially assumed champion
+# state was a single source of truth. On reflection, full CLI
+# isolation requires the champion state to be sandboxed too.
+model_champions_cli = model_champions.to_metadata(
+    metadata,
+    name=f"{model_champions.name}_cli",
+)
+
+champion_candidates_cli = champion_candidates.to_metadata(
+    metadata,
+    name=f"{champion_candidates.name}_cli",
 )
 
 
@@ -752,6 +885,50 @@ Index(
 
 
 # ============================================================
+# INDEXES — model_champions
+# ============================================================
+# Primary read pattern: "give me the active champion(s) for
+# horizon X" — used by prediction jobs at every cycle.
+Index(
+    "idx_model_champions_horizon",
+    model_champions.c.horizon,
+)
+
+# Audit: "show me promotion history".
+Index(
+    "idx_model_champions_promoted_at",
+    model_champions.c.promoted_at.desc(),
+)
+
+
+# ============================================================
+# INDEXES — champion_candidates
+# ============================================================
+# Primary read pattern: the stability check. "Give me the
+# consecutive run of candidate_date rows for this (horizon,
+# market_condition, model_name), most recent first."
+#
+# Note: the migration creates a partial index using
+# COALESCE(market_condition, '__global__') to include NULLs.
+# SQLAlchemy Core cannot express that COALESCE expression
+# directly in an Index() definition, so the composite index here
+# is a simpler version that helps the common query.
+Index(
+    "idx_champion_candidates_stability",
+    champion_candidates.c.horizon,
+    champion_candidates.c.model_name,
+    champion_candidates.c.candidate_date.desc(),
+)
+
+# Secondary read: "show me the top candidate for every (horizon,
+# regime) on the most recent N days".
+Index(
+    "idx_champion_candidates_date",
+    champion_candidates.c.candidate_date.desc(),
+)
+
+
+# ============================================================
 # CONVENIENCE: table name constants
 # ============================================================
 # These are imported by repositories and tests so they don't
@@ -766,6 +943,8 @@ TABLE_MODEL_PERFORMANCE = "model_performance"
 TABLE_BTC_MACRO_CORRELATION = "btc_macro_correlation"
 TABLE_EXPORT_HISTORY = "export_history"
 TABLE_HISTORICAL_EVENT_IMPACTS = "historical_event_impacts"
+TABLE_MODEL_CHAMPIONS = "model_champions"
+TABLE_CHAMPION_CANDIDATES = "champion_candidates"
 
 # CLI variant names (the underlying tables are created via
 # to_metadata above; these constants are the string names).
@@ -775,3 +954,5 @@ TABLE_THRESHOLD_BREACHES_CLI = "threshold_breaches_cli"
 TABLE_MODEL_PERFORMANCE_CLI = "model_performance_cli"
 TABLE_BTC_MACRO_CORRELATION_CLI = "btc_macro_correlation_cli"
 TABLE_HISTORICAL_EVENT_IMPACTS_CLI = "historical_event_impacts_cli"
+TABLE_MODEL_CHAMPIONS_CLI = "model_champions_cli"
+TABLE_CHAMPION_CANDIDATES_CLI = "champion_candidates_cli"
