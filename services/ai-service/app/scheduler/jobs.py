@@ -97,6 +97,7 @@ Regime-aware serving (Phase 4):
 """
 
 import logging
+from app.rabbitmq import RabbitMQPublisher
 from datetime import datetime, timezone
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
@@ -721,7 +722,9 @@ async def daily_retrain_job() -> Dict[str, Any]:
            from the configured feature source.
         2. Build a fresh model registry (all 6 variants).
         3. Run the RetrainingOrchestrator.
-        4. Return a structured result.
+        4. Summarize and, if all models succeeded, best-effort
+           publish a `ModelsRetrained` event on the exchange.
+        5. Return a structured result.
 
     Feature source:
         The training frame is fetched via
@@ -729,6 +732,14 @@ async def daily_retrain_job() -> Dict[str, Any]:
         context=FeatureContext.TRAINING)``. The repository dispatches
         to the configured source (parquet or features_db) and
         resolves the partition from the context.
+
+    RabbitMQ notification:
+        On success, the job publishes a `ModelsRetrained` event
+        on ``settings.rabbitmq_prediction_routing_key``. This is
+        best-effort — a publish failure logs a WARNING but does
+        not fail the job. The event is intended for downstream
+        consumers; the AI Service's own consumer does not
+        subscribe to this routing key.
 
     The job raises on failure so the SchedulerManager records the
     failure, applies retries, and updates job state. If the whole
@@ -738,11 +749,12 @@ async def daily_retrain_job() -> Dict[str, Any]:
     Returns:
         Dict with keys: models_retrained (int),
         models_succeeded (int), models_failed (int),
-        results (per-model dict), elapsed_seconds.
+        results (per-model dict), elapsed_seconds,
+        notified (bool — whether the RabbitMQ publish succeeded).
 
     Raises:
         RuntimeError: If training data cannot be fetched or is
-            insufficient.
+            insufficient, or if any model fails to retrain.
     """
     import time
 
@@ -805,6 +817,7 @@ async def daily_retrain_job() -> Dict[str, Any]:
         "models_failed": failed,
         "results": results,
         "elapsed_seconds": elapsed,
+        "notified": False,
     }
 
     logger.info(
@@ -815,7 +828,9 @@ async def daily_retrain_job() -> Dict[str, Any]:
 
     if failed > 0:
         # Surface partial failures so the manager can retry and
-        # the run history reflects a non-clean state.
+        # the run history reflects a non-clean state. We skip the
+        # publish here — downstream consumers shouldn't act on a
+        # partial retrain.
         failed_names = [
             name
             for name, r in results.items()
@@ -823,6 +838,30 @@ async def daily_retrain_job() -> Dict[str, Any]:
         ]
         raise RuntimeError(
             f"{failed} model(s) failed to retrain: {failed_names}"
+        )
+
+    # ---- 5. Best-effort: announce the retrain completion ----
+    # Publisher construction, publish, and close are all wrapped
+    # so that a RabbitMQ failure cannot affect the job's result.
+    # `notified` in the summary tells downstream observability
+    # whether the event made it out.
+    try:
+        publisher = RabbitMQPublisher()
+        try:
+            summary["notified"] = await publisher.publish(
+                routing_key=settings.rabbitmq_prediction_routing_key,
+                payload={
+                    "event": "ModelsRetrained",
+                    "models_retrained": summary["models_retrained"],
+                    "models_succeeded": summary["models_succeeded"],
+                    "models_failed": summary["models_failed"],
+                },
+            )
+        finally:
+            await publisher.close()
+    except Exception as e:
+        logger.warning(
+            f"Could not publish ModelsRetrained event: {e}"
         )
 
     return summary
