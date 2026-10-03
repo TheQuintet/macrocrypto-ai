@@ -101,6 +101,23 @@ class TestAlertEngine:
 
         assert len(triggered) == 1
 
+    def test_reaches_alert_triggers_when_price_crosses_threshold(
+        self, alert_engine, db_session, sample_alert, sample_price_data
+    ):
+        """Test 'reaches' triggers when filtered updates pass through the threshold."""
+        sample_alert.alert_type = AlertType.REACHES
+        sample_alert.threshold_price = 85000.00
+        db_session.commit()
+
+        price_data = sample_price_data.copy()
+        price_data["previous_price"] = 84999.00
+        price_data["price"] = 85001.00
+
+        triggered = alert_engine.evaluate_price_alerts(price_data)
+
+        assert len(triggered) == 1
+        assert triggered[0].id == sample_alert.id
+
     # ============================================
     # TESTS FOR 'CROSSES_ABOVE' ALERT TYPE
     # ============================================

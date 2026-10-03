@@ -29,6 +29,8 @@ class BTCUpdateProducer(RabbitMQProducer):
             logger.error("Skipping BTC update with a non-finite price")
             return
 
+        self.process_data_events()
+
         symbol = str(price_data.get("symbol", "BTCUSDT"))
         last_published_price = self._last_published_prices.get(symbol)
         if (
@@ -37,5 +39,12 @@ class BTCUpdateProducer(RabbitMQProducer):
         ):
             return
 
-        self.publish_price_update(price_data)
-        self._last_published_prices[symbol] = price
+        event_data = {
+            **price_data,
+            "symbol": "BTC/USD" if symbol == "BTCUSDT" else symbol,
+        }
+        if last_published_price is not None:
+            event_data["previous_price"] = last_published_price
+
+        if self.publish_price_update(event_data):
+            self._last_published_prices[symbol] = price

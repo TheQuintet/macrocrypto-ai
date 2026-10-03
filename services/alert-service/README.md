@@ -30,6 +30,8 @@ The Alert Service is responsible for:
 
 The BTC price consumer runs in a dedicated background thread so RabbitMQ's blocking connection does not block FastAPI startup or shutdown.
 
+Price updates use the alert asset symbol (`BTC/USD`) and include `previous_price` so the engine can match assets and evaluate crossing conditions.
+
 ### Produced Events
 
 | Event | Destination | Description |

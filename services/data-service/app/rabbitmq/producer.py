@@ -24,9 +24,16 @@ class RabbitMQProducer:
         self.QUEUE_PRICE_UPDATES = "price_updates"
         self.QUEUE_ECONOMIC_UPDATES = "economic_updates"
     
-    async def connect(self):
+    async def connect(self) -> bool:
         """Establish connection to RabbitMQ"""
+        return self._connect()
+
+    def _connect(self) -> bool:
+        """Open a connection and declare the durable data queues."""
         try:
+            if self.connection and self.connection.is_open:
+                self.connection.close()
+
             params = pika.ConnectionParameters(
                 host=settings.RABBITMQ_HOST,
                 port=settings.RABBITMQ_PORT,
@@ -34,7 +41,9 @@ class RabbitMQProducer:
                     settings.RABBITMQ_USER,
                     settings.RABBITMQ_PASSWORD
                 ),
-                virtual_host=settings.RABBITMQ_VHOST
+                virtual_host=settings.RABBITMQ_VHOST,
+                heartbeat=30,
+                blocked_connection_timeout=30,
             )
             
             self.connection = pika.BlockingConnection(params)
@@ -78,16 +87,43 @@ class RabbitMQProducer:
             return True
             
         except Exception as e:
+            self.is_connected = False
             logger.error(f"❌ Failed to connect to RabbitMQ: {e}")
             return False
+
+    def process_data_events(self) -> None:
+        """Process Pika heartbeats while the async WebSocket stream is active."""
+        if (
+            not self.is_connected
+            or not self.connection
+            or not self.connection.is_open
+            or not self.channel
+            or not self.channel.is_open
+        ):
+            self.is_connected = False
+            return
+
+        try:
+            self.connection.process_data_events(time_limit=0)
+        except Exception as e:
+            self.is_connected = False
+            logger.warning(f"RabbitMQ connection lost while processing heartbeats: {e}")
     
-    def publish_price_update(self, price_data: Dict[str, Any]):
+    def publish_price_update(self, price_data: Dict[str, Any]) -> bool:
         """
         Publish price update event to permanent queue
         """
-        if not self.is_connected or not self.channel:
-            logger.error("Not connected to RabbitMQ")
-            return
+        if (
+            not self.is_connected
+            or not self.connection
+            or not self.connection.is_open
+            or not self.channel
+            or not self.channel.is_open
+        ):
+            self.is_connected = False
+            if not self._connect():
+                logger.error("Cannot publish price update: RabbitMQ reconnection failed")
+                return False
         
         try:
             message = json.dumps({
@@ -107,9 +143,12 @@ class RabbitMQProducer:
             )
             
             logger.debug(f"📤 Published price update: {price_data.get('symbol', 'unknown')}")
+            return True
             
         except Exception as e:
+            self.is_connected = False
             logger.error(f"Error publishing price update: {e}")
+            return False
     
     def publish_economic_update(self, economic_data: Dict[str, Any]):
         """
