@@ -933,7 +933,7 @@ jobs:
           fi
 
   api-gateway-tests:
-    name: API Gateway (pytest)
+    name: API Gateway (pytest + coverage)
     needs: changes
     if: needs.changes.outputs.api-gateway == 'true' || github.event.inputs.run-everything == 'true'
     runs-on: ubuntu-latest
@@ -976,14 +976,38 @@ jobs:
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
           if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
 
-      - name: Run pytest
+      - name: Run pytest and generate coverage report
         env:
           DATABASE_URL: postgresql://macro:crypto@localhost:5432/macrocrypto
-        run: pytest
+        run: pytest --cov-report=xml:coverage.xml
+
+      - name: Add API Gateway coverage to job summary
+        if: always()
+        run: |
+          python - <<'PY'
+          import os
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+
+          report = Path("coverage.xml")
+          summary = Path(os.environ["GITHUB_STEP_SUMMARY"])
+          with summary.open("a", encoding="utf-8") as output:
+              output.write("## API Gateway coverage\n\n")
+              if not report.exists():
+                  output.write("Coverage report was not generated.\n")
+              else:
+                  root = ET.parse(report).getroot()
+                  percent = float(root.attrib["line-rate"]) * 100
+                  covered = root.attrib["lines-covered"]
+                  total = root.attrib["lines-valid"]
+                  output.write(
+                      f"**Line coverage:** {percent:.1f}% ({covered}/{total} lines)\n"
+                  )
+          PY
   
 
   test-alert-service:
-    name: Alert Service (pytest)
+    name: Alert Service (pytest + coverage)
     needs: changes
     if: needs.changes.outputs.alert-service == 'true' || github.event.inputs.run-everything == 'true'
     
@@ -1022,15 +1046,39 @@ jobs:
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
           if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
 
-      - name: Run Pytest
+      - name: Run pytest and generate coverage report
         env:
           DATABASE_URL: postgresql://macro:crypto@localhost:5432/macrocrypto
           # SECRET_KEY: test-secret-key-for-testing-only
-        run: pytest
+        run: pytest --cov-report=xml:coverage.xml
+
+      - name: Add Alert Service coverage to job summary
+        if: always()
+        run: |
+          python - <<'PY'
+          import os
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+
+          report = Path("coverage.xml")
+          summary = Path(os.environ["GITHUB_STEP_SUMMARY"])
+          with summary.open("a", encoding="utf-8") as output:
+              output.write("## Alert Service coverage\n\n")
+              if not report.exists():
+                  output.write("Coverage report was not generated.\n")
+              else:
+                  root = ET.parse(report).getroot()
+                  percent = float(root.attrib["line-rate"]) * 100
+                  covered = root.attrib["lines-covered"]
+                  total = root.attrib["lines-valid"]
+                  output.write(
+                      f"**Line coverage:** {percent:.1f}% ({covered}/{total} lines)\n"
+                  )
+          PY
 
 
   test-data-service:
-    name: Data Service (pytest)
+    name: Data Service (pytest + coverage)
     needs: changes
     if: needs.changes.outputs.data-service == 'true' || github.event.inputs.run-everything == 'true'
     
@@ -1115,10 +1163,34 @@ jobs:
           done
 
           # 3. Run pytest quietly, ignoring ml_qa
-          pytest -q --show-capture=no --ignore=tests/ml_qa --cov=app --cov-report=term-missing
+          pytest -q --show-capture=no --ignore=tests/ml_qa --cov=app --cov-report=term-missing --cov-report=xml:coverage.xml
 
           # 4. Clean up the background server process
           kill $SERVER_PID
+
+      - name: Add Data Service coverage to job summary
+        if: always()
+        run: |
+          python - <<'PY'
+          import os
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+
+          report = Path("coverage.xml")
+          summary = Path(os.environ["GITHUB_STEP_SUMMARY"])
+          with summary.open("a", encoding="utf-8") as output:
+              output.write("## Data Service coverage\n\n")
+              if not report.exists():
+                  output.write("Coverage report was not generated.\n")
+              else:
+                  root = ET.parse(report).getroot()
+                  percent = float(root.attrib["line-rate"]) * 100
+                  covered = root.attrib["lines-covered"]
+                  total = root.attrib["lines-valid"]
+                  output.write(
+                      f"**Line coverage:** {percent:.1f}% ({covered}/{total} lines)\n"
+                  )
+          PY
 
   # --- Security Audit Runs After Tests Pass ---
   Security-Audit:
