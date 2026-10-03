@@ -74,7 +74,7 @@ def _make_generation_result(
 
 
 def _make_trained_model() -> MagicMock:
-    """Build a mocked ProphetModel that reports as trained."""
+    """Build a mocked model that reports as trained."""
     model = MagicMock()
     model.load = MagicMock()
     model.is_model_trained = MagicMock(return_value=True)
@@ -190,7 +190,9 @@ class TestDailyRetrainJob:
         frame = _make_training_frame(100)
 
         mock_repo = MagicMock()
-        mock_repo.fetch_training_frame = AsyncMock(return_value=frame)
+        mock_repo.fetch_training_frame_for_source = AsyncMock(
+            return_value=frame
+        )
 
         mock_orchestrator = MagicMock()
         mock_orchestrator.retrain_all = MagicMock(
@@ -218,7 +220,7 @@ class TestDailyRetrainJob:
     async def test_raises_when_training_frame_empty(self) -> None:
         """Test that an empty training frame raises RuntimeError."""
         mock_repo = MagicMock()
-        mock_repo.fetch_training_frame = AsyncMock(
+        mock_repo.fetch_training_frame_for_source = AsyncMock(
             return_value=pd.DataFrame()
         )
 
@@ -236,7 +238,9 @@ class TestDailyRetrainJob:
     async def test_raises_when_training_frame_none(self) -> None:
         """Test that a None training frame raises RuntimeError."""
         mock_repo = MagicMock()
-        mock_repo.fetch_training_frame = AsyncMock(return_value=None)
+        mock_repo.fetch_training_frame_for_source = AsyncMock(
+            return_value=None
+        )
 
         with patch(
             "app.scheduler.jobs.PredictionRepository",
@@ -254,7 +258,9 @@ class TestDailyRetrainJob:
         small = _make_training_frame(30)  # below 60-row floor
 
         mock_repo = MagicMock()
-        mock_repo.fetch_training_frame = AsyncMock(return_value=small)
+        mock_repo.fetch_training_frame_for_source = AsyncMock(
+            return_value=small
+        )
 
         with patch(
             "app.scheduler.jobs.PredictionRepository",
@@ -272,7 +278,9 @@ class TestDailyRetrainJob:
         frame = _make_training_frame(100)
 
         mock_repo = MagicMock()
-        mock_repo.fetch_training_frame = AsyncMock(return_value=frame)
+        mock_repo.fetch_training_frame_for_source = AsyncMock(
+            return_value=frame
+        )
 
         results = _all_success_results()
         results["xgboost_fresh"]["status"] = "failed"
@@ -302,7 +310,9 @@ class TestDailyRetrainJob:
         frame = _make_training_frame(100)
 
         mock_repo = MagicMock()
-        mock_repo.fetch_training_frame = AsyncMock(return_value=frame)
+        mock_repo.fetch_training_frame_for_source = AsyncMock(
+            return_value=frame
+        )
 
         mock_orchestrator = MagicMock()
         mock_orchestrator.retrain_all = MagicMock(
@@ -331,7 +341,9 @@ class TestDailyRetrainJob:
         frame = _make_training_frame(100)
 
         mock_repo = MagicMock()
-        mock_repo.fetch_training_frame = AsyncMock(return_value=frame)
+        mock_repo.fetch_training_frame_for_source = AsyncMock(
+            return_value=frame
+        )
 
         mock_orchestrator = MagicMock()
         mock_orchestrator.retrain_all = MagicMock(
@@ -350,7 +362,9 @@ class TestDailyRetrainJob:
         ):
             await daily_retrain_job()
 
-        call_kwargs = mock_repo.fetch_training_frame.call_args.kwargs
+        call_kwargs = (
+            mock_repo.fetch_training_frame_for_source.call_args.kwargs
+        )
         assert call_kwargs["hours"] == 2160
 
     @pytest.mark.asyncio
@@ -359,7 +373,9 @@ class TestDailyRetrainJob:
         frame = _make_training_frame(100)
 
         mock_repo = MagicMock()
-        mock_repo.fetch_training_frame = AsyncMock(return_value=frame)
+        mock_repo.fetch_training_frame_for_source = AsyncMock(
+            return_value=frame
+        )
 
         mock_orchestrator = MagicMock()
         mock_orchestrator.retrain_all = MagicMock(
@@ -402,7 +418,9 @@ class TestDailyBacktestJob:
         frame = _make_training_frame(6000)
 
         mock_pred_repo = MagicMock()
-        mock_pred_repo.fetch_training_frame = AsyncMock(return_value=frame)
+        mock_pred_repo.fetch_training_frame_for_source = AsyncMock(
+            return_value=frame
+        )
 
         mock_perf_repo = MagicMock()
         mock_perf_repo.save_performance_rows = AsyncMock(return_value=48)
@@ -434,7 +452,7 @@ class TestDailyBacktestJob:
     async def test_raises_when_empty_data(self) -> None:
         """Test that empty training data raises."""
         mock_pred_repo = MagicMock()
-        mock_pred_repo.fetch_training_frame = AsyncMock(
+        mock_pred_repo.fetch_training_frame_for_source = AsyncMock(
             return_value=pd.DataFrame()
         )
 
@@ -454,7 +472,9 @@ class TestDailyBacktestJob:
         small = _make_training_frame(100)
 
         mock_pred_repo = MagicMock()
-        mock_pred_repo.fetch_training_frame = AsyncMock(return_value=small)
+        mock_pred_repo.fetch_training_frame_for_source = AsyncMock(
+            return_value=small
+        )
 
         with patch(
             "app.scheduler.jobs.PredictionRepository",
@@ -472,7 +492,9 @@ class TestDailyBacktestJob:
         frame = _make_training_frame(6000)
 
         mock_pred_repo = MagicMock()
-        mock_pred_repo.fetch_training_frame = AsyncMock(return_value=frame)
+        mock_pred_repo.fetch_training_frame_for_source = AsyncMock(
+            return_value=frame
+        )
 
         mock_perf_repo = MagicMock()
         mock_perf_repo.save_performance_rows = AsyncMock(return_value=0)
@@ -787,7 +809,12 @@ class TestAccuracyCheckMatrix:
 # HOURLY 24H PREDICTION JOB
 # ============================================================
 class TestHourlyPredictionJob:
-    """Tests for hourly_prediction_job()."""
+    """Tests for hourly_prediction_job().
+
+    Since Phase 3, the job loads a champion via _load_champion_model
+    instead of loading Prophet directly. These tests patch
+    _load_champion_model to isolate the orchestration logic.
+    """
 
     @pytest.mark.asyncio
     async def test_happy_path(self) -> None:
@@ -802,7 +829,9 @@ class TestHourlyPredictionJob:
         )
 
         with patch(
-            "app.scheduler.jobs.ProphetModel", return_value=mock_model
+            "app.scheduler.jobs._load_champion_model",
+            new_callable=AsyncMock,
+            return_value=mock_model,
         ), patch(
             "app.scheduler.jobs.PredictionGenerator",
             return_value=mock_generator,
@@ -819,10 +848,8 @@ class TestHourlyPredictionJob:
         assert result["succeeded"] is True
 
     @pytest.mark.asyncio
-    async def test_loads_model_from_settings(self) -> None:
-        """Test that the job loads the model from settings.prophet_24h_model_path."""
-        from app.config import settings
-
+    async def test_loads_champion_for_24h_horizon(self) -> None:
+        """Test that _load_champion_model is called with horizon='24h'."""
         mock_model = _make_trained_model()
 
         mock_generator = MagicMock()
@@ -831,8 +858,10 @@ class TestHourlyPredictionJob:
         )
 
         with patch(
-            "app.scheduler.jobs.ProphetModel", return_value=mock_model
-        ), patch(
+            "app.scheduler.jobs._load_champion_model",
+            new_callable=AsyncMock,
+            return_value=mock_model,
+        ) as mock_load, patch(
             "app.scheduler.jobs.PredictionGenerator",
             return_value=mock_generator,
         ), patch(
@@ -841,21 +870,25 @@ class TestHourlyPredictionJob:
         ):
             await hourly_prediction_job()
 
-        mock_model.load.assert_called_once_with(
-            settings.prophet_24h_model_path
-        )
+        call_kwargs = mock_load.call_args.kwargs
+        assert call_kwargs["horizon"] == "24h"
+        # Regime-aware serving is off by default, so market_condition
+        # is None unless the flag is enabled. Test controls the flag
+        # via the settings default (False).
+        assert call_kwargs["market_condition"] is None
 
     @pytest.mark.asyncio
-    async def test_raises_when_model_not_trained(self) -> None:
-        """Test that a model not marked as trained raises RuntimeError."""
-        mock_model = MagicMock()
-        mock_model.load = MagicMock()
-        mock_model.is_model_trained = MagicMock(return_value=False)
-
+    async def test_raises_when_champion_load_fails(self) -> None:
+        """Test that a RuntimeError from _load_champion_model propagates."""
         with patch(
-            "app.scheduler.jobs.ProphetModel", return_value=mock_model
+            "app.scheduler.jobs._load_champion_model",
+            new_callable=AsyncMock,
+            side_effect=RuntimeError("no champion candidates could be loaded"),
+        ), patch(
+            "app.scheduler.jobs.session_scope",
+            return_value=_session_scope_mock(),
         ):
-            with pytest.raises(RuntimeError, match="not marked as trained"):
+            with pytest.raises(RuntimeError, match="no champion candidates"):
                 await hourly_prediction_job()
 
     @pytest.mark.asyncio
@@ -871,7 +904,9 @@ class TestHourlyPredictionJob:
         )
 
         with patch(
-            "app.scheduler.jobs.ProphetModel", return_value=mock_model
+            "app.scheduler.jobs._load_champion_model",
+            new_callable=AsyncMock,
+            return_value=mock_model,
         ), patch(
             "app.scheduler.jobs.PredictionGenerator",
             return_value=mock_generator,
@@ -883,15 +918,17 @@ class TestHourlyPredictionJob:
                 await hourly_prediction_job()
 
     @pytest.mark.asyncio
-    async def test_propagates_model_load_error(self) -> None:
-        """Test that a FileNotFoundError from model.load propagates."""
-        mock_model = MagicMock()
-        mock_model.load = MagicMock(
-            side_effect=FileNotFoundError("missing model")
-        )
-
+    async def test_propagates_file_not_found_from_champion_load(
+        self,
+    ) -> None:
+        """Test that FileNotFoundError from _load_champion_model propagates."""
         with patch(
-            "app.scheduler.jobs.ProphetModel", return_value=mock_model
+            "app.scheduler.jobs._load_champion_model",
+            new_callable=AsyncMock,
+            side_effect=FileNotFoundError("missing model"),
+        ), patch(
+            "app.scheduler.jobs.session_scope",
+            return_value=_session_scope_mock(),
         ):
             with pytest.raises(FileNotFoundError, match="missing model"):
                 await hourly_prediction_job()
@@ -901,7 +938,11 @@ class TestHourlyPredictionJob:
 # DAILY 7D PREDICTION JOB
 # ============================================================
 class TestDaily7dPredictionJob:
-    """Tests for daily_7d_prediction_job()."""
+    """Tests for daily_7d_prediction_job().
+
+    Same pattern as TestHourlyPredictionJob — patches
+    _load_champion_model instead of ProphetModel.
+    """
 
     @pytest.mark.asyncio
     async def test_happy_path(self) -> None:
@@ -919,7 +960,9 @@ class TestDaily7dPredictionJob:
         )
 
         with patch(
-            "app.scheduler.jobs.ProphetModel", return_value=mock_model
+            "app.scheduler.jobs._load_champion_model",
+            new_callable=AsyncMock,
+            return_value=mock_model,
         ), patch(
             "app.scheduler.jobs.PredictionGenerator",
             return_value=mock_generator,
@@ -936,10 +979,8 @@ class TestDaily7dPredictionJob:
         assert result["succeeded"] is True
 
     @pytest.mark.asyncio
-    async def test_loads_model_from_settings(self) -> None:
-        """Test that the 7d job loads from settings.prophet_7d_model_path."""
-        from app.config import settings
-
+    async def test_loads_champion_for_7d_horizon(self) -> None:
+        """Test that _load_champion_model is called with horizon='7d'."""
         mock_model = _make_trained_model()
 
         mock_generator = MagicMock()
@@ -948,8 +989,10 @@ class TestDaily7dPredictionJob:
         )
 
         with patch(
-            "app.scheduler.jobs.ProphetModel", return_value=mock_model
-        ), patch(
+            "app.scheduler.jobs._load_champion_model",
+            new_callable=AsyncMock,
+            return_value=mock_model,
+        ) as mock_load, patch(
             "app.scheduler.jobs.PredictionGenerator",
             return_value=mock_generator,
         ), patch(
@@ -958,21 +1001,22 @@ class TestDaily7dPredictionJob:
         ):
             await daily_7d_prediction_job()
 
-        mock_model.load.assert_called_once_with(
-            settings.prophet_7d_model_path
-        )
+        call_kwargs = mock_load.call_args.kwargs
+        assert call_kwargs["horizon"] == "7d"
+        assert call_kwargs["market_condition"] is None
 
     @pytest.mark.asyncio
-    async def test_raises_when_model_not_trained(self) -> None:
-        """Test that an untrained model raises RuntimeError."""
-        mock_model = MagicMock()
-        mock_model.load = MagicMock()
-        mock_model.is_model_trained = MagicMock(return_value=False)
-
+    async def test_raises_when_champion_load_fails(self) -> None:
+        """Test that a RuntimeError from _load_champion_model propagates."""
         with patch(
-            "app.scheduler.jobs.ProphetModel", return_value=mock_model
+            "app.scheduler.jobs._load_champion_model",
+            new_callable=AsyncMock,
+            side_effect=RuntimeError("no champion candidates could be loaded"),
+        ), patch(
+            "app.scheduler.jobs.session_scope",
+            return_value=_session_scope_mock(),
         ):
-            with pytest.raises(RuntimeError, match="not marked as trained"):
+            with pytest.raises(RuntimeError, match="no champion candidates"):
                 await daily_7d_prediction_job()
 
     @pytest.mark.asyncio
@@ -990,7 +1034,9 @@ class TestDaily7dPredictionJob:
         )
 
         with patch(
-            "app.scheduler.jobs.ProphetModel", return_value=mock_model
+            "app.scheduler.jobs._load_champion_model",
+            new_callable=AsyncMock,
+            return_value=mock_model,
         ), patch(
             "app.scheduler.jobs.PredictionGenerator",
             return_value=mock_generator,
@@ -1002,15 +1048,17 @@ class TestDaily7dPredictionJob:
                 await daily_7d_prediction_job()
 
     @pytest.mark.asyncio
-    async def test_propagates_model_load_error(self) -> None:
-        """Test that a FileNotFoundError from model.load propagates."""
-        mock_model = MagicMock()
-        mock_model.load = MagicMock(
-            side_effect=FileNotFoundError("missing 7d model")
-        )
-
+    async def test_propagates_file_not_found_from_champion_load(
+        self,
+    ) -> None:
+        """Test that FileNotFoundError from _load_champion_model propagates."""
         with patch(
-            "app.scheduler.jobs.ProphetModel", return_value=mock_model
+            "app.scheduler.jobs._load_champion_model",
+            new_callable=AsyncMock,
+            side_effect=FileNotFoundError("missing 7d model"),
+        ), patch(
+            "app.scheduler.jobs.session_scope",
+            return_value=_session_scope_mock(),
         ):
             with pytest.raises(FileNotFoundError, match="missing 7d model"):
                 await daily_7d_prediction_job()
@@ -1026,7 +1074,9 @@ class TestDaily7dPredictionJob:
         )
 
         with patch(
-            "app.scheduler.jobs.ProphetModel", return_value=mock_model
+            "app.scheduler.jobs._load_champion_model",
+            new_callable=AsyncMock,
+            return_value=mock_model,
         ), patch(
             "app.scheduler.jobs.PredictionGenerator",
             return_value=mock_generator,
