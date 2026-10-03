@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 from app.config import settings
 from app.services.data_processor import DataProcessor
 from app.database.btc_price_repository import BTCPriceRepository
-from app.rabbitmq.producer import RabbitMQProducer
+from app.rabbitmq.btc_update_producer import BTCUpdateProducer
 from app.cache.client import CacheClient
 
 # Setup logging
@@ -43,7 +43,7 @@ class BTCWebSocketClient:
         data_processor: Optional[DataProcessor] = None,
         cache_client: Optional[CacheClient] = None,
         btc_price_repository: Optional[BTCPriceRepository] = None,
-        rabbitmq_producer: Optional[RabbitMQProducer] = None,
+        rabbitmq_producer: Optional[BTCUpdateProducer] = None,
         on_update_callback: Optional[Callable] = None
     ):
         """
@@ -283,7 +283,7 @@ class BTCWebSocketClient:
                         "source": "binance_ws",
                         "timestamp": datetime.now(timezone.utc).isoformat()
                     }
-                    self.rabbitmq_producer.publish_price_update(price_data)
+                    self.rabbitmq_producer.publish_btc_update(price_data)
                 except Exception as e:
                     logger.error(f"Failed to publish to RabbitMQ: {e}")
                 
@@ -327,12 +327,12 @@ async def connect_btc_price_stream():
         from app.services.data_processor import DataProcessor
         from app.main import data_processor as global_data_processor
         from app.cache.client import CacheClient
-        from app.rabbitmq.producer import RabbitMQProducer  
+        from app.rabbitmq.btc_update_producer import BTCUpdateProducer
         
         _global_client = BTCWebSocketClient(
             data_processor=global_data_processor,
             cache_client=CacheClient(),
-            rabbitmq_producer=RabbitMQProducer(),
+            rabbitmq_producer=BTCUpdateProducer(),
             on_update_callback=None
         )
         

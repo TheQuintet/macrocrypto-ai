@@ -25,8 +25,10 @@ The Alert Service is responsible for:
 
 | Event | Source | Description |
 |-------|--------|-------------|
-| `PriceUpdated` | Data Service | New BTC price available |
+| `price_update` | Data Service | Persistent message on `data_exchange` with routing key `data.price.update`, consumed from `price_updates` |
 | `IndicatorUpdated` | Data Service | New economic indicator available |
+
+The BTC price consumer runs in a dedicated background thread so RabbitMQ's blocking connection does not block FastAPI startup or shutdown.
 
 ### Produced Events
 

@@ -20,7 +20,7 @@ from app.config import settings
 from app.database.session import init_db, engine, SessionLocal
 from sqlalchemy import text
 from app.cache.client import CacheClient
-from app.rabbitmq.producer import RabbitMQProducer
+from app.rabbitmq.btc_update_producer import BTCUpdateProducer
 from app.collectors.binance import BinanceCollector
 from app.services.market_cap_service import MarketCapService
 from app.services.btc_dominance_service import BTCDominanceService
@@ -59,7 +59,7 @@ current_regime_task: Optional[asyncio.Task] = None
 price_service: Optional[PriceService] = None
 data_processor: Optional[DataProcessor] = None
 cache_client: Optional[CacheClient] = None
-rabbitmq_producer: Optional[RabbitMQProducer] = None
+rabbitmq_producer: Optional[BTCUpdateProducer] = None
 market_cap_service: Optional[MarketCapService] = None
 btc_dominance_service: Optional[BTCDominanceService] = None
 logging.basicConfig(level=logging.INFO)
@@ -104,7 +104,7 @@ async def lifespan(app: FastAPI):
     # 3. Connect to RabbitMQ
     # --------------------------------------------
     try:
-        rabbitmq_producer = RabbitMQProducer()
+        rabbitmq_producer = BTCUpdateProducer()
         connected = await rabbitmq_producer.connect()
         if connected:
             logger.info(f"✅ RabbitMQ connected at {settings.RABBITMQ_HOST}:{settings.RABBITMQ_PORT}")
@@ -325,7 +325,7 @@ async def lifespan(app: FastAPI):
 async def run_websocket_stream(
     data_processor: DataProcessor,
     cache_client: Optional[CacheClient],
-    rabbitmq_producer: Optional[RabbitMQProducer]
+    rabbitmq_producer: Optional[BTCUpdateProducer]
 ):
     """
     Background task to run the WebSocket stream
@@ -430,7 +430,7 @@ async def periodic_price_collection(symbol: str = "BTCUSDT", interval: int = 60)
                             "source": "binance_rest",
                             "timestamp": datetime.now().isoformat()
                         }
-                        rabbitmq_producer.publish_price_update(event_data)
+                        rabbitmq_producer.publish_btc_update(event_data)
                     
                     logger.info(f"✅ Collected {symbol} price: ${price}")
                 

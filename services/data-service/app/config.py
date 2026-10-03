@@ -1,5 +1,6 @@
 """Environment configuration for data-service"""
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import Optional
 from functools import lru_cache
@@ -58,6 +59,7 @@ class Settings(BaseSettings):
     RABBITMQ_PASSWORD: str = "guest"
     RABBITMQ_VHOST: str = "/"
     RABBITMQ_URL: Optional[str] = None
+    BTC_PRICE_RABBITMQ_THRESHOLD_USD: float = Field(default=1.0, gt=0)
     
     @property
     def RABBITMQ_CONNECTION_URL(self) -> str:
