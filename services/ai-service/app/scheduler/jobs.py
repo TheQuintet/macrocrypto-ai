@@ -75,6 +75,25 @@ Champion-aware prediction:
     incumbent's predecessor and finally ``prophet_fresh`` when the
     champion artifact is missing or broken. See the helper's
     docstring for the exact chain.
+
+Regime-aware serving (Phase 4):
+    When ``settings.champion_serve_regime_aware`` is True, the two
+    prediction jobs classify the current BTC price regime before
+    loading a champion, and load the champion for that regime
+    (falling back to the global champion if no regime champion
+    exists, then to the previous champion, then to
+    ``prophet_fresh``).
+
+    The classification window matches the horizon: 24 hours for
+    the 24h job, 168 hours for the 7d job. This mirrors the
+    backtest, where each iteration classifies its full forecast
+    window (24h or 168h), so serving and backtest assign labels
+    with the same semantics.
+
+    When the flag is False, or when the classifier returns None,
+    the regime step is skipped entirely — the chain collapses to
+    the three-level form above. No behavior change for existing
+    deployments.
 """
 
 import logging
@@ -436,7 +455,7 @@ def _build_model_registry() -> Dict[str, Any]:
 
 
 # ============================================================
-# CHAMPION MODEL LOADING (Phase 3)
+# CHAMPION MODEL LOADING (Phase 3 + Phase 4)
 # ============================================================
 async def _load_champion_model(
     champion_repo: ChampionRepository,
@@ -447,22 +466,31 @@ async def _load_champion_model(
 
     The prediction jobs serve whatever the promotion job most
     recently crowned. But model artifacts can be missing (first
-    run, failed retrain, manual deletion) — so this helper walks a
-    short fallback chain rather than failing outright:
+    run, failed retrain, manual deletion), so this helper walks a
+    short fallback chain rather than failing outright.
 
-        1. Read the current champion for (horizon, market_condition)
-           via ``champion_repo.get_champion()``.
-        2. If a champion row exists:
-             a. Try ``models/{champion.model_name}.pkl``.
-             b. On failure, try ``models/{previous_champion}.pkl``
-                (only if ``previous_champion`` is not None).
-             c. On failure, try ``models/prophet_fresh.pkl``.
-             d. If prophet_fresh is also missing, raise
-                ``RuntimeError`` — there is nothing left to serve.
-        3. If no champion row exists (first-ever run):
-             → Load ``models/prophet_fresh.pkl`` directly. This is
-               the only sane default when no promotion has ever
-               happened.
+    Two chains are possible depending on arguments:
+
+        Regime-aware (market_condition is not None):
+            regime_champion (horizon, market_condition)
+              → global_champion (horizon, None)
+                → previous_champion (of the global)
+                  → prophet_fresh
+
+        Global (market_condition is None, the default):
+            global_champion (horizon, None)
+              → previous_champion
+                → prophet_fresh
+
+    The regime-aware branch is used only when the caller passes a
+    non-None ``market_condition``. The prediction jobs control
+    this: they classify the current regime and pass it only when
+    ``settings.champion_serve_regime_aware`` is on. Otherwise they
+    pass None, and the helper's behavior is identical to Phase 3.
+
+    At every level, if the artifact load fails, the next level is
+    tried. If every level fails, a RuntimeError is raised so the
+    scheduler records the failure and retries later.
 
     Why one level of predecessor fallback:
         ``previous_champion`` records only the immediate
@@ -477,20 +505,23 @@ async def _load_champion_model(
         It is the model every fresh install can retrain from
         scratch, and it is always among the 6 variants the retrain
         job writes. If it is missing too, the service genuinely
-        cannot predict, and a RuntimeError is the correct outcome:
-        the scheduler records the failure and retries later.
+        cannot predict, and a RuntimeError is the correct outcome.
 
     Regime awareness:
-        ``market_condition`` defaults to None (global champion).
-        Regime-aware serving is deferred to Phase 4; until then,
-        the prediction jobs pass None. The parameter is in the
-        signature now so the Phase 4 change is a one-liner at the
-        call site.
+        With ``market_condition`` set, the regime-specific champion
+        is tried first. If no regime row exists (regimes with
+        sparse history, or regime selection just enabled), the
+        chain falls through to the global champion. This is the
+        expected path for the first several days after enabling
+        regime-aware serving.
 
     Args:
         champion_repo: An open ChampionRepository.
         horizon: '24h' or '7d'.
-        market_condition: Regime label or None for global.
+        market_condition: Regime label, or None for the global
+            champion only. When not None, the regime champion is
+            tried first, with the global champion as the first
+            fallback.
 
     Returns:
         A loaded ForecastModel instance, marked as trained.
@@ -499,16 +530,73 @@ async def _load_champion_model(
         RuntimeError: If every candidate in the fallback chain
             failed to load.
     """
+    # ---- 0. Regime-specific champion first (Phase 4) ----
+    # When a regime is supplied, we try the regime-specific
+    # champion first. If that row doesn't exist or its artifact
+    # fails to load, we fall through to the global champion
+    # below. We do NOT short-circuit on the regime attempt's
+    # failure — the global champion is the correct fallback.
+    if market_condition is not None:
+        regime_champion = await champion_repo.get_champion(
+            horizon=horizon,
+            market_condition=market_condition,
+        )
+        if regime_champion is not None:
+            regime_name = regime_champion["model_name"]
+            regime_previous = regime_champion.get("previous_champion")
+
+            logger.info(
+                f"Loading regime champion for horizon={horizon!r} "
+                f"regime={market_condition!r} "
+                f"(champion={regime_name!r})"
+            )
+
+            # Try the regime champion, then its predecessor, then
+            # prophet_fresh, then fall through to global.
+            regime_chain: List[Tuple[str, str]] = [
+                (regime_name, "regime_champion"),
+            ]
+            if (
+                regime_previous is not None
+                and regime_previous != regime_name
+            ):
+                regime_chain.append(
+                    (regime_previous, "regime_previous_champion")
+                )
+            if regime_name != "prophet_fresh" and regime_previous != "prophet_fresh":
+                regime_chain.append(("prophet_fresh", "last_resort"))
+
+            for variant_name, label in regime_chain:
+                try:
+                    return _load_variant_model_generic(variant_name)
+                except (FileNotFoundError, RuntimeError, ValueError) as e:
+                    logger.warning(
+                        f"Failed to load {label} {variant_name!r} for "
+                        f"horizon={horizon!r} regime={market_condition!r}: "
+                        f"{e}"
+                    )
+                    continue
+
+            # Every regime candidate failed. Fall through to the
+            # global chain below rather than raising — the global
+            # champion is a valid fallback.
+            logger.info(
+                f"All regime candidates failed for horizon={horizon!r} "
+                f"regime={market_condition!r}; falling through to the "
+                f"global champion"
+            )
+
+    # ---- 1. Global champion (also the fallback when regime fails) ----
     champion = await champion_repo.get_champion(
         horizon=horizon,
-        market_condition=market_condition,
+        market_condition=None,
     )
 
-    # ---- Case 3: no champion row at all (first-ever run) ----
+    # ---- Case 3: no global champion row at all (first-ever run) ----
     if champion is None:
         logger.info(
             f"No champion for horizon={horizon!r} "
-            f"market_condition={market_condition!r}; "
+            f"market_condition=None; "
             f"falling back to 'prophet_fresh'"
         )
         return _load_variant_model_generic("prophet_fresh")
@@ -516,7 +604,7 @@ async def _load_champion_model(
     champion_name = champion["model_name"]
     previous_name = champion.get("previous_champion")
 
-    # ---- Case 2: walk the fallback chain ----
+    # ---- Case 2: walk the global fallback chain ----
     # Build the chain as a list of (variant_name, label) so we can
     # log the reason for each failure and identify which one
     # succeeded.
@@ -549,6 +637,77 @@ async def _load_champion_model(
         f"Could not load any champion candidate for horizon={horizon!r} "
         f"(tried {chain_names}); last error: {last_error}"
     )
+
+
+# ============================================================
+# REGIME CLASSIFICATION (Phase 4)
+# ============================================================
+async def classify_current_regime(
+    prediction_repo: PredictionRepository,
+    window_hours: int,
+) -> Optional[str]:
+    """Classify the current BTC price regime.
+
+    Fetches the trailing ``window_hours`` of actual BTC prices
+    from ``btc_prices`` and runs the same classifier the backtest
+    uses. Serving and backtest therefore assign labels with the
+    same semantics — a champion promoted under a "bull 24h"
+    classification is served under a "bull 24h" classification.
+
+    The window length matches the horizon being served:
+        - hourly_prediction_job  → 24  hours (24h horizon)
+        - daily_7d_prediction_job → 168 hours (7d horizon)
+
+    This mirrors the backtest, where each iteration classifies its
+    full forecast window (24h or 168h). See
+    ``_result_to_rows`` for the backtest-side call.
+
+    Returns None (rather than raising) when the classifier cannot
+    decide. Callers should treat None as "no regime available"
+    and fall back to the global champion — see Decision 3 of the
+    Phase 4 design. The classifier itself is already exception-safe
+    (``classify_market_condition_safe`` wraps a try/except); this
+    helper adds a repository-level guard for the fetch.
+
+    Args:
+        prediction_repo: An open PredictionRepository bound to a
+            session. Reads from the shared ``btc_prices`` table,
+            which is NOT routed by CLI mode.
+        window_hours: Number of trailing hours of BTC prices to
+            classify. 24 for the 24h horizon, 168 for the 7d.
+
+    Returns:
+        One of 'bull', 'bear', 'volatile', 'neutral', or None if
+        the classifier could not decide (insufficient data, NaN,
+        or any internal failure).
+    """
+    try:
+        btc_df = await prediction_repo.fetch_recent_btc_data(
+            hours=window_hours,
+        )
+    except Exception as e:
+        logger.warning(
+            f"Could not fetch BTC prices for regime classification "
+            f"(window_hours={window_hours}): {e}"
+        )
+        return None
+
+    if btc_df is None or btc_df.empty:
+        logger.debug(
+            f"No BTC prices available for regime classification "
+            f"(window_hours={window_hours})"
+        )
+        return None
+
+    prices = btc_df["close"].tolist()
+    if len(prices) < 2:
+        logger.debug(
+            f"Only {len(prices)} BTC price(s) available for regime "
+            f"classification (window_hours={window_hours})"
+        )
+        return None
+
+    return classify_market_condition_safe(prices)
 
 
 # ============================================================
@@ -1205,7 +1364,7 @@ async def _build_breach_rows(
 
 
 # ============================================================
-# HOURLY 24H PREDICTION JOB
+# HOURLY 24H PREDICTION JOB (Phase 4: regime-aware serving)
 # ============================================================
 async def hourly_prediction_job() -> Dict[str, Any]:
     """Generate 24h BTC predictions for the current hour.
@@ -1213,13 +1372,18 @@ async def hourly_prediction_job() -> Dict[str, Any]:
     Loads the *champion* for the 24h horizon (with hierarchical
     fallback — see ``_load_champion_model``) instead of a hardcoded
     Prophet. Steps:
-        1. Open a DB session, read the 24h champion row, and load
-           the champion's model artifact (with fallback).
-        2. Open a second DB session for prediction generation.
-        3. Build a PredictionGenerator (24h horizon, 0.85 confidence,
+        1. Open a DB session.
+        2. If ``settings.champion_serve_regime_aware`` is True,
+           classify the current BTC regime (24h trailing window)
+           and log it. Otherwise skip the classification step.
+        3. Load the champion for the 24h horizon, passing the
+           classified regime (or None if the classifier returned
+           None or the flag is off).
+        4. Open a second DB session for prediction generation.
+        5. Build a PredictionGenerator (24h horizon, 0.85 confidence,
            history_source=FeatureContext.PREDICTION).
-        4. Run generate().
-        5. Return a structured result.
+        6. Run generate().
+        7. Return a structured result.
 
     The job does NOT catch its own exceptions — it raises so the
     SchedulerManager can record the failure, apply retries, and
@@ -1228,15 +1392,23 @@ async def hourly_prediction_job() -> Dict[str, Any]:
 
     Champion fallback:
         If the 24h champion artifact is missing or fails to load,
-        ``_load_champion_model`` tries the incumbent's
-        ``previous_champion``, then falls back to
-        ``prophet_fresh``. If everything fails, the helper raises
-        RuntimeError, which the manager records as a job failure.
+        ``_load_champion_model`` walks a fallback chain. With
+        regime-aware serving on, the chain is:
+
+            regime_champion → global_champion → previous_champion
+              → prophet_fresh
+
+        With regime-aware serving off (or when the classifier
+        returns None), the chain is the Phase 3 three-level form:
+
+            global_champion → previous_champion → prophet_fresh
 
     Regime awareness:
-        Regime-specific serving is deferred to Phase 4. Until
-        then, this job loads the global champion
-        (``market_condition=None``).
+        Regime classification uses the same window length as the
+        backtest's 24h horizon: the trailing 24 hours of BTC
+        prices. If the classifier cannot decide (insufficient
+        data, NaN), a WARNING is logged and the global champion
+        is served instead.
 
     Returns:
         Dict with keys: horizon, model_name, rows_generated,
@@ -1248,16 +1420,47 @@ async def hourly_prediction_job() -> Dict[str, Any]:
     """
     logger.info("Running hourly_prediction_job")
 
-    # ---- 1. Load the 24h champion (with fallback) ----
-    # The champion read happens in its own session so the
-    # prediction generator's session below is a clean, dedicated
-    # scope for the actual generation work.
+    # ---- 1. Classify the current regime (if enabled) and load
+    #         the champion ----
+    # Both the price fetch (for classification) and the champion
+    # read happen in the same session so we don't open two
+    # sessions for one logical "load the model" step.
+    current_regime: Optional[str] = None
+
     async with session_scope() as session:
         champion_repo = ChampionRepository(session)
+
+        if settings.champion_serve_regime_aware:
+            prediction_repo = PredictionRepository(session)
+            current_regime = await classify_current_regime(
+                prediction_repo=prediction_repo,
+                window_hours=24,
+            )
+
+            if current_regime is None:
+                # Decision 3: fall back to the global champion.
+                # We log at WARNING because it means the classifier
+                # couldn't decide, which is worth seeing in logs.
+                logger.warning(
+                    f"hourly_prediction_job: could not classify "
+                    f"current regime (window=24h); falling back to "
+                    f"the global champion"
+                )
+            else:
+                logger.info(
+                    f"hourly_prediction_job: classified regime="
+                    f"{current_regime!r} (window=24h)"
+                )
+        else:
+            logger.debug(
+                "hourly_prediction_job: regime-aware serving is "
+                "disabled; skipping regime classification"
+            )
+
         model = await _load_champion_model(
             champion_repo=champion_repo,
             horizon="24h",
-            market_condition=None,
+            market_condition=current_regime,
         )
 
     logger.info(
@@ -1305,7 +1508,7 @@ async def hourly_prediction_job() -> Dict[str, Any]:
 
 
 # ============================================================
-# DAILY 7D PREDICTION JOB
+# DAILY 7D PREDICTION JOB (Phase 4: regime-aware serving)
 # ============================================================
 async def daily_7d_prediction_job() -> Dict[str, Any]:
     """Generate 7d BTC predictions once per day.
@@ -1317,27 +1520,34 @@ async def daily_7d_prediction_job() -> Dict[str, Any]:
     Loads the *champion* for the 7d horizon (with hierarchical
     fallback — see ``_load_champion_model``) instead of a hardcoded
     Prophet. Steps:
-        1. Open a DB session, read the 7d champion row, and load
-           the champion's model artifact (with fallback).
-        2. Open a second DB session for prediction generation.
-        3. Build a PredictionGenerator (7d horizon, 0.85 confidence,
+        1. Open a DB session.
+        2. If ``settings.champion_serve_regime_aware`` is True,
+           classify the current BTC regime (168h trailing window)
+           and log it. Otherwise skip the classification step.
+        3. Load the champion for the 7d horizon, passing the
+           classified regime (or None if the classifier returned
+           None or the flag is off).
+        4. Open a second DB session for prediction generation.
+        5. Build a PredictionGenerator (7d horizon, 0.85 confidence,
            history_source=FeatureContext.PREDICTION).
-        4. Run generate().
-        5. Return a structured result.
+        6. Run generate().
+        7. Return a structured result.
 
     The job raises on failure so the SchedulerManager records the
     failure and applies retries.
 
     Champion fallback:
-        Same chain as ``hourly_prediction_job`` — the 7d champion,
-        then its predecessor, then ``prophet_fresh``. The two jobs
-        are independent: a 24h champion failure does not affect the
+        Same chain as ``hourly_prediction_job`` — the regime
+        champion (if any), then the global champion, then its
+        predecessor, then ``prophet_fresh``. The two jobs are
+        independent: a 24h champion failure does not affect the
         7d job and vice versa.
 
     Regime awareness:
-        Regime-specific serving is deferred to Phase 4. Until
-        then, this job loads the global champion
-        (``market_condition=None``).
+        Regime classification uses the same window length as the
+        backtest's 7d horizon: the trailing 168 hours of BTC
+        prices. If the classifier cannot decide, a WARNING is
+        logged and the global champion is served instead.
 
     Returns:
         Dict with keys: horizon, model_name, rows_generated,
@@ -1349,13 +1559,41 @@ async def daily_7d_prediction_job() -> Dict[str, Any]:
     """
     logger.info("Running daily_7d_prediction_job")
 
-    # ---- 1. Load the 7d champion (with fallback) ----
+    # ---- 1. Classify the current regime (if enabled) and load
+    #         the champion ----
+    current_regime: Optional[str] = None
+
     async with session_scope() as session:
         champion_repo = ChampionRepository(session)
+
+        if settings.champion_serve_regime_aware:
+            prediction_repo = PredictionRepository(session)
+            current_regime = await classify_current_regime(
+                prediction_repo=prediction_repo,
+                window_hours=168,
+            )
+
+            if current_regime is None:
+                logger.warning(
+                    f"daily_7d_prediction_job: could not classify "
+                    f"current regime (window=168h); falling back to "
+                    f"the global champion"
+                )
+            else:
+                logger.info(
+                    f"daily_7d_prediction_job: classified regime="
+                    f"{current_regime!r} (window=168h)"
+                )
+        else:
+            logger.debug(
+                "daily_7d_prediction_job: regime-aware serving is "
+                "disabled; skipping regime classification"
+            )
+
         model = await _load_champion_model(
             champion_repo=champion_repo,
             horizon="7d",
-            market_condition=None,
+            market_condition=current_regime,
         )
 
     logger.info(
