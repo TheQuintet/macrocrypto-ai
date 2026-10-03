@@ -1,5 +1,4 @@
 import {
-  HISTORY_WINDOW,
   PREDICTION_POINT_COUNT,
   PREDICTION_STEP_MS,
 } from '@/api/predictions/predictionWindow'
@@ -15,8 +14,15 @@ import type {
 /** The model the endpoint defaults to, echoed back in its response. */
 export const DEFAULT_PREDICTION_MODEL = 'prophet'
 
-/** Matches the ai-service neutral band: |change| under this reads as flat. */
-const NEUTRAL_TREND_THRESHOLD_PCT = 0.5
+/**
+ * Matches the ai-service neutral band (`prediction/trend.py`): a change must
+ * clear this, exclusively, to read as up or down. A week is allowed twice the
+ * drift of a day before it counts as a move.
+ */
+const NEUTRAL_TREND_THRESHOLD_PCT: Record<PredictionHorizon, number> = {
+  '24h': 0.5,
+  '7d': 1,
+}
 
 /**
  * Band half-width at the end of the horizon, as a fraction of price.
@@ -30,7 +36,6 @@ const TERMINAL_SPREAD: Record<PredictionHorizon, Record<number, number>> = {
   '7d': { 0.7: 0.03, 0.85: 0.05, 0.95: 0.075 },
 }
 
-
 function roundCents(value: number) {
   return Math.round(value * 100) / 100
 }
@@ -40,25 +45,17 @@ export function simulatedCurrentPrice(nowMs: number) {
   return roundCents(marketPriceAt(nowMs))
 }
 
-function trendOf(changePct: number): PredictionTrend {
-  if (changePct > NEUTRAL_TREND_THRESHOLD_PCT) {
+function trendOf(
+  changePct: number,
+  horizon: PredictionHorizon,
+): PredictionTrend {
+  const threshold = NEUTRAL_TREND_THRESHOLD_PCT[horizon]
+
+  if (changePct > threshold) {
     return 'up'
   }
 
-  return changePct < -NEUTRAL_TREND_THRESHOLD_PCT ? 'down' : 'neutral'
-}
-
-/**
- * In-sample band half-width, as a fraction of price.
- *
- * Flat across the history and much tighter than the forecast's: over a window
- * that already happened the model is fitting known prices, so its uncertainty
- * is residual error rather than a cone.
- */
-const FIT_SPREAD: Record<number, number> = {
-  0.7: 0.0016,
-  0.85: 0.0026,
-  0.95: 0.004,
+  return changePct < -threshold ? 'down' : 'neutral'
 }
 
 /**
@@ -77,35 +74,6 @@ function spreadAt(
   return price * terminal * Math.sqrt(progress)
 }
 
-/**
- * The model's in-sample fit: what it would have said over the window that
- * already happened. Stands in for the `predictions[]` rows the ai-service
- * will carry once it returns its fit alongside the forecast.
- */
-function buildFitPoints(
-  params: PredictionParams,
-  nowMs: number,
-): PredictionPointResponse[] {
-  const stepMs = PREDICTION_STEP_MS[params.horizon]
-  const count = HISTORY_WINDOW[params.horizon].candles
-  const spread = FIT_SPREAD[params.confidence] ?? FIT_SPREAD[0.85]
-
-  return Array.from({ length: count }, (_, index) => {
-    // Ends *at* now, the bucket the newest candle occupies. Stopping a step
-    // short leaves that candle with no fitted value and breaks the line.
-    const timeMs = nowMs - (count - 1 - index) * stepMs
-    const fitted = marketPriceAt(timeMs)
-    const halfWidth = fitted * spread
-
-    return {
-      time: new Date(timeMs).toISOString(),
-      predicted_price: roundCents(fitted),
-      lower_bound: roundCents(fitted - halfWidth),
-      upper_bound: roundCents(fitted + halfWidth),
-    }
-  })
-}
-
 function buildPoints(
   params: PredictionParams,
   startMs: number,
@@ -118,8 +86,9 @@ function buildPoints(
     const progress = step / count
     const timeMs = startMs + step * stepMs
     /**
-     * Straight off the shared curve — the same one the fit traces behind now,
-     * so the projection continues it rather than restarting.
+     * Straight off the shared curve — the same one the simulated candles
+     * sample behind now, so the projection continues them rather than
+     * restarting.
      *
      * Nothing is eased onto the anchor here: the anchor already *is* this
      * curve at `now`, so there is no step to smooth over, and easing one in
@@ -141,13 +110,15 @@ function buildPoints(
 /**
  * Stand-in prediction batch in the ai-service's own wire shape, so the
  * mapper the live response goes through is the one under test here too.
+ *
+ * Forward points only, like the real endpoint: its frame starts an hour past
+ * the last training row and never includes in-sample fitted values.
  */
 export function buildSimulatedPrediction(
   params: PredictionParams,
   nowMs: number,
 ): PredictionResponse {
   const currentPrice = simulatedCurrentPrice(nowMs)
-  const fit = buildFitPoints(params, nowMs)
   const forecast = buildPoints(params, nowMs)
   const predictedEndPrice = forecast[forecast.length - 1].predicted_price
   const priceChangePct = roundCents(
@@ -162,7 +133,7 @@ export function buildSimulatedPrediction(
     current_price: currentPrice,
     predicted_end_price: predictedEndPrice,
     price_change_pct: priceChangePct,
-    trend: trendOf(priceChangePct),
-    predictions: [...fit, ...forecast],
+    trend: trendOf(priceChangePct, params.horizon),
+    predictions: forecast,
   }
 }

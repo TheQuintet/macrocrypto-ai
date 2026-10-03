@@ -9,19 +9,105 @@ import type {
   PredictionRowKind,
 } from '@/types/predictions'
 
+const MINUTE_MS = 60 * 1000
+const HOUR_MS = 60 * MINUTE_MS
+const DAY_MS = 24 * HOUR_MS
+
 /** `0.85` -> `85%` — the confidence reading shown everywhere on the screen. */
 export function formatConfidencePercent(confidence: number) {
   return `${Math.round(confidence * 100)}%`
 }
 
-/** 24h steps hourly, 7d steps daily; each axis reads in its own unit. */
-export function formatPredictionTick(
-  timeMs: number,
+/**
+ * Tick spacings the time axis may use, finest first. Sub-day steps divide a
+ * day evenly, so every tick lands on the same clock times day after day.
+ */
+const TICK_STEPS_MS = [
+  HOUR_MS,
+  2 * HOUR_MS,
+  3 * HOUR_MS,
+  6 * HOUR_MS,
+  12 * HOUR_MS,
+  DAY_MS,
+  2 * DAY_MS,
+  3 * DAY_MS,
+  7 * DAY_MS,
+]
+
+/**
+ * Finest spacing per horizon. The 7d axis spans a fortnight or more of
+ * hourly points, and clock-time ticks across that many days cannot say which
+ * day they fall on, so it never ticks finer than daily.
+ */
+const MIN_TICK_STEP_MS: Record<PredictionHorizon, number> = {
+  '24h': HOUR_MS,
+  '7d': DAY_MS,
+}
+
+/** Smallest step that keeps the axis at or under `maxTicks` labels. */
+export function predictionTickStepMs(
+  spanMs: number,
+  maxTicks: number,
   horizon: PredictionHorizon,
 ) {
-  const date = new Date(timeMs)
+  const target = spanMs / Math.max(maxTicks, 1)
+  const floor = MIN_TICK_STEP_MS[horizon]
 
-  if (horizon === '24h') {
+  return (
+    TICK_STEPS_MS.find((step) => step >= floor && step >= target) ??
+    TICK_STEPS_MS[TICK_STEPS_MS.length - 1]
+  )
+}
+
+/**
+ * Tick positions on round local times — whole hours for sub-day steps, local
+ * midnights for day steps — so labels read `06:00` or `16 Jun` rather than
+ * wherever evenly divided milliseconds happen to fall.
+ */
+export function predictionTicks(startMs: number, endMs: number, stepMs: number) {
+  const ticks: number[] = []
+
+  if (stepMs < DAY_MS) {
+    const hours = Math.round(stepMs / HOUR_MS)
+    const first = new Date(startMs)
+    first.setMinutes(0, 0, 0)
+
+    // Walk in real hours rather than `setHours`, so a DST change cannot stall it.
+    for (let tick = first.getTime(); tick <= endMs; tick += HOUR_MS) {
+      if (tick >= startMs && new Date(tick).getHours() % hours === 0) {
+        ticks.push(tick)
+      }
+    }
+
+    return ticks
+  }
+
+  const days = Math.round(stepMs / DAY_MS)
+  const cursor = new Date(startMs)
+  cursor.setHours(0, 0, 0, 0)
+  if (cursor.getTime() < startMs) {
+    cursor.setDate(cursor.getDate() + 1)
+  }
+
+  for (let index = 0; cursor.getTime() <= endMs; index += 1) {
+    if (index % days === 0) {
+      ticks.push(cursor.getTime())
+    }
+    cursor.setDate(cursor.getDate() + 1)
+  }
+
+  return ticks
+}
+
+/**
+ * Axis label for a tick. Day steps read as dates; sub-day steps read as
+ * clock times, except at midnight, where the date says the day has turned.
+ */
+export function formatPredictionTick(timeMs: number, stepMs: number) {
+  const date = new Date(timeMs)
+  const isMidnight = date.getHours() === 0 && date.getMinutes() === 0
+
+  if (stepMs < DAY_MS && !isMidnight) {
     return date.toLocaleTimeString('en-GB', {
       hour: '2-digit',
       minute: '2-digit',
@@ -31,9 +117,14 @@ export function formatPredictionTick(
   return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })
 }
 
-/** Full point label for the tooltip — date and time, whatever the horizon. */
+/**
+ * Full point label for the tooltip. The weekday is there for the 7d view,
+ * where a point is one of 168 hourly ones and the date alone is slow to
+ * place within the week.
+ */
 export function formatPredictionTime(timeMs: number) {
   return new Date(timeMs).toLocaleString('en-GB', {
+    weekday: 'short',
     day: '2-digit',
     month: 'short',
     hour: '2-digit',
@@ -42,29 +133,27 @@ export function formatPredictionTime(timeMs: number) {
 }
 
 /**
- * The model's values for moments that have already happened.
+ * How long ago a batch was generated, e.g. `12 min ago`.
  *
- * Today's endpoint returns only forward points, so this is empty and the
- * chart draws a forward-only forecast. When the ai-service adds its in-sample
- * fit to `predictions[]`, those rows land here and the line extends back over
- * the candles with no frontend change.
+ * Batches are produced on a schedule, so a 7d one can be most of a day old
+ * when it is read; this is what stops it passing for a forecast made just now.
  */
-export function fitPoints(prediction: BtcPrediction) {
-  const boundaryMs = new Date(prediction.predictionTime).getTime()
+export function formatForecastAge(predictionTimeMs: number, nowMs: number) {
+  const elapsed = Math.max(0, nowMs - predictionTimeMs)
 
-  return prediction.points.filter((point) => point.timeMs <= boundaryMs)
-}
+  if (elapsed < MINUTE_MS) {
+    return 'just now'
+  }
 
-/**
- * The model's values for moments still ahead.
- *
- * Everything the summary reports reads from these: an expected high that
- * counted the in-sample fit would be describing the past.
- */
-export function forecastPoints(prediction: BtcPrediction) {
-  const boundaryMs = new Date(prediction.predictionTime).getTime()
+  if (elapsed < HOUR_MS) {
+    return `${Math.floor(elapsed / MINUTE_MS)} min ago`
+  }
 
-  return prediction.points.filter((point) => point.timeMs > boundaryMs)
+  if (elapsed < 2 * DAY_MS) {
+    return `${Math.floor(elapsed / HOUR_MS)} h ago`
+  }
+
+  return `${Math.floor(elapsed / DAY_MS)} d ago`
 }
 
 /**
@@ -98,49 +187,54 @@ function emptyRow(
 /**
  * The plot's rows, keyed by moment.
  *
- * A candle and the model's value for the same hour merge into one row, which
- * is what puts the fitted line *through* the history rather than beside it.
- * Rows are emitted in time order, so a candle whose timestamp the model has
- * no value for still plots.
+ * A candle and a forecast point for the same hour merge into one row, and
+ * rows are emitted in time order, so a candle with no forecast beside it
+ * still plots.
+ *
+ * Every point the endpoint returns is a forecast — its frame starts an hour
+ * past the last training row and it never sends in-sample fitted values — so
+ * every point is drawn as one, whatever its timestamp. Points at or before
+ * `prediction_time` (the frame can start before the batch timestamp, and an
+ * older batch has more of them) are drawn rather than dropped: dropping them
+ * would cut the horizon short and leave the line disagreeing with the end
+ * price, trend and key levels, which the service computed over every point.
+ * Where candles already exist for those hours the two overlap, which shows
+ * how that stretch of the forecast has done so far.
  */
 export function predictionChartRows(
   prediction: BtcPrediction,
   candles: ChartCandle[] = [],
 ): PredictionChartRow[] {
-  const boundaryMs = new Date(prediction.predictionTime).getTime()
+  const points = prediction.points
+  /**
+   * Buckets are counted *from* the first forecast point, not from the epoch.
+   * An absolute grid assumes every timestamp sits on a step boundary, which a
+   * forecast generated at an arbitrary moment need not; anchoring here makes
+   * bucket 0 the forecast start and everything else a whole number of steps
+   * either side of it.
+   */
+  const anchorMs =
+    points.length > 0
+      ? Math.min(...points.map((point) => point.timeMs))
+      : new Date(prediction.predictionTime).getTime()
   const byBucket = new Map<number, PredictionChartRow>()
 
   /**
-   * Bucket by cadence, not by exact instant. A candle and the model's value
-   * for the same hour are generated from separate clock reads, and a real
-   * candle is stamped with its bucket start, so their timestamps agree on the
-   * hour but rarely on the millisecond. Keying on the raw value would leave
-   * every candle in a row of its own, next to an empty row for the fit.
+   * Bucket by cadence, not by exact instant. A candle and a forecast point
+   * for the same hour come from separate services, so their timestamps agree
+   * on the hour but need not agree on the millisecond. Keying on the raw
+   * value would leave them in neighbouring rows of their own.
    */
   const stepMs =
-    inferStepMs(prediction.points.map((point) => point.timeMs)) ||
+    inferStepMs(points.map((point) => point.timeMs)) ||
     inferStepMs(candles.map((candle) => candle.timeMs))
-  /**
-   * Buckets are counted *from* `prediction_time`, not from the epoch. An
-   * absolute grid assumes every timestamp sits on a step boundary, which a
-   * forecast generated at an arbitrary moment does not; anchoring here makes
-   * bucket 0 the moment the forecast was made and everything else a whole
-   * number of steps either side of it.
-   */
   const bucketOf = (timeMs: number) =>
     stepMs > 0
-      ? Math.round((timeMs - boundaryMs) / stepMs)
+      ? Math.round((timeMs - anchorMs) / stepMs)
       : // No cadence to infer from a lone point: fall back to the raw offset,
-        // which still puts bucket 0 at the boundary so the split holds.
-        timeMs - boundaryMs
+        // which still puts bucket 0 at the forecast start.
+        timeMs - anchorMs
 
-  /**
-   * Split on the bucket, not the instant. The two queries read the clock a
-   * moment apart, so the newest candle can be stamped just *after*
-   * `prediction_time` — and comparing raw timestamps then files an actual
-   * traded candle as a forecast, which also inflates the count the visible
-   * window is sized from.
-   */
   const rowAt = (timeMs: number) => {
     const bucket = bucketOf(timeMs)
     const existing = byBucket.get(bucket)
@@ -148,7 +242,7 @@ export function predictionChartRows(
       return existing
     }
 
-    const created = emptyRow(timeMs, bucket > 0 ? 'forecast' : 'history')
+    const created = emptyRow(timeMs, 'history')
     byBucket.set(bucket, created)
     return created
   }
@@ -162,23 +256,18 @@ export function predictionChartRows(
     row.candle = [candle.low, candle.high]
   }
 
-  for (const point of prediction.points) {
+  /**
+   * A forecast point is what makes a row part of the forecast; a candle only
+   * says what actually traded. So a candle sharing an hour with a point sits
+   * in a forecast row, and the band covers every forecast hour.
+   */
+  for (const point of points) {
     const row = rowAt(point.timeMs)
-
-    /**
-     * Only the forecast half carries a band. The legend's promise — that
-     * price is expected to fall inside the shaded range — is about what has
-     * not happened yet; over the history the same shading would stand for
-     * in-sample residual, a different quantity rendered as a sliver.
-     */
-    if (row.kind === 'forecast') {
-      row.predicted = point.predictedPrice
-      row.lower = point.lowerBound
-      row.upper = point.upperBound
-      row.band = [point.lowerBound, point.upperBound]
-    } else {
-      row.fit = point.predictedPrice
-    }
+    row.kind = 'forecast'
+    row.predicted = point.predictedPrice
+    row.lower = point.lowerBound
+    row.upper = point.upperBound
+    row.band = [point.lowerBound, point.upperBound]
   }
 
   const rows = [...byBucket.values()].sort((a, b) => a.timeMs - b.timeMs)
@@ -187,38 +276,30 @@ export function predictionChartRows(
 }
 
 /**
- * Carry the last history value into `predicted` so the fit and the forecast
- * meet. Without it the two lines break apart at now, which reads as a gap in
- * the model rather than the moment it stops knowing. The zero-width band on
- * the same row is what makes the cone open from a point instead of starting
- * already wide.
+ * Carry the last actual close before the forecast into `predicted`, so the
+ * projected line starts from where price was instead of floating free a
+ * step later. The zero-width band on the same row is what makes the cone
+ * open from a point instead of starting already wide.
  */
 function joinAtBoundary(rows: PredictionChartRow[]): PredictionChartRow[] {
-  if (!rows.some((row) => row.kind === 'forecast')) {
+  const startIndex = rows.findIndex((row) => row.kind === 'forecast')
+  // Rows before the forecast exist only because a candle put them there.
+  const join = startIndex > 0 ? rows[startIndex - 1] : undefined
+
+  if (!join || join.close == null) {
     return rows
   }
 
-  const history = [...rows].reverse().filter((row) => row.kind === 'history')
-  /**
-   * Hand over from the last bucket the model actually fitted, not simply the
-   * last one with a candle. A feed whose fit stops short of now would
-   * otherwise leave the fitted line ending in mid-air while the forecast
-   * began a bucket later, with a gap between them.
-   */
-  const join = history.find((row) => row.fit != null) ?? history[0]
-  const joinValue = join?.fit ?? join?.close
-
-  if (!join || joinValue == null) {
-    return rows
-  }
-
-  join.predicted = joinValue
-  join.band = [joinValue, joinValue]
+  join.predicted = join.close
+  join.band = [join.close, join.close]
 
   return rows
 }
 
-/** Where the model stops describing the past and starts projecting. */
+/**
+ * Where the forecast starts: its first point. Not the current time — for a
+ * batch made a while ago, the candles carry on past it.
+ */
 export function forecastStartMs(rows: PredictionChartRow[]) {
   return rows.find((row) => row.kind === 'forecast')?.timeMs ?? null
 }
@@ -337,8 +418,9 @@ export function predictionBandWidthPercent(points: PredictionPoint[]) {
 }
 
 /**
- * Band width read as a reliability signal: a narrow band means the model is
- * confident about where price lands, a wide one means it is not.
+ * Band width, bucketed for a glance: how far either side of the forecast line
+ * price is projected to range at the selected coverage level. It describes
+ * the spread, not how good the model is — any band widens as coverage rises.
  */
 export const NARROW_BAND_MAX_PERCENT = 2
 export const MEDIUM_BAND_MAX_PERCENT = 5

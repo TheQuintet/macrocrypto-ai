@@ -4,12 +4,20 @@ import {
   usePredictionStore,
 } from '@/stores/predictionStore'
 
+type PredictionHorizonToggleProps = {
+  /** Group name; give each copy on a page its own. */
+  label?: string
+}
+
 /**
  * Switches the whole screen between the 24h and 7d forecast windows — one
- * control for both horizons, since chart, summary and key levels all read
- * from the same selection.
+ * selection for everything, since chart, summary, key levels and accuracy
+ * all read it. A second copy can sit beside a chart far from the first; both
+ * write the same store value, so they never disagree.
  */
-export function PredictionHorizonToggle() {
+export function PredictionHorizonToggle({
+  label = 'Forecast horizon',
+}: PredictionHorizonToggleProps) {
   const horizon = usePredictionStore((state) => state.horizon)
   const setHorizon = usePredictionStore((state) => state.setHorizon)
 
@@ -17,7 +25,7 @@ export function PredictionHorizonToggle() {
     <div
       className="flex flex-wrap items-center justify-end gap-1.5 sm:gap-2"
       role="group"
-      aria-label="Forecast horizon"
+      aria-label={label}
     >
       {PREDICTION_HORIZON_OPTIONS.map((option) => (
         <Button

@@ -10,12 +10,13 @@ import {
   simulatedCurrentPrice,
 } from '@/api/predictions/simulatedBtcPrediction'
 import {
-  HISTORY_WINDOW,
   PREDICTION_POINT_COUNT,
+  PREDICTION_STEP_MS,
 } from '@/api/predictions/predictionWindow'
 import type { PredictionResponse } from '@/types/predictions'
 
 const FIXED_NOW_MS = Date.UTC(2024, 5, 15, 12, 0, 0)
+const HOUR_MS = 60 * 60 * 1000
 
 /** A real `GET /api/v1/predict/btc` body, as `PredictionResponse` serialises it. */
 const WIRE_RESPONSE: PredictionResponse = {
@@ -106,68 +107,42 @@ describe('mapBtcPrediction', () => {
 })
 
 describe('buildSimulatedPrediction', () => {
-  it('fits back across every candle it will be drawn over', () => {
-    const response = buildSimulatedPrediction(
-      { horizon: '7d', confidence: 0.85 },
-      FIXED_NOW_MS,
-    )
-    const boundaryMs = new Date(response.prediction_time).getTime()
-    const behind = response.predictions.filter(
-      (point) => new Date(point.time).getTime() <= boundaryMs,
-    )
-
-    expect(behind).toHaveLength(HISTORY_WINDOW['7d'].candles)
-  })
-
-  it('covers the window behind now as well as the one ahead', () => {
-    const response = buildSimulatedPrediction(
-      { horizon: '24h', confidence: 0.85 },
-      FIXED_NOW_MS,
-    )
-    const boundaryMs = new Date(response.prediction_time).getTime()
-    const ahead = response.predictions.filter(
-      (point) => new Date(point.time).getTime() > boundaryMs,
-    )
-    const behind = response.predictions.filter(
-      (point) => new Date(point.time).getTime() <= boundaryMs,
-    )
-
-    expect(ahead).toHaveLength(PREDICTION_POINT_COUNT['24h'])
-    expect(behind).toHaveLength(HISTORY_WINDOW['24h'].candles)
-  })
-
-  it('returns one forecast point per hour for 24h and per day for 7d', () => {
-    const forecastCount = (horizon: '24h' | '7d') => {
+  /**
+   * The ai-service builds its frame from the last training row plus an hour
+   * and never returns in-sample fitted values, so neither does the stand-in.
+   */
+  it('returns forward points only, like the endpoint', () => {
+    for (const horizon of ['24h', '7d'] as const) {
       const response = buildSimulatedPrediction(
         { horizon, confidence: 0.85 },
         FIXED_NOW_MS,
       )
       const boundaryMs = new Date(response.prediction_time).getTime()
-      return response.predictions.filter(
-        (point) => new Date(point.time).getTime() > boundaryMs,
-      ).length
-    }
 
-    expect(forecastCount('24h')).toBe(PREDICTION_POINT_COUNT['24h'])
-    expect(forecastCount('7d')).toBe(PREDICTION_POINT_COUNT['7d'])
+      expect(
+        response.predictions.every(
+          (point) => new Date(point.time).getTime() > boundaryMs,
+        ),
+      ).toBe(true)
+    }
   })
 
-  it('keeps the in-sample band tighter than the forecast cone', () => {
-    const response = buildSimulatedPrediction(
-      { horizon: '24h', confidence: 0.85 },
-      FIXED_NOW_MS,
-    )
-    const boundaryMs = new Date(response.prediction_time).getTime()
-    const width = (point: (typeof response.predictions)[number]) =>
-      point.upper_bound - point.lower_bound
-    const behind = response.predictions.filter(
-      (point) => new Date(point.time).getTime() <= boundaryMs,
-    )
-    const ahead = response.predictions.filter(
-      (point) => new Date(point.time).getTime() > boundaryMs,
-    )
+  it('returns hourly points for both horizons: 24 for 24h, 168 for 7d', () => {
+    for (const horizon of ['24h', '7d'] as const) {
+      const { predictions } = buildSimulatedPrediction(
+        { horizon, confidence: 0.85 },
+        FIXED_NOW_MS,
+      )
+      const times = predictions.map((point) => new Date(point.time).getTime())
 
-    expect(width(behind[0])).toBeLessThan(width(ahead[ahead.length - 1]))
+      expect(predictions).toHaveLength(PREDICTION_POINT_COUNT[horizon])
+      expect(
+        times.slice(1).every((time, index) => time - times[index] === HOUR_MS),
+      ).toBe(true)
+    }
+
+    expect(PREDICTION_POINT_COUNT['7d']).toBe(168)
+    expect(PREDICTION_STEP_MS['7d']).toBe(HOUR_MS)
   })
 
   it('is deterministic for a moment in time', () => {
@@ -229,6 +204,42 @@ describe('buildSimulatedPrediction', () => {
    * The projection follows the same curve the candles came from, so its
    * direction is whatever that window was doing — not a fixed climb.
    */
+  /** Plus or minus 0.5% for 24h and 1.0% for 7d, exclusive, as the ai-service. */
+  it('applies the ai-service trend threshold for each horizon', () => {
+    const thresholds = { '24h': 0.5, '7d': 1 } as const
+    let withinWeeklyBand = 0
+
+    for (const horizon of ['24h', '7d'] as const) {
+      for (let offset = 0; offset < 200; offset += 1) {
+        const response = buildSimulatedPrediction(
+          { horizon, confidence: 0.85 },
+          FIXED_NOW_MS + offset * HOUR_MS,
+        )
+        const changePct = response.price_change_pct!
+        const threshold = thresholds[horizon]
+        const expected =
+          changePct > threshold
+            ? 'up'
+            : changePct < -threshold
+              ? 'down'
+              : 'neutral'
+
+        expect(response.trend).toBe(expected)
+        if (
+          horizon === '7d' &&
+          Math.abs(changePct) > 0.5 &&
+          Math.abs(changePct) <= 1
+        ) {
+          withinWeeklyBand += 1
+        }
+      }
+    }
+
+    // Moves a day would call a trend but a week would not: the case that
+    // tells the two thresholds apart.
+    expect(withinWeeklyBand).toBeGreaterThan(0)
+  })
+
   it('reports a trend that agrees with its own change figure', () => {
     const hour = 60 * 60 * 1000
 
@@ -292,8 +303,6 @@ describe('simulateBtcPrediction', () => {
 
     expect(prediction.source).toBe('simulated')
     expect(prediction.horizon).toBe('24h')
-    expect(prediction.points).toHaveLength(
-      PREDICTION_POINT_COUNT['24h'] + HISTORY_WINDOW['24h'].candles,
-    )
+    expect(prediction.points).toHaveLength(PREDICTION_POINT_COUNT['24h'])
   })
 })

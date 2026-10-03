@@ -16,32 +16,44 @@ import {
   formatPriceTick,
   isChartCompact,
 } from '@/components/dashboard/lib/chartTheme'
-import { visibleHistoryCount } from '@/components/dashboard/lib/predictionZoom'
+import { visiblePredictionRows } from '@/components/dashboard/lib/predictionZoom'
 import {
   forecastStartMs,
   formatPredictionTick,
   predictionChartRows,
+  predictionTickStepMs,
+  predictionTicks,
   predictionYDomain,
   usesCompactTicks,
 } from '@/components/dashboard/lib/predictionChart'
 import { PriceCandle } from '@/components/dashboard/price/PriceCandle'
 import { PredictionTooltip } from '@/components/dashboard/predictions/PredictionTooltip'
+import { cn } from '@/lib/utils'
 import type { ChartCandle } from '@/types/chart'
 import type { BtcPrediction } from '@/types/predictions'
 
 const DEFAULT_CHART_WIDTH = 320
 const DEFAULT_CHART_HEIGHT = 224
 
+/** Room each x-axis label gets — enough for `16 Jun` or `06:00` plus a gap. */
+const TICK_SLOT_PX = 80
+const TICK_SLOT_PX_COMPACT = 64
+
+/** The Forecasts screen's plot height; a smaller card passes its own. */
+const DEFAULT_HEIGHT_CLASS_NAME = 'h-56 sm:h-[280px] md:h-[340px]'
+
 type PredictionChartProps = {
   prediction: BtcPrediction
   candles?: ChartCandle[]
   /** Steps of history beyond the forecast's own window; 0 shows a matching one. */
   historyZoom?: number
+  /** Height at each breakpoint. The width always fills the container. */
+  heightClassName?: string
 }
 
 /**
  * One chart for both horizons: the actual candles behind the window, then the
- * projected path and its confidence band continuing past now.
+ * projected path and its confidence band from where the forecast starts.
  *
  * The 24h and 7d views differ only in the batch and candles handed to it — a
  * second chart component for the weekly case would be the same plot with
@@ -51,6 +63,7 @@ export function PredictionChart({
   prediction,
   candles = [],
   historyZoom = 0,
+  heightClassName = DEFAULT_HEIGHT_CLASS_NAME,
 }: PredictionChartProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [size, setSize] = useState({
@@ -86,18 +99,14 @@ export function PredictionChart({
    * domain and the candle width both have to describe what is on screen, not
    * the wider history held in reserve for zooming out.
    */
-  const rows = useMemo(() => {
-    const all = predictionChartRows(prediction, candles)
-    const forecastRows = all.filter((row) => row.kind === 'forecast')
-    const historyRows = all.filter((row) => row.kind === 'history')
-    const shown = visibleHistoryCount(
-      historyZoom,
-      forecastRows.length,
-      historyRows.length,
-    )
-
-    return [...historyRows.slice(historyRows.length - shown), ...forecastRows]
-  }, [prediction, candles, historyZoom])
+  const rows = useMemo(
+    () =>
+      visiblePredictionRows(
+        predictionChartRows(prediction, candles),
+        historyZoom,
+      ),
+    [prediction, candles, historyZoom],
+  )
 
   const visibleCandles = useMemo(
     () =>
@@ -120,7 +129,7 @@ export function PredictionChart({
         .map((row) => ({
           time: row.time,
           timeMs: row.timeMs,
-          predictedPrice: row.predicted ?? row.fit ?? 0,
+          predictedPrice: row.predicted ?? 0,
           lowerBound: row.lower!,
           upperBound: row.upper!,
         })),
@@ -136,6 +145,28 @@ export function PredictionChart({
   const compact = isChartCompact(size.width)
   const compactTicks = usesCompactTicks(yDomain)
   const startMs = forecastStartMs(rows)
+
+  /**
+   * Ticks placed on round times rather than left to Recharts, which spaces a
+   * numeric axis by evenly divided milliseconds. A 7d view is 300+ hourly
+   * rows; the step is chosen from the span and the width, so the axis keeps
+   * to a readable number of labels at every zoom level.
+   */
+  const firstMs = rows[0]?.timeMs ?? 0
+  const lastMs = rows[rows.length - 1]?.timeMs ?? 0
+  const maxTicks = Math.max(
+    2,
+    Math.floor(size.width / (compact ? TICK_SLOT_PX_COMPACT : TICK_SLOT_PX)),
+  )
+  const tickStepMs = predictionTickStepMs(
+    lastMs - firstMs,
+    maxTicks,
+    prediction.horizon,
+  )
+  const ticks = useMemo(
+    () => predictionTicks(firstMs, lastMs, tickStepMs),
+    [firstMs, lastMs, tickStepMs],
+  )
   /**
    * Size candles against the slots they actually occupy, not every row: the
    * forecast half holds no candles, so dividing by the full row count would
@@ -153,7 +184,7 @@ export function PredictionChart({
   return (
     <div
       ref={containerRef}
-      className="h-56 w-full min-w-0 sm:h-[280px] md:h-[340px]"
+      className={cn('w-full min-w-0', heightClassName)}
       role="img"
       aria-label={`BTC ${prediction.horizon} price forecast`}
     >
@@ -169,8 +200,9 @@ export function PredictionChart({
           type="number"
           scale="time"
           domain={['dataMin', 'dataMax']}
+          ticks={ticks.length > 0 ? ticks : undefined}
           tickFormatter={(value: number) =>
-            formatPredictionTick(value, prediction.horizon)
+            formatPredictionTick(value, tickStepMs)
           }
           tick={{
             fill: 'var(--muted-foreground)',
@@ -219,23 +251,6 @@ export function PredictionChart({
           activeDot={false}
           connectNulls={false}
         />
-        {/*
-          Desaturated and thinner than the forecast on purpose. This page is
-          about where price is going; what the model made of the past is
-          context, and drawing it in the forecast's own colour and weight left
-          the two indistinguishable and competing for the same attention.
-        */}
-        <Line
-          dataKey="fit"
-          name="Model fit"
-          type="monotone"
-          stroke="var(--chart-3)"
-          strokeWidth={1.5}
-          dot={false}
-          activeDot={{ r: 3 }}
-          isAnimationActive={false}
-          connectNulls={false}
-        />
         <Line
           dataKey="predicted"
           name="Predicted price"
@@ -248,13 +263,18 @@ export function PredictionChart({
           isAnimationActive={false}
           connectNulls={false}
         />
+        {/*
+          Marks the first forecast point, not the current time: a batch is
+          served until the next one is made, so the present can be well to
+          the right of this line. The label says which it is.
+        */}
         {startMs == null ? null : (
           <ReferenceLine
             x={startMs}
             stroke="var(--muted-foreground)"
             strokeDasharray="4 4"
             label={{
-              value: 'now',
+              value: 'forecast start',
               position: 'insideTopRight',
               fill: 'var(--muted-foreground)',
               fontSize: compact ? 9 : 10,

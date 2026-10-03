@@ -1,11 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
-  HIGH_PREDICTION_CONFIDENCE,
-  MODERATE_PREDICTION_CONFIDENCE,
   clampPredictionConfidence,
-  formatPredictionConfidenceBand,
-  formatPredictionConfidenceBandRange,
-  predictionConfidenceDisplay,
+  describePredictionCoverage,
+  formatPredictionCoverage,
   predictionConfidencePercent,
 } from '@/components/dashboard/lib/predictionConfidence'
 
@@ -22,30 +19,14 @@ describe('predictionConfidence', () => {
     expect(predictionConfidencePercent(0.95)).toBe(95)
   })
 
-  it('names 70% low, 85% moderate, and 95% high', () => {
-    expect(predictionConfidenceDisplay(0.7)).toMatchObject({
-      band: 'low',
-      toneClass: 'text-negative',
-    })
-    expect(predictionConfidenceDisplay(MODERATE_PREDICTION_CONFIDENCE)).toMatchObject({
-      band: 'moderate',
-      toneClass: 'text-warning',
-    })
-    expect(predictionConfidenceDisplay(HIGH_PREDICTION_CONFIDENCE)).toMatchObject({
-      band: 'high',
-      toneClass: 'text-positive',
-    })
+  it('labels the level as the range it covers, not as a grade', () => {
+    expect(formatPredictionCoverage(0.7)).toBe('70% range')
+    expect(formatPredictionCoverage(0.95)).toBe('95% range')
   })
 
-  it('keeps values just under the next interval in the lower band', () => {
-    expect(predictionConfidenceDisplay(0.849).band).toBe('low')
-    expect(predictionConfidenceDisplay(0.949).band).toBe('moderate')
-  })
-
-  it('labels each band with the interval it stands for', () => {
-    expect(formatPredictionConfidenceBand('low')).toBe('Low')
-    expect(formatPredictionConfidenceBandRange('low')).toBe('70%')
-    expect(formatPredictionConfidenceBandRange('moderate')).toBe('85%')
-    expect(formatPredictionConfidenceBandRange('high')).toBe('95%')
+  it('says what the coverage level promises', () => {
+    expect(describePredictionCoverage(0.85)).toBe(
+      'Price expected inside the band 85% of the time',
+    )
   })
 })

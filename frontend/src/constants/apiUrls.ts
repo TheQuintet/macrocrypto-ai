@@ -84,9 +84,12 @@ export const MACRO_EVENTS_UPCOMING_PATH = '/api/v1/macro/events/upcoming'
 
 /** Used. GET BTC forecast. */
 export const BTC_PREDICTION_PATH = '/api/v1/predict/btc'
-
-/** Unused. GET forecast performance metrics. */
+/** Used. GET historical forecast accuracy (the Forecasts accuracy card). */
 export const BTC_PREDICTION_PERFORMANCE_PATH = '/api/v1/performance/btc'
+/** Used. GET scored forecasts, predicted vs actual (the accuracy card). */
+export const BTC_PREDICTION_PERFORMANCE_POINTS_PATH =
+  '/api/v1/performance/btc/points'
+
 /** Unused. GET BTC vs macro correlation. */
 export const BTC_MACRO_CORRELATION_PATH = '/api/v1/correlation/btc'
 /** Unused. GET a generated export file. */
@@ -141,7 +144,6 @@ export const unusedApiPaths = {
     MACRO_EVENTS_UPCOMING_PATH,
   ],
   aiService: [
-    BTC_PREDICTION_PERFORMANCE_PATH,
     BTC_MACRO_CORRELATION_PATH,
     AI_EXPORT_PATH,
     AI_METHODOLOGY_PATH,

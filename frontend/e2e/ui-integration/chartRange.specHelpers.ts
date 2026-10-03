@@ -2,6 +2,13 @@ import { expect, type Page } from '@playwright/test'
 
 const CANDLE_COLORS = ['var(--positive)', 'var(--negative)']
 
+/**
+ * The dashboard's price plot, not the forecast card above it: that chart
+ * draws the same candles, so a page-wide search would land on it first.
+ */
+const PRICE_PLOT_SURFACES =
+  'svg.recharts-surface:not([aria-label$="price forecast"] *)'
+
 type PlotProbe = {
   candles: number
   medianCandleWidth: number | null
@@ -15,8 +22,8 @@ type PlotProbe = {
  * behaviour drew roughly one screen's worth whatever the range was.
  */
 export async function probePlot(page: Page): Promise<PlotProbe> {
-  return page.evaluate((colors) => {
-    const surfaces = [...document.querySelectorAll('svg.recharts-surface')]
+  return page.evaluate(({ colors, plotSelector }) => {
+    const surfaces = [...document.querySelectorAll(plotSelector)]
     const bodies = surfaces.flatMap((surface) =>
       [...surface.querySelectorAll('rect')].filter((rect) =>
         colors.includes(rect.getAttribute('fill') ?? ''),
@@ -33,7 +40,7 @@ export async function probePlot(page: Page): Promise<PlotProbe> {
         ? widths[Math.floor(widths.length / 2)]
         : null,
     }
-  }, CANDLE_COLORS)
+  }, { colors: CANDLE_COLORS, plotSelector: PRICE_PLOT_SURFACES })
 }
 
 export async function countCandles(page: Page) {

@@ -11,8 +11,8 @@ type ConfidenceWidthIndicatorProps = {
 }
 
 /**
- * How wide the confidence band runs, as a reliability signal: a narrow band
- * pins the forecast down, a wide one says the model is unsure.
+ * How wide the confidence band runs: how far either side of the forecast line
+ * price is projected to range at the selected coverage level.
  */
 export function ConfidenceWidthIndicator({
   points,

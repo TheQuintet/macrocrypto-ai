@@ -64,22 +64,26 @@ describe('PredictionTooltip', () => {
     expectTooltipMissing(/confidence/)
   })
 
-  it('reports a fitted value without inventing bounds it has none of', () => {
-    renderTooltip({
-      row: makeHistoryRow({
-        open: undefined,
-        high: undefined,
-        low: undefined,
-        close: undefined,
-        candle: undefined,
-        fit: 63_250,
-      }),
-    })
+  it('labels every model value as a prediction — there is no fit', () => {
+    renderTooltip()
 
-    expectTooltipShows('Model fit')
-    expectTooltipShows('$63,250.00')
-    expectTooltipMissing('Upper bound')
-    expectTooltipMissing('$0.00')
+    expectTooltipShows('Predicted')
+    expectTooltipMissing('Model fit')
+  })
+
+  /** An older batch has forecast hours that have since traded. */
+  it('shows the actual close beside a forecast hour that has traded', () => {
+    renderTooltip({ row: makeForecastRow({ close: 63_950 }) })
+
+    expectTooltipShows('Actual close')
+    expectTooltipShows('$63,950.00')
+    expectTooltipShows('Upper bound')
+  })
+
+  it('leaves the actual close off a forecast hour still ahead', () => {
+    renderTooltip()
+
+    expectTooltipMissing('Actual close')
   })
 
   it('renders nothing when the pointer is off the chart', () => {
