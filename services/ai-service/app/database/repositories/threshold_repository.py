@@ -12,6 +12,16 @@ Design:
       session from app.database.engine.session_scope().
     - Uses SQLAlchemy Core for queries (typesafe, parameterized).
     - Does not commit — the caller controls the transaction.
+
+CLI isolation:
+    When settings.cli_mode is True, all reads and writes on the
+    threshold_breaches table are routed to threshold_breaches_cli
+    instead. Routing is handled by `_resolve_threshold_table()`.
+
+    Note: `fetch_latest_breaches_batch` uses raw SQL via text().
+    The table name is interpolated from the resolved table's name,
+    which comes from a settings-controlled source — never from
+    user input — so the interpolation is safe.
 """
 
 import logging
@@ -22,7 +32,11 @@ from typing import Any, Dict, List, Optional
 from sqlalchemy import desc, func, insert, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.tables import threshold_breaches
+from app.config import settings
+from app.database.tables import (
+    threshold_breaches,
+    threshold_breaches_cli,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -94,6 +108,23 @@ class ThresholdRepository:
         self.session = session
 
     # ============================================================
+    # CLI ROUTING HELPER
+    # ============================================================
+    def _resolve_threshold_table(self):
+        """Return the active threshold_breaches table.
+
+        In CLI mode (settings.cli_mode=True), returns
+        threshold_breaches_cli so CLI runs are sandboxed. Otherwise
+        returns the production table.
+
+        Returns:
+            A SQLAlchemy Table object.
+        """
+        if settings.cli_mode:
+            return threshold_breaches_cli
+        return threshold_breaches
+
+    # ============================================================
     # WRITES
     # ============================================================
     async def save_breaches(
@@ -102,6 +133,9 @@ class ThresholdRepository:
         """Bulk-insert threshold breach rows.
 
         Does not commit — the caller controls the transaction.
+
+        CLI mode: when settings.cli_mode is True, rows are written
+        to threshold_breaches_cli instead.
 
         Args:
             rows: List of ThresholdBreachRow instances.
@@ -113,13 +147,16 @@ class ThresholdRepository:
             logger.debug("save_breaches called with empty list")
             return 0
 
+        table = self._resolve_threshold_table()
         payload = [r.to_dict() for r in rows]
 
-        stmt = insert(threshold_breaches).values(payload)
+        stmt = insert(table).values(payload)
         await self.session.execute(stmt)
         await self.session.flush()
 
-        logger.info(f"Inserted {len(payload)} threshold breach rows")
+        logger.info(
+            f"Inserted {len(payload)} rows into {table.name}"
+        )
 
         return len(payload)
 
@@ -142,29 +179,30 @@ class ThresholdRepository:
         Returns:
             List of dicts, newest first.
         """
+        table = self._resolve_threshold_table()
         since = datetime.now(timezone.utc) - timedelta(days=days)
 
         stmt = (
             select(
-                threshold_breaches.c.id,
-                threshold_breaches.c.detected_at,
-                threshold_breaches.c.horizon,
-                threshold_breaches.c.model_name,
-                threshold_breaches.c.metric,
-                threshold_breaches.c.metric_unit,
-                threshold_breaches.c.value,
-                threshold_breaches.c.threshold,
-                threshold_breaches.c.breach_direction,
-                threshold_breaches.c.consecutive_days,
-                threshold_breaches.c.model_version,
-                threshold_breaches.c.notes,
+                table.c.id,
+                table.c.detected_at,
+                table.c.horizon,
+                table.c.model_name,
+                table.c.metric,
+                table.c.metric_unit,
+                table.c.value,
+                table.c.threshold,
+                table.c.breach_direction,
+                table.c.consecutive_days,
+                table.c.model_version,
+                table.c.notes,
             )
             .where(
-                threshold_breaches.c.horizon == horizon,
-                threshold_breaches.c.model_name == model_name,
-                threshold_breaches.c.detected_at >= since,
+                table.c.horizon == horizon,
+                table.c.model_name == model_name,
+                table.c.detected_at >= since,
             )
-            .order_by(desc(threshold_breaches.c.detected_at))
+            .order_by(desc(table.c.detected_at))
         )
 
         result = await self.session.execute(stmt)
@@ -188,20 +226,22 @@ class ThresholdRepository:
         Returns:
             Dict, or None if no prior breach exists.
         """
+        table = self._resolve_threshold_table()
+
         stmt = (
             select(
-                threshold_breaches.c.id,
-                threshold_breaches.c.detected_at,
-                threshold_breaches.c.consecutive_days,
-                threshold_breaches.c.value,
-                threshold_breaches.c.threshold,
+                table.c.id,
+                table.c.detected_at,
+                table.c.consecutive_days,
+                table.c.value,
+                table.c.threshold,
             )
             .where(
-                threshold_breaches.c.horizon == horizon,
-                threshold_breaches.c.model_name == model_name,
-                threshold_breaches.c.metric == metric,
+                table.c.horizon == horizon,
+                table.c.model_name == model_name,
+                table.c.metric == metric,
             )
-            .order_by(desc(threshold_breaches.c.detected_at))
+            .order_by(desc(table.c.detected_at))
             .limit(1)
         )
 
@@ -231,20 +271,25 @@ class ThresholdRepository:
             List of dicts with keys: model_name, horizon, metric,
             consecutive_days, detected_at.
         """
+        table = self._resolve_threshold_table()
         since = datetime.now(timezone.utc) - timedelta(days=since_days)
 
         # DISTINCT ON requires ORDER BY to start with the DISTINCT
         # ON columns, then by whatever determines "the row we want"
         # — here, the newest detected_at.
+        #
+        # The table name is interpolated because DISTINCT ON uses
+        # raw SQL. The name comes from settings, never from user
+        # input, so the interpolation is safe.
         stmt = text(
-            """
+            f"""
             SELECT DISTINCT ON (model_name, horizon, metric)
                 model_name,
                 horizon,
                 metric,
                 consecutive_days,
                 detected_at
-            FROM threshold_breaches
+            FROM {table.name}
             WHERE detected_at >= :since
             ORDER BY model_name, horizon, metric, detected_at DESC
             """
@@ -269,17 +314,16 @@ class ThresholdRepository:
         Returns:
             Row count.
         """
-        stmt = select(func.count()).select_from(threshold_breaches)
+        table = self._resolve_threshold_table()
+        stmt = select(func.count()).select_from(table)
 
         if horizon is not None:
-            stmt = stmt.where(threshold_breaches.c.horizon == horizon)
+            stmt = stmt.where(table.c.horizon == horizon)
         if model_name is not None:
-            stmt = stmt.where(
-                threshold_breaches.c.model_name == model_name
-            )
+            stmt = stmt.where(table.c.model_name == model_name)
         if since_days is not None:
             since = datetime.now(timezone.utc) - timedelta(days=since_days)
-            stmt = stmt.where(threshold_breaches.c.detected_at >= since)
+            stmt = stmt.where(table.c.detected_at >= since)
 
         result = await self.session.execute(stmt)
         return int(result.scalar_one())

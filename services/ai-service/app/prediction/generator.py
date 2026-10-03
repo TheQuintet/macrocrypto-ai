@@ -13,6 +13,23 @@ ForecastModel interface. The same class works with Prophet today
 and with any other ForecastModel implementation (including a
 multi-model comparison engine wrapper) without modification.
 
+History source:
+    The `history_source` kwarg controls where the recent history
+    frame comes from. Two modes are supported:
+
+    - history_source=None (legacy):
+        Calls repository.fetch_training_frame(hours=...). Reads
+        from the deprecated Postgres source (10 features). Kept
+        for backward compatibility during the current migration.
+
+    - history_source=FeatureContext.PREDICTION:
+        Calls repository.fetch_training_frame_for_source(
+            hours=..., context=FeatureContext.PREDICTION
+        ). Dispatches to the configured feature source (parquet or
+        features_db) and resolves the partition from the context.
+        This is what the current scheduler jobs and the manual CLI
+        use.
+
 Design:
     - Async (repository calls are async)
     - Fails loudly on missing model or insufficient data
@@ -30,6 +47,7 @@ from typing import Any, Dict, List, Optional
 import pandas as pd
 
 from app.ai.base import ForecastModel
+from app.database.enums import FeatureContext
 from app.database.repositories.prediction_repository import (
     PredictionRepository,
     PredictionRow,
@@ -143,6 +161,7 @@ class PredictionGenerator:
             horizon="24h",
             horizon_hours=24,
             confidence=0.85,
+            history_source=FeatureContext.PREDICTION,
         )
         result = await generator.generate()
     """
@@ -155,6 +174,7 @@ class PredictionGenerator:
         horizon_hours: int = 24,
         confidence: float = DEFAULT_CONFIDENCE,
         history_hours: int = 720,
+        history_source: Optional[FeatureContext] = None,
     ) -> None:
         """Initialize the generator.
 
@@ -168,6 +188,14 @@ class PredictionGenerator:
                 One of 0.70, 0.85, 0.95.
             history_hours: How many hours of history to fetch.
                 Defaults to 720 (30 days).
+            history_source: Where to fetch history from:
+                - None (default): legacy Postgres source
+                  (repository.fetch_training_frame).
+                - FeatureContext.PREDICTION: dispatches to the
+                  configured feature source and uses the
+                  "live_frontier" partition.
+                Other FeatureContext values are accepted but
+                rarely useful for prediction. Prefer PREDICTION.
 
         Raises:
             ValueError: If confidence is not 0.70, 0.85, or 0.95.
@@ -190,11 +218,13 @@ class PredictionGenerator:
         self.horizon_hours = horizon_hours
         self.confidence = confidence
         self.history_hours = history_hours
+        self.history_source = history_source
 
         logger.info(
             f"PredictionGenerator initialized "
             f"(model={model.get_name()}, horizon={horizon}, "
-            f"hours={horizon_hours}, confidence={confidence})"
+            f"hours={horizon_hours}, confidence={confidence}, "
+            f"history_source={history_source.value if history_source else 'legacy'})"
         )
 
     # ============================================================
@@ -206,6 +236,11 @@ class PredictionGenerator:
         Fetches history, builds a future frame, calls the model,
         persists predictions, invalidates the response cache, and
         returns a structured result.
+
+        History fetching is dispatch-aware: if `history_source` was
+        passed to the constructor, the repository's
+        fetch_training_frame_for_source is called with the given
+        context; otherwise the legacy fetch_training_frame is used.
 
         Never raises on data/model errors — instead returns a
         GenerationResult with `error` set. Only raises on truly
@@ -233,14 +268,25 @@ class PredictionGenerator:
                     f"Cannot generate predictions."
                 )
 
-            # ---- 2. Fetch recent history ----
-            logger.debug(
-                f"Fetching {self.history_hours}h of history "
-                f"for horizon={self.horizon}"
-            )
-            history = await self.repository.fetch_training_frame(
-                hours=self.history_hours
-            )
+            # ---- 2. Fetch recent history (dispatch-aware) ----
+            if self.history_source is not None:
+                logger.debug(
+                    f"Fetching {self.history_hours}h of history via "
+                    f"feature_source (context={self.history_source.value}) "
+                    f"for horizon={self.horizon}"
+                )
+                history = await self.repository.fetch_training_frame_for_source(
+                    hours=self.history_hours,
+                    context=self.history_source,
+                )
+            else:
+                logger.debug(
+                    f"Fetching {self.history_hours}h of history via "
+                    f"legacy Postgres source for horizon={self.horizon}"
+                )
+                history = await self.repository.fetch_training_frame(
+                    hours=self.history_hours
+                )
 
             if history is None or history.empty:
                 raise ValueError(
@@ -464,10 +510,16 @@ class PredictionGenerator:
     # ============================================================
     def __repr__(self) -> str:
         """Return string representation."""
+        source = (
+            self.history_source.value
+            if self.history_source is not None
+            else "legacy"
+        )
         return (
             f"PredictionGenerator("
             f"model='{self.model.get_name()}', "
             f"horizon='{self.horizon}', "
             f"hours={self.horizon_hours}, "
-            f"confidence={self.confidence})"
+            f"confidence={self.confidence}, "
+            f"history_source='{source}')"
         )

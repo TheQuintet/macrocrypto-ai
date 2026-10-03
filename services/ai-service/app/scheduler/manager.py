@@ -1,14 +1,27 @@
 """Scheduler lifecycle manager.
 
 Wraps APScheduler's AsyncIOScheduler with:
-    - Job registration (daily retrain, hourly 24h prediction,
-      daily 7d prediction, daily backtest, daily accuracy,
-      daily multi-model predictions, daily model performance
-      aggregation, daily correlation, daily export cleanup,
-      daily event impact update)
+    - Conditional job registration gated by two category toggles:
+        * scheduler_ml_jobs_enabled  — the 7 ML jobs
+        * scheduler_analytics_jobs_enabled — the 3 analytics jobs
     - Lifecycle (start, shutdown) tied to FastAPI's lifespan
     - Failure handling (retries per settings.scheduler_max_retries)
     - Run history in SchedulerState
+
+Job categories:
+    ML jobs (7) — depend on trained models:
+        - daily_retrain
+        - hourly_prediction
+        - daily_7d_prediction
+        - daily_backtest
+        - daily_accuracy
+        - daily_multi_model_predictions
+        - daily_model_performance_aggregation
+
+    Analytics + housekeeping jobs (3) — independent of models:
+        - daily_correlation
+        - daily_event_impact_update
+        - daily_export_cleanup
 
 Design:
     - The manager owns the scheduler instance; no other module
@@ -19,6 +32,9 @@ Design:
       logs and waits for the next tick
     - The manager is created once (module-level singleton) and used
       by app/main.py's lifespan
+    - Disabled categories are skipped at registration time — the
+      scheduler never sees them, so they produce no logs, no missed
+      runs, and no run history
 """
 
 import logging
@@ -89,6 +105,12 @@ class SchedulerManager:
         manager.start()              # begin scheduling
         ...
         manager.shutdown()           # stop cleanly
+
+    Job registration is conditional. The ML jobs are registered only
+    when ``settings.scheduler_ml_jobs_enabled`` is True; the analytics
+    jobs are registered only when
+    ``settings.scheduler_analytics_jobs_enabled`` is True. Both
+    default per ``app/config.py``.
     """
 
     def __init__(
@@ -118,14 +140,28 @@ class SchedulerManager:
         self._started = False
 
         logger.info(
-            f"SchedulerManager initialized (enabled={self.enabled})"
+            f"SchedulerManager initialized "
+            f"(enabled={self.enabled}, "
+            f"ml_jobs={settings.scheduler_ml_jobs_enabled}, "
+            f"analytics_jobs={settings.scheduler_analytics_jobs_enabled})"
         )
 
     # ============================================================
     # LIFECYCLE
     # ============================================================
     def setup(self) -> None:
-        """Register all jobs with the scheduler.
+        """Register jobs with the scheduler, honoring category toggles.
+
+        The registration is conditional:
+
+            - ML jobs (7) are registered only when
+              ``settings.scheduler_ml_jobs_enabled`` is True.
+            - Analytics jobs (3) are registered only when
+              ``settings.scheduler_analytics_jobs_enabled`` is True.
+
+        Disabled categories are skipped entirely — their jobs are not
+        added to the scheduler, so they produce no logs, no missed
+        runs, and no history.
 
         Safe to call multiple times — subsequent calls are no-ops.
         """
@@ -137,16 +173,44 @@ class SchedulerManager:
             timezone=settings.retrain_timezone
         )
 
-        self._register_daily_retrain_job()
-        self._register_hourly_prediction_job()
-        self._register_daily_7d_prediction_job()
-        self._register_daily_backtest_job()
-        self._register_daily_accuracy_job()
-        self._register_daily_multi_model_predictions_job()
-        self._register_daily_model_performance_aggregation_job()
-        self._register_daily_correlation_job()
-        self._register_daily_export_cleanup_job()
-        self._register_daily_event_impact_update_job()
+        # ------------------------------------------------------------
+        # ML jobs (7) — gated by scheduler_ml_jobs_enabled
+        # ------------------------------------------------------------
+        if settings.scheduler_ml_jobs_enabled:
+            self._register_daily_retrain_job()
+            self._register_hourly_prediction_job()
+            self._register_daily_7d_prediction_job()
+            self._register_daily_backtest_job()
+            self._register_daily_accuracy_job()
+            self._register_daily_multi_model_predictions_job()
+            self._register_daily_model_performance_aggregation_job()
+            logger.info(
+                "Registered 7 ML jobs "
+                "(SCHEDULER_ML_JOBS_ENABLED=true)"
+            )
+        else:
+            logger.info(
+                "Skipping 7 ML jobs "
+                "(SCHEDULER_ML_JOBS_ENABLED=false)"
+            )
+
+        # ------------------------------------------------------------
+        # Analytics + housekeeping jobs (3)
+        # — gated by scheduler_analytics_jobs_enabled
+        # ------------------------------------------------------------
+        if settings.scheduler_analytics_jobs_enabled:
+            self._register_daily_correlation_job()
+            self._register_daily_export_cleanup_job()
+            self._register_daily_event_impact_update_job()
+            logger.info(
+                "Registered 3 analytics jobs "
+                "(SCHEDULER_ANALYTICS_JOBS_ENABLED=true)"
+            )
+        else:
+            logger.info(
+                "Skipping 3 analytics jobs "
+                "(SCHEDULER_ANALYTICS_JOBS_ENABLED=false)"
+            )
 
         logger.info("Scheduler setup complete")
 

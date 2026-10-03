@@ -20,6 +20,12 @@ Distinction from other repositories:
     - The events themselves live only in this table; there is no
       separate events table. Adding an event to the impact table
       implicitly defines the event.
+
+CLI isolation:
+    When settings.cli_mode is True, all reads and writes on the
+    historical_event_impacts table are routed to
+    historical_event_impacts_cli instead. Routing is handled by
+    `_resolve_event_impacts_table()`.
 """
 
 import logging
@@ -30,7 +36,11 @@ from typing import Any, Dict, List, Optional
 from sqlalchemy import delete, func, insert, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.tables import historical_event_impacts
+from app.config import settings
+from app.database.tables import (
+    historical_event_impacts,
+    historical_event_impacts_cli,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -115,6 +125,23 @@ class EventImpactRepository:
         self.session = session
 
     # ============================================================
+    # CLI ROUTING HELPER
+    # ============================================================
+    def _resolve_event_impacts_table(self):
+        """Return the active historical_event_impacts table.
+
+        In CLI mode (settings.cli_mode=True), returns
+        historical_event_impacts_cli so CLI runs are sandboxed.
+        Otherwise returns the production table.
+
+        Returns:
+            A SQLAlchemy Table object.
+        """
+        if settings.cli_mode:
+            return historical_event_impacts_cli
+        return historical_event_impacts
+
+    # ============================================================
     # WRITES
     # ============================================================
     async def save_rows(
@@ -129,6 +156,9 @@ class EventImpactRepository:
         constraint. A caller that may re-process an event should
         either delete the prior row first or use an upsert; this
         method does a plain INSERT and will raise on conflict.
+
+        CLI mode: when settings.cli_mode is True, rows are written
+        to historical_event_impacts_cli instead.
 
         Args:
             rows: List of EventImpactRow instances.
@@ -151,11 +181,14 @@ class EventImpactRepository:
         dict_rows = [r.to_dict() for r in rows]
         validate_historical_event_impact_rows(dict_rows)
 
-        stmt = insert(historical_event_impacts).values(dict_rows)
+        table = self._resolve_event_impacts_table()
+        stmt = insert(table).values(dict_rows)
         await self.session.execute(stmt)
         await self.session.flush()
 
-        logger.info(f"Inserted {len(dict_rows)} event impact rows")
+        logger.info(
+            f"Inserted {len(dict_rows)} rows into {table.name}"
+        )
 
         return len(dict_rows)
 
@@ -169,6 +202,8 @@ class EventImpactRepository:
 
         Does not commit.
 
+        CLI mode: operates on the CLI table when CLI mode is on.
+
         Args:
             event_name: Event name.
             event_date: Calendar date.
@@ -176,20 +211,23 @@ class EventImpactRepository:
         Returns:
             True if a row was removed, False if it did not exist.
         """
+        table = self._resolve_event_impacts_table()
+
         stmt = (
-            delete(historical_event_impacts)
+            delete(table)
             .where(
-                historical_event_impacts.c.event_name == event_name,
-                historical_event_impacts.c.event_date == event_date,
+                table.c.event_name == event_name,
+                table.c.event_date == event_date,
             )
-            .returning(historical_event_impacts.c.id)
+            .returning(table.c.id)
         )
         result = await self.session.execute(stmt)
         removed = result.scalar_one_or_none() is not None
         if removed:
             await self.session.flush()
             logger.info(
-                f"Deleted event impact {event_name!r}/{event_date}"
+                f"Deleted event impact {event_name!r}/{event_date} "
+                f"from {table.name}"
             )
         return removed
 
@@ -210,27 +248,29 @@ class EventImpactRepository:
         Returns:
             List of dicts ordered by event_date descending.
         """
+        table = self._resolve_event_impacts_table()
+
         stmt = select(
-            historical_event_impacts.c.id,
-            historical_event_impacts.c.event_name,
-            historical_event_impacts.c.event_date,
-            historical_event_impacts.c.impact_level,
-            historical_event_impacts.c.btc_price_before,
-            historical_event_impacts.c.btc_price_after,
-            historical_event_impacts.c.price_change_percent,
-            historical_event_impacts.c.volatility,
-            historical_event_impacts.c.direction,
-            historical_event_impacts.c.created_at,
+            table.c.id,
+            table.c.event_name,
+            table.c.event_date,
+            table.c.impact_level,
+            table.c.btc_price_before,
+            table.c.btc_price_after,
+            table.c.price_change_percent,
+            table.c.volatility,
+            table.c.direction,
+            table.c.created_at,
         )
 
         if impact_level is not None:
             stmt = stmt.where(
-                historical_event_impacts.c.impact_level == impact_level
+                table.c.impact_level == impact_level
             )
 
         stmt = stmt.order_by(
-            historical_event_impacts.c.event_date.desc(),
-            historical_event_impacts.c.event_name.asc(),
+            table.c.event_date.desc(),
+            table.c.event_name.asc(),
         ).limit(limit)
 
         result = await self.session.execute(stmt)
@@ -250,21 +290,23 @@ class EventImpactRepository:
         Returns:
             List of dicts ordered by event_date descending.
         """
+        table = self._resolve_event_impacts_table()
+
         stmt = (
             select(
-                historical_event_impacts.c.id,
-                historical_event_impacts.c.event_name,
-                historical_event_impacts.c.event_date,
-                historical_event_impacts.c.impact_level,
-                historical_event_impacts.c.btc_price_before,
-                historical_event_impacts.c.btc_price_after,
-                historical_event_impacts.c.price_change_percent,
-                historical_event_impacts.c.volatility,
-                historical_event_impacts.c.direction,
-                historical_event_impacts.c.created_at,
+                table.c.id,
+                table.c.event_name,
+                table.c.event_date,
+                table.c.impact_level,
+                table.c.btc_price_before,
+                table.c.btc_price_after,
+                table.c.price_change_percent,
+                table.c.volatility,
+                table.c.direction,
+                table.c.created_at,
             )
-            .where(historical_event_impacts.c.event_name == event_name)
-            .order_by(historical_event_impacts.c.event_date.desc())
+            .where(table.c.event_name == event_name)
+            .order_by(table.c.event_date.desc())
             .limit(limit)
         )
 
@@ -289,29 +331,31 @@ class EventImpactRepository:
         Returns:
             List of dicts ordered by event_date descending.
         """
+        table = self._resolve_event_impacts_table()
+
         stmt = select(
-            historical_event_impacts.c.id,
-            historical_event_impacts.c.event_name,
-            historical_event_impacts.c.event_date,
-            historical_event_impacts.c.impact_level,
-            historical_event_impacts.c.btc_price_before,
-            historical_event_impacts.c.btc_price_after,
-            historical_event_impacts.c.price_change_percent,
-            historical_event_impacts.c.volatility,
-            historical_event_impacts.c.direction,
-            historical_event_impacts.c.created_at,
+            table.c.id,
+            table.c.event_name,
+            table.c.event_date,
+            table.c.impact_level,
+            table.c.btc_price_before,
+            table.c.btc_price_after,
+            table.c.price_change_percent,
+            table.c.volatility,
+            table.c.direction,
+            table.c.created_at,
         ).where(
-            historical_event_impacts.c.event_date >= start_date,
-            historical_event_impacts.c.event_date <= end_date,
+            table.c.event_date >= start_date,
+            table.c.event_date <= end_date,
         )
 
         if impact_level is not None:
             stmt = stmt.where(
-                historical_event_impacts.c.impact_level == impact_level
+                table.c.impact_level == impact_level
             )
 
         stmt = stmt.order_by(
-            historical_event_impacts.c.event_date.desc()
+            table.c.event_date.desc()
         ).limit(limit)
 
         result = await self.session.execute(stmt)
@@ -336,16 +380,13 @@ class EventImpactRepository:
         Returns:
             Row count.
         """
-        stmt = select(func.count()).select_from(historical_event_impacts)
+        table = self._resolve_event_impacts_table()
+        stmt = select(func.count()).select_from(table)
 
         if event_name is not None:
-            stmt = stmt.where(
-                historical_event_impacts.c.event_name == event_name
-            )
+            stmt = stmt.where(table.c.event_name == event_name)
         if impact_level is not None:
-            stmt = stmt.where(
-                historical_event_impacts.c.impact_level == impact_level
-            )
+            stmt = stmt.where(table.c.impact_level == impact_level)
 
         result = await self.session.execute(stmt)
         return int(result.scalar_one())

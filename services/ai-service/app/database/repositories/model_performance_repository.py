@@ -21,6 +21,11 @@ Distinction from PerformanceRepository:
     - ModelPerformanceRepository reads/writes model_performance,
       which stores one aggregate row per (model, horizon, run)
       (dozens of rows). Queries against this table are cheap.
+
+CLI isolation:
+    When settings.cli_mode is True, all reads and writes on the
+    model_performance table are routed to model_performance_cli
+    instead. Routing is handled by `_resolve_model_performance_table()`.
 """
 
 import logging
@@ -31,7 +36,11 @@ from typing import Any, Dict, List, Optional
 from sqlalchemy import desc, func, insert, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.tables import model_performance
+from app.config import settings
+from app.database.tables import (
+    model_performance,
+    model_performance_cli,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -114,6 +123,23 @@ class ModelPerformanceRepository:
         self.session = session
 
     # ============================================================
+    # CLI ROUTING HELPER
+    # ============================================================
+    def _resolve_model_performance_table(self):
+        """Return the active model_performance table.
+
+        In CLI mode (settings.cli_mode=True), returns
+        model_performance_cli so CLI runs are sandboxed. Otherwise
+        returns the production table.
+
+        Returns:
+            A SQLAlchemy Table object.
+        """
+        if settings.cli_mode:
+            return model_performance_cli
+        return model_performance
+
+    # ============================================================
     # WRITES
     # ============================================================
     async def save_rows(
@@ -123,6 +149,9 @@ class ModelPerformanceRepository:
 
         Validates all rows before insertion. Does not commit — the
         caller controls the transaction via session_scope().
+
+        CLI mode: when settings.cli_mode is True, rows are written
+        to model_performance_cli instead.
 
         Args:
             rows: List of ModelPerformanceRow instances.
@@ -143,12 +172,13 @@ class ModelPerformanceRepository:
         dict_rows = [r.to_dict() for r in rows]
         validate_model_performance_rows(dict_rows)
 
-        stmt = insert(model_performance).values(dict_rows)
+        table = self._resolve_model_performance_table()
+        stmt = insert(table).values(dict_rows)
         await self.session.execute(stmt)
         await self.session.flush()
 
         logger.info(
-            f"Inserted {len(dict_rows)} model_performance rows"
+            f"Inserted {len(dict_rows)} rows into {table.name}"
         )
 
         return len(dict_rows)
@@ -179,34 +209,35 @@ class ModelPerformanceRepository:
             mape, directional_accuracy, sample_size, calculated_at,
             created_at.
         """
+        table = self._resolve_model_performance_table()
         since = datetime.now(timezone.utc) - timedelta(days=days)
 
         stmt = select(
-            model_performance.c.id,
-            model_performance.c.model_name,
-            model_performance.c.horizon,
-            model_performance.c.mae,
-            model_performance.c.rmse,
-            model_performance.c.mape,
-            model_performance.c.directional_accuracy,
-            model_performance.c.sample_size,
-            model_performance.c.calculated_at,
-            model_performance.c.created_at,
+            table.c.id,
+            table.c.model_name,
+            table.c.horizon,
+            table.c.mae,
+            table.c.rmse,
+            table.c.mape,
+            table.c.directional_accuracy,
+            table.c.sample_size,
+            table.c.calculated_at,
+            table.c.created_at,
         ).where(
-            model_performance.c.calculated_at >= since,
+            table.c.calculated_at >= since,
         )
 
         if horizon is not None:
-            stmt = stmt.where(model_performance.c.horizon == horizon)
+            stmt = stmt.where(table.c.horizon == horizon)
         if model_names:
             stmt = stmt.where(
-                model_performance.c.model_name.in_(model_names)
+                table.c.model_name.in_(model_names)
             )
 
         stmt = stmt.order_by(
-            model_performance.c.model_name.asc(),
-            model_performance.c.horizon.asc(),
-            desc(model_performance.c.calculated_at),
+            table.c.model_name.asc(),
+            table.c.horizon.asc(),
+            desc(table.c.calculated_at),
         )
 
         result = await self.session.execute(stmt)
@@ -252,25 +283,26 @@ class ModelPerformanceRepository:
         Returns:
             List of dicts ordered by calculated_at ascending.
         """
+        table = self._resolve_model_performance_table()
         since = datetime.now(timezone.utc) - timedelta(days=days)
 
         stmt = (
             select(
-                model_performance.c.model_name,
-                model_performance.c.horizon,
-                model_performance.c.mae,
-                model_performance.c.rmse,
-                model_performance.c.mape,
-                model_performance.c.directional_accuracy,
-                model_performance.c.sample_size,
-                model_performance.c.calculated_at,
+                table.c.model_name,
+                table.c.horizon,
+                table.c.mae,
+                table.c.rmse,
+                table.c.mape,
+                table.c.directional_accuracy,
+                table.c.sample_size,
+                table.c.calculated_at,
             )
             .where(
-                model_performance.c.model_name == model_name,
-                model_performance.c.horizon == horizon,
-                model_performance.c.calculated_at >= since,
+                table.c.model_name == model_name,
+                table.c.horizon == horizon,
+                table.c.calculated_at >= since,
             )
-            .order_by(model_performance.c.calculated_at.asc())
+            .order_by(table.c.calculated_at.asc())
         )
 
         result = await self.session.execute(stmt)
@@ -301,25 +333,26 @@ class ModelPerformanceRepository:
             Model name with the lowest mean MAE, or None if no
             model has MAE data in the window.
         """
+        table = self._resolve_model_performance_table()
         since = datetime.now(timezone.utc) - timedelta(days=days)
 
         stmt = select(
-            model_performance.c.model_name,
-            func.avg(model_performance.c.mae).label("mean_mae"),
+            table.c.model_name,
+            func.avg(table.c.mae).label("mean_mae"),
         ).where(
-            model_performance.c.horizon == horizon,
-            model_performance.c.calculated_at >= since,
-            model_performance.c.mae.isnot(None),
+            table.c.horizon == horizon,
+            table.c.calculated_at >= since,
+            table.c.mae.isnot(None),
         )
 
         if model_names:
             stmt = stmt.where(
-                model_performance.c.model_name.in_(model_names)
+                table.c.model_name.in_(model_names)
             )
 
         stmt = (
-            stmt.group_by(model_performance.c.model_name)
-            .order_by(func.avg(model_performance.c.mae).asc())
+            stmt.group_by(table.c.model_name)
+            .order_by(func.avg(table.c.mae).asc())
             .limit(1)
         )
 
@@ -354,14 +387,13 @@ class ModelPerformanceRepository:
         Returns:
             Row count.
         """
-        stmt = select(func.count()).select_from(model_performance)
+        table = self._resolve_model_performance_table()
+        stmt = select(func.count()).select_from(table)
 
         if horizon is not None:
-            stmt = stmt.where(model_performance.c.horizon == horizon)
+            stmt = stmt.where(table.c.horizon == horizon)
         if model_name is not None:
-            stmt = stmt.where(
-                model_performance.c.model_name == model_name
-            )
+            stmt = stmt.where(table.c.model_name == model_name)
 
         result = await self.session.execute(stmt)
         return int(result.scalar_one())

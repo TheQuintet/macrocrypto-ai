@@ -328,15 +328,23 @@ class WalkForwardBacktester:
         )
 
         try:
-            self._validate_inputs(training_data, actuals or training_data)
+            # Resolve the actuals frame. We intentionally avoid the
+            # `actuals or training_data` pattern because pandas
+            # DataFrames raise on bool() coercion — the `or` would
+            # trigger "truth value of a DataFrame is ambiguous".
+            actuals_frame = (
+                actuals if actuals is not None else training_data
+            )
+
+            self._validate_inputs(training_data, actuals_frame)
 
             # Sort + normalize inputs once
             training_data = training_data.sort_values("ds").reset_index(
                 drop=True
             )
-            actuals_df = (
-                actuals if actuals is not None else training_data
-            ).sort_values("ds").reset_index(drop=True)
+            actuals_df = actuals_frame.sort_values("ds").reset_index(
+                drop=True
+            )
 
             # Determine the timestamp boundaries
             boundaries = self._compute_iteration_boundaries(training_data)
@@ -622,6 +630,20 @@ class WalkForwardBacktester:
             logger.warning(
                 f"[{model_name} #{iteration}] iteration failed: {e}"
             )
+
+            logger.debug(
+                f"[{model_name} #{iteration}] "
+                f"train={len(train_slice)} "
+                f"future={len(future_frame)} "
+                f"pred={len(predictions)} "
+                f"actual={len(actual_slice)} "
+                f"matched={len(merged)} "
+                f"pred_ds={predictions['ds'].iloc[0] if len(predictions) else None}.."
+                f"{predictions['ds'].iloc[-1] if len(predictions) else None} "
+                f"actual_ds={actual_slice['ds'].iloc[0] if len(actual_slice) else None}.."
+                f"{actual_slice['ds'].iloc[-1] if len(actual_slice) else None}"
+            )
+
             # Carry the previous path forward (chain continues from last good)
             return base_result, prev_model_path
 

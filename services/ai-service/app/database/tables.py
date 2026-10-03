@@ -12,6 +12,8 @@ Tables:
                                (written by Data Ingestion Service)
     - macro_indicators:        Source — macro features (CPI, rates, etc.)
                                (written by Data Ingestion Service)
+    - features_db:             Source — canonical 50-feature ML dataset
+                               (written by Data Service, read by AI Service)
     - btc_predictions:         Target — hourly predictions from the AI Service
                                (unified table; 24h and 7d horizons)
     - prediction_performance:  Target — per-point evaluation metrics (T5.1)
@@ -20,6 +22,22 @@ Tables:
     - btc_macro_correlation:   Target — BTC-vs-macro correlation metrics (A1.1)
     - export_history:          Target — export request history (A2.1)
     - historical_event_impacts: Target — historical event impact data (A5.1)
+
+CLI isolation (_cli variants):
+    Six of the target tables have `_cli` mirror variants that the
+    manual CLI (app.cli.pipeline) writes to when CLI_MODE=true.
+    This keeps CLI runs sandboxed away from production tables.
+
+        btc_predictions         <-> btc_predictions_cli
+        prediction_performance  <-> prediction_performance_cli
+        threshold_breaches      <-> threshold_breaches_cli
+        model_performance       <-> model_performance_cli
+        btc_macro_correlation   <-> btc_macro_correlation_cli
+        historical_event_impacts<-> historical_event_impacts_cli
+
+    The `_cli` tables are structurally identical (same columns,
+    constraints, indexes) via SQLAlchemy's to_metadata() helper.
+    They are created by migrations, and populated only by the CLI.
 
 Naming:
     Table names are pulled from Settings so they can be overridden
@@ -97,6 +115,104 @@ macro_indicators = Table(
     Column("treasury_yield", Float, nullable=True),
     # Housekeeping
     Column("created_at", DateTime(timezone=True), server_default=text("now()")),
+)
+
+
+# ============================================================
+# SOURCE TABLE: features_db
+# ============================================================
+# The canonical 50-feature ML dataset. Written by the Data Service
+# (in the data-service repo). The AI Service reads from it when
+# feature_source="features_db".
+#
+# Column contract mirrors the parquet files (train_scaled.parquet
+# and siblings) plus the two renames noted below:
+#
+#   - observation_date  ->  ds
+#   - target_next_price ->  y
+#
+# The table is defined here as a Core Table so the AI Service can
+# query it. The table ITSELF is created by the data-service's
+# migrations (migration owner: data-service). The AI Service never
+# writes to it.
+#
+# The definition below is intentionally permissive: most feature
+# columns are nullable because not every row is expected to have
+# every feature (e.g. gdp updates quarterly). Nullability matches
+# the parquet semantics.
+#
+# Columns are grouped by role for readability:
+#   - ds, y              — timestamp + target
+#   - raw market          — 4 columns
+#   - macro & external    — 13 columns
+#   - technical           — 10 columns
+#   - data-quality flags  — 4 columns
+#   - recency trackers    — 14 columns
+#   - engineered          — 6 columns (optional; may be empty if
+#                            the data-service omits them)
+features_db = Table(
+    settings.features_db_table,
+    metadata,
+    # ---- Timestamp + target ----
+    Column("ds", DateTime(timezone=True), primary_key=True),
+    Column("y", Float, nullable=False),
+    # ---- Raw market & on-chain ----
+    Column("btc_price", Float, nullable=True),
+    Column("btc_volume", Float, nullable=True),
+    Column("btc_dominance", Float, nullable=True),
+    Column("active_addresses", Float, nullable=True),
+    # ---- Macro & external assets ----
+    Column("gold_spot", Float, nullable=True),
+    Column("dxy", Float, nullable=True),
+    Column("ten_year_treasury", Float, nullable=True),
+    Column("vix", Float, nullable=True),
+    Column("high_yield_spread", Float, nullable=True),
+    Column("nasdaq_composite", Float, nullable=True),
+    Column("equity_corr", Float, nullable=True),
+    Column("high_yield_credit_stress_proxy", Float, nullable=True),
+    Column("cpi", Float, nullable=True),
+    Column("federal_funds_rate", Float, nullable=True),
+    Column("gdp", Float, nullable=True),
+    Column("m2_money_supply", Float, nullable=True),
+    Column("unemployment", Float, nullable=True),
+    # ---- Technical indicators & ratios ----
+    Column("btc_log_return_1d", Float, nullable=True),
+    Column("btc_log_return_7d", Float, nullable=True),
+    Column("btc_log_return_30d", Float, nullable=True),
+    Column("btc_sma_7", Float, nullable=True),
+    Column("btc_sma_30", Float, nullable=True),
+    Column("btc_sma_90", Float, nullable=True),
+    Column("btc_volatility_7d", Float, nullable=True),
+    Column("btc_volatility_30d", Float, nullable=True),
+    Column("btc_gold_ratio", Float, nullable=True),
+    Column("btc_nasdaq_ratio", Float, nullable=True),
+    # ---- Data-quality flags ----
+    Column("high_yield_spread_is_missing", Integer, nullable=True),
+    Column("active_addresses_is_imputed", Integer, nullable=True),
+    Column("unemployment_is_imputed", Integer, nullable=True),
+    Column("warmup_complete", Integer, nullable=True),
+    # ---- Observation recency trackers ----
+    Column("btc_dominance_days_since_last_observation", Integer, nullable=True),
+    Column("gold_spot_days_since_last_observation", Integer, nullable=True),
+    Column("dxy_days_since_last_observation", Integer, nullable=True),
+    Column("ten_year_treasury_days_since_last_observation", Integer, nullable=True),
+    Column("vix_days_since_last_observation", Integer, nullable=True),
+    Column("nasdaq_composite_days_since_last_observation", Integer, nullable=True),
+    Column("equity_corr_days_since_last_observation", Integer, nullable=True),
+    Column("high_yield_credit_stress_proxy_days_since_last_observation", Integer, nullable=True),
+    Column("active_addresses_days_since_last_observation", Integer, nullable=True),
+    Column("cpi_days_since_release", Integer, nullable=True),
+    Column("federal_funds_rate_days_since_release", Integer, nullable=True),
+    Column("gdp_days_since_release", Integer, nullable=True),
+    Column("m2_money_supply_days_since_release", Integer, nullable=True),
+    Column("unemployment_days_since_release", Integer, nullable=True),
+    # ---- Engineered features (optional) ----
+    Column("eng_price_lag_1d", Float, nullable=True),
+    Column("eng_price_lag_7d", Float, nullable=True),
+    Column("eng_price_lag_30d", Float, nullable=True),
+    Column("eng_returns_1d", Float, nullable=True),
+    Column("eng_returns_7d", Float, nullable=True),
+    Column("eng_returns_30d", Float, nullable=True),
 )
 
 
@@ -434,6 +550,55 @@ historical_event_impacts = Table(
 
 
 # ============================================================
+# CLI MIRROR TABLES (_cli variants)
+# ============================================================
+# The manual CLI (app.cli.pipeline) writes to these sandboxed
+# tables when CLI_MODE=true. They are structurally identical to
+# their production counterparts — same columns, constraints, and
+# indexes — created via SQLAlchemy's Table.to_metadata() which
+# deep-copies the table definition under a new name.
+#
+# The tables are created by migrations/013_create_cli_tables.sql.
+# The AI Service reads/writes them via the same repository methods;
+# the repository picks the CLI variant when settings.cli_mode is
+# True (see each repository's _resolve_table helper).
+#
+# Only the 6 write-target tables get CLI variants. Source tables
+# (btc_prices, macro_indicators, features_db) do NOT — they are
+# shared, read-only inputs.
+
+btc_predictions_cli = btc_predictions.to_metadata(
+    metadata,
+    name=f"{btc_predictions.name}_cli",
+)
+
+prediction_performance_cli = prediction_performance.to_metadata(
+    metadata,
+    name=f"{prediction_performance.name}_cli",
+)
+
+threshold_breaches_cli = threshold_breaches.to_metadata(
+    metadata,
+    name=f"{threshold_breaches.name}_cli",
+)
+
+model_performance_cli = model_performance.to_metadata(
+    metadata,
+    name=f"{model_performance.name}_cli",
+)
+
+btc_macro_correlation_cli = btc_macro_correlation.to_metadata(
+    metadata,
+    name=f"{btc_macro_correlation.name}_cli",
+)
+
+historical_event_impacts_cli = historical_event_impacts.to_metadata(
+    metadata,
+    name=f"{historical_event_impacts.name}_cli",
+)
+
+
+# ============================================================
 # INDEXES — btc_predictions
 # ============================================================
 # The composite read index is attached to the Core Table so
@@ -576,12 +741,24 @@ Index(
 
 
 # ============================================================
+# INDEXES — features_db
+# ============================================================
+# Primary read pattern: "give me the latest N rows", so a
+# DESC index on `ds` covers the common scan.
+Index(
+    "idx_features_db_ds_desc",
+    features_db.c.ds.desc(),
+)
+
+
+# ============================================================
 # CONVENIENCE: table name constants
 # ============================================================
 # These are imported by repositories and tests so they don't
 # repeat string literals.
 TABLE_BTC_PRICES = settings.db_table_btc_prices
 TABLE_MACRO_INDICATORS = settings.db_table_macro_indicators
+TABLE_FEATURES_DB = settings.features_db_table
 TABLE_BTC_PREDICTIONS = settings.db_table_predictions
 TABLE_PREDICTION_PERFORMANCE = "prediction_performance"
 TABLE_THRESHOLD_BREACHES = "threshold_breaches"
@@ -589,3 +766,12 @@ TABLE_MODEL_PERFORMANCE = "model_performance"
 TABLE_BTC_MACRO_CORRELATION = "btc_macro_correlation"
 TABLE_EXPORT_HISTORY = "export_history"
 TABLE_HISTORICAL_EVENT_IMPACTS = "historical_event_impacts"
+
+# CLI variant names (the underlying tables are created via
+# to_metadata above; these constants are the string names).
+TABLE_BTC_PREDICTIONS_CLI = f"{settings.db_table_predictions}_cli"
+TABLE_PREDICTION_PERFORMANCE_CLI = "prediction_performance_cli"
+TABLE_THRESHOLD_BREACHES_CLI = "threshold_breaches_cli"
+TABLE_MODEL_PERFORMANCE_CLI = "model_performance_cli"
+TABLE_BTC_MACRO_CORRELATION_CLI = "btc_macro_correlation_cli"
+TABLE_HISTORICAL_EVENT_IMPACTS_CLI = "historical_event_impacts_cli"

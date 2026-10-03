@@ -50,6 +50,62 @@ class Settings(BaseSettings):
     db_table_predictions: str = Field(default="btc_predictions")
 
     # ============================================================
+    # FEATURE SOURCE
+    # ============================================================
+    # Where training and prediction features come from.
+    #
+    # Supported values:
+    #   "parquet"      — data-service parquet files (50 features).
+    #                    Used by the manual CLI file-path pipeline.
+    #   "features_db"  — the future DB table (50 features, live-updated).
+    #                    This is the target production source.
+    #
+    # Both sources provide the same canonical 50-feature contract.
+    # Only the physical storage differs.
+    #
+    # The legacy 10-feature path (btc_prices + macro_indicators) is
+    # NOT a supported option. The old repository method
+    # fetch_training_frame(hours) remains for reference but is
+    # unreachable via this setting.
+    feature_source: str = Field(default="features_db")
+
+    # Name of the DB table that holds the canonical 50-feature set.
+    # Used when feature_source="features_db". Owned by the data-service;
+    # the AI Service reads from it, never writes.
+    features_db_table: str = Field(
+        default="features_db",
+        description="Name of the feature-store table used by features_db source",
+    )
+
+    # Directory where the data-service writes its processed parquet
+    # files. Used when feature_source="parquet". The AI Service must
+    # be able to read this directory (usually mounted as a read-only
+    # volume in Docker/K8s).
+    shared_data_dir: str = Field(
+        default="/app/shared/features",
+        description="Directory containing data-service parquet files",
+    )
+
+    # ============================================================
+    # CLI ISOLATION
+    # ============================================================
+    # When True, all repository writes and file-system writes go to
+    # isolated targets so a CLI run never touches production data:
+    #   - DB writes go to <table>_cli variants
+    #   - Model files go to {cli_data_dir}/models/
+    #   - Backtest temp dirs go to {cli_data_dir}/models/backtest/
+    #   - Export files go to {cli_data_dir}/exports/
+    #
+    # Controlled by the CLI_MODE environment variable. Default: False.
+    # The manual CLI (app.cli.pipeline) sets CLI_MODE=true before
+    # invoking any job or repository.
+    cli_mode: bool = Field(default=False)
+
+    # Root directory for CLI-mode artifacts (models, exports, etc.).
+    # Relative to the service working directory.
+    cli_data_dir: str = Field(default="cli_data")
+
+    # ============================================================
     # REDIS
     # ============================================================
     redis_host: str = Field(default="redis")
@@ -91,12 +147,16 @@ class Settings(BaseSettings):
     # ============================================================
     # MODEL PARAMETERS
     # ============================================================
-    model_training_days: int = Field(default=90)
-    model_forecast_horizon_hours: int = Field(default=24)
-    model_forecast_horizon_days: int = Field(default=7)
-    model_changepoint_prior: float = Field(default=0.05)
-    model_seasonality_prior: float = Field(default=10.0)
-    model_holidays_prior: float = Field(default=10.0)
+    # DEPRECATED (2026-XX): The following settings are not read by
+    # any code path. Kept for reference during the current migration
+    # and will be removed once the future feature pipeline is in
+    # place. See known_issues.md #13.
+    model_training_days: int = Field(default=90)          # DEPRECATED
+    model_forecast_horizon_hours: int = Field(default=24) # DEPRECATED
+    model_forecast_horizon_days: int = Field(default=7)   # DEPRECATED
+    model_changepoint_prior: float = Field(default=0.05)  # DEPRECATED
+    model_seasonality_prior: float = Field(default=10.0)  # DEPRECATED
+    model_holidays_prior: float = Field(default=10.0)     # DEPRECATED
 
     # Model artifact storage
     model_save_dir: str = Field(default="models")
@@ -136,10 +196,40 @@ class Settings(BaseSettings):
     retrain_hour: int = Field(default=6)
     retrain_minute: int = Field(default=0)
     retrain_timezone: str = Field(default="UTC")
-    walk_forward_days: int = Field(default=30)
 
-    # Scheduler master switch (disabled in tests, enabled in prod)
+    # DEPRECATED: not read by any code path. Kept for reference.
+    # See known_issues.md #13.
+    walk_forward_days: int = Field(default=30)  # DEPRECATED
+
+    # ------------------------------------------------------------
+    # Scheduler toggles
+    # ------------------------------------------------------------
+    # Master switch for the entire scheduler. When False, no jobs
+    # run, even if the category toggles below are True.
     scheduler_enabled: bool = Field(default=True)
+
+    # ML pipeline jobs — the 7 jobs that depend on trained models
+    # and a working feature source:
+    #   - daily_retrain
+    #   - hourly_prediction
+    #   - daily_7d_prediction
+    #   - daily_backtest
+    #   - daily_accuracy
+    #   - daily_multi_model_predictions
+    #   - daily_model_performance_aggregation
+    #
+    # Default: False. Enable once the live path is ready to run
+    # against the "features_db" source.
+    scheduler_ml_jobs_enabled: bool = Field(default=False)
+
+    # Analytics + housekeeping jobs — the 3 independent jobs that
+    # do not depend on trained models:
+    #   - daily_correlation
+    #   - daily_event_impact_update
+    #   - daily_export_cleanup
+    #
+    # Default: True. These run regardless of ML pipeline state.
+    scheduler_analytics_jobs_enabled: bool = Field(default=True)
 
     # Retention of in-memory job history entries
     scheduler_history_max_entries: int = Field(default=100)
@@ -221,7 +311,8 @@ class Settings(BaseSettings):
 
     # Directory where locally-stored export files live. Relative
     # paths are resolved against the current working directory (see
-    # ``export_storage_dir_path``).
+    # ``export_storage_dir_path``). In CLI mode, the path is
+    # redirected under ``cli_data_dir``.
     export_storage_dir: str = Field(default="exports")
 
     # How long a download link remains valid, in seconds. The A2.6
@@ -279,34 +370,79 @@ class Settings(BaseSettings):
             return url.replace("postgresql://", "postgresql+asyncpg://", 1)
         return url
 
+    # ------------------------------------------------------------
+    # CLI-aware path properties
+    # ------------------------------------------------------------
+    @property
+    def effective_model_save_dir(self) -> str:
+        """Return the active model save directory.
+
+        When CLI mode is enabled, returns a path under
+        ``cli_data_dir`` so the CLI never writes into the production
+        ``models/`` directory. Otherwise returns ``model_save_dir``.
+        """
+        if self.cli_mode:
+            return f"{self.cli_data_dir}/models"
+        return self.model_save_dir
+
+    @property
+    def effective_backtest_model_dir(self) -> str:
+        """Return the active backtest temp dir.
+
+        When CLI mode is enabled, returns a path under
+        ``cli_data_dir``. Otherwise returns ``backtest_model_dir``.
+        """
+        if self.cli_mode:
+            return f"{self.cli_data_dir}/models/backtest"
+        return self.backtest_model_dir
+
     @property
     def prophet_24h_model_path(self) -> str:
-        """Return the full path to the trained 24h Prophet model file."""
-        return f"{self.model_save_dir}/{self.prophet_24h_model_filename}"
+        """Return the full path to the trained 24h Prophet model file.
+
+        Uses the CLI-aware model save dir so CLI runs don't clash
+        with production model files.
+        """
+        return (
+            f"{self.effective_model_save_dir}/"
+            f"{self.prophet_24h_model_filename}"
+        )
 
     @property
     def prophet_7d_model_path(self) -> str:
-        """Return the full path to the trained 7d Prophet model file."""
-        return f"{self.model_save_dir}/{self.prophet_7d_model_filename}"
+        """Return the full path to the trained 7d Prophet model file.
+
+        Uses the CLI-aware model save dir so CLI runs don't clash
+        with production model files.
+        """
+        return (
+            f"{self.effective_model_save_dir}/"
+            f"{self.prophet_7d_model_filename}"
+        )
 
     @property
     def export_storage_dir_path(self) -> Path:
         """Return the export storage directory as an absolute Path.
 
-        Relative paths in ``export_storage_dir`` are resolved
-        against the current working directory, which for the
-        AI Service is the service root. Absolute paths are
-        returned unchanged.
+        When CLI mode is enabled, the directory is redirected under
+        ``cli_data_dir/exports``. Otherwise, relative paths in
+        ``export_storage_dir`` are resolved against the current
+        working directory (which for the AI Service is the service
+        root), and absolute paths are returned unchanged.
 
         Returns:
             The resolved :class:`pathlib.Path` for the storage
             directory. The path is not created here — creation is
             ``LocalDiskStorage``'s responsibility.
         """
-        path = Path(self.export_storage_dir)
-        if not path.is_absolute():
-            path = Path.cwd() / path
-        return path
+        if self.cli_mode:
+            base = Path(f"{self.cli_data_dir}/exports")
+        else:
+            base = Path(self.export_storage_dir)
+
+        if not base.is_absolute():
+            base = Path.cwd() / base
+        return base
 
 
 # Global settings instance
