@@ -88,7 +88,12 @@ class AlertEngine:
         if alert_type == AlertType.REACHES:
             # Allow small tolerance for floating point
             tolerance = 0.01
-            if abs(current_price - threshold) <= tolerance:
+            crossed_threshold = (
+                previous_price is not None
+                and min(previous_price, current_price) <= threshold
+                <= max(previous_price, current_price)
+            )
+            if abs(current_price - threshold) <= tolerance or crossed_threshold:
                 triggered = True
                 logger.info(f"✅ Alert {alert.id}: Price reached ${threshold:,.2f}")
         

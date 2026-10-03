@@ -13,6 +13,7 @@ def producer(monkeypatch):
     )
     instance = BTCUpdateProducer()
     instance.publish_price_update = Mock()
+    instance.process_data_events = Mock()
     return instance
 
 
@@ -24,7 +25,26 @@ def test_publishes_first_price_and_only_threshold_moves(producer):
 
     assert producer.publish_price_update.call_count == 2
     assert producer.publish_price_update.call_args_list[0].args[0]["price"] == 1000
-    assert producer.publish_price_update.call_args_list[1].args[0]["price"] == 1120
+    second_event = producer.publish_price_update.call_args_list[1].args[0]
+    assert second_event["price"] == 1120
+    assert second_event["previous_price"] == 1000
+    assert second_event["symbol"] == "BTC/USD"
+
+
+def test_does_not_advance_published_price_after_publish_failure(producer):
+    producer.publish_price_update.return_value = False
+
+    producer.publish_btc_update({"symbol": "BTCUSDT", "price": 1000})
+
+    assert producer._last_published_prices == {}
+
+
+def test_processes_connection_events_even_when_price_move_is_filtered(producer):
+    producer.publish_btc_update({"symbol": "BTCUSDT", "price": 1000})
+    producer.publish_btc_update({"symbol": "BTCUSDT", "price": 1050})
+
+    assert producer.publish_price_update.call_count == 1
+    assert producer.process_data_events.call_count == 2
 
 
 def test_publishes_when_price_moves_down_by_threshold(producer):

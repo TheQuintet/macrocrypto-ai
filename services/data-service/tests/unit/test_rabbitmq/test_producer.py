@@ -30,8 +30,36 @@ class TestRabbitMQProducer:
 
     def test_publish_price_update_not_connected(self):
         producer = RabbitMQProducer()
-        producer.publish_price_update({"symbol": "BTCUSDT", "price": 45000.0})
-        # Should not raise exception
+        with patch.object(producer, "_connect", return_value=False) as connect:
+            published = producer.publish_price_update(
+                {"symbol": "BTCUSDT", "price": 45000.0}
+            )
+
+        assert published is False
+        connect.assert_called_once()
+
+    def test_publish_price_update_reconnects_after_channel_closes(self):
+        producer = RabbitMQProducer()
+        producer.is_connected = True
+        producer.connection = MagicMock(is_open=True)
+        producer.channel = MagicMock(is_open=False)
+        replacement_connection = MagicMock(is_open=True)
+        replacement_channel = MagicMock(is_open=True)
+
+        def reconnect():
+            producer.connection = replacement_connection
+            producer.channel = replacement_channel
+            producer.is_connected = True
+            return True
+
+        with patch.object(producer, "_connect", side_effect=reconnect) as connect:
+            published = producer.publish_price_update(
+                {"symbol": "BTC/USD", "price": 45000.0}
+            )
+
+        assert published is True
+        connect.assert_called_once()
+        replacement_channel.basic_publish.assert_called_once()
 
     def test_close(self):
         producer = RabbitMQProducer()
