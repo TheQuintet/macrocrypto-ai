@@ -6,6 +6,19 @@ These tests exercise:
     - The job wrapper: success, retry, final failure, history recording
     - Introspection methods
 
+Job registration is gated by two config flags:
+
+    - ``scheduler_ml_jobs_enabled``       (default False)
+    - ``scheduler_analytics_jobs_enabled`` (default True)
+
+When the ML flag is False, only the 3 analytics jobs register.
+When it's True, all 11 register (8 ML + 3 analytics).
+
+The tests below set ``scheduler_ml_jobs_enabled=True`` for all
+tests that assert on ML jobs, via the ``_enable_ml_jobs``
+autouse fixture. Tests that specifically want the disabled
+behavior override the fixture per-test.
+
 Lifecycle tests are async because APScheduler's AsyncIOScheduler
 requires a running event loop to start.
 
@@ -25,6 +38,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
+from app.config import settings
 from app.scheduler.manager import (
     JOB_ID_DAILY_7D_PREDICTION,
     JOB_ID_DAILY_ACCURACY,
@@ -34,11 +48,28 @@ from app.scheduler.manager import (
     JOB_ID_DAILY_EXPORT_CLEANUP,
     JOB_ID_DAILY_MODEL_PERFORMANCE_AGGREGATION,
     JOB_ID_DAILY_MULTI_MODEL_PREDICTIONS,
+    JOB_ID_DAILY_PROMOTE_CHAMPION,
     JOB_ID_DAILY_RETRAIN,
     JOB_ID_HOURLY_PREDICTION,
     SchedulerManager,
 )
 from app.scheduler.state import JobRunStatus, SchedulerState
+
+
+# ============================================================
+# SHARED FIXTURES
+# ============================================================
+@pytest.fixture(autouse=True)
+def _enable_ml_jobs(monkeypatch):
+    """Enable ML job registration for all tests in this module.
+
+    ``scheduler_ml_jobs_enabled`` defaults to False, so only the
+    3 analytics jobs register without this fixture. Most tests
+    below assert on ML jobs being present, so we enable them by
+    default. Tests that specifically want the disabled behavior
+    override this with their own monkeypatch call.
+    """
+    monkeypatch.setattr(settings, "scheduler_ml_jobs_enabled", True)
 
 
 # ============================================================
@@ -145,6 +176,18 @@ class TestManagerSetup:
         finally:
             manager.shutdown()
 
+    def test_setup_registers_daily_promote_champion_job(self) -> None:
+        """Test that setup registers the Phase 3 champion promotion job."""
+        manager = SchedulerManager(enabled=False)
+        manager.setup()
+        try:
+            assert (
+                JOB_ID_DAILY_PROMOTE_CHAMPION
+                in manager.get_job_ids()
+            )
+        finally:
+            manager.shutdown()
+
     def test_setup_registers_daily_correlation_job(self) -> None:
         """Test that setup registers the A1.5 correlation job."""
         manager = SchedulerManager(enabled=False)
@@ -181,8 +224,15 @@ class TestManagerSetup:
         finally:
             manager.shutdown()
 
-    def test_setup_registers_all_ten_jobs(self) -> None:
-        """Test that setup registers exactly all ten jobs."""
+    def test_setup_registers_all_eleven_jobs(self) -> None:
+        """Test that setup registers all eleven jobs when both flags are on.
+
+        With ``scheduler_ml_jobs_enabled=True`` (set by the autouse
+        fixture) and the analytics flag defaulting to True, both
+        groups should register — 8 ML jobs (including
+        ``daily_promote_champion`` from Phase 3) plus 3 analytics
+        jobs.
+        """
         manager = SchedulerManager(enabled=False)
         manager.setup()
         try:
@@ -196,6 +246,34 @@ class TestManagerSetup:
                     JOB_ID_DAILY_ACCURACY,
                     JOB_ID_DAILY_MULTI_MODEL_PREDICTIONS,
                     JOB_ID_DAILY_MODEL_PERFORMANCE_AGGREGATION,
+                    JOB_ID_DAILY_PROMOTE_CHAMPION,
+                    JOB_ID_DAILY_CORRELATION,
+                    JOB_ID_DAILY_EXPORT_CLEANUP,
+                    JOB_ID_DAILY_EVENT_IMPACT_UPDATE,
+                ]
+            )
+        finally:
+            manager.shutdown()
+
+    def test_setup_registers_only_analytics_when_ml_disabled(
+        self, monkeypatch
+    ) -> None:
+        """Test that with ML jobs disabled, only the 3 analytics register.
+
+        This pins the behavior of the ML flag: when False, the
+        eight ML-pipeline jobs are skipped. Useful for local dev
+        where the feature source isn't ready yet.
+        """
+        monkeypatch.setattr(
+            settings, "scheduler_ml_jobs_enabled", False
+        )
+
+        manager = SchedulerManager(enabled=False)
+        manager.setup()
+        try:
+            ids = sorted(manager.get_job_ids())
+            assert ids == sorted(
+                [
                     JOB_ID_DAILY_CORRELATION,
                     JOB_ID_DAILY_EXPORT_CLEANUP,
                     JOB_ID_DAILY_EVENT_IMPACT_UPDATE,
@@ -446,6 +524,7 @@ class TestManagerIntrospection:
             assert (
                 JOB_ID_DAILY_MODEL_PERFORMANCE_AGGREGATION in ids
             )
+            assert JOB_ID_DAILY_PROMOTE_CHAMPION in ids
             assert JOB_ID_DAILY_CORRELATION in ids
             assert JOB_ID_DAILY_EXPORT_CLEANUP in ids
             assert JOB_ID_DAILY_EVENT_IMPACT_UPDATE in ids
