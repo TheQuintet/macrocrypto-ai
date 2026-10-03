@@ -1,3 +1,668 @@
+# name: CI - Test and Build
+
+# on:
+#   push:
+#     branches: [ main ]
+#   pull_request:
+#     # Feature branches too, so a PR stacked on another feature branch is
+#     # still checked. Targeting only `main` means a stacked PR reports no
+#     # checks at all, which reads as "nothing to see" rather than "not run".
+#     branches: [ main, 'feature/**', 'chore/**', 'fix/**', 'docs/**' ]
+#   workflow_dispatch:
+#     inputs:
+#       run-everything:
+#         description: 'Check the whole repo, not just what a change touches'
+#         type: boolean
+#         default: false
+
+# # A new push supersedes the run already in flight for the same branch.
+# concurrency:
+#   group: ${{ github.workflow }}-${{ github.ref }}
+#   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+# jobs:
+#   # This is a monorepo, and no change touches all of it. Working out what a
+#   # change actually edits lets each job below either run against that work or
+#   # sit the run out, instead of reporting on files nobody opened.
+#   changes:
+#     name: Work out what changed
+#     runs-on: ubuntu-latest
+
+#     outputs:
+#       frontend: ${{ steps.detect.outputs.frontend }}
+#       python: ${{ steps.detect.outputs.python }}
+#       python-files: ${{ steps.detect.outputs.python-files }}
+#       api-gateway: ${{ steps.detect.outputs.api-gateway }} # for api-gateway service 
+#       alert-service: ${{ steps.detect.outputs.alert-service }} # for alert service 
+#       data-service: ${{ steps.detect.outputs.data-service }} # for data service 
+#       system-stack: ${{ steps.detect.outputs.system-stack }}
+
+
+#     steps:
+#       - name: Checkout code
+#         uses: actions/checkout@v4
+#         with:
+#           # Full history, so the diff below has a base to compare against.
+#           fetch-depth: 0
+
+#       - name: Detect
+#         id: detect
+#         env:
+#           EVENT: ${{ github.event_name }}
+#           BASE_BRANCH: ${{ github.base_ref }}
+#           PUSH_BEFORE: ${{ github.event.before }}
+#           RUN_EVERYTHING: ${{ inputs.run-everything }}
+#         run: |
+#           set -euo pipefail
+
+#           if [ "$EVENT" = "workflow_dispatch" ] && [ "$RUN_EVERYTHING" = "true" ]; then
+#             echo "Manual run: checking the whole repo."
+#             git ls-files > "$RUNNER_TEMP/changed.txt"
+#           else
+#             if [ "$EVENT" = "pull_request" ]; then
+#               git fetch --no-tags --quiet origin \
+#                 "+refs/heads/${BASE_BRANCH}:refs/remotes/origin/${BASE_BRANCH}"
+#               BASE="origin/${BASE_BRANCH}"
+#             else
+#               BASE="$PUSH_BEFORE"
+#             fi
+
+#             # A first push to a branch has no usable `before`, and a shallow or
+#             # rewritten history can leave the base unreachable. Comparing
+#             # against the previous commit is wrong in the general case, but it
+#             # beats failing the run outright.
+#             if ! git rev-parse --verify --quiet "${BASE}^{commit}" > /dev/null; then
+#               echo "Could not resolve ${BASE}; comparing against the previous commit."
+#               BASE="HEAD~1"
+#             fi
+
+#             echo "Comparing against ${BASE}."
+#             git diff --name-only --diff-filter=ACMR "${BASE}...HEAD" > "$RUNNER_TEMP/changed.txt"
+
+#             echo "Changed files:"
+#             sed 's/^/  /' "$RUNNER_TEMP/changed.txt"
+#           fi
+
+#           # A PR that only edits this file would otherwise report nothing at
+#           # all. Running the frontend job against it is what shows the workflow
+#           # still works before it is merged.
+#           WORKFLOW_CHANGED=false
+#           if grep -qxF '.github/workflows/ci.yml' "$RUNNER_TEMP/changed.txt"; then
+#             echo "This workflow changed; running the frontend job against it."
+#             WORKFLOW_CHANGED=true
+#           fi
+
+#           if [ "$WORKFLOW_CHANGED" = true ] || grep -q '^frontend/' "$RUNNER_TEMP/changed.txt"; then
+#             echo "frontend=true" >> "$GITHUB_OUTPUT"
+#           else
+#             echo "frontend=false" >> "$GITHUB_OUTPUT"
+#           fi
+          
+#           if [ "$WORKFLOW_CHANGED" = true ] || grep -q '^services/api-gateway/' "$RUNNER_TEMP/changed.txt"; then
+#             echo "api-gateway=true" >> "$GITHUB_OUTPUT"
+#           else
+#             echo "api-gateway=false" >> "$GITHUB_OUTPUT"
+#           fi
+
+#           if [ "$WORKFLOW_CHANGED" = true ] || grep -q '^services/alert-service/' "$RUNNER_TEMP/changed.txt"; then
+#             echo "alert-service=true" >> "$GITHUB_OUTPUT"
+#           else
+#             echo "alert-service=false" >> "$GITHUB_OUTPUT"
+#           fi
+
+#           if [ "$WORKFLOW_CHANGED" = true ] || grep -q '^services/data-service/' "$RUNNER_TEMP/changed.txt"; then
+#             echo "data-service=true" >> "$GITHUB_OUTPUT"
+#           else
+#             echo "data-service=false" >> "$GITHUB_OUTPUT"
+#           fi
+
+#           if [ "$WORKFLOW_CHANGED" = true ] || grep -qE '^(frontend/|services/(api-gateway|alert-service|data-service)/|shared/|infrastructure/|docker-compose\.yml$)' "$RUNNER_TEMP/changed.txt"; then
+#             echo "system-stack=true" >> "$GITHUB_OUTPUT"
+#           else
+#             echo "system-stack=false" >> "$GITHUB_OUTPUT"
+#           fi
+
+#           { grep '\.py$' "$RUNNER_TEMP/changed.txt" || true; } > "$RUNNER_TEMP/changed-python.txt"
+#           if [ -s "$RUNNER_TEMP/changed-python.txt" ]; then
+#             echo "python=true" >> "$GITHUB_OUTPUT"
+#             {
+#               echo 'python-files<<CHANGED_PYTHON_FILES'
+#               cat "$RUNNER_TEMP/changed-python.txt"
+#               echo 'CHANGED_PYTHON_FILES'
+#             } >> "$GITHUB_OUTPUT"
+#           else
+#             echo "python=false" >> "$GITHUB_OUTPUT"
+#             echo "python-files=" >> "$GITHUB_OUTPUT"
+#           fi
+
+#   frontend:
+#     name: Frontend (lint, typecheck, unit tests)
+#     needs: changes
+#     if: needs.changes.outputs.frontend == 'true'
+#     runs-on: ubuntu-latest
+
+#     defaults:
+#       run:
+#         working-directory: frontend
+
+#     steps:
+#       - name: Checkout code
+#         uses: actions/checkout@v4
+
+#       - name: Set up Node
+#         uses: actions/setup-node@v4
+#         with:
+#           node-version: '22'
+#           cache: npm
+#           cache-dependency-path: frontend/package-lock.json
+
+#       - name: Install dependencies
+#         # The package's `prepare` script installs the Husky git hooks, which
+#         # are for local commits only - nothing in CI should run them.
+#         env:
+#           HUSKY: 0
+#         run: npm ci
+
+#       - name: Lint
+#         run: npm run lint
+
+#       - name: Typecheck
+#         run: npm run typecheck
+
+#       - name: Unit tests
+#         run: npm test
+
+#   frontend-ui-smoke:
+#     name: Frontend UI integration (dashboard smoke)
+#     needs: changes
+#     if: needs.changes.outputs.frontend == 'true'
+#     runs-on: ubuntu-latest
+
+#     defaults:
+#       run:
+#         working-directory: frontend
+
+#     steps:
+#       - name: Checkout code
+#         uses: actions/checkout@v4
+
+#       - name: Set up Node
+#         uses: actions/setup-node@v4
+#         with:
+#           node-version: '22'
+#           cache: npm
+#           cache-dependency-path: frontend/package-lock.json
+
+#       - name: Install dependencies
+#         env:
+#           HUSKY: 0
+#         run: npm ci
+
+#       - name: Install Playwright Chromium
+#         run: npx playwright install --with-deps chromium
+
+#       - name: Run dashboard smoke test
+#         run: npm run test:ui-integration -- e2e/ui-integration/app.smoke.spec.ts
+
+#   system-stack-smoke:
+#     name: System stack (Compose + live dashboard)
+#     needs: changes
+#     if: needs.changes.outputs.system-stack == 'true'
+#     runs-on: ubuntu-latest
+
+#     steps:
+#       - name: Checkout code
+#         uses: actions/checkout@v4
+
+#       - name: Set up Node
+#         uses: actions/setup-node@v4
+#         with:
+#           node-version: '22'
+#           cache: npm
+#           cache-dependency-path: frontend/package-lock.json
+
+#       - name: Install frontend dependencies
+#         working-directory: frontend
+#         env:
+#           HUSKY: 0
+#         run: npm ci
+
+#       - name: Install Playwright Chromium
+#         working-directory: frontend
+#         run: npx playwright install --with-deps chromium
+
+#       - name: Prepare local Compose configuration
+#         run: |
+#           set -euo pipefail
+
+#           for service in alert-service api-gateway data-service; do
+#             cp "services/${service}/.env.example" "services/${service}/.env"
+#           done
+
+#           # Compose resolves every declared env_file, even when AI is not started.
+#           : > services/ai-service/.env
+
+#           # The gateway runs in Compose, so localhost would point back to itself.
+#           sed -i \
+#             -e 's/^POSTGRES_HOST=localhost$/POSTGRES_HOST=postgres/' \
+#             -e 's|^CORS_ALLOW_ORIGINS=.*$|CORS_ALLOW_ORIGINS=["http://127.0.0.1:3000","http://127.0.0.1:8000"]|' \
+#             services/api-gateway/.env
+
+#           # docker-compose.yml mounts an initialization script absent from this checkout.
+#           mkdir -p infrastructure/scripts
+#           if [ ! -e infrastructure/scripts/init-db.sql ]; then
+#             touch infrastructure/scripts/init-db.sql
+#             echo "SYSTEM_TEST_CREATED_INIT_SQL=true" >> "$GITHUB_ENV"
+#           else
+#             echo "SYSTEM_TEST_CREATED_INIT_SQL=false" >> "$GITHUB_ENV"
+#           fi
+
+#       - name: Start infrastructure services and wait for readiness
+#         run: docker compose up --detach --wait --wait-timeout 300 postgres redis rabbitmq
+
+#       - name: Start backend application services
+#         run: docker compose up --build --detach --no-deps data-service alert-service api-gateway
+
+#       - name: Verify application APIs are serving OpenAPI documents
+#         shell: bash
+#         run: |
+#           set -euo pipefail
+
+#           for service in "api-gateway:8000" "data-service:8001" "alert-service:8003"; do
+#             name="${service%%:*}"
+#             port="${service##*:}"
+#             url="http://127.0.0.1:${port}/openapi.json"
+#             serving=false
+#             response=""
+
+#             for attempt in $(seq 1 60); do
+#               if response="$(curl --fail --silent --show-error --max-time 10 "$url")"; then
+#                 if printf '%s' "$response" | jq -e '(.paths | length) > 0' > /dev/null; then
+#                   printf '%s: OpenAPI document is available\n' "$name"
+#                   serving=true
+#                   break
+#                 fi
+#               fi
+#               sleep 5
+#             done
+
+#             if [ "$serving" != true ]; then
+#               echo "::error::${name} did not serve its OpenAPI document at ${url}"
+#               echo "Last API response: ${response:-none}"
+#               exit 1
+#             fi
+#           done
+
+#       - name: Verify Gateway-to-Data-Service price route
+#         shell: bash
+#         run: |
+#           set -euo pipefail
+
+#           url="http://127.0.0.1:8000/api/v1/btc/price"
+#           valid_response=false
+#           response=""
+
+#           for attempt in $(seq 1 60); do
+#             if response="$(curl --fail --silent --show-error --max-time 15 "$url")"; then
+#               if printf '%s' "$response" | jq -e '.current_price != null' > /dev/null; then
+#                 echo "Gateway returned a populated BTC price:"
+#                 printf '%s\n' "$response" | jq .
+#                 valid_response=true
+#                 break
+#               fi
+#             fi
+#             sleep 5
+#           done
+
+#           if [ "$valid_response" != true ]; then
+#             echo "::error::Gateway did not return a populated BTC price from Data Service"
+#             echo "Last gateway response: ${response:-none}"
+#             exit 1
+#           fi
+
+#       - name: Verify Gateway-to-Alert-Service notifications route
+#         shell: bash
+#         run: |
+#           set -euo pipefail
+
+#           url="http://127.0.0.1:8000/api/v1/notifications"
+#           valid_response=false
+#           response=""
+
+#           for attempt in $(seq 1 60); do
+#             if response="$(curl --fail --silent --show-error --max-time 15 "$url")"; then
+#               if printf '%s' "$response" | jq -e '.notifications | type == "array"' > /dev/null; then
+#                 echo "Gateway returned an Alert Service notifications response:"
+#                 printf '%s\n' "$response" | jq .
+#                 valid_response=true
+#                 break
+#               fi
+#             fi
+#             sleep 5
+#           done
+
+#           if [ "$valid_response" != true ]; then
+#             echo "::error::Gateway did not return notifications from Alert Service"
+#             echo "Last gateway response: ${response:-none}"
+#             exit 1
+#           fi
+
+#       - name: Run dashboard smoke test against the live Gateway
+#         working-directory: frontend
+#         env:
+#           VITE_API_GATEWAY_BASE_URL: http://127.0.0.1:8000
+#         run: npm run test:ui-integration -- e2e/ui-integration/app.smoke.spec.ts
+
+#       - name: Show Compose status and logs on failure
+#         if: failure()
+#         run: |
+#           docker compose ps --all
+#           docker compose logs --no-color --tail=100
+
+#       - name: Stop Compose stack and remove generated inputs
+#         if: always()
+#         run: |
+#           status=0
+#           if [ -f services/data-service/.env ]; then
+#             docker compose down --volumes --remove-orphans || status=$?
+#           fi
+#           rm -f \
+#             services/ai-service/.env \
+#             services/alert-service/.env \
+#             services/api-gateway/.env \
+#             services/data-service/.env
+#           if [ "${SYSTEM_TEST_CREATED_INIT_SQL:-false}" = true ]; then
+#             rm -f infrastructure/scripts/init-db.sql
+#           fi
+#           exit "$status"
+
+#   # Scoped to the Python files a change actually touches. A repo-wide
+#   # `black --check .` fails on 395 of the 457 files in the repo, which made
+#   # every run red regardless of the work under review - the 30 runs before this
+#   # one all failed here, back to 22 August, so the check carried no signal at
+#   # all. Reformatting that backlog is its own piece of work: 301 of those files
+#   # need real changes, not just a missing final newline.
+#   python-quality:
+#     name: Python (lint, formatting)
+#     needs: changes
+#     if: needs.changes.outputs.python == 'true'
+#     runs-on: ubuntu-latest
+
+#     steps:
+#       - name: Checkout code
+#         uses: actions/checkout@v4
+
+#       - name: Set up Python
+#         uses: actions/setup-python@v5
+#         with:
+#           python-version: '3.13'
+
+#       - name: Install tools
+#         # Pinned on purpose. An unpinned formatter picks up new rules on its
+#         # next release and turns CI red with no commit behind it, which is how
+#         # a check stops being believed.
+#         run: pip install 'flake8==7.3.0' 'black==26.5.1'
+
+#       - name: List the files to check
+#         env:
+#           PYTHON_FILES: ${{ needs.changes.outputs.python-files }}
+#         run: |
+#           set -euo pipefail
+#           printf '%s\n' "$PYTHON_FILES" \
+#             | sed '/^[[:space:]]*$/d' > "$RUNNER_TEMP/changed-python.txt"
+
+#           # Given no file arguments, flake8 and black fall back to the whole
+#           # repo - which is the failure this job exists to stop. An empty list
+#           # here means the detection above is wrong, so say so instead.
+#           if [ ! -s "$RUNNER_TEMP/changed-python.txt" ]; then
+#             echo "No Python files to check, yet this job ran. Check the detection above." >&2
+#             exit 1
+#           fi
+
+#           echo "Checking:"
+#           sed 's/^/  /' "$RUNNER_TEMP/changed-python.txt"
+
+#       # The only hard gate: syntax errors and undefined names. These are
+#       # breakage, not taste, and a change that adds one should not merge.
+#       - name: Lint with flake8
+#         run: |
+#           set -euo pipefail
+#           readarray -t FILES < "$RUNNER_TEMP/changed-python.txt"
+#           flake8 --count --select=E9,F63,F7,F82 --show-source --statistics "${FILES[@]}"
+#           flake8 --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics "${FILES[@]}"
+
+#       # Advisory while the backlog stands. Every recent backend change would
+#       # fail this on its own new files, so making it block would just move the
+#       # permanent red from one step to another. It reports the diff so the fix
+#       # is one command, and it can be made blocking once the repo is formatted.
+#       - name: Check formatting with black
+#         continue-on-error: true
+#         run: |
+#           set -euo pipefail
+#           readarray -t FILES < "$RUNNER_TEMP/changed-python.txt"
+#           if ! black --check --diff "${FILES[@]}"; then
+#             echo "::warning::Not black-formatted. Run 'black' on the files above; this does not fail the build yet."
+#             exit 1
+#           fi
+
+#   api-gateway-tests:
+#     name: API Gateway (pytest)
+#     needs: changes
+#     if: needs.changes.outputs.api-gateway == 'true' || github.event.inputs.run-everything == 'true'
+#     runs-on: ubuntu-latest
+
+#     # ⬇️ PUT THE TIMESCALEDB SERVICES BLOCK HERE ⬇️
+#     services:
+#       postgres:
+#         image: timescale/timescaledb:2.17.2-pg15
+#         env:
+#           POSTGRES_USER: macro
+#           POSTGRES_PASSWORD: crypto
+#           POSTGRES_DB: macrocrypto
+#         ports:
+#           - 5432:5432
+#         command: postgres -c shared_preload_libraries=timescaledb
+#         options: >-
+#           --health-cmd "pg_isready -U macro -d macrocrypto"
+#           --health-interval 10s
+#           --health-timeout 5s
+#           --health-retries 5
+        
+
+#     defaults:
+#       run:
+#         working-directory: services/api-gateway
+
+#     steps:
+#       - name: Checkout code
+#         uses: actions/checkout@v4
+
+#       - name: Set up Python
+#         uses: actions/setup-python@v5
+#         with:
+#           python-version: '3.13'
+#           cache: 'pip'
+
+#       - name: Install dependencies
+#         run: |
+#           python -m pip install --upgrade pip
+#           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+#           if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
+
+#       - name: Run pytest
+#         env:
+#           DATABASE_URL: postgresql://macro:crypto@localhost:5432/macrocrypto
+#         run: pytest
+  
+
+#   test-alert-service:
+#     name: Alert Service (pytest)
+#     needs: changes
+#     if: needs.changes.outputs.alert-service == 'true' || github.event.inputs.run-everything == 'true'
+    
+#     runs-on: ubuntu-latest
+#     defaults:
+#       run:
+#         working-directory: ./services/alert-service
+#     services:
+#       postgres:
+#         image: timescale/timescaledb:2.17.2-pg15
+#         env:
+#           POSTGRES_USER: macro
+#           POSTGRES_PASSWORD: crypto
+#           POSTGRES_DB: macrocrypto
+#         ports:
+#           - 5432:5432
+#         options: >-
+#           --health-cmd "pg_isready -U macro -d macrocrypto"
+#           --health-interval 10s
+#           --health-timeout 5s
+#           --health-retries 5
+
+#     steps:
+#       - name: Checkout code
+#         uses: actions/checkout@v4
+
+#       - name: Set up Python
+#         uses: actions/setup-python@v5
+#         with:
+#           python-version: '3.13'
+#           cache: 'pip'
+
+#       - name: Install dependencies
+#         run: |
+#           python -m pip install --upgrade pip
+#           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+#           if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
+
+#       - name: Run Pytest
+#         env:
+#           DATABASE_URL: postgresql://macro:crypto@localhost:5432/macrocrypto
+#           # SECRET_KEY: test-secret-key-for-testing-only
+#         run: pytest
+
+
+#   test-data-service:
+#     name: Data Service (pytest)
+#     needs: changes
+#     if: needs.changes.outputs.data-service == 'true' || github.event.inputs.run-everything == 'true'
+    
+#     runs-on: ubuntu-latest
+#     defaults:
+#       run:
+#         working-directory: ./services/data-service
+
+#     services:
+#       postgres:
+#         image: timescale/timescaledb:2.17.2-pg15
+#         env:
+#           POSTGRES_USER: macro
+#           POSTGRES_PASSWORD: crypto
+#           POSTGRES_DB: macrocrypto
+#         ports:
+#           - 5432:5432
+#         options: >-
+#           --health-cmd "pg_isready -U macro -d macrocrypto"
+#           --health-interval 10s
+#           --health-timeout 5s
+#           --health-retries 5
+
+#       redis:
+#         image: redis:7-alpine
+#         ports:
+#           - 6379:6379
+#         options: >-
+#           --health-cmd "redis-cli ping"
+#           --health-interval 10s
+#           --health-timeout 5s
+#           --health-retries 5
+
+#       rabbitmq:
+#         image: rabbitmq:3-management-alpine
+#         ports:
+#           - 5672:5672
+#           - 15672:15672
+#         env:
+#           RABBITMQ_DEFAULT_USER: guest
+#           RABBITMQ_DEFAULT_PASS: guest
+#         options: >-
+#           --health-cmd "rabbitmq-diagnostics -q ping"
+#           --health-interval 15s
+#           --health-timeout 30s
+#           --health-retries 10
+
+#     steps:
+#       - name: Checkout code
+#         uses: actions/checkout@v4
+
+#       - name: Set up Python
+#         uses: actions/setup-python@v5
+#         with:
+#           python-version: '3.13'
+#           cache: 'pip'
+
+#       - name: Install dependencies
+#         run: |
+#           python -m pip install --upgrade pip
+#           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+#           if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
+
+#       - name: Run Pytest with FastAPI Server
+#         env:
+#           DATABASE_URL: postgresql://macro:crypto@localhost:5432/macrocrypto
+#           REDIS_HOST: localhost
+#           REDIS_PORT: 6379
+#           RABBITMQ_HOST: rabbitmq          # Updated to match config test expectation
+#           RABBITMQ_PORT: 5672
+#           RABBITMQ_DEFAULT_USER: guest
+#           RABBITMQ_DEFAULT_PASS: guest
+#           FRED_API_KEY: test-fred-key      # Added to satisfy config validation
+#         run: | 
+#           # 1. Start uvicorn and redirect all stdout/stderr to /dev/null to keep console completely clean
+#           uvicorn app.main:app --host 127.0.0.1 --port 8001 >/dev/null 2>&1 &
+#           SERVER_PID=$!
+
+#           # 2. Wait until the FastAPI server is fully up and responding
+#           until curl -s http://127.0.0.1:8001/docs > /dev/null; do
+#             sleep 1
+#           done
+
+#           # 3. Run pytest quietly, ignoring ml_qa
+#           pytest -q --show-capture=no --ignore=tests/ml_qa --cov=app --cov-report=term-missing
+
+#           # 4. Clean up the background server process
+#           kill $SERVER_PID
+
+#   # --- Security Audit Runs After Tests Pass ---
+#   Security-Audit:
+#     name: Security Audit (pip-audit)
+#     needs: [api-gateway-tests, test-alert-service, test-data-service]
+#     runs-on: ubuntu-latest
+#     steps:
+#       - name: Checkout code
+#         uses: actions/checkout@v4
+
+#       - name: Set up Python
+#         uses: actions/setup-python@v5
+#         with:
+#           python-version: '3.11'
+
+#       - name: Run pip-audit across all services
+#         uses: pypa/gh-action-pip-audit@v1.1.0
+#         with:
+#           inputs: |
+#             services/api-gateway/requirements.txt
+#             services/alert-service/requirements.txt
+#             services/data-service/requirements.txt
+#           # Justification: PYSEC-2026-1325 (ecdsa side-channel timing attack) is a well-known 
+#           # transitive warning pulled in via python-jose. JWT authentication and token 
+#           # verification are not yet fully implemented in the API gateway, rendering this 
+#           # signature-related side-channel vector entirely non-functional and unexposed. 
+#           # This exception is acknowledged and will be re-evaluated upon full JWT rollout 
+#           # or migration to an active alternative like PyJWT.
+#           ignore-vulns: |
+#             PYSEC-2026-1325
+
 name: CI - Test and Build
 
 on:
@@ -35,6 +700,7 @@ jobs:
       api-gateway: ${{ steps.detect.outputs.api-gateway }} # for api-gateway service 
       alert-service: ${{ steps.detect.outputs.alert-service }} # for alert service 
       data-service: ${{ steps.detect.outputs.data-service }} # for data service 
+      system-stack: ${{ steps.detect.outputs.system-stack }}
 
 
     steps:
@@ -115,6 +781,12 @@ jobs:
             echo "data-service=false" >> "$GITHUB_OUTPUT"
           fi
 
+          if [ "$WORKFLOW_CHANGED" = true ] || grep -qE '^(frontend/|services/(api-gateway|alert-service|data-service)/|shared/|infrastructure/|docker-compose\.yml$)' "$RUNNER_TEMP/changed.txt"; then
+            echo "system-stack=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "system-stack=false" >> "$GITHUB_OUTPUT"
+          fi
+
           { grep '\.py$' "$RUNNER_TEMP/changed.txt" || true; } > "$RUNNER_TEMP/changed-python.txt"
           if [ -s "$RUNNER_TEMP/changed-python.txt" ]; then
             echo "python=true" >> "$GITHUB_OUTPUT"
@@ -164,6 +836,210 @@ jobs:
 
       - name: Unit tests
         run: npm test
+
+  frontend-ui-smoke:
+    name: Frontend UI integration (dashboard smoke)
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        env:
+          HUSKY: 0
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run dashboard smoke test
+        run: npm run test:ui-integration -- e2e/ui-integration/app.smoke.spec.ts
+
+  system-stack-smoke:
+    name: System stack (Compose + live dashboard)
+    needs: changes
+    if: needs.changes.outputs.system-stack == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        env:
+          HUSKY: 0
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+
+      - name: Prepare local Compose configuration
+        run: |
+          set -euo pipefail
+
+          for service in alert-service api-gateway data-service; do
+            cp "services/${service}/.env.example" "services/${service}/.env"
+          done
+
+          # Compose resolves every declared env_file, even when AI is not started.
+          : > services/ai-service/.env
+
+          # The gateway runs in Compose, so localhost would point back to itself.
+          sed -i \
+            -e 's/^POSTGRES_HOST=localhost$/POSTGRES_HOST=postgres/' \
+            -e 's|^CORS_ALLOW_ORIGINS=.*$|CORS_ALLOW_ORIGINS=["http://127.0.0.1:3000","http://127.0.0.1:8000"]|' \
+            services/api-gateway/.env
+
+          # docker-compose.yml mounts an initialization script absent from this checkout.
+          mkdir -p infrastructure/scripts
+          if [ ! -e infrastructure/scripts/init-db.sql ]; then
+            touch infrastructure/scripts/init-db.sql
+            echo "SYSTEM_TEST_CREATED_INIT_SQL=true" >> "$GITHUB_ENV"
+          else
+            echo "SYSTEM_TEST_CREATED_INIT_SQL=false" >> "$GITHUB_ENV"
+          fi
+
+      - name: Start infrastructure services and wait for readiness
+        run: docker compose up --detach --wait --wait-timeout 300 postgres redis rabbitmq
+
+      - name: Start backend application services
+        run: docker compose up --build --detach --no-deps data-service alert-service api-gateway
+
+      - name: Verify application APIs are serving OpenAPI documents
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          for service in "api-gateway:8000" "data-service:8001" "alert-service:8003"; do
+            name="${service%%:*}"
+            port="${service##*:}"
+            url="http://127.0.0.1:${port}/openapi.json"
+            serving=false
+            response=""
+
+            for attempt in $(seq 1 60); do
+              if response="$(curl --fail --silent --show-error --max-time 10 "$url")"; then
+                if printf '%s' "$response" | jq -e '(.paths | length) > 0' > /dev/null; then
+                  printf '%s: OpenAPI document is available\n' "$name"
+                  serving=true
+                  break
+                fi
+              fi
+              sleep 5
+            done
+
+            if [ "$serving" != true ]; then
+              echo "::error::${name} did not serve its OpenAPI document at ${url}"
+              echo "Last API response: ${response:-none}"
+              exit 1
+            fi
+          done
+
+      - name: Verify Gateway-to-Data-Service price route
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          url="http://127.0.0.1:8000/api/v1/btc/price"
+          valid_response=false
+          response=""
+
+          for attempt in $(seq 1 60); do
+            if response="$(curl --fail --silent --show-error --max-time 15 "$url")"; then
+              if printf '%s' "$response" | jq -e '.current_price != null' > /dev/null; then
+                echo "Gateway returned a populated BTC price:"
+                printf '%s\n' "$response" | jq .
+                valid_response=true
+                break
+              fi
+            fi
+            sleep 5
+          done
+
+          if [ "$valid_response" != true ]; then
+            echo "::error::Gateway did not return a populated BTC price from Data Service"
+            echo "Last gateway response: ${response:-none}"
+            exit 1
+          fi
+
+      - name: Verify Gateway-to-Alert-Service notifications route
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          url="http://127.0.0.1:8000/api/v1/notifications"
+          valid_response=false
+          response=""
+
+          for attempt in $(seq 1 60); do
+            if response="$(curl --fail --silent --show-error --max-time 15 "$url")"; then
+              if printf '%s' "$response" | jq -e '.notifications | type == "array"' > /dev/null; then
+                echo "Gateway returned an Alert Service notifications response:"
+                printf '%s\n' "$response" | jq .
+                valid_response=true
+                break
+              fi
+            fi
+            sleep 5
+          done
+
+          if [ "$valid_response" != true ]; then
+            echo "::error::Gateway did not return notifications from Alert Service"
+            echo "Last gateway response: ${response:-none}"
+            exit 1
+          fi
+
+      - name: Run dashboard smoke test against the live Gateway
+        working-directory: frontend
+        env:
+          VITE_API_GATEWAY_BASE_URL: http://127.0.0.1:8000
+        run: npm run test:ui-integration -- e2e/ui-integration/app.smoke.spec.ts
+
+      - name: Show Compose status and logs on failure
+        if: failure()
+        run: |
+          docker compose ps --all
+          docker compose logs --no-color --tail=100
+
+      - name: Stop Compose stack and remove generated inputs
+        if: always()
+        run: |
+          status=0
+          if [ -f services/data-service/.env ]; then
+            docker compose down --volumes --remove-orphans || status=$?
+          fi
+          rm -f \
+            services/ai-service/.env \
+            services/alert-service/.env \
+            services/api-gateway/.env \
+            services/data-service/.env
+          if [ "${SYSTEM_TEST_CREATED_INIT_SQL:-false}" = true ]; then
+            rm -f infrastructure/scripts/init-db.sql
+          fi
+          exit "$status"
 
   # Scoped to the Python files a change actually touches. A repo-wide
   # `black --check .` fails on 395 of the 457 files in the repo, which made
