@@ -10,6 +10,8 @@ CLI-isolated targets:
     - model_performance_cli
     - btc_macro_correlation_cli
     - historical_event_impacts_cli
+    - model_champions_cli
+    - champion_candidates_cli
     - cli_data/models/
     - cli_data/exports/
 
@@ -20,14 +22,15 @@ the rest of the application. The CLI does this automatically at
 startup, so the caller doesn't need to remember to set it.
 
 Subcommands:
-    train           Train the 6 ML model variants.
-    backtest        Run walk-forward backtests (12 pairs).
-    predict         Generate predictions (both horizons).
-    correlation     Compute BTC-vs-macro correlations.
-    event-impact    Recompute event reactions.
-    export-cleanup  Delete expired export files.
-    run             Run all six above, in sequence.
-    simulate        Replay analytics jobs for N historical days.
+    train             Train the 6 ML model variants.
+    backtest          Run walk-forward backtests (12 pairs).
+    predict           Generate predictions (both horizons).
+    correlation       Compute BTC-vs-macro correlations.
+    event-impact      Recompute event reactions.
+    export-cleanup    Delete expired export files.
+    promote-champion  Rank models and promote champions.
+    run               Run all seven above, in sequence.
+    simulate          Replay analytics jobs for N historical days.
 
 Usage:
     python -m app.cli.pipeline train
@@ -36,6 +39,7 @@ Usage:
     python -m app.cli.pipeline correlation
     python -m app.cli.pipeline event-impact
     python -m app.cli.pipeline export-cleanup
+    python -m app.cli.pipeline promote-champion
     python -m app.cli.pipeline run
     python -m app.cli.pipeline simulate --days 30 \
         --jobs correlation,event-impact --end-date 2024-12-09
@@ -91,6 +95,7 @@ from app.scheduler.jobs import (
     daily_correlation_job,
     daily_event_impact_update_job,
     daily_export_cleanup_job,
+    daily_promote_champion_job,
     daily_retrain_job,
     hourly_prediction_job,
 )
@@ -326,15 +331,57 @@ async def _cmd_export_cleanup(args: argparse.Namespace) -> int:
 
 
 # ============================================================
+# SUBCOMMAND: promote-champion
+# ============================================================
+async def _cmd_promote_champion(args: argparse.Namespace) -> int:
+    """Rank models and promote champions for both horizons.
+
+    Runs `daily_promote_champion_job` in CLI mode, so all reads
+    and writes go to the `_cli` mirror tables:
+
+        - Reads:  prediction_performance_cli,
+                  model_champions_cli,
+                  champion_candidates_cli
+        - Writes: model_champions_cli,
+                  champion_candidates_cli
+
+    Production champion state is never touched. To inspect the
+    outcome, query the `_cli` tables directly:
+
+        SELECT horizon, market_condition, model_name, metric_value
+        FROM model_champions_cli
+        ORDER BY horizon, market_condition NULLS FIRST;
+
+    Idempotency: the underlying job uses ON CONFLICT DO NOTHING
+    for candidate rows and ON CONFLICT DO UPDATE for champion
+    rows, so re-running on the same day is safe.
+    """
+    _print_banner("promote-champion")
+
+    ok, _, _ = await _run_job(
+        "daily_promote_champion_job",
+        daily_promote_champion_job,
+        dry_run=args.dry_run,
+    )
+    return 0 if ok else 1
+
+
+# ============================================================
 # SUBCOMMAND: run (full sequence)
 # ============================================================
 async def _cmd_run(args: argparse.Namespace) -> int:
     """Run the full daily cycle in order.
 
     Order: retrain → backtest → predict → correlation →
-    event-impact → export-cleanup.
+    event-impact → export-cleanup → promote-champion.
 
     Fails fast: if a step fails, subsequent steps are skipped.
+
+    Note: `promote-champion` runs last because it depends on the
+    output of `backtest` (metrics in prediction_performance_cli).
+    Running it after everything else matches the scheduler's
+    ordering, where the promotion job is the final ML job of the
+    day.
     """
     _print_banner("run")
 
@@ -346,6 +393,7 @@ async def _cmd_run(args: argparse.Namespace) -> int:
         ("daily_correlation_job", daily_correlation_job),
         ("daily_event_impact_update_job", daily_event_impact_update_job),
         ("daily_export_cleanup_job", daily_export_cleanup_job),
+        ("daily_promote_champion_job", daily_promote_champion_job),
     ]
 
     start = time.monotonic()
@@ -535,6 +583,13 @@ def build_arg_parser() -> argparse.ArgumentParser:
     )
     _add_common(p_exp)
 
+    # ---- promote-champion ----
+    p_champ = subparsers.add_parser(
+        "promote-champion",
+        help="Rank models and promote champions (CLI-isolated).",
+    )
+    _add_common(p_champ)
+
     # ---- run ----
     p_run = subparsers.add_parser(
         "run", help="Run the full daily cycle in sequence."
@@ -586,6 +641,7 @@ _SUBCOMMANDS = {
     "correlation": _cmd_correlation,
     "event-impact": _cmd_event_impact,
     "export-cleanup": _cmd_export_cleanup,
+    "promote-champion": _cmd_promote_champion,
     "run": _cmd_run,
     "simulate": _cmd_simulate,
 }
