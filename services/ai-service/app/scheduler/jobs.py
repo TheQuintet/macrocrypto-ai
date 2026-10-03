@@ -97,7 +97,6 @@ Regime-aware serving (Phase 4):
 """
 
 import logging
-from app.rabbitmq import RabbitMQPublisher
 from datetime import datetime, timezone
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
@@ -156,9 +155,9 @@ from app.prediction.market import (
     ALL_CONDITIONS,
     classify_market_condition_safe,
 )
+from app.rabbitmq import RabbitMQPublisher
 
 logger = logging.getLogger(__name__)
-
 
 # ============================================================
 # JOB NAME CONSTANTS
