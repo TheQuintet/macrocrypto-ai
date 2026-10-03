@@ -239,7 +239,6 @@ async def test_process_message_cache_error():
     )
 
 
-
 @pytest.mark.asyncio
 async def test_process_message_rabbitmq_publish():
 
@@ -265,8 +264,7 @@ async def test_process_message_rabbitmq_publish():
         }
     )
 
-
-    rabbit.publish_price_update.assert_called_once()
+    rabbit.publish_btc_update.assert_called_once()
 
 
 
@@ -275,7 +273,7 @@ async def test_process_message_rabbitmq_error():
 
     rabbit = MagicMock()
 
-    rabbit.publish_price_update.side_effect = Exception(
+    rabbit.publish_btc_update.side_effect = Exception(
         "rabbit failure"
     )
 

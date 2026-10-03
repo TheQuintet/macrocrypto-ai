@@ -10,6 +10,7 @@ from sqlalchemy import text
 
 from app.config import settings
 from app.database.session import init_db, SessionLocal
+from app.rabbitmq.btc_update_consumer import BTCUpdateConsumer
 from app.rabbitmq.consumer import RabbitMQConsumer
 from app.rabbitmq.producer import RabbitMQProducer
 from app.api.routes import router
@@ -65,12 +66,12 @@ async def lifespan(app: FastAPI):
     
     # Initialize RabbitMQ consumer with callbacks
     try:
-        rabbitmq_consumer = RabbitMQConsumer()
-        if rabbitmq_consumer.connect():
-            rabbitmq_consumer.price_callback = handle_price_update
-            logger.info("✅ RabbitMQ consumer connected and callbacks registered")
-        else:
-            logger.warning("⚠️ RabbitMQ consumer connection failed")
+        rabbitmq_consumer = BTCUpdateConsumer(
+            RabbitMQConsumer(),
+            handle_price_update,
+        )
+        rabbitmq_consumer.start()
+        logger.info("✅ BTC price update consumer started")
     except Exception as e:
         logger.error(f"❌ RabbitMQ consumer initialization failed: {e}")
     
