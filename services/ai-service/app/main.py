@@ -18,6 +18,7 @@ from app.api.v1 import (
 from app.cache.redis_client import close_redis, ping_redis
 from app.config import settings
 from app.health import router as health_router
+from app.rabbitmq import RabbitMQConsumer
 from app.scheduler.manager import scheduler_manager
 
 
@@ -62,14 +63,18 @@ async def lifespan(app: FastAPI):
     scheduler_manager.setup()
     scheduler_manager.start()
 
-    # Remaining startup steps (RabbitMQ consumer, MLflow,
-    # model load) will be added in subsequent branches.
+    # ---- RabbitMQ consumer ----
+    # Best-effort. If RabbitMQ is unreachable, the consumer logs
+    # a warning and disables itself; the service continues running.
+    consumer = RabbitMQConsumer()
+    await consumer.start()
 
     yield
 
     # ============================================================
     # SHUTDOWN
     # ============================================================
+    await consumer.stop()
     scheduler_manager.shutdown()
     await close_redis()
     logger.info(f"Stopping {__service_name__}")
