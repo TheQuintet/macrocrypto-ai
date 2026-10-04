@@ -35,6 +35,7 @@ jobs:
       api-gateway: ${{ steps.detect.outputs.api-gateway }} # for api-gateway service 
       alert-service: ${{ steps.detect.outputs.alert-service }} # for alert service 
       data-service: ${{ steps.detect.outputs.data-service }} # for data service 
+      system-stack: ${{ steps.detect.outputs.system-stack }}
 
 
     steps:
@@ -115,6 +116,12 @@ jobs:
             echo "data-service=false" >> "$GITHUB_OUTPUT"
           fi
 
+          if [ "$WORKFLOW_CHANGED" = true ] || grep -qE '^(frontend/|services/(api-gateway|alert-service|data-service)/|shared/|infrastructure/|docker-compose\.yml$)' "$RUNNER_TEMP/changed.txt"; then
+            echo "system-stack=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "system-stack=false" >> "$GITHUB_OUTPUT"
+          fi
+
           { grep '\.py$' "$RUNNER_TEMP/changed.txt" || true; } > "$RUNNER_TEMP/changed-python.txt"
           if [ -s "$RUNNER_TEMP/changed-python.txt" ]; then
             echo "python=true" >> "$GITHUB_OUTPUT"
@@ -165,12 +172,38 @@ jobs:
       - name: Unit tests
         run: npm test
 
-  # Scoped to the Python files a change actually touches. A repo-wide
-  # `black --check .` fails on 395 of the 457 files in the repo, which made
-  # every run red regardless of the work under review - the 30 runs before this
-  # one all failed here, back to 22 August, so the check carried no signal at
-  # all. Reformatting that backlog is its own piece of work: 301 of those files
-  # need real changes, not just a missing final newline.
+  frontend-ui-smoke:
+    name: Frontend UI integration (dashboard smoke)
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        env:
+          HUSKY: 0
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run dashboard smoke test
+        run: npm run test:ui-integration -- e2e/ui-integration/app.smoke.spec.ts
+
   python-quality:
     name: Python (lint, formatting)
     needs: changes
@@ -235,7 +268,7 @@ jobs:
           fi
 
   api-gateway-tests:
-    name: API Gateway (pytest)
+    name: API Gateway (pytest + coverage)
     needs: changes
     if: needs.changes.outputs.api-gateway == 'true' || github.event.inputs.run-everything == 'true'
     runs-on: ubuntu-latest
@@ -278,14 +311,38 @@ jobs:
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
           if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
 
-      - name: Run pytest
+      - name: Run pytest and generate coverage report
         env:
           DATABASE_URL: postgresql://macro:crypto@localhost:5432/macrocrypto
-        run: pytest
+        run: pytest --cov-report=xml:coverage.xml
+
+      - name: Add API Gateway coverage to job summary
+        if: always()
+        run: |
+          python - <<'PY'
+          import os
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+
+          report = Path("coverage.xml")
+          summary = Path(os.environ["GITHUB_STEP_SUMMARY"])
+          with summary.open("a", encoding="utf-8") as output:
+              output.write("## API Gateway coverage\n\n")
+              if not report.exists():
+                  output.write("Coverage report was not generated.\n")
+              else:
+                  root = ET.parse(report).getroot()
+                  percent = float(root.attrib["line-rate"]) * 100
+                  covered = root.attrib["lines-covered"]
+                  total = root.attrib["lines-valid"]
+                  output.write(
+                      f"**Line coverage:** {percent:.1f}% ({covered}/{total} lines)\n"
+                  )
+          PY
   
 
   test-alert-service:
-    name: Alert Service (pytest)
+    name: Alert Service (pytest + coverage)
     needs: changes
     if: needs.changes.outputs.alert-service == 'true' || github.event.inputs.run-everything == 'true'
     
@@ -324,15 +381,39 @@ jobs:
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
           if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
 
-      - name: Run Pytest
+      - name: Run pytest and generate coverage report
         env:
           DATABASE_URL: postgresql://macro:crypto@localhost:5432/macrocrypto
           # SECRET_KEY: test-secret-key-for-testing-only
-        run: pytest
+        run: pytest --cov-report=xml:coverage.xml
+
+      - name: Add Alert Service coverage to job summary
+        if: always()
+        run: |
+          python - <<'PY'
+          import os
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+
+          report = Path("coverage.xml")
+          summary = Path(os.environ["GITHUB_STEP_SUMMARY"])
+          with summary.open("a", encoding="utf-8") as output:
+              output.write("## Alert Service coverage\n\n")
+              if not report.exists():
+                  output.write("Coverage report was not generated.\n")
+              else:
+                  root = ET.parse(report).getroot()
+                  percent = float(root.attrib["line-rate"]) * 100
+                  covered = root.attrib["lines-covered"]
+                  total = root.attrib["lines-valid"]
+                  output.write(
+                      f"**Line coverage:** {percent:.1f}% ({covered}/{total} lines)\n"
+                  )
+          PY
 
 
   test-data-service:
-    name: Data Service (pytest)
+    name: Data Service (pytest + coverage)
     needs: changes
     if: needs.changes.outputs.data-service == 'true' || github.event.inputs.run-everything == 'true'
     
@@ -417,10 +498,34 @@ jobs:
           done
 
           # 3. Run pytest quietly, ignoring ml_qa
-          pytest -q --show-capture=no --ignore=tests/ml_qa --cov=app --cov-report=term-missing
+          pytest -q --show-capture=no --ignore=tests/ml_qa --cov=app --cov-report=term-missing --cov-report=xml:coverage.xml
 
           # 4. Clean up the background server process
           kill $SERVER_PID
+
+      - name: Add Data Service coverage to job summary
+        if: always()
+        run: |
+          python - <<'PY'
+          import os
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+
+          report = Path("coverage.xml")
+          summary = Path(os.environ["GITHUB_STEP_SUMMARY"])
+          with summary.open("a", encoding="utf-8") as output:
+              output.write("## Data Service coverage\n\n")
+              if not report.exists():
+                  output.write("Coverage report was not generated.\n")
+              else:
+                  root = ET.parse(report).getroot()
+                  percent = float(root.attrib["line-rate"]) * 100
+                  covered = root.attrib["lines-covered"]
+                  total = root.attrib["lines-valid"]
+                  output.write(
+                      f"**Line coverage:** {percent:.1f}% ({covered}/{total} lines)\n"
+                  )
+          PY
 
   # --- Security Audit Runs After Tests Pass ---
   Security-Audit:
@@ -451,3 +556,274 @@ jobs:
           # or migration to an active alternative like PyJWT.
           ignore-vulns: |
             PYSEC-2026-1325
+
+  # End-to-end system smoke: starts the DB, broker, cache, data service, alert service
+  system-stack-smoke:
+    name: System stack (Compose + live dashboard)
+    needs: changes
+    if: needs.changes.outputs.system-stack == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        env:
+          HUSKY: 0
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+
+      - name: Prepare local Compose configuration
+        run: |
+          set -euo pipefail
+
+          for service in alert-service api-gateway data-service; do
+            cp "services/${service}/.env.example" "services/${service}/.env"
+          done
+
+          # Compose resolves every declared env_file, even when AI is not started.
+          : > services/ai-service/.env
+
+          # The gateway runs in Compose, so localhost would point back to itself.
+          sed -i \
+            -e 's/^POSTGRES_HOST=localhost$/POSTGRES_HOST=postgres/' \
+            -e 's|^CORS_ALLOW_ORIGINS=.*$|CORS_ALLOW_ORIGINS=["http://127.0.0.1:3000","http://127.0.0.1:8000"]|' \
+            services/api-gateway/.env
+
+          # docker-compose.yml mounts an initialization script absent from this checkout.
+          mkdir -p infrastructure/scripts
+          if [ ! -e infrastructure/scripts/init-db.sql ]; then
+            touch infrastructure/scripts/init-db.sql
+            echo "SYSTEM_TEST_CREATED_INIT_SQL=true" >> "$GITHUB_ENV"
+          else
+            echo "SYSTEM_TEST_CREATED_INIT_SQL=false" >> "$GITHUB_ENV"
+          fi
+
+          mkdir -p "$RUNNER_TEMP/system-test-market-feed"
+          cat > "$RUNNER_TEMP/system-test-market-feed/Dockerfile" <<'DOCKERFILE'
+          FROM python:3.13-slim
+          RUN pip install --no-cache-dir 'websockets>=16.1.1'
+          WORKDIR /app
+          COPY server.py .
+          CMD ["python", "server.py"]
+          DOCKERFILE
+
+          cat > "$RUNNER_TEMP/system-test-market-feed/server.py" <<'PYTHON'
+          import asyncio
+          import json
+          import threading
+          import time
+          from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+          from websockets.asyncio.server import serve
+
+          class MarketHistoryHandler(BaseHTTPRequestHandler):
+              def do_GET(self):
+                  now_ms = int(time.time() * 1000)
+                  candles = [
+                      [
+                          now_ms - (7 - day) * 86_400_000,
+                          "64000",
+                          "66000",
+                          "63000",
+                          str(64000 + day * 100),
+                          "100",
+                      ]
+                      for day in range(8)
+                  ]
+                  body = json.dumps(candles).encode()
+                  self.send_response(200)
+                  self.send_header("Content-Type", "application/json")
+                  self.send_header("Content-Length", str(len(body)))
+                  self.end_headers()
+                  self.wfile.write(body)
+
+              def log_message(self, *_):
+                  pass
+
+          async def stream_prices(websocket):
+              await websocket.recv()
+              ticker = {
+                  "e": "24hrTicker",
+                  "s": "BTCUSDT",
+                  "c": "65000.00",
+                  "o": "64500.00",
+                  "h": "65500.00",
+                  "l": "64000.00",
+                  "v": "1234.00",
+                  "q": "80000000.00",
+                  "p": "500.00",
+                  "P": "0.78",
+              }
+              while True:
+                  ticker["E"] = int(time.time() * 1000)
+                  await websocket.send(json.dumps(ticker))
+                  await asyncio.sleep(1)
+
+          async def main():
+              history_server = ThreadingHTTPServer(
+                  ("0.0.0.0", 8766), MarketHistoryHandler
+              )
+              threading.Thread(target=history_server.serve_forever, daemon=True).start()
+              async with serve(stream_prices, "0.0.0.0", 8765):
+                  await asyncio.Future()
+
+          asyncio.run(main())
+          PYTHON
+
+          cat > "$RUNNER_TEMP/system-stack.override.yml" <<EOF
+          services:
+            system-test-market-feed:
+              build:
+                context: $RUNNER_TEMP/system-test-market-feed
+              networks:
+                - macro-network
+              healthcheck:
+                test: ["CMD", "python", "-c", "import socket; socket.create_connection(('127.0.0.1', 8765), timeout=2).close()"]
+                interval: 2s
+                timeout: 3s
+                retries: 30
+                start_period: 5s
+            data-service:
+              environment:
+                BINANCE_WS_URL: ws://system-test-market-feed:8765
+                BINANCE_HISTORY_API: http://system-test-market-feed:8766/api/v3/klines
+          EOF
+
+          echo "COMPOSE_FILE=docker-compose.yml:$RUNNER_TEMP/system-stack.override.yml" >> "$GITHUB_ENV"
+
+
+      - name: Start infrastructure services and wait for readiness
+        run: docker compose up --detach --wait --wait-timeout 300 postgres redis rabbitmq
+
+      - name: Start deterministic market feed
+        run: docker compose up --build --detach --wait --wait-timeout 120 system-test-market-feed
+
+
+      - name: Start backend application services
+        run: docker compose up --build --detach --no-deps data-service alert-service api-gateway
+
+      - name: Verify application APIs are serving OpenAPI documents
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          for service in "api-gateway:8000" "data-service:8001" "alert-service:8003"; do
+            name="${service%%:*}"
+            port="${service##*:}"
+            url="http://127.0.0.1:${port}/openapi.json"
+            serving=false
+            response=""
+
+            for attempt in $(seq 1 60); do
+              if response="$(curl --fail --silent --show-error --max-time 10 "$url")"; then
+                if printf '%s' "$response" | jq -e '(.paths | length) > 0' > /dev/null; then
+                  printf '%s: OpenAPI document is available\n' "$name"
+                  serving=true
+                  break
+                fi
+              fi
+              sleep 5
+            done
+
+            if [ "$serving" != true ]; then
+              echo "::error::${name} did not serve its OpenAPI document at ${url}"
+              echo "Last API response: ${response:-none}"
+              exit 1
+            fi
+          done
+
+      - name: Verify Gateway-to-Data-Service price route
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          url="http://127.0.0.1:8000/api/v1/btc/price"
+          valid_response=false
+          response=""
+
+          for attempt in $(seq 1 60); do
+            if response="$(curl --fail --silent --show-error --max-time 15 "$url")"; then
+              if printf '%s' "$response" | jq -e '.current_price != null' > /dev/null; then
+                echo "Gateway returned a populated BTC price:"
+                printf '%s\n' "$response" | jq .
+                valid_response=true
+                break
+              fi
+            fi
+            sleep 5
+          done
+
+          if [ "$valid_response" != true ]; then
+            echo "::error::Gateway did not return a populated BTC price from Data Service"
+            echo "Last gateway response: ${response:-none}"
+            exit 1
+          fi
+
+      - name: Verify Gateway-to-Alert-Service notifications route
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          url="http://127.0.0.1:8000/api/v1/notifications"
+          valid_response=false
+          response=""
+
+          for attempt in $(seq 1 60); do
+            if response="$(curl --fail --silent --show-error --max-time 15 "$url")"; then
+              if printf '%s' "$response" | jq -e '.notifications | type == "array"' > /dev/null; then
+                echo "Gateway returned an Alert Service notifications response:"
+                printf '%s\n' "$response" | jq .
+                valid_response=true
+                break
+              fi
+            fi
+            sleep 5
+          done
+
+          if [ "$valid_response" != true ]; then
+            echo "::error::Gateway did not return notifications from Alert Service"
+            echo "Last gateway response: ${response:-none}"
+            exit 1
+          fi
+
+      - name: Run dashboard smoke test against the live Gateway
+        working-directory: frontend
+        env:
+          VITE_API_GATEWAY_BASE_URL: http://127.0.0.1:8000
+        run: npm run test:ui-integration -- e2e/ui-integration/app.smoke.spec.ts
+
+      - name: Show Compose status and logs on failure
+        if: failure()
+        run: |
+          docker compose ps --all
+          docker compose logs --no-color --tail=100
+
+      - name: Stop Compose stack and remove generated inputs
+        if: always()
+        run: |
+          status=0
+          if [ -f services/data-service/.env ]; then
+            docker compose down --volumes --remove-orphans || status=$?
+          fi
+          rm -f \
+            services/ai-service/.env \
+            services/alert-service/.env \
+            services/api-gateway/.env \
+            services/data-service/.env
+          if [ "${SYSTEM_TEST_CREATED_INIT_SQL:-false}" = true ]; then
+            rm -f infrastructure/scripts/init-db.sql
+          fi
+          exit "$status"
