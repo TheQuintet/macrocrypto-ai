@@ -74,7 +74,8 @@ describe('MacroIndicatorsSection', () => {
     renderSection()
 
     const filter = await screen.findByRole('group', { name: 'Indicator filter' })
-    await user.click(within(filter).getByRole('button', { name: 'CPI' }))
+    const cpiFilter = await within(filter).findByRole('button', { name: 'CPI' })
+    await user.click(cpiFilter)
 
     const table = await screen.findByRole('region', {
       name: /historical indicator observations/i,

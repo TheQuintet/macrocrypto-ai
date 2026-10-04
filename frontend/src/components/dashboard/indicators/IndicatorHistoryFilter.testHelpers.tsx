@@ -4,12 +4,19 @@ import { expect } from 'vitest'
 import { IndicatorHistoryFilter } from '@/components/dashboard/indicators/IndicatorHistoryFilter'
 import type { IndicatorHistoryFilter as IndicatorHistoryFilterValue } from '@/types/macroIndicators'
 
+const DEFAULT_SERIES_NAMES = ['cpi', 'federal_funds_rate', 'gdp'] as const
+
 export function renderIndicatorHistoryFilter(
   value: IndicatorHistoryFilterValue = 'all',
   onChange: (value: IndicatorHistoryFilterValue) => void = () => {},
+  seriesNames: string[] = [...DEFAULT_SERIES_NAMES],
 ) {
   return render(
-    <IndicatorHistoryFilter value={value} onChange={onChange} />,
+    <IndicatorHistoryFilter
+      value={value}
+      seriesNames={seriesNames}
+      onChange={onChange}
+    />,
   )
 }
 

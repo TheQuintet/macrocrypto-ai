@@ -1,10 +1,10 @@
 import { MACRO_INDICATORS_PATH } from '@/constants/apiUrls'
 import { apiUrl } from '@/lib/apiConfig'
 import type { MacroIndicator } from '@/types/macroIndicators'
+import { normalizeMacroIndicatorsFromApi } from '@/lib/macroIndicatorDisplay'
 import {
   MACRO_INDICATORS_MOCK_LATENCY_MS,
   delay,
-  keepMainIndicators,
   mockLatestIndicators,
   withDataSource,
 } from '@/api/macroIndicators/macroIndicatorsShared'
@@ -48,5 +48,8 @@ export async function fetchMacroIndicators(): Promise<MacroIndicator[]> {
   }
 
   const data = await response.json()
-  return withDataSource(keepMainIndicators(data.indicators || []), 'live')
+  return withDataSource(
+    normalizeMacroIndicatorsFromApi(data.indicators || []),
+    'live',
+  )
 }

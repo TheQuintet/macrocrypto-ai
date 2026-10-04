@@ -2,9 +2,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { MacroIndicatorImpact } from '@/components/dashboard/indicators/MacroIndicatorImpact'
 import { indicatorSeriesColor } from '@/lib/indicatorSeriesColor'
 import {
-  formatIndicatorTimestamp,
-  formatIndicatorTitle,
-} from '@/lib/macroIndicatorHistory'
+  formatIndicatorCardTitle,
+  formatIndicatorValue,
+} from '@/lib/macroIndicatorDisplay'
+import { formatIndicatorTimestamp } from '@/lib/macroIndicatorHistory'
 import type { MacroIndicator } from '@/types/macroIndicators'
 
 type MacroIndicatorCardProps = {
@@ -25,13 +26,16 @@ export function MacroIndicatorCard({ indicator }: MacroIndicatorCardProps) {
           className="text-xs font-medium tracking-wider sm:text-sm"
           style={{ color: seriesColor }}
         >
-          {formatIndicatorTitle(indicator.indicator_name).toUpperCase()}
+          {formatIndicatorCardTitle(indicator.indicator_name)}
         </CardTitle>
       </CardHeader>
       <CardContent>
         <div className="flex min-w-0 flex-wrap items-center justify-between gap-x-2 gap-y-1">
           <span className="min-w-0 text-xl font-bold tabular-nums sm:text-2xl">
-            {indicator.current_value.toFixed(2)}
+            {formatIndicatorValue(
+              indicator.current_value,
+              indicator.indicator_name,
+            )}
           </span>
           <MacroIndicatorImpact
             indicatorName={indicator.indicator_name}
@@ -39,7 +43,13 @@ export function MacroIndicatorCard({ indicator }: MacroIndicatorCardProps) {
           />
         </div>
         <div className="mt-2 flex min-w-0 flex-col gap-0.5 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-          <span>Previous: {indicator.previous_value?.toFixed(2) ?? '--'}</span>
+          <span>
+            Previous:{' '}
+            {formatIndicatorValue(
+              indicator.previous_value,
+              indicator.indicator_name,
+            )}
+          </span>
           <span>Updated: {formatIndicatorTimestamp(indicator.time)}</span>
         </div>
       </CardContent>

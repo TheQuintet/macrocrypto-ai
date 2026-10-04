@@ -14,6 +14,9 @@ type IndicatorFamily =
   | 'growth'
   | 'liquidity'
   | 'dollar'
+  | 'volatility'
+  | 'credit_stress'
+  | 'on_chain'
   | 'other'
 
 const RISE_IS_NEGATIVE_FOR_BTC: ReadonlySet<IndicatorFamily> = new Set([
@@ -21,6 +24,8 @@ const RISE_IS_NEGATIVE_FOR_BTC: ReadonlySet<IndicatorFamily> = new Set([
   'rates',
   'unemployment',
   'dollar',
+  'volatility',
+  'credit_stress',
 ])
 
 const FAMILY_REASONS: Record<
@@ -50,6 +55,18 @@ const FAMILY_REASONS: Record<
   dollar: {
     up: 'A stronger dollar (DXY) is typically negative for BTC.',
     down: 'A weaker dollar (DXY) is typically positive for BTC.',
+  },
+  volatility: {
+    up: 'Rising volatility (VIX) is typically negative for BTC (risk-off).',
+    down: 'Falling volatility is typically positive for BTC (risk-on).',
+  },
+  credit_stress: {
+    up: 'Wider credit spreads are typically negative for BTC (stress / risk-off).',
+    down: 'Tighter credit spreads are typically positive for BTC (risk-on).',
+  },
+  on_chain: {
+    up: 'More active addresses are typically positive for BTC (network usage).',
+    down: 'Fewer active addresses are typically negative for BTC (weaker usage).',
   },
   other: {
     up: 'This increase is treated as positive for BTC.',
@@ -89,6 +106,15 @@ export function indicatorFamily(indicatorName: string): IndicatorFamily {
   if (name === 'gdp' || name.includes('gdp')) return 'growth'
   if (name.includes('m2') || name.includes('money_supply')) return 'liquidity'
   if (name === 'dxy' || name.includes('dollar')) return 'dollar'
+  if (name === 'vix' || name.includes('volatility')) return 'volatility'
+  if (name.includes('high_yield') || name.includes('spread')) {
+    return 'credit_stress'
+  }
+  if (name === 'nasdaq_composite' || name.includes('nasdaq')) return 'growth'
+  if (name === 'gold_spot' || name.includes('gold')) return 'dollar'
+  if (name === 'active_addresses' || name.includes('active_address')) {
+    return 'on_chain'
+  }
   return 'other'
 }
 

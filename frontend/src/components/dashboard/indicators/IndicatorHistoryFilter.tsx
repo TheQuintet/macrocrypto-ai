@@ -1,30 +1,34 @@
+import { useMemo } from 'react'
 import { ChevronDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { formatIndicatorFilterLabel } from '@/lib/macroIndicatorDisplay'
 import { indicatorSeriesColor } from '@/lib/indicatorSeriesColor'
 import { cn } from '@/lib/utils'
 import type { IndicatorHistoryFilter } from '@/types/macroIndicators'
 
-const INDICATOR_FILTER_OPTIONS: {
-  value: IndicatorHistoryFilter
-  label: string
-}[] = [
-  { value: 'all', label: 'All' },
-  { value: 'cpi', label: 'CPI' },
-  { value: 'federal_funds_rate', label: 'Fed funds' },
-  { value: 'gdp', label: 'GDP' },
-]
-
 type IndicatorHistoryFilterProps = {
   value: IndicatorHistoryFilter
+  seriesNames: string[]
   onChange: (value: IndicatorHistoryFilter) => void
 }
 
 export function IndicatorHistoryFilter({
   value,
+  seriesNames,
   onChange,
 }: IndicatorHistoryFilterProps) {
-  const seriesColor =
-    value === 'all' ? undefined : indicatorSeriesColor(value)
+  const options = useMemo(() => {
+    const unique = [...new Set(seriesNames)].sort((a, b) => a.localeCompare(b))
+    return [
+      { value: 'all' as const, label: 'All' },
+      ...unique.map((name) => ({
+        value: name,
+        label: formatIndicatorFilterLabel(name),
+      })),
+    ]
+  }, [seriesNames])
+
+  const seriesColor = value === 'all' ? undefined : indicatorSeriesColor(value)
 
   return (
     <div className="w-full min-w-0 sm:w-auto">
@@ -49,7 +53,7 @@ export function IndicatorHistoryFilter({
             seriesColor ? 'pl-8' : 'pl-3',
           )}
         >
-          {INDICATOR_FILTER_OPTIONS.map((option) => (
+          {options.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
             </option>
@@ -66,7 +70,7 @@ export function IndicatorHistoryFilter({
         role="group"
         aria-label="Indicator filter"
       >
-        {INDICATOR_FILTER_OPTIONS.map((option) => (
+        {options.map((option) => (
           <Button
             key={option.value}
             type="button"

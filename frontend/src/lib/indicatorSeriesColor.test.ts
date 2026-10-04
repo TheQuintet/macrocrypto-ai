@@ -28,9 +28,11 @@ describe('indicatorSeriesColor', () => {
     )
   })
 
-  it('falls back for unknown series', () => {
-    expect(indicatorSeriesColor('unknown_print')).toBe(
-      'var(--muted-foreground)',
-    )
+  it('assigns a stable chart color for unknown series', () => {
+    const first = indicatorSeriesColor('unknown_print')
+    const second = indicatorSeriesColor('unknown_print')
+
+    expect(first).toMatch(/^var\(--chart-[2-5]\)$/)
+    expect(second).toBe(first)
   })
 })

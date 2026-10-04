@@ -92,7 +92,7 @@ describe('fetchMacroIndicators with a backend configured', () => {
     )
   })
 
-  it('keeps only CPI, Fed funds, and GDP using backend names', async () => {
+  it('returns every indicator from the API in stable name order', async () => {
     mockFetchJson(mockIndicatorsApiResponse)
     const { fetchMacroIndicators } = await loadApi()
 
@@ -102,11 +102,8 @@ describe('fetchMacroIndicators with a backend configured', () => {
       'cpi',
       'federal_funds_rate',
       'gdp',
-    ])
-    expect(MAIN_INDICATOR_NAMES).toEqual([
-      'cpi',
-      'federal_funds_rate',
-      'gdp',
+      'm2_money_supply',
+      'unemployment',
     ])
   })
 
@@ -123,7 +120,7 @@ describe('fetchMacroIndicators with a backend configured', () => {
     const indicators = await fetchMacroIndicators()
 
     expect(indicators).toHaveLength(1)
-    expect(indicators[0].indicator_name).toBe('CPI')
+    expect(indicators[0].indicator_name).toBe('cpi')
   })
 
   it('returns an empty list when the payload has no indicators', async () => {
