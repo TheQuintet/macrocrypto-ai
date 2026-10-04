@@ -799,11 +799,11 @@ jobs:
             exit 1
           fi
 
-      - name: Run dashboard smoke test against the live Gateway
+      - name: Run system E2E (Playwright) against the live Gateway
         working-directory: frontend
         env:
           VITE_API_GATEWAY_BASE_URL: http://127.0.0.1:8000
-        run: npm run test:ui-integration -- e2e/ui-integration/app.smoke.spec.ts
+        run: npm run test:e2e:system
 
       - name: Show Compose status and logs on failure
         if: failure()
