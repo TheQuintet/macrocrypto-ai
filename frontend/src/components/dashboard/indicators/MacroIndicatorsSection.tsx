@@ -5,6 +5,7 @@ import { PriceChart } from '@/components/dashboard/PriceChart'
 import { MacroIndicators } from '@/components/dashboard/MacroIndicators'
 import { useMacroIndicatorHistoryQuery } from '@/hooks/useMacroIndicatorHistoryQuery'
 import { useMacroIndicatorsQuery } from '@/hooks/useMacroIndicatorsQuery'
+import { uniqueIndicatorNames } from '@/lib/macroIndicatorDisplay'
 import { filterIndicatorsByName } from '@/lib/macroIndicatorHistory'
 import { usePreferencesStore } from '@/stores/preferencesStore'
 import type { IndicatorHistoryFilter as SeriesFilter } from '@/types/macroIndicators'
@@ -16,6 +17,10 @@ export function MacroIndicatorsSection() {
   const latestQuery = useMacroIndicatorsQuery()
   const historyQuery = useMacroIndicatorHistoryQuery(timeRange)
   const history = historyQuery.data ?? []
+  const seriesNames =
+    history.length > 0
+      ? uniqueIndicatorNames(history)
+      : uniqueIndicatorNames(latestQuery.data ?? [])
   const visibleHistory = filterIndicatorsByName(history, indicatorFilter)
 
   return (
@@ -49,6 +54,7 @@ export function MacroIndicatorsSection() {
             </div>
             <IndicatorHistoryFilter
               value={indicatorFilter}
+              seriesNames={seriesNames}
               onChange={setIndicatorFilter}
             />
           </div>

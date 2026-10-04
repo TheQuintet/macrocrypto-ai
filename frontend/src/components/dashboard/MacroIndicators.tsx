@@ -1,8 +1,11 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
-import { MAIN_INDICATOR_NAMES } from '@/api/macroIndicators/macroIndicators'
 import { MacroIndicatorCard } from '@/components/dashboard/indicators/MacroIndicatorCard'
+import {
+  MACRO_INDICATOR_SKELETON_COUNT,
+  sortMacroIndicators,
+} from '@/lib/macroIndicatorDisplay'
 import { indicatorSeriesColor } from '@/lib/indicatorSeriesColor'
 import { cn } from '@/lib/utils'
 import type { MacroIndicator } from '@/types/macroIndicators'
@@ -38,11 +41,15 @@ export function MacroIndicators({
             className,
           )}
         >
-          {MAIN_INDICATOR_NAMES.map((name) => (
+          {Array.from({ length: MACRO_INDICATOR_SKELETON_COUNT }, (_, index) => (
             <Card
-              key={name}
+              key={`macro-indicator-skeleton-${index}`}
               className="min-w-0 overflow-hidden border-l-[3px]"
-              style={{ borderLeftColor: indicatorSeriesColor(name) }}
+              style={{
+                borderLeftColor: indicatorSeriesColor(
+                  `skeleton-${index}`,
+                ),
+              }}
             >
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -88,7 +95,7 @@ export function MacroIndicators({
           className,
         )}
       >
-        {indicators.map((indicator) => (
+        {sortMacroIndicators(indicators).map((indicator) => (
           <MacroIndicatorCard
             key={indicator.indicator_name}
             indicator={indicator}

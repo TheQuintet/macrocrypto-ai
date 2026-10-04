@@ -64,6 +64,12 @@
   --color-indicator-dxy: var(--indicator-dxy);
   --color-indicator-ten-year: var(--indicator-ten-year);
   --color-indicator-unemployment: var(--indicator-unemployment);
+  --color-indicator-vix: var(--indicator-vix);
+  --color-indicator-gold-spot: var(--indicator-gold-spot);
+  --color-indicator-active-addresses: var(--indicator-active-addresses);
+  --color-indicator-nasdaq: var(--indicator-nasdaq);
+  --color-indicator-high-yield-spread: var(--indicator-high-yield-spread);
+  --color-indicator-equity-corr: var(--indicator-equity-corr);
   --color-regime-growth: var(--regime-growth);
   --color-regime-low-inflation: var(--regime-low-inflation);
   --color-regime-falling-rates: var(--regime-falling-rates);
@@ -155,6 +161,12 @@
   --indicator-dxy: oklch(0.62 0.1 80);
   --indicator-ten-year: oklch(0.55 0.08 220);
   --indicator-unemployment: oklch(0.6 0.12 20);
+  --indicator-vix: oklch(0.58 0.18 30);
+  --indicator-gold-spot: oklch(0.72 0.12 85);
+  --indicator-active-addresses: oklch(0.55 0.14 145);
+  --indicator-nasdaq: oklch(0.64 0.12 265);
+  --indicator-high-yield-spread: oklch(0.52 0.1 25);
+  --indicator-equity-corr: oklch(0.56 0.08 200);
 
   /* Regime series — ordered by stance, so hue carries meaning as well as
      identity: bullish classes sit in green/teal, bearish in amber/red. */
@@ -240,6 +252,12 @@
   --indicator-dxy: oklch(0.76 0.1 80);
   --indicator-ten-year: oklch(0.68 0.08 220);
   --indicator-unemployment: oklch(0.72 0.12 20);
+  --indicator-vix: oklch(0.72 0.16 30);
+  --indicator-gold-spot: oklch(0.78 0.11 85);
+  --indicator-active-addresses: oklch(0.7 0.13 145);
+  --indicator-nasdaq: oklch(0.74 0.11 265);
+  --indicator-high-yield-spread: oklch(0.68 0.1 25);
+  --indicator-equity-corr: oklch(0.7 0.08 200);
 
   --regime-growth: oklch(0.72 0.13 155);
   --regime-low-inflation: oklch(0.74 0.1 180);

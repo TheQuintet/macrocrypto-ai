@@ -1,6 +1,6 @@
 import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { MAIN_INDICATOR_NAMES } from '@/api/macroIndicators/macroIndicators'
+import { MACRO_INDICATOR_SKELETON_COUNT } from '@/lib/macroIndicatorDisplay'
 import { indicatorSeriesColor } from '@/lib/indicatorSeriesColor'
 import { MacroIndicators } from './MacroIndicators'
 import {
@@ -25,7 +25,7 @@ describe('MacroIndicators', () => {
     expect(screen.getAllByText('307.20')[0]).toBeInTheDocument()
     expect(screen.getAllByText('5.50')[0]).toBeInTheDocument()
     expect(screen.getAllByText('4.10')[0]).toBeInTheDocument()
-    expect(screen.getAllByText('32475.21')[0]).toBeInTheDocument()
+    expect(screen.getAllByText('32,475.21')[0]).toBeInTheDocument()
   })
 
   it('colors each known series card to match the chart tokens', () => {
@@ -63,7 +63,7 @@ describe('MacroIndicators', () => {
     )
 
     const cards = container.querySelectorAll('[data-slot="card"]')
-    expect(cards).toHaveLength(MAIN_INDICATOR_NAMES.length)
+    expect(cards).toHaveLength(MACRO_INDICATOR_SKELETON_COUNT)
 
     const skeletons = container.querySelectorAll('[data-slot="skeleton"]')
     expect(skeletons.length).toBeGreaterThan(0)

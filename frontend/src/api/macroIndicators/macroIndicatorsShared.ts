@@ -10,15 +10,7 @@ export const MAIN_INDICATOR_NAMES = [
   'gdp',
 ] as const
 
-const MAIN_INDICATORS = new Set<string>(MAIN_INDICATOR_NAMES)
-
 export const MACRO_INDICATORS_MOCK_LATENCY_MS = 280
-
-export function keepMainIndicators(indicators: MacroIndicator[]) {
-  return indicators.filter((indicator) =>
-    MAIN_INDICATORS.has(indicator.indicator_name.toLowerCase()),
-  )
-}
 
 export function withDataSource(
   indicators: MacroIndicator[],

@@ -21,11 +21,8 @@ export type MacroIndicator = {
 /** Backend `period` query on GET /api/v1/indicators. */
 export type MacroIndicatorApiPeriod = '30d' | '90d' | '1y' | '5y'
 
-/** Names shown in the history chart, table, and series filter. */
-export type MainIndicatorName = 'cpi' | 'federal_funds_rate' | 'gdp'
-
-/** `'all'` shows every series; otherwise only that indicator. */
-export type IndicatorHistoryFilter = 'all' | MainIndicatorName
+/** `'all'` shows every series; otherwise only that indicator name (snake_case). */
+export type IndicatorHistoryFilter = 'all' | string
 
 export type MacroIndicatorSeries = {
   name: string

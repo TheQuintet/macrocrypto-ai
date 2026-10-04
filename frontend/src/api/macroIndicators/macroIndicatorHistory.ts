@@ -3,10 +3,10 @@ import { apiUrl } from '@/lib/apiConfig'
 import { indicatorApiPeriod } from '@/lib/macroIndicatorHistory'
 import type { MacroIndicator } from '@/types/macroIndicators'
 import type { TimeRange } from '@/types/preferences'
+import { normalizeMacroIndicatorsFromApi } from '@/lib/macroIndicatorDisplay'
 import {
   MACRO_INDICATORS_MOCK_LATENCY_MS,
   delay,
-  keepMainIndicators,
   mockLatestIndicators,
   withDataSource,
 } from '@/api/macroIndicators/macroIndicatorsShared'
@@ -148,5 +148,8 @@ export async function fetchMacroIndicatorHistory(
   }
 
   const data = await response.json()
-  return withDataSource(keepMainIndicators(data.indicators || []), 'live')
+  return withDataSource(
+    normalizeMacroIndicatorsFromApi(data.indicators || []),
+    'live',
+  )
 }

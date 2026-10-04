@@ -17,7 +17,7 @@ export function makeIndicator(
   }
 }
 
-/** Shape of GET /api/v1/indicators, including names the UI should drop. */
+/** Shape of GET /api/v1/indicators with multiple series. */
 export const mockIndicatorsApiResponse = {
   period: 'latest',
   count: 5,
