@@ -1,8 +1,24 @@
 name: CD - Deploy to Production
 
+# ============================================================
+# TEMPORARILY DISABLED — 2026-10-05
+# ============================================================
+# The push: main trigger is commented out to conserve GitHub
+# Actions minutes (quota at ~90% of the free tier). This workflow
+# builds and pushes Docker images for every service, so each run
+# costs roughly 2-3x a CI run.
+#
+# workflow_dispatch is intentionally LEFT ENABLED so the build can
+# be triggered manually from the GitHub UI when needed:
+#   Actions -> CD - Deploy to Production -> Run workflow
+#
+# TO RESTORE AUTOMATIC DEPLOYMENT:
+#   Uncomment the `push:` block below and delete this comment.
+# ============================================================
+
 on:
-  push:
-    branches: [ main ]
+  # push:
+  #   branches: [ main ]
   workflow_dispatch:
 
 jobs:
