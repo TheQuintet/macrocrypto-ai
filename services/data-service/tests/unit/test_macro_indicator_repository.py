@@ -1,6 +1,7 @@
 import pytest
 from unittest.mock import MagicMock, patch
 
+import app.database.macro_indicator_repository as macro_indicator_repository
 from app.database.macro_indicator_repository import (
     MacroIndicatorRepository,
 )
@@ -138,4 +139,37 @@ def test_create_many_duplicate_handling():
 
     repository.db.execute.assert_called_once()
 
+    repository.db.commit.assert_called_once()
+
+
+def test_create_many_splits_large_input_into_batches(monkeypatch):
+    repository = create_repository()
+    repository.db.execute = MagicMock()
+    repository.db.commit = MagicMock()
+    monkeypatch.setattr(
+        macro_indicator_repository,
+        "MAX_INSERT_BATCH_SIZE",
+        2,
+    )
+
+    indicators = [
+        {
+            "indicator_name": "cpi",
+            "time": f"2026-01-0{day}",
+            "value": 300 + day,
+            "previous_value": None,
+            "change_percent": None,
+            "source": "fred",
+        }
+        for day in range(1, 6)
+    ]
+
+    result = repository.create_many(indicators)
+
+    assert result == indicators
+    assert repository.db.execute.call_count == 3
+    assert [
+        len(call.args[0]._multi_values[0])
+        for call in repository.db.execute.call_args_list
+    ] == [2, 2, 1]
     repository.db.commit.assert_called_once()
