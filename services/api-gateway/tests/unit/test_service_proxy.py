@@ -10,6 +10,7 @@ def proxy():
     return ServiceProxy(
         data_service_url="http://localhost:8001/",
         alert_service_url="http://localhost:8003/",
+        ai_service_url="http://localhost:8002/",
         timeout=15.0,
     )
 
@@ -19,16 +20,19 @@ class TestServiceProxyInit:
         service = ServiceProxy(
             data_service_url="http://data-service///",
             alert_service_url="http://alert-service//",
+            ai_service_url="http://ai-service///",
         )
 
         assert service.data_service_url == "http://data-service"
         assert service.alert_service_url == "http://alert-service"
+        assert service.ai_service_url == "http://ai-service"
         assert service.timeout == 30.0
 
     def test_accepts_custom_timeout(self):
         service = ServiceProxy(
             data_service_url="http://data-service",
             alert_service_url="http://alert-service",
+            ai_service_url="http://ai-service",
             timeout=5.5,
         )
 
@@ -41,6 +45,9 @@ class TestGetBaseUrl:
 
     def test_returns_alert_service_url(self, proxy):
         assert proxy._get_base_url("alert") == "http://localhost:8003"
+
+    def test_returns_ai_service_url(self, proxy):
+        assert proxy._get_base_url("ai") == "http://localhost:8002"
 
     def test_unknown_service_raises_error(self, proxy):
         with pytest.raises(

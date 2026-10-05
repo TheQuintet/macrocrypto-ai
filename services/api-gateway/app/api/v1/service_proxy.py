@@ -41,6 +41,7 @@ router = APIRouter()
 proxy = ServiceProxy(
     data_service_url=settings.DATA_SERVICE_URL,
     alert_service_url=settings.ALERT_SERVICE_URL,
+    ai_service_url=settings.AI_SERVICE_URL,
 )
 
 
@@ -191,6 +192,23 @@ async def alert_proxy(
             content={"detail": str(exc)},
         )
 
+async def ai_proxy(
+    request: Request,
+    upstream_path: str,
+) -> Response:
+    """Proxy a request to AI Service."""
+
+    try:
+        return await _proxy_request(
+            request=request,
+            service="ai",
+            upstream_path=upstream_path,
+        )
+    except ServiceProxyError as exc:
+        return JSONResponse(
+            status_code=502,
+            content={"detail": str(exc)},
+        )
 
 # ============================================================================
 # DATA SERVICE — 11 ENDPOINTS
@@ -660,4 +678,117 @@ router.add_api_route(
     ),
     methods=["POST"],
     tags=["Alert Service"],
+)
+
+# ============================================================================
+# AI SERVICE — 8 ENDPOINTS
+# ============================================================================
+
+# ----------------------------------------------------------------------------
+# Predictions — 1
+# ----------------------------------------------------------------------------
+
+router.add_api_route(
+    "/predict/btc",
+    partial(
+        ai_proxy,
+        upstream_path="/api/v1/predict/btc",
+    ),
+    methods=["GET"],
+    tags=["AI Service"],
+)
+
+
+# ----------------------------------------------------------------------------
+# Performance — 1
+# ----------------------------------------------------------------------------
+
+router.add_api_route(
+    "/performance/btc",
+    partial(
+        ai_proxy,
+        upstream_path="/api/v1/performance/btc",
+    ),
+    methods=["GET"],
+    tags=["AI Service"],
+)
+
+
+# ----------------------------------------------------------------------------
+# Correlation — 1
+# ----------------------------------------------------------------------------
+
+router.add_api_route(
+    "/correlation/btc",
+    partial(
+        ai_proxy,
+        upstream_path="/api/v1/correlation/btc",
+    ),
+    methods=["GET"],
+    tags=["AI Service"],
+)
+
+
+# ----------------------------------------------------------------------------
+# Exports — 1
+# ----------------------------------------------------------------------------
+
+router.add_api_route(
+    "/exports/{file_name}",
+    partial(
+        ai_proxy,
+        upstream_path="/api/v1/exports/{file_name}",
+    ),
+    methods=["GET"],
+    tags=["AI Service"],
+)
+
+
+# ----------------------------------------------------------------------------
+# Methodology — 3
+# ----------------------------------------------------------------------------
+
+router.add_api_route(
+    "/methodology",
+    partial(
+        ai_proxy,
+        upstream_path="/api/v1/methodology",
+    ),
+    methods=["GET"],
+    tags=["AI Service"],
+)
+
+router.add_api_route(
+    "/methodology/versions",
+    partial(
+        ai_proxy,
+        upstream_path="/api/v1/methodology/versions",
+    ),
+    methods=["GET"],
+    tags=["AI Service"],
+)
+
+router.add_api_route(
+    "/methodology/changelog",
+    partial(
+        ai_proxy,
+        upstream_path="/api/v1/methodology/changelog",
+    ),
+    methods=["GET"],
+    tags=["AI Service"],
+)
+
+
+# ----------------------------------------------------------------------------
+# Events — 1
+# ----------------------------------------------------------------------------
+
+router.add_api_route(
+    "/events/historical",
+    partial(
+        ai_proxy,
+        upstream_path="/api/v1/events/historical",
+    ),
+    methods=["GET"],
+    tags=["AI Service"],
 )
