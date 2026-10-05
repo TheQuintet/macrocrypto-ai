@@ -15,6 +15,8 @@ from app.models.macro_indicator import MacroIndicator
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+MAX_INSERT_BATCH_SIZE = 5_000
+
 
 class MacroIndicatorRepository:
     """
@@ -75,17 +77,26 @@ class MacroIndicatorRepository:
         if not indicators:
             return []
 
-        stmt = insert(
-            MacroIndicator
-        ).values(
-            indicators
-        )
+        for start in range(
+            0,
+            len(indicators),
+            MAX_INSERT_BATCH_SIZE,
+        ):
+            batch = indicators[
+                start:start + MAX_INSERT_BATCH_SIZE
+            ]
 
-        stmt = stmt.on_conflict_do_nothing(
-            constraint="uq_macro_indicator_time_name"
-        )
+            stmt = insert(
+                MacroIndicator
+            ).values(
+                batch
+            )
 
-        result = self.db.execute(stmt)
+            stmt = stmt.on_conflict_do_nothing(
+                constraint="uq_macro_indicator_time_name"
+            )
+
+            self.db.execute(stmt)
 
         self.db.commit()
 
