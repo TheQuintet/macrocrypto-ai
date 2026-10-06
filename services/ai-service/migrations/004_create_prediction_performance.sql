@@ -1,38 +1,43 @@
--- ============================================================
--- Migration 004: Create prediction_performance table
--- ============================================================
--- Stores one row per evaluated prediction point: the pairing of
--- a predicted price with the actual price observed at the same
--- forecast time.
---
--- Rolling error metrics (mae, rmse, mape) are NULLABLE — they
--- are populated by T5.2's walk-forward backtesting job.
---
--- market_condition is populated by T5.3's classification logic.
---
--- Design notes:
---   - prediction_id is a FK to btc_predictions.id (added in
---     migration 003).
---   - horizon and model_name are denormalized from btc_predictions
---     for query performance — the most common filters (T5.5
---     endpoint) should not require a join.
---   - CHECK constraints enforce:
---       * market_condition in a known set (or NULL)
---       * mae, rmse, mape >= 0 (or NULL)
---       * actual_price > 0, predicted_price > 0
---
--- Owner: AI Service
--- Read by: API Gateway (T5.5)
--- Written by: T5.2's backtesting pipeline
--- ============================================================
+-- -- ============================================================
+-- -- Migration 004: Create prediction_performance table
+-- -- ============================================================
+-- -- Stores one row per evaluated prediction point: the pairing of
+-- -- a predicted price with the actual price observed at the same
+-- -- forecast time.
+-- --
+-- -- Rolling error metrics (mae, rmse, mape) are NULLABLE — they
+-- -- are populated by T5.2's walk-forward backtesting job.
+-- --
+-- -- market_condition is populated by T5.3's classification logic.
+-- --
+-- -- Design notes:
+-- --   - prediction_id is a FK to btc_predictions.id (added in
+-- --     migration 003).
+-- --   - horizon and model_name are denormalized from btc_predictions
+-- --     for query performance — the most common filters (T5.5
+-- --     endpoint) should not require a join.
+-- --   - CHECK constraints enforce:
+-- --       * market_condition in a known set (or NULL)
+-- --       * mae, rmse, mape >= 0 (or NULL)
+-- --       * actual_price > 0, predicted_price > 0
+-- --
+-- -- Owner: AI Service
+-- -- Read by: API Gateway (T5.5)
+-- -- Written by: T5.2's backtesting pipeline
+-- -- ============================================================
 
 CREATE TABLE IF NOT EXISTS prediction_performance (
     id                  BIGSERIAL       PRIMARY KEY,
 
     -- Reference to the prediction being evaluated
-    prediction_id       BIGINT          NOT NULL
-                        REFERENCES btc_predictions(id)
-                        ON DELETE CASCADE,
+    prediction_id       BIGINT          NOT NULL,
+    forecast_date       TIMESTAMPTZ     NOT NULL,
+
+    -- Composite foreign key constraint matching btc_predictions (id, time)
+    CONSTRAINT fk_prediction_performance_prediction
+        FOREIGN KEY (prediction_id, forecast_date)
+        REFERENCES btc_predictions(id, time)
+        ON DELETE CASCADE,
 
     -- Denormalized from btc_predictions for query performance
     horizon             VARCHAR(8)      NOT NULL,
@@ -40,7 +45,6 @@ CREATE TABLE IF NOT EXISTS prediction_performance (
     model_version       VARCHAR(64)     NOT NULL,
 
     -- The evaluation
-    forecast_date       TIMESTAMPTZ     NOT NULL,
     predicted_price     DOUBLE PRECISION NOT NULL,
     actual_price        DOUBLE PRECISION NOT NULL,
 
@@ -85,19 +89,15 @@ ALTER TABLE prediction_performance
 -- ------------------------------------------------------------
 -- Indexes
 -- ------------------------------------------------------------
--- Common read pattern (T5.5): latest metrics for a horizon + model
 CREATE INDEX IF NOT EXISTS idx_prediction_performance_horizon_model_date
     ON prediction_performance (horizon, model_name, forecast_date DESC);
 
--- Time-range scans: all metrics over the last N days
 CREATE INDEX IF NOT EXISTS idx_prediction_performance_forecast_date
     ON prediction_performance (forecast_date DESC);
 
--- FK lookups and per-prediction queries
 CREATE INDEX IF NOT EXISTS idx_prediction_performance_prediction_id
     ON prediction_performance (prediction_id);
 
--- Market-condition breakdowns (T5.5, T5.3)
 CREATE INDEX IF NOT EXISTS idx_prediction_performance_market_condition
     ON prediction_performance (market_condition)
     WHERE market_condition IS NOT NULL;
@@ -108,9 +108,9 @@ CREATE INDEX IF NOT EXISTS idx_prediction_performance_market_condition
 COMMENT ON TABLE prediction_performance IS
     'Per-point evaluation metrics for stored predictions (T5.1+)';
 COMMENT ON COLUMN prediction_performance.prediction_id IS
-    'FK to btc_predictions.id';
+    'FK component to btc_predictions.id';
 COMMENT ON COLUMN prediction_performance.forecast_date IS
-    'Timestamp the prediction was FOR (the forecast time)';
+    'Timestamp the prediction was FOR / FK component to btc_predictions.time';
 COMMENT ON COLUMN prediction_performance.predicted_price IS
     'Predicted BTC price at evaluation time (USD)';
 COMMENT ON COLUMN prediction_performance.actual_price IS
