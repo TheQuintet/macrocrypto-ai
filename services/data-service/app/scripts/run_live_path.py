@@ -11,6 +11,11 @@ Usage
     python -m app.scripts.run_live_path --btc-hourly-backfill --verify --days 30
     python -m app.scripts.run_live_path --btc-hourly-backfill --dry-run --days 30
     python -m app.scripts.run_live_path --macro-hourly
+    python -m app.scripts.run_live_path --macro-hourly-backfill --days 30
+    python -m app.scripts.run_live_path --macro-hourly-backfill \
+        --start 2024-01-01 --end 2024-12-31
+    python -m app.scripts.run_live_path --macro-hourly-backfill --verify --days 30
+    python -m app.scripts.run_live_path --macro-hourly-backfill --dry-run --days 30
     python -m app.scripts.run_live_path --features-db
     python -m app.scripts.run_live_path --all
 
@@ -22,9 +27,12 @@ Phase A (Chat 2):
 Phase B (Chat 3):
     --btc-hourly writes btc_prices_hourly for the just-completed hour.
     --btc-hourly-backfill materializes a range of hours from raw data.
+    --macro-hourly writes macro_indicators_hourly for the
+        just-completed hour.
+    --macro-hourly-backfill materializes a range of hours from raw data.
 
-Phase B (Chat 4, still stubbed here):
-    --macro-hourly, --features-db.
+Phase B (still stubbed here):
+    --features-db.
 
 Design notes
 ------------
@@ -256,7 +264,89 @@ async def _run_btc_hourly_backfill(
 
 
 async def _run_macro_hourly() -> int:
-    _not_implemented("--macro-hourly", "hourly macro backfill (Phase B)")
+    """
+    Materialize macro_indicators_hourly for the previous
+    completed hour.
+    """
+    from app.database.session import SessionLocal
+    from app.services.hourly_macro_indicators_service import (
+        HourlyMacroIndicatorsService,
+    )
+
+    now = datetime.now(timezone.utc)
+    target_hour = now.replace(
+        minute=0, second=0, microsecond=0
+    ) - timedelta(hours=1)
+
+    db = SessionLocal()
+    try:
+        service = HourlyMacroIndicatorsService(db)
+        service.write_hour(target_hour)
+        logger.info(
+            "[CLI] wrote macro_indicators_hourly row for %s",
+            target_hour.isoformat(),
+        )
+        return 0
+    finally:
+        db.close()
+
+
+async def _run_macro_hourly_backfill(
+    args: argparse.Namespace,
+) -> int:
+    """
+    Materialize macro_indicators_hourly for a range of hours.
+    """
+    from app.database.session import SessionLocal
+    from app.services.hourly_macro_indicators_service import (
+        HourlyMacroIndicatorsService,
+    )
+
+    start, end = _resolve_backfill_range(args)
+
+    logger.info(
+        "[CLI] macro-hourly-backfill range: %s -> %s%s%s",
+        start.isoformat(),
+        end.isoformat(),
+        " (dry-run)" if args.dry_run else "",
+        " (verify)" if args.verify else "",
+    )
+
+    db = SessionLocal()
+    try:
+        service = HourlyMacroIndicatorsService(db)
+        summary = service.backfill(
+            start=start,
+            end=end,
+            dry_run=args.dry_run,
+            verify_only=args.verify,
+        )
+    finally:
+        db.close()
+
+    if args.verify:
+        missing = summary.get("missing", [])
+        if not missing:
+            logger.info("[CLI] verify: no gaps in range")
+            return 0
+        logger.warning(
+            "[CLI] verify: %d missing hour(s) in range",
+            len(missing),
+        )
+        for h in missing[:20]:
+            print(f"  missing: {h.isoformat()}")
+        if len(missing) > 20:
+            print(f"  ... and {len(missing) - 20} more")
+        return 1
+
+    logger.info(
+        "[CLI] macro-hourly-backfill %s: expected=%d written=%d "
+        "already=%d",
+        "DRY-RUN" if args.dry_run else "done",
+        summary["expected_hours"],
+        summary["written"],
+        summary["already_present"],
+    )
     return 0
 
 
@@ -267,8 +357,8 @@ async def _run_features_db() -> int:
 
 async def _run_all() -> int:
     """
-    Run everything in order. --backfill is real; --btc-hourly is
-    now real (Phase B2). The rest are still stubs.
+    Run everything in order. --backfill, --btc-hourly, and
+    --macro-hourly are real. --features-db is still a stub.
     """
     rc = await _run_backfill()
     if rc != 0:
@@ -309,8 +399,12 @@ SUBCOMMANDS: dict[
         _run_btc_hourly_backfill,
     ),
     "--macro-hourly": (
-        "Backfill hourly macro series (Phase B)",
+        "Write macro_indicators_hourly for the last completed hour",
         _run_macro_hourly,
+    ),
+    "--macro-hourly-backfill": (
+        "Materialize macro_indicators_hourly over a range of hours",
+        _run_macro_hourly_backfill,
     ),
     "--features-db": (
         "Write the features_db hourly table (Phase B)",
@@ -329,7 +423,7 @@ def build_parser() -> argparse.ArgumentParser:
         description=(
             "Manually trigger data-service live-path steps. "
             "Supports the daily backfill and the hourly BTC "
-            "materialization."
+            "and macro materializations."
         ),
     )
 
@@ -395,8 +489,8 @@ def build_parser() -> argparse.ArgumentParser:
 async def _dispatch(args: argparse.Namespace) -> int:
     for flag, (_, handler) in SUBCOMMANDS.items():
         if getattr(args, flag.lstrip("-").replace("-", "_")):
-            # --btc-hourly-backfill takes args; others don't.
-            if flag == "--btc-hourly-backfill":
+            # Both *-backfill commands take args; others don't.
+            if flag in ("--btc-hourly-backfill", "--macro-hourly-backfill"):
                 return await handler(args)
             return await handler()
     return 2  # unreachable: argparse enforces required=True
