@@ -21,10 +21,12 @@ class ServiceProxy:
         self,
         data_service_url: str,
         alert_service_url: str,
+        ai_service_url: str,
         timeout: float = 30.0,
     ) -> None:
         self.data_service_url = data_service_url.rstrip("/")
         self.alert_service_url = alert_service_url.rstrip("/")
+        self.ai_service_url = ai_service_url.rstrip("/")
         self.timeout = timeout
 
     def _get_base_url(self, service: str) -> str:
@@ -35,6 +37,8 @@ class ServiceProxy:
 
         if service == "alert":
             return self.alert_service_url
+        if service == "ai":
+            return self.ai_service_url
 
         raise ServiceProxyError(f"Unknown downstream service: {service}")
 
@@ -51,7 +55,7 @@ class ServiceProxy:
         Forward an HTTP request to a downstream service.
 
         Args:
-            service: Downstream service identifier ("data" or "alert").
+            service: Downstream service identifier ("data", "alert", or "ai").
             method: HTTP method.
             path: Downstream API path.
             query_string: Original query string.

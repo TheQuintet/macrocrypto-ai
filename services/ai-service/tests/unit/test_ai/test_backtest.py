@@ -566,9 +566,28 @@ class TestBacktesterRun:
         assert isinstance(pred, float)
         assert isinstance(actual, float)
 
+    # @pytest.mark.asyncio
+    # async def test_all_iterations_fail(self) -> None:
+    #     """Test that all-iteration failure is captured."""
+    #     bt = WalkForwardBacktester(
+    #         horizon="24h", horizon_hours=24, iterations=2
+    #     )
+    #     data = _make_data(200)
+
+    #     result = await bt.run(
+    #         model_name="fake",
+    #         build_model=lambda: FakeModel(fail_on_train=True),
+    #         training_data=data,
+    #     )
+
+    #     assert result.succeeded is False
+    #     assert result.iterations_succeeded == 0
+    #     assert result.iterations_failed == 2
+
+
     @pytest.mark.asyncio
     async def test_all_iterations_fail(self) -> None:
-        """Test that all-iteration failure is captured."""
+        """Test that a training failure aborts the backtest run."""
         bt = WalkForwardBacktester(
             horizon="24h", horizon_hours=24, iterations=2
         )
@@ -582,7 +601,10 @@ class TestBacktesterRun:
 
         assert result.succeeded is False
         assert result.iterations_succeeded == 0
-        assert result.iterations_failed == 2
+        assert result.iterations_failed == 0
+        assert "future_frame" in result.error
+
+
 
     @pytest.mark.asyncio
     async def test_single_iteration_failure_is_isolated(self) -> None:

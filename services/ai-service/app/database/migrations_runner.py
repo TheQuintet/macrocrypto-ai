@@ -149,21 +149,12 @@ async def _record_migration(
 # ============================================================
 # MIGRATION APPLICATION
 # ============================================================
+
 async def _apply_migration(
     session: AsyncSession,
     migration_path: Path,
 ) -> None:
-    """Apply a single migration file inside the given session.
-
-    The caller is responsible for committing / rolling back.
-
-    Args:
-        session: An AsyncSession bound to the target database.
-        migration_path: Path to the `.sql` file to apply.
-
-    Raises:
-        RuntimeError: If the SQL fails to execute.
-    """
+    """Apply a single migration file inside the given session using raw asyncpg execution."""
     version = migration_path.name
     sql = migration_path.read_text(encoding="utf-8")
 
@@ -173,16 +164,17 @@ async def _apply_migration(
 
     logger.info(f"Applying migration: {version}")
 
-    # Execute the raw SQL. SQLAlchemy's text() wrapper handles
-    # multiple statements when the driver supports it (asyncpg does
-    # for DDL when using the exec_driver_sql path, but here we use
-    # execute with a single script — asyncpg will split it).
     try:
-        # `exec_driver_sql` allows multi-statement scripts and
-        # bypasses SQLAlchemy's parameter binding (which would
-        # choke on `::type` casts and dollar-quoted strings).
-        raw = await session.connection()
-        await raw.exec_driver_sql(sql)
+        # Get the SQLAlchemy async connection
+        conn = await session.connection()
+        
+        # Extract the underlying raw asyncpg driver connection
+        raw_connection = await conn.get_raw_connection()
+        asyncpg_conn = raw_connection.driver_connection
+        
+        # Execute the multi-statement SQL script natively via asyncpg
+        await asyncpg_conn.execute(sql)
+        
     except Exception as e:
         raise RuntimeError(
             f"Migration '{version}' failed: {e}"
@@ -192,7 +184,6 @@ async def _apply_migration(
     await _record_migration(session, version)
 
     logger.info(f"Applied migration: {version}")
-
 
 async def run_migrations(
     migrations_dir: Optional[Path] = None,

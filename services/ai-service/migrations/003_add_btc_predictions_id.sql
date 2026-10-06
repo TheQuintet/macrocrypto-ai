@@ -25,10 +25,10 @@ BEGIN
     IF NOT EXISTS (
         SELECT 1
         FROM pg_constraint
-        WHERE conname = 'btc_predictions_id_key'
+        WHERE conname = 'btc_predictions_id_time_key'
     ) THEN
         ALTER TABLE btc_predictions
-            ADD CONSTRAINT btc_predictions_id_key UNIQUE (id);
+            ADD CONSTRAINT btc_predictions_id_time_key UNIQUE (id, time);
     END IF;
 END $$;
 

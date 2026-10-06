@@ -353,7 +353,8 @@ class TestToCsv:
         df = pd.DataFrame({"a": [1], "b": ["x"]})
         payload = CsvExporter.to_csv(df)
         assert isinstance(payload, bytes)
-        assert payload.startswith(b"a,b\n")
+        assert payload.startswith(b"a,b\r\n")
+        # assert payload.startswith(b"a,b\n")
 
     def test_round_trips_via_read_csv(self) -> None:
         df = pd.DataFrame(

@@ -187,7 +187,7 @@ class TestPerformanceMigrationSql:
 
     def test_fk_to_btc_predictions(self, perf_sql: str) -> None:
         """Test that prediction_id is a FK to btc_predictions(id)."""
-        assert "REFERENCES btc_predictions(id)" in perf_sql
+        assert "REFERENCES btc_predictions(id, time)" in perf_sql
 
     def test_fk_on_delete_cascade(self, perf_sql: str) -> None:
         """Test that the FK uses ON DELETE CASCADE."""
@@ -254,8 +254,8 @@ class TestBtcPredictionsIdMigrationSql:
 
     def test_unique_constraint(self, id_sql: str) -> None:
         """Test that the id column gets a UNIQUE constraint."""
-        assert "btc_predictions_id_key" in id_sql
-        assert "UNIQUE (id)" in id_sql
+        assert "btc_predictions_id_time_key" in id_sql
+        assert "UNIQUE (id, time)" in id_sql
 
     def test_index_created(self, id_sql: str) -> None:
         """Test that an index on id is created."""
