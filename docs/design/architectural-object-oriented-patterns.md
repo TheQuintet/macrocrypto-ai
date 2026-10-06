@@ -155,6 +155,119 @@ Frequently accessed datasets are retrieved from Redis when available. When data 
 
 ---
 
+### 1.6 Dependency Injection
+
+Backend components receive the dependencies they need rather than constructing all collaborators internally. For example, the AI Service uses FastAPI dependencies to provide a `PredictionRepository` bound to a transaction-scoped database session to API endpoints.
+
+```text
+Request
+   |
+   v
+API Endpoint <--- Dependency Provider
+                       |
+                       v
+             Repository + DB Session
+```
+
+This keeps endpoint code focused on request handling and makes dependencies easier to replace in tests.
+
+**Benefits:**
+
+* Reduced coupling between API endpoints and infrastructure
+* Explicit dependency boundaries
+* Easier testing with substituted dependencies
+* Consistent lifecycle management for request-scoped resources
+
+---
+
+### 1.7 Publish-Subscribe / Message-Driven Integration
+
+The Data Service publishes price and economic updates to RabbitMQ topic routes. The Alert Service binds queues to those routes and processes incoming messages through registered callbacks, allowing services to exchange updates without direct synchronous calls.
+
+```text
+Data Service Publisher
+         |
+         v
+ RabbitMQ Topic Exchange
+       /          \
+      v            v
+Price Queue   Economic Queue
+      |            |
+      v            v
+ Alert Service Consumers
+```
+
+**Benefits:**
+
+* Reduced direct coupling between publishing and consuming services
+* Asynchronous processing of updates
+* Multiple consumers can subscribe to relevant event types
+* Durable queues support message delivery across service restarts
+
+---
+
+### 1.8 Unit of Work / Transaction Scope
+
+The AI Service's `session_scope()` context manager groups database work within a transaction boundary. It commits when the scope exits successfully, rolls back if an exception occurs, and closes the session after use.
+
+```text
+Open Session
+     |
+     v
+Perform Database Work
+     |
+     +---- Success ----> Commit
+     |
+     +---- Exception --> Rollback
+     |
+     v
+Close Session
+```
+
+**Benefits:**
+
+* Consistent transaction handling
+* Rollback of incomplete work after errors
+* Clear lifecycle for database sessions
+* Reduced repetition of commit and rollback logic
+
+---
+
+### 1.9 Lazy Initialization
+
+The Data Service's `IndicatorService` creates its FRED collector only when an operation needs to fetch indicator updates. Read operations that do not require FRED avoid initializing the collector.
+
+**Benefits:**
+
+* Avoids unnecessary initialization work
+* Defers external-service setup until it is needed
+* Keeps read-only paths independent of the data collector
+
+---
+
+### 1.10 Retry with Exponential Backoff
+
+Backend components use bounded retries with increasing delays for selected transient operations. For example, the Alert Service retries RabbitMQ connection attempts with Tenacity, and API Gateway service calls also define retry policies.
+
+```text
+Attempt 1
+   |
+   +-- Failure --> Wait
+                     |
+                     v
+                  Attempt 2
+                     |
+                     +-- Failure --> Longer Wait --> Next Attempt
+```
+
+**Benefits:**
+
+* Improves tolerance of temporary connectivity failures
+* Reduces immediate repeated pressure on unavailable dependencies
+* Bounds retries and delays to avoid unending retry loops
+
+---
+
 ## 2. Machine-Learning Design Patterns
 
 ### 2.1 ML Pipeline Pattern
@@ -388,6 +501,56 @@ Separating shared state from individual UI components helps maintain consistent 
 
 ---
 
+### 3.5 Server-State Caching and Synchronization
+
+The frontend uses TanStack Query to manage data fetched from backend APIs, including query freshness, caching, and refetching. Real-time price and notification streams update or invalidate the corresponding query-cache entries so that screens consuming the same data stay synchronized.
+
+```text
+Backend API ---------> TanStack Query Cache <-------- Live Stream
+                              |
+                   +----------+----------+
+                   |                     |
+                   v                     v
+             Price Components     Notification UI
+```
+
+For example, price-stream messages update the cached BTC snapshot, while notification-stream messages update the notification list and unread count.
+
+**Benefits:**
+
+* Shared server data remains consistent across consumers
+* Avoids duplicating API data in component-local state
+* Supports freshness and refetch policies
+* Integrates API responses with real-time updates
+
+---
+
+### 3.6 Reconnection with Exponential Backoff
+
+The frontend price and notification streams attempt to reconnect after a connection closes or errors. Their delay increases with successive attempts and is capped, avoiding a rapid reconnect loop while allowing the stream to recover automatically.
+
+```text
+Stream Disconnect
+       |
+       v
+  Wait (increasing delay)
+       |
+       v
+ Reconnect Attempt
+       |
+       +---- Failure ----> Wait longer, up to the configured cap
+       |
+       +---- Success ----> Resume stream updates
+```
+
+**Benefits:**
+
+* Automatically recovers from temporary network interruptions
+* Reduces repeated connection attempts during outages
+* Keeps live data updates available without manual refresh
+
+---
+
 ## 4. Summary of Applied Patterns
 
 | Pattern                      | Area         | Application                                                   |
@@ -406,6 +569,13 @@ Separating shared state from individual UI components helps maintain consistent 
 | Frontend Service Layer       | Frontend     | Separation of API communication from UI logic                 |
 | Reactive / Observer          | Frontend     | Real-time updates through WebSocket data                      |
 | State Management             | Frontend     | Management of shared application state                        |
+| Dependency Injection         | Backend      | Supplying repositories and scoped resources to API endpoints  |
+| Publish-Subscribe             | Backend      | RabbitMQ topic messages between Data and Alert Services       |
+| Unit of Work / Transaction Scope | Backend   | Commit and rollback boundaries for AI Service database work   |
+| Lazy Initialization          | Backend      | Creating the FRED collector only when an update requires it   |
+| Retry with Exponential Backoff | Backend    | Retrying transient broker and service-call failures           |
+| Server-State Caching         | Frontend     | TanStack Query cache for API data and real-time updates       |
+| Reconnection with Backoff    | Frontend     | Retrying price and notification streams after disconnection   |
 
 ## Design Outcome
 
