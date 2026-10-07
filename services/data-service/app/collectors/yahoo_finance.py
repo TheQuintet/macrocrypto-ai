@@ -100,13 +100,33 @@ class YahooFinanceCollector:
             self.GOLD_FUTURES_SYMBOL
         )
 
-    async def get_gold_spot_history(
+    async def get_daily_history(
         self,
-        symbol: str = GOLD_SPOT_SYMBOL,
+        symbol: str,
         range_: str = "5y",
         interval: str = "1d",
     ) -> list[dict[str, Any]]:
-        """Fetch historical daily gold prices from Yahoo Finance."""
+        """
+        Fetch historical daily candles for an arbitrary Yahoo
+        Finance symbol.
+
+        Returns a list of records, one per trading day with a
+        non-null close:
+
+            {
+                "timestamp": <int, Unix seconds>,
+                "price":     <float, close>,
+                "symbol":    <str>,
+            }
+
+        Raises RuntimeError if Yahoo returns no chart result for
+        the symbol. Rows where Yahoo reports a null close are
+        silently skipped (holidays, halts, missing data).
+
+        Used by:
+          - HighYieldCreditStressService (HYG, SHY) — B5
+          - GoldSpotService, via get_gold_spot_history (below)
+        """
 
         url = f"{self.BASE_URL}/{symbol}"
 
@@ -155,6 +175,30 @@ class YahooFinanceCollector:
             )
 
         return records
+
+    async def get_gold_spot_history(
+        self,
+        symbol: str = GOLD_SPOT_SYMBOL,
+        range_: str = "5y",
+        interval: str = "1d",
+    ) -> list[dict[str, Any]]:
+        """
+        Fetch historical daily prices for a symbol.
+
+        Deprecated alias for get_daily_history, kept so existing
+        callers (GoldSpotService and any scripts) continue to
+        work without change.
+
+        The default symbol remains GOLD_SPOT_SYMBOL (XAUUSD=X),
+        preserving the original signature. New code should call
+        get_daily_history directly.
+        """
+
+        return await self.get_daily_history(
+            symbol=symbol,
+            range_=range_,
+            interval=interval,
+        )
 
     async def close(self):
         """Close the HTTP client."""
