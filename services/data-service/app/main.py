@@ -37,6 +37,7 @@ from app.services.scheduler import (
     periodic_economic_calendar_collection,
     periodic_regime_collection,
     periodic_hourly_gap_scan,
+    periodic_high_yield_credit_stress,
 )
 
 # ✅ Backfill status for /health visibility (Phase A, Chat 2)
@@ -60,6 +61,7 @@ macro_task: Optional[asyncio.Task] = None
 economic_task: Optional[asyncio.Task] = None
 current_regime_task: Optional[asyncio.Task] = None
 hourly_gap_scan_task: Optional[asyncio.Task] = None
+hy_proxy_task: Optional[asyncio.Task] = None
 
 price_service: Optional[PriceService] = None
 data_processor: Optional[DataProcessor] = None
@@ -74,7 +76,7 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     """Lifespan context manager for startup and shutdown events"""
     # global btc_task, price_service, data_processor, cache_client, rabbitmq_producer
-    global btc_task, market_cap_task, economic_task, current_regime_task, hourly_gap_scan_task, price_service, data_processor, cache_client, rabbitmq_producer, market_cap_service 
+    global btc_task, market_cap_task, economic_task, current_regime_task, hourly_gap_scan_task, hy_proxy_task, price_service, data_processor, cache_client, rabbitmq_producer, market_cap_service 
 
     # ============================================
     # STARTUP PHASE
@@ -278,6 +280,35 @@ async def lifespan(app: FastAPI):
         )
         hourly_gap_scan_task = None
 
+    # --------------------------------------------
+    # 9. Start HY Credit Stress Proxy (Phase B, Chat 5, B5)
+    # --------------------------------------------
+    # Daily job that computes (HYG / SHY).pct_change() and
+    # writes one row per trading day into raw macro_indicators
+    # with indicator_name='high_yield_credit_stress_proxy',
+    # source='derived'. Runs at HY_PROXY_UPDATE_HOUR_UTC:
+    # HY_PROXY_UPDATE_MINUTE_UTC (default 03:00 UTC), staggered
+    # after the 01:00 UTC macro/FRED task. Idempotent: relies on
+    # the (time, indicator_name) unique constraint in
+    # MacroIndicatorRepository. Consumed by features_db as the
+    # high_yield_credit_stress_proxy column. See
+    # docs/data-service-schemas.md §5, row 14.
+    try:
+        hy_proxy_task = asyncio.create_task(
+            periodic_high_yield_credit_stress()
+        )
+        logger.info(
+            "✅ HY credit stress proxy scheduler started "
+            f"(daily at "
+            f"{settings.HY_PROXY_UPDATE_HOUR_UTC}:"
+            f"{settings.HY_PROXY_UPDATE_MINUTE_UTC:02d} UTC)"
+        )
+    except Exception as error:
+        logger.error(
+            f"⚠️ HY credit stress scheduler startup error: {error}"
+        )
+        hy_proxy_task = None
+
     logger.info(f"✅ {settings.SERVICE_NAME} started successfully!")
     
     # ============================================
@@ -358,6 +389,25 @@ async def lifespan(app: FastAPI):
 
         finally:
             hourly_gap_scan_task = None
+
+    if hy_proxy_task:
+        hy_proxy_task.cancel()
+
+        try:
+            await hy_proxy_task
+
+        except asyncio.CancelledError:
+            logger.info(
+                "✅ HY credit stress task cancelled successfully"
+            )
+
+        except Exception as error:
+            logger.error(
+                f"⚠️ HY credit stress shutdown error: {error}"
+            )
+
+        finally:
+            hy_proxy_task = None
 
     
     if rabbitmq_producer:

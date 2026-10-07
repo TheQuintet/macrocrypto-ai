@@ -286,6 +286,99 @@ async def periodic_macro_collection(cache_client=None):
 
 
 # ============================================================
+# HIGH YIELD CREDIT STRESS PROXY SCHEDULER (Phase B, Chat 5, B5)
+# ============================================================
+
+
+async def periodic_high_yield_credit_stress():
+    """
+    Daily collection of the high_yield_credit_stress_proxy.
+
+    Computes (HYG / SHY).pct_change() from Yahoo Finance and
+    writes one row per trading day into the raw macro_indicators
+    table with:
+        indicator_name = 'high_yield_credit_stress_proxy'
+        source         = 'derived'
+
+    Runs once per day at HY_PROXY_UPDATE_HOUR_UTC:
+    HY_PROXY_UPDATE_MINUTE_UTC (default 03:00 UTC), staggered
+    after the 01:00 UTC macro/FRED task and before the 03:30 UTC
+    vintages task (B6).
+
+    Idempotent: the service returns one record per trading day
+    in the HY_PROXY_LOOKBACK_DAYS window, and the repository's
+    ON CONFLICT (time, indicator_name) clause skips any day
+    already stored. Re-running on the same day is a no-op.
+
+    Consumed by features_db as the
+    high_yield_credit_stress_proxy column. See
+    docs/data-service-schemas.md §5, row 14.
+    """
+
+    from app.services.high_yield_credit_stress_service import (
+        HighYieldCreditStressService,
+    )
+
+    logger.info("📉 HY credit stress scheduler started")
+    logger.info(
+        "HY credit stress production schedule enabled: "
+        "running daily at %02d:%02d UTC",
+        settings.HY_PROXY_UPDATE_HOUR_UTC,
+        settings.HY_PROXY_UPDATE_MINUTE_UTC,
+    )
+
+    while True:
+        try:
+            await wait_until_next_run(
+                settings.HY_PROXY_UPDATE_HOUR_UTC,
+                settings.HY_PROXY_UPDATE_MINUTE_UTC,
+                "high yield credit stress update",
+            )
+
+            logger.info("📉 HY credit stress scheduler woke up")
+
+            db = SessionLocal()
+            service = None
+
+            try:
+                service = HighYieldCreditStressService(db)
+
+                records = await service.collect()
+
+                if records:
+                    service.repository.create_many(records)
+
+                    logger.info(
+                        "📉 Persisted %d high_yield_credit_stress_proxy "
+                        "record(s)",
+                        len(records),
+                    )
+                else:
+                    logger.warning(
+                        "📉 HY credit stress calculation produced "
+                        "no records"
+                    )
+
+            finally:
+                if service:
+                    await service.close()
+                db.close()
+
+            logger.info(
+                "📉 HY credit stress scheduled job completed"
+            )
+
+        except asyncio.CancelledError:
+            logger.info("HY credit stress scheduler cancelled")
+            raise
+
+        except Exception:
+            logger.exception(
+                "🔥 HY credit stress scheduler failed"
+            )
+
+
+# ============================================================
 # ECONOMIC CALENDAR SCHEDULER
 # ============================================================
 
