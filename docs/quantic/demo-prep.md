@@ -41,7 +41,7 @@ Check boxes on **[#752](https://github.com/TheQuintet/macrocrypto-ai/issues/752)
 - [ ] **Board & grader** — board URL in README; ≥3 sprints + retro visible for demo; `quantic-grader` invited (Sid)
 - [x] **Google Drive / recording owner** — Loredana (Zoom record → Drive link; anyone with link can view)
 - [ ] **Quantic submitter** — one person named for dashboard + Group Agreement
-- [ ] **Scripts** — each member fills [demo-script.md](./demo-script.md) by **Thu 8 Oct**; Sid merges narrative; Richard checks timing
+- [ ] **Scripts** — each member fills their section in [demo-script.md](./demo-script.md) by **8 Oct**; **Loredana** merges the team’s scripts into one narrative and builds the recording plan from what is provided
 
 ---
 
@@ -59,7 +59,7 @@ Check boxes on **[#752](https://github.com/TheQuintet/macrocrypto-ai/issues/752)
 Plus **intros + government IDs** per Quantic rules (typically at the start of the recording).
 
 - [x] Run-of-show order agreed (**7 Oct 2026**)
-- [ ] Script matches table ([demo-script.md](./demo-script.md)) — due **Thu 8 Oct**
+- [ ] Merged script and recording plan match run-of-show ([demo-script.md](./demo-script.md)) — **Loredana**, after member sections are in by **8 Oct**
 
 ---
 
