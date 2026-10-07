@@ -21,6 +21,10 @@ Usage
     python -m app.scripts.run_live_path --verify-hourly --table all --days 7
     python -m app.scripts.run_live_path --verify-hourly --table btc \
         --days 7 --repair
+    python -m app.scripts.run_live_path --macro-vintages
+    python -m app.scripts.run_live_path --macro-vintages --years 20
+    python -m app.scripts.run_live_path --macro-vintages-backfill
+    python -m app.scripts.run_live_path --macro-vintages-backfill --years 10
     python -m app.scripts.run_live_path --features-db
     python -m app.scripts.run_live_path --all
 
@@ -44,6 +48,15 @@ Phase B (Chat 4, C4-2):
         consolidated verify path (Chat 4 Decision 8); Chat 3's
         per-command --verify flag on the *-hourly-backfill
         subcommands is left untouched.
+
+Phase B (Chat 5, B6):
+    --macro-vintages fetches FRED vintages for the 5 revision-prone
+        series and writes them to macro_indicator_vintages. Uses
+        VINTAGE_LOOKBACK_YEARS by default.
+    --macro-vintages-backfill is an alias for the same operation,
+        provided for symmetry with the *-backfill naming used by
+        the hourly commands. Both accept --years to override the
+        lookback for a single run.
 
 Phase B (still stubbed here):
     --features-db.
@@ -506,6 +519,114 @@ async def _run_verify_hourly(args: argparse.Namespace) -> int:
     return 0
 
 
+# ------------------------------------------------------------------
+# --macro-vintages / --macro-vintages-backfill (Chat 5, B6)
+# ------------------------------------------------------------------
+#
+# Fetches FRED vintages for the 5 revision-prone series and writes
+# them to macro_indicator_vintages. Idempotent (ON CONFLICT DO
+# NOTHING on the (series_id, observation_date, release_date)
+# unique constraint), so re-running is a no-op for stored rows.
+#
+# --macro-vintages and --macro-vintages-backfill are aliases for
+# the same operation. Both accept --years to override the
+# VINTAGE_LOOKBACK_YEARS default for one run; if --years is not
+# given, the setting is used.
+#
+# Requires a real FRED_API_KEY. If the key is missing or still
+# the placeholder, the service constructor raises RuntimeError
+# and the CLI exits 1 with a clear message.
+
+
+async def _run_macro_vintages(args: argparse.Namespace) -> int:
+    """
+    Fetch and persist FRED macro indicator vintages.
+
+    Exit codes:
+        0   at least one series written (or already present)
+        1   no series succeeded, or FRED key misconfigured
+        2   bad args
+    """
+    from app.database.session import SessionLocal
+    from app.services.macro_vintage_service import (
+        MacroVintageService,
+    )
+
+    lookback_years = args.years
+
+    logger.info(
+        "[CLI] macro-vintages: lookback_years=%s",
+        lookback_years
+        if lookback_years is not None
+        else f"default ({_vintage_default_years()})",
+    )
+
+    db = SessionLocal()
+    service = None
+    try:
+        try:
+            service = MacroVintageService(
+                db,
+                lookback_years=lookback_years,
+            )
+        except RuntimeError as exc:
+            # Missing or placeholder FRED_API_KEY. Fail with a
+            # clean, actionable message rather than a traceback.
+            logger.error("[CLI] %s", exc)
+            return 1
+        except ValueError as exc:
+            logger.error("[CLI] %s", exc)
+            return 2
+
+        try:
+            records = await service.collect()
+        except Exception:
+            logger.exception(
+                "[CLI] macro-vintages collection failed"
+            )
+            return 1
+
+        if not records:
+            logger.warning(
+                "[CLI] macro-vintages: no records returned; "
+                "nothing to persist"
+            )
+            return 1
+
+        attempted = service.repository.create_many(records)
+
+        logger.info(
+            "[CLI] macro-vintages done: attempted=%d",
+            attempted,
+        )
+
+        # Per-series summary for operator visibility.
+        counts = service.repository.count_by_series()
+        if counts:
+            print()
+            print("=== macro_indicator_vintages (per series) ===")
+            for series_id in sorted(counts.keys()):
+                print(f"  {series_id:<12} {counts[series_id]} rows")
+
+        return 0
+
+    finally:
+        if service:
+            await service.close()
+        db.close()
+
+
+def _vintage_default_years() -> int:
+    """
+    Read VINTAGE_LOOKBACK_YEARS without importing the whole
+    settings object twice. Isolated here so the CLI's logging
+    line stays truthful if the setting changes.
+    """
+    from app.config import settings
+
+    return settings.VINTAGE_LOOKBACK_YEARS
+
+
 async def _run_features_db() -> int:
     _not_implemented("--features-db", "features_db writer (Phase B)")
     return 0
@@ -567,6 +688,16 @@ SUBCOMMANDS: dict[
         "MATERIALIZATION_GAP hours (requires --table)",
         _run_verify_hourly,
     ),
+    "--macro-vintages": (
+        "Fetch FRED macro indicator vintages and persist them "
+        "(Phase B, B6)",
+        _run_macro_vintages,
+    ),
+    "--macro-vintages-backfill": (
+        "Alias for --macro-vintages; accepts --years to override "
+        "VINTAGE_LOOKBACK_YEARS for one run",
+        _run_macro_vintages,
+    ),
     "--features-db": (
         "Write the features_db hourly table (Phase B)",
         _run_features_db,
@@ -584,8 +715,8 @@ def build_parser() -> argparse.ArgumentParser:
         description=(
             "Manually trigger data-service live-path steps. "
             "Supports the daily backfill, the hourly BTC "
-            "and macro materializations, and hourly gap "
-            "verification."
+            "and macro materializations, hourly gap "
+            "verification, and FRED macro vintage ingestion."
         ),
     )
 
@@ -661,6 +792,18 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
 
+    parser.add_argument(
+        "--years",
+        type=int,
+        default=None,
+        help=(
+            "With --macro-vintages / --macro-vintages-backfill: "
+            "lookback window in years. Overrides "
+            "VINTAGE_LOOKBACK_YEARS for one run. Must be a "
+            "positive integer."
+        ),
+    )
+
     return parser
 
 
@@ -674,6 +817,8 @@ async def _dispatch(args: argparse.Namespace) -> int:
         "--btc-hourly-backfill",
         "--macro-hourly-backfill",
         "--verify-hourly",
+        "--macro-vintages",
+        "--macro-vintages-backfill",
     )
     for flag, (_, handler) in SUBCOMMANDS.items():
         if getattr(args, flag.lstrip("-").replace("-", "_")):
