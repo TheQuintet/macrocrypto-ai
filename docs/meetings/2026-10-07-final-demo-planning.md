@@ -62,11 +62,8 @@ Stand-up, presentation order, deployment, and recording plan for the Capstone de
 | **Loredana** | Send **Sat 10 Oct ~18:00** Zoom invite; record, upload to Google Drive, share link | 10 Oct | ⏳ Open |
 | **Loredana** | Short sync with Mael on **9 vs 13 indicators** if still mismatched | **Thu 8 Oct** | ⏳ Open |
 | **Sid** | Finish two data-service branches; apply Mael’s review | **Thu 8 Oct** | ⏳ Open |
-| **Sid** | Full local test run before handoff | **Thu 8 Oct** | ⏳ Open |
 | **Sid** | Hand off AI integration details to Mael; stay reachable through Thu | **Thu 8 Oct** | ⏳ Open |
-| **Sid** | Agree with Mael on AI vs architecture talking points; share segment script | **Thu 8 Oct** | ⏳ Open |
 | **Sid** | Add Quantic submitter / grader access per checklist | Before submission | ⏳ Open |
-| **Sid** | Follow up Dr. Robert (dummy data) and Katie (post-submission changes) | Ongoing | ⏳ Open |
 | **Mael** | Integrate Sid’s final PRs + AI service end-to-end | **Thu 8 Oct** | ⏳ Open |
 | **Mael** | Finalize software design doc (single MD, SVG links, current + future architecture) | Before submission | ⏳ Open |
 | **Mael** | Review open backend story on board — close or flag | This week | ⏳ Open |
@@ -106,24 +103,8 @@ Stand-up, presentation order, deployment, and recording plan for the Capstone de
 
 ---
 
-## Status snapshot
-
-| Area | Owner | Note |
-|------|-------|------|
-| Trader frontend + E2E | Loredana | Macro cards merged; E2E PR open; **9/13** indicators in Loredana env |
-| Forecast UI | Kingson | **Done** (merged) |
-| Data service / Parquet | Sid | Hourly fix; **2 branches** awaiting Mael |
-| AI + Gateway | Mael / Sid | Connected; **13/13** on Mael’s machine; E2E integration by Thu |
-| ML service | Richard | Ready; presents **research/preprocessing**, not live AI segment |
-| Deploy | Loredana | **Vercel** chosen; URL not live yet |
-| Demo run-of-show | Team | **Locked 7 Oct** — see [demo-prep](../quantic/demo-prep.md) |
-| Docs / design | Mael / Loredana | Single MD + SVG structure agreed |
-
----
-
 ## Notes
 
-- Source: team summary (7 Oct 2026) and Zoom transcripts (`Weekly Capstone Scrum meeting. transcript.txt`, `Weekly Capstone Scrum meeting_ transcript_2026-10-07_22.30.17.txt`, `Weekly Capstone Scrum meeting_ transcript_2026-10-07_22.36.51.txt`). Transcripts are not checked into this repo.
 - Previous session: [30 Sep 2026](./2026-09-30-review-and-planning.md) · [Quantic demo prep](../quantic/demo-prep.md) · [#752](https://github.com/TheQuintet/macrocrypto-ai/issues/752).
 
 ---
