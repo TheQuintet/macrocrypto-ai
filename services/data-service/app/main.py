@@ -39,6 +39,7 @@ from app.services.scheduler import (
     periodic_hourly_gap_scan,
     periodic_high_yield_credit_stress,
     periodic_macro_vintages,
+    periodic_features_db,
 )
 
 # ✅ Backfill status for /health visibility (Phase A, Chat 2)
@@ -64,6 +65,7 @@ current_regime_task: Optional[asyncio.Task] = None
 hourly_gap_scan_task: Optional[asyncio.Task] = None
 hy_proxy_task: Optional[asyncio.Task] = None
 macro_vintage_task: Optional[asyncio.Task] = None
+features_db_task: Optional[asyncio.Task] = None
 
 price_service: Optional[PriceService] = None
 data_processor: Optional[DataProcessor] = None
@@ -78,7 +80,7 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     """Lifespan context manager for startup and shutdown events"""
     # global btc_task, price_service, data_processor, cache_client, rabbitmq_producer
-    global btc_task, market_cap_task, economic_task, current_regime_task, hourly_gap_scan_task, hy_proxy_task, macro_vintage_task, price_service, data_processor, cache_client, rabbitmq_producer, market_cap_service 
+    global btc_task, market_cap_task, economic_task, current_regime_task, hourly_gap_scan_task, hy_proxy_task, macro_vintage_task, features_db_task, price_service, data_processor, cache_client, rabbitmq_producer, market_cap_service 
 
     # ============================================
     # STARTUP PHASE
@@ -345,6 +347,32 @@ async def lifespan(app: FastAPI):
         )
         macro_vintage_task = None
 
+    # --------------------------------------------
+    # 11. Start FeaturesDB Writer (Phase B, Chat 5, B4)
+    # --------------------------------------------
+    # Hourly job that writes the just-completed hour's feature
+    # row to features_db. Runs at :05, staggered after the
+    # hourly materializers (BTC at :01, macro at :02). Enforces
+    # the D9 writer lag so y is populated. Idempotent: relies on
+    # the PRIMARY KEY (ds) ON CONFLICT DO NOTHING in
+    # FeaturesDBRepository. The 53-column contract and its
+    # column semantics are documented in
+    # migrations/009_create_features_db.sql and
+    # docs/data-service-schemas.md §3, §5.
+    try:
+        features_db_task = asyncio.create_task(
+            periodic_features_db()
+        )
+        logger.info(
+            "✅ FeaturesDB scheduler started "
+            f"(hourly at :{settings.FEATURES_DB_UPDATE_MINUTE_UTC:02d} UTC)"
+        )
+    except Exception as error:
+        logger.error(
+            f"⚠️ FeaturesDB scheduler startup error: {error}"
+        )
+        features_db_task = None
+
     logger.info(f"✅ {settings.SERVICE_NAME} started successfully!")
     
     # ============================================
@@ -463,6 +491,25 @@ async def lifespan(app: FastAPI):
 
         finally:
             macro_vintage_task = None
+
+    if features_db_task:
+        features_db_task.cancel()
+
+        try:
+            await features_db_task
+
+        except asyncio.CancelledError:
+            logger.info(
+                "✅ FeaturesDB task cancelled successfully"
+            )
+
+        except Exception as error:
+            logger.error(
+                f"⚠️ FeaturesDB shutdown error: {error}"
+            )
+
+        finally:
+            features_db_task = None
 
     
     if rabbitmq_producer:

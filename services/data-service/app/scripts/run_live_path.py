@@ -26,6 +26,12 @@ Usage
     python -m app.scripts.run_live_path --macro-vintages-backfill
     python -m app.scripts.run_live_path --macro-vintages-backfill --years 10
     python -m app.scripts.run_live_path --features-db
+    python -m app.scripts.run_live_path --features-db-backfill --days 30
+    python -m app.scripts.run_live_path --features-db-backfill \
+        --start 2024-01-01 --end 2024-12-31
+    python -m app.scripts.run_live_path --features-db-parquet --days 365
+    python -m app.scripts.run_live_path --features-db-parquet \
+        --start 2023-01-01 --end 2024-12-31
     python -m app.scripts.run_live_path --all
 
 Scope
@@ -58,8 +64,17 @@ Phase B (Chat 5, B6):
         the hourly commands. Both accept --years to override the
         lookback for a single run.
 
-Phase B (still stubbed here):
-    --features-db.
+Phase B (Chat 5, B4):
+    --features-db writes the just-completed hour's row to
+        features_db. Enforces the D9 writer lag.
+    --features-db-backfill writes a range of hours to
+        features_db, skipping already-present hours. Accepts
+        --days / --start / --end.
+    --features-db-parquet produces the Option B hourly parquet
+        set (train/val/test/live_frontier + feature_scaler.pkl)
+        in FEATURES_DB_PARQUET_DIR (default
+        app/data/processed_v2_builder/). Accepts --days /
+        --start / --end.
 
 Design notes
 ------------
@@ -69,6 +84,9 @@ Design notes
   is an additive trigger, not a replacement.
 - All backfill commands are idempotent (ON CONFLICT DO NOTHING),
   so re-running is safe.
+- --features-db-backfill and --features-db-parquet use the same
+  range shape (--days / --start / --end) as the hourly
+  backfills. See _resolve_backfill_range().
 """
 
 from __future__ import annotations
@@ -627,15 +645,182 @@ def _vintage_default_years() -> int:
     return settings.VINTAGE_LOOKBACK_YEARS
 
 
+# ------------------------------------------------------------------
+# --features-db / --features-db-backfill / --features-db-parquet
+#   (Chat 5, B4)
+# ------------------------------------------------------------------
+#
+# Three related commands:
+#
+#   --features-db
+#       Writes the just-completed hour to features_db. Enforces
+#       the D9 writer lag. Called by the scheduler every hour at
+#       :05; the CLI is the manual trigger.
+#
+#   --features-db-backfill
+#       Writes a range of hours to features_db. Skips hours
+#       already present. Idempotent (ON CONFLICT (ds) DO NOTHING).
+#
+#   --features-db-parquet
+#       Produces the Option B hourly parquet set:
+#         train_scaled.parquet
+#         val_scaled.parquet
+#         test_scaled.parquet
+#         live_frontier_scaled.parquet
+#         feature_scaler.pkl
+#       in FEATURES_DB_PARQUET_DIR. Does NOT write to features_db.
+#       Uses SplitProcessor + FeatureScaler with hourly configs.
+#
+# The DB writer and the parquet writer both call
+# FeatureBuilderService.build_features(); they never compute
+# features independently. See feature_builder_service.py and
+# the B4 D22 guarantee.
+
+
 async def _run_features_db() -> int:
-    _not_implemented("--features-db", "features_db writer (Phase B)")
-    return 0
+    """
+    Write the just-completed hour to features_db.
+
+    Exit codes:
+        0   a row was written, or already present
+        1   no row could be built (successor close missing)
+        2   DB or runtime error
+    """
+    from app.database.session import SessionLocal
+    from app.services.features_db_writer import FeaturesDBWriter
+
+    db = SessionLocal()
+    try:
+        writer = FeaturesDBWriter(db)
+        wrote = writer.write_current_hour()
+
+        if wrote:
+            logger.info(
+                "[CLI] features-db: wrote the previous hour"
+            )
+            return 0
+
+        logger.warning(
+            "[CLI] features-db: no row available for the "
+            "previous hour (successor close missing)"
+        )
+        return 1
+
+    except Exception:
+        logger.exception("[CLI] features-db failed")
+        return 2
+
+    finally:
+        db.close()
+
+
+async def _run_features_db_backfill(
+    args: argparse.Namespace,
+) -> int:
+    """
+    Write a range of hours to features_db.
+
+    Exit codes:
+        0   completed (some rows may have been skipped as
+            already present)
+        2   bad args or DB error
+    """
+    from app.database.session import SessionLocal
+    from app.services.features_db_writer import FeaturesDBWriter
+
+    try:
+        start, end = _resolve_backfill_range(args)
+    except ValueError as exc:
+        logger.error("[CLI] %s", exc)
+        return 2
+
+    logger.info(
+        "[CLI] features-db-backfill range: %s -> %s",
+        start.isoformat(),
+        end.isoformat(),
+    )
+
+    db = SessionLocal()
+    try:
+        writer = FeaturesDBWriter(db)
+        summary = writer.write_range(start, end)
+
+        logger.info(
+            "[CLI] features-db-backfill done: expected=%d "
+            "written=%d skipped=%d already=%d",
+            summary["expected_hours"],
+            summary["written"],
+            summary["skipped"],
+            summary["already_present"],
+        )
+        return 0
+
+    except Exception:
+        logger.exception("[CLI] features-db-backfill failed")
+        return 2
+
+    finally:
+        db.close()
+
+
+async def _run_features_db_parquet(
+    args: argparse.Namespace,
+) -> int:
+    """
+    Produce the Option B hourly parquet set.
+
+    Exit codes:
+        0   completed
+        2   bad args or runtime error
+    """
+    from app.database.session import SessionLocal
+    from app.services.features_parquet_writer import (
+        FeaturesParquetWriter,
+    )
+
+    try:
+        start, end = _resolve_backfill_range(args)
+    except ValueError as exc:
+        logger.error("[CLI] %s", exc)
+        return 2
+
+    logger.info(
+        "[CLI] features-db-parquet range: %s -> %s",
+        start.isoformat(),
+        end.isoformat(),
+    )
+
+    db = SessionLocal()
+    try:
+        writer = FeaturesParquetWriter(db)
+        summary = writer.write_all(start, end)
+
+        print()
+        print("=== processed_v2_builder ===")
+        print(f"  output_dir:   {summary['output_dir']}")
+        print(f"  train_rows:   {summary['train_rows']}")
+        print(f"  val_rows:     {summary['val_rows']}")
+        print(f"  test_rows:    {summary['test_rows']}")
+        print(f"  frontier_rows:{summary['frontier_rows']}")
+        print(
+            f"  purged+embargoed: "
+            f"{summary['purged_embargo_rows']}"
+        )
+
+        return 0
+
+    except Exception:
+        logger.exception("[CLI] features-db-parquet failed")
+        return 2
+
+    finally:
+        db.close()
 
 
 async def _run_all() -> int:
     """
-    Run everything in order. --backfill, --btc-hourly, and
-    --macro-hourly are real. --features-db is still a stub.
+    Run everything in order. --backfill, --btc-hourly,
+    --macro-hourly, and --features-db are real.
     """
     rc = await _run_backfill()
     if rc != 0:
@@ -645,13 +830,6 @@ async def _run_all() -> int:
     await _run_macro_hourly()
     await _run_features_db()
     return 0
-
-
-def _not_implemented(flag: str, description: str) -> None:
-    print(
-        f"{flag}: {description} is not yet implemented. "
-        f"This is Phase B work (see data-service-live-path-design.md)."
-    )
 
 
 # ============================================================
@@ -699,8 +877,18 @@ SUBCOMMANDS: dict[
         _run_macro_vintages,
     ),
     "--features-db": (
-        "Write the features_db hourly table (Phase B)",
+        "Write the just-completed hour to features_db",
         _run_features_db,
+    ),
+    "--features-db-backfill": (
+        "Write a range of hours to features_db; skips hours "
+        "already present",
+        _run_features_db_backfill,
+    ),
+    "--features-db-parquet": (
+        "Produce the Option B hourly parquet set in "
+        "FEATURES_DB_PARQUET_DIR (split + scale)",
+        _run_features_db_parquet,
     ),
     "--all": (
         "Run every step in order",
@@ -716,7 +904,8 @@ def build_parser() -> argparse.ArgumentParser:
             "Manually trigger data-service live-path steps. "
             "Supports the daily backfill, the hourly BTC "
             "and macro materializations, hourly gap "
-            "verification, and FRED macro vintage ingestion."
+            "verification, FRED macro vintage ingestion, "
+            "and features_db writes."
         ),
     )
 
@@ -819,6 +1008,8 @@ async def _dispatch(args: argparse.Namespace) -> int:
         "--verify-hourly",
         "--macro-vintages",
         "--macro-vintages-backfill",
+        "--features-db-backfill",
+        "--features-db-parquet",
     )
     for flag, (_, handler) in SUBCOMMANDS.items():
         if getattr(args, flag.lstrip("-").replace("-", "_")):
