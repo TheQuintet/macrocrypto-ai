@@ -4,6 +4,18 @@
 
 Check boxes on **[#752](https://github.com/TheQuintet/macrocrypto-ai/issues/752)** or in this file (keep in sync).
 
+**Last planning sync:** [7 Oct 2026 meeting notes](../meetings/2026-10-07-final-demo-planning.md).
+
+---
+
+## Schedule (team)
+
+| Milestone | When |
+|-----------|------|
+| **Code freeze** | Thu **8 Oct 2026** — integration complete; no dev on recording day |
+| **Recording** | Sat **10 Oct 2026**, ~**18:00** (TZ TBD) — Loredana sends Zoom invite |
+| **Submission** | **Sunday** after recording (exact deadline/TZ TBD) |
+
 ---
 
 ## Content & format (Quantic rules)
@@ -13,6 +25,7 @@ Check boxes on **[#752](https://github.com/TheQuintet/macrocrypto-ai/issues/752)
 - **Screen share** the **deployed** app; BTC trader + prediction scope
 - **Not** a PowerPoint of separate clips, PDF, or ZIP
 - **One teammate** submits on Quantic dashboard + signed Group Project Agreement
+- Tell **one continuous storyline** (~**4 min** per segment); dummy data for **alerts** only — say so on camera
 
 [policies](./policies.md#presentation-standards) · [deliverables](./deliverables.md)
 
@@ -20,57 +33,56 @@ Check boxes on **[#752](https://github.com/TheQuintet/macrocrypto-ai/issues/752)
 
 ## Prerequisites (before rehearsing or recording)
 
-- [ ] **Deploy host** — app live, env vars set (Mael + Sid)
-- [ ] **Deploy account owner** — decided; name posted in `#capstone-project-group`
+- [ ] **Deploy host** — **Vercel** (primary); env vars set (Mael + Sid + Loredana). Fallback: Railway or Render (paid tier if memory-limited)
+- [x] **Deploy account owner** — **Loredana** (Vercel); post confirmation in `#capstone-project-group`
 - [ ] **Deploy URL** — public link works; in README + [deliverables](./deliverables.md)
-- [ ] **Smoke test** — core flows on deploy; broken APIs noted in Slack
-- [ ] **Documents** — design & testing + other Quantic docs linked from README
-- [ ] **Board & grader** — board URL in README; ≥3 sprints; `quantic-grader` invited (Sid)
-- [ ] **Google Drive** — which account/folder holds the final video; sharing = anyone with link
+- [ ] **Smoke test** — health endpoints on deploy; **CI pipelines green** (show pipelines on camera; full post-deploy smoke not required)
+- [ ] **Documents** — design & testing + other Quantic docs linked from README (single MD + SVG UML folder per [7 Oct decisions](../meetings/2026-10-07-final-demo-planning.md))
+- [ ] **Board & grader** — board URL in README; ≥3 sprints + retro visible for demo; `quantic-grader` invited (Sid)
+- [x] **Google Drive / recording owner** — Loredana (Zoom record → Drive link; anyone with link can view)
 - [ ] **Quantic submitter** — one person named for dashboard + Group Agreement
-- [ ] **Scripts** — each member fills [demo-script.md](./demo-script.md); Sid merges, Richard checks timing
+- [ ] **Scripts** — each member fills [demo-script.md](./demo-script.md) by **Thu 8 Oct**; Sid merges narrative; Richard checks timing
 
 ---
 
-## Recommended run-of-show (~18 min)
+## Agreed run-of-show (~18 min)
 
-| Block | ~Time | Who | Focus |
-|-------|-------|-----|--------|
-| Intros + IDs | 1:30 | All | Name, role, ID |
-| Problem & product | 1:30 | Sid | Persona, value, architecture (high level) |
-| Agile & process | 2:00 | Loredana | Sprints, PO/SM, board, CI/CD |
-| Data & platform | 2:30 | Mael | Pipeline, Gateway, deploy URL |
-| AI / ML | 3:00 | Richard | Models, features, predictions on deploy |
-| Frontend — forecast | 3:30 | Kingson | Dashboard, chart, forecast |
-| Frontend — alerts | 2:30 | Loredana | Alerts, notifications |
-| Design & testing doc | 1:30 | Mael / Loredana | Point to doc in repo |
-| Board + close | 1:00 | Sid | Done stories match demo |
+| # | ~Time | Who | Focus |
+|---|-------|-----|--------|
+| 1 | ~4:00 | **Kingson** | Opening, welcome, handoff into story |
+| 2 | ~4:00 | **Sid** | Origin, problem, solution, overview; **AI service** (6 models, champion, correlation job) |
+| 3 | ~4:00 | **Mael** | Architecture, stack, 3 services, RabbitMQ, Redis, CI/CD, link to software design docs |
+| 4 | ~4:00 | **Richard** | Data gathering and preprocessing research |
+| 5 | ~4:00 | **Loredana** | Scrum (board, sprints, notes, retro) + **frontend alerts** (dummy data called out) |
+| 6 | ~4:00 | **Kingson** | Dashboard, charts, forecast, **closing live demo** on deploy URL |
 
-- [ ] Run-of-show timing agreed (Richard)
-- [ ] Script matches table (Sid)
+Plus **intros + government IDs** per Quantic rules (typically at the start of the recording).
+
+- [x] Run-of-show order agreed (**7 Oct 2026**)
+- [ ] Script matches table ([demo-script.md](./demo-script.md)) — due **Thu 8 Oct**
 
 ---
 
 ## Rehearse each block (optional tick as you prep)
 
 - [ ] Intros + IDs — all
-- [ ] Product — Sid
-- [ ] Agile & process — Loredana
-- [ ] Data & platform — Mael
-- [ ] AI / ML — Richard
-- [ ] Frontend forecast — Kingson
-- [ ] Frontend alerts — Loredana
-- [ ] Design & testing pointer — Mael / Loredana
-- [ ] Board + close — Sid
+- [ ] Opening — Kingson
+- [ ] Problem, product & AI service — Sid
+- [ ] Architecture & platform — Mael
+- [ ] Data & preprocessing — Richard
+- [ ] Agile process & alerts — Loredana
+- [ ] Dashboard, forecast & close — Kingson
 
 ---
 
 ## Record
 
-- [ ] One Zoom scheduled — all 5 confirmed (Loredana)
-- [ ] Demo data on deploy; fallback line if an API fails
-- [ ] Dry run timed (15–20 min)
+- [ ] Zoom scheduled **Sat 10 Oct ~18:00** — all 5 confirmed (Loredana)
+- [ ] Deploy live; alerts use dummy data with on-camera disclaimer
+- [ ] Optional dry run timed (15–20 min)
+- [ ] Mael backup pre-record for his segment (connectivity fallback)
 - [ ] Final `.mp4` on Drive; link in README / deliverables
 - [ ] Quantic dashboard submit + Group Agreement
+- [ ] **No repo changes after submit** unless Quantic (Katie) approves
 
 Close **#752** when all boxes above are done.

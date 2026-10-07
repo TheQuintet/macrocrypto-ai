@@ -77,4 +77,4 @@ Final submission push (~one week to **14 Oct**): backend integration, Quantic do
 
 ## Next meeting
 
-Wed **7 Oct 2026** (Slot B) — [recurring sync](../team-roles.md#recurring-meetings-through-14-oct-2026).
+Wed **7 Oct 2026** (Slot B) — [Final demo planning](./2026-10-07-final-demo-planning.md).
