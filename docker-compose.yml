@@ -156,6 +156,8 @@ services:
       - ./services/ai-service/app:/app/app
       - ./services/ai-service/tests:/app/tests
       - ./shared:/app/shared
+      # Read-only feature parquet + scaler (FEATURE_SOURCE=parquet)
+      - ./services/data-service/app/data/processed:/app/shared/features:ro
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
       interval: 10s

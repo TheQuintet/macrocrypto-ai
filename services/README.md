@@ -2,7 +2,7 @@
 
 Backend microservices and the infrastructure they depend on, run through Docker Compose from the repository root.
 
-**data-service** and **alert-service** are active in Compose today; `ai-service` and `api-gateway` are still scaffolding. See [Services](#services).
+Compose runs **data-service**, **alert-service**, **ai-service** (ML), and **api-gateway**, plus Postgres, Redis, RabbitMQ, and MLflow. See [Services](#services).
 
 ## Prerequisites
 
@@ -17,11 +17,13 @@ Backend microservices and the infrastructure they depend on, run through Docker 
 ```bash
 cp services/data-service/.env.example services/data-service/.env
 cp services/alert-service/.env.example services/alert-service/.env
+cp services/ai-service/.env.example services/ai-service/.env
+cp services/api-gateway/.env.example services/api-gateway/.env
 ```
 
-**Required.** `docker-compose.yml` declares `env_file` for both services, so Compose needs these files. They are gitignored and are not in a fresh clone.
+**Required.** `docker-compose.yml` declares `env_file` for each microservice, so Compose needs these files. They are gitignored and are not in a fresh clone.
 
-No edits needed. The defaults use Compose service names (`postgres`, `redis`, `rabbitmq`) rather than `localhost`, which is what the containers need.
+No edits needed for a first run. Defaults use Compose service names (`postgres`, `redis`, `rabbitmq`, `mlflow`) rather than `localhost`, which is what the containers need.
 
 ### 2. Start
 
@@ -41,15 +43,38 @@ data-service and alert-service declare `depends_on: condition: service_healthy`,
 make ps
 ```
 
-Four containers `Up` for infrastructure plus data-service `(healthy)`. With this Compose file you should also see `macro-alert-service`.
+Infrastructure containers plus **data-service**, **alert-service**, **ai-service**, and **api-gateway** should show `Up` (microservices often `(healthy)` after a short wait).
 
 ```bash
-make price
+make price          # live BTC snapshot via data-service
+make ai-health      # ML service health
+make api-health     # gateway health
 ```
 
-Returns the current BTC snapshot. **`null` for the first few seconds is expected** — the Binance WebSocket has not delivered a tick yet.
+`make price` may return **`null` for the first few seconds** — the Binance WebSocket has not delivered a tick yet.
 
-For anything unexpected, `make health` breaks down each dependency and `make data-logs` shows the service log. Interactive API docs: <http://localhost:8001/docs>
+| Service | Docs | Health |
+|---------|------|--------|
+| API Gateway | http://localhost:8000/docs | http://localhost:8000/health |
+| Data service | http://localhost:8001/docs | http://localhost:8001/health |
+| AI / ML service | http://localhost:8002/docs | http://localhost:8002/health |
+| Alert service | http://localhost:8003/docs | http://localhost:8003/health |
+| MLflow | http://localhost:5000 | — |
+
+For anything unexpected, `make health` (data-service) breaks down dependencies; `make data-logs`, `make ai-logs`, or `make api-logs` show service logs.
+
+### Start or restart one microservice
+
+If the stack is already up and you changed one service:
+
+```bash
+make data-up    # data collection + market/macro APIs
+make ai-up      # ML predictions (needs infra; mounts feature parquet from data-service)
+make alert-up   # alerts
+make api-up     # external REST entry (proxies data, ML, alerts)
+```
+
+Full runbook for the ML service: [ai-service/README.md](./ai-service/README.md).
 
 ## Connecting the frontend
 
@@ -84,9 +109,10 @@ Starting the backend does not make everything live. Current state:
 | postgres | `macro-postgres` | 5432 | Primary datastore (`macrocrypto` db, user `macro`) | **Active** |
 | redis | `macro-redis` | 6379 | Response and snapshot caching | **Active** |
 | rabbitmq | `macro-rabbitmq` | 5672, 15672 | Event bus; management UI on 15672 (`guest`/`guest`) | **Active** |
-| `ai-service` | — | 8002 | Prophet price forecasting | Commented out in Compose |
+| `ai-service` | `macro-ai-service` | 8002 | BTC forecasting (Prophet, XGBoost, LightGBM); MLflow registry | **Active** |
 | `alert-service` | `macro-alert-service` | 8003 | Alert rules and notifications | **Active** |
-| `api-gateway` | — | — | REST + WebSocket gateway | Commented out; folder is empty `__init__.py` stubs |
+| `api-gateway` | `macro-api-gateway` | 8000 | REST + WebSocket gateway; proxies data, ML, alerts | **Active** |
+| `mlflow` | `macro-mlflow` | 5000 | Model experiment tracking | **Active** |
 
 The frontend is in `docker-compose.yml` too but commented out, and there is no `frontend/Dockerfile`, so it cannot start that way. Run it on the host — see [frontend/README.md](../frontend/README.md).
 
@@ -131,6 +157,36 @@ Run from the repository root; `make help` lists everything.
 | `make data-test-cov` | Tests with coverage |
 | `make data-lint` / `make data-format` | Lint / format |
 
+### ai-service (ML)
+
+| Command | What it does |
+|---|---|
+| `make ai-up` / `make ai-down` | Start (rebuild) / stop ai-service |
+| `make ai-logs` / `make ai-restart` | Logs / restart |
+| `make ai-shell` | Shell inside the container |
+| `make ai-test` | Pytest in container |
+| `make ai-health` / `make ai-ready` | HTTP health / readiness |
+| `make mlflow-ui` | Open MLflow UI |
+
+See [ai-service/README.md](./ai-service/README.md) for when **data-service** is required vs optional.
+
+### alert-service
+
+| Command | What it does |
+|---|---|
+| `make alert-up` / `make alert-down` | Start / stop alert-service |
+| `make alert-logs` / `make alert-restart` | Logs / restart |
+| `make alert-test` | Pytest in container |
+
+### api-gateway
+
+| Command | What it does |
+|---|---|
+| `make api-up` / `make api-down` | Start / stop API Gateway |
+| `make api-logs` / `make api-restart` | Logs / restart |
+| `make api-health` / `make api-ready` | HTTP health / readiness |
+| `make api-test` | Pytest in container |
+
 ### Infrastructure and monitoring
 
 | Command | What it does |
@@ -138,7 +194,8 @@ Run from the repository root; `make help` lists everything.
 | `make postgres-cli` | `psql` inside the Postgres container |
 | `make redis-cli` | `redis-cli` inside the Redis container |
 | `make rabbitmq-ui` | Open the RabbitMQ management UI |
-| `make health` | Pretty-print `/health` |
+| `make mlflow-ui` | Open the MLflow UI |
+| `make health` | Pretty-print data-service `/health` |
 | `make price` | Pretty-print the current BTC price |
 | `make watch-price` | Live-refreshing price view (Ctrl+C to stop) |
 

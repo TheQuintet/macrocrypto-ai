@@ -113,7 +113,9 @@ make api-up
 | AI service | http://localhost:8002/docs | http://localhost:8002/health |
 | Alert service | http://localhost:8003/docs | http://localhost:8003/health |
 
-Env files, commands, and troubleshooting: [services/README.md — Quick start](./services/README.md#quick-start) · [ai-service README](./services/ai-service/README.md) · [api-gateway README](./services/api-gateway/README.md).
+Env files, commands, and troubleshooting: [services/README.md — Quick start](./services/README.md#quick-start) · [AI / ML service (ai-service)](./services/ai-service/README.md) · [api-gateway README](./services/api-gateway/README.md).
+
+The **data-service** collects live BTC and macro inputs; the **ai-service** reads prepared feature files from the repo and serves forecasts. For grading or a full local demo, `make up` starts both. To bring up only the ML container after infra exists: `make ai-up` ([details](./services/ai-service/README.md#relationship-to-data-service)).
 
 ### Frontend
 
