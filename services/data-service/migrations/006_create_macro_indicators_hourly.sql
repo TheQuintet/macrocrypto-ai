@@ -31,3 +31,13 @@ CREATE TABLE IF NOT EXISTS macro_indicators_hourly (
 
 CREATE INDEX IF NOT EXISTS idx_macro_indicators_hourly_time_desc
     ON macro_indicators_hourly (time DESC);
+
+-- Convert to a TimescaleDB hypertable. Same settings as
+-- 005_create_btc_prices_hourly.sql.
+
+SELECT create_hypertable(
+    'macro_indicators_hourly',
+    'time',
+    if_not_exists => TRUE,
+    migrate_data => TRUE
+);
