@@ -5,7 +5,7 @@ import sys
 import logging
 from contextlib import asynccontextmanager
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import FastAPI
 
@@ -36,6 +36,7 @@ from app.services.scheduler import (
     periodic_macro_collection,
     periodic_economic_calendar_collection,
     periodic_regime_collection,
+    periodic_hourly_gap_scan,
 )
 
 # ✅ Backfill status for /health visibility (Phase A, Chat 2)
@@ -58,6 +59,7 @@ market_cap_task: Optional[asyncio.Task] = None
 macro_task: Optional[asyncio.Task] = None
 economic_task: Optional[asyncio.Task] = None
 current_regime_task: Optional[asyncio.Task] = None
+hourly_gap_scan_task: Optional[asyncio.Task] = None
 
 price_service: Optional[PriceService] = None
 data_processor: Optional[DataProcessor] = None
@@ -72,7 +74,7 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     """Lifespan context manager for startup and shutdown events"""
     # global btc_task, price_service, data_processor, cache_client, rabbitmq_producer
-    global btc_task, market_cap_task, economic_task, current_regime_task, price_service, data_processor, cache_client, rabbitmq_producer, market_cap_service 
+    global btc_task, market_cap_task, economic_task, current_regime_task, hourly_gap_scan_task, price_service, data_processor, cache_client, rabbitmq_producer, market_cap_service 
 
     # ============================================
     # STARTUP PHASE
@@ -245,6 +247,37 @@ async def lifespan(app: FastAPI):
         logger.error(
             f"⚠️ Periodic collection startup error: {error}"
         )
+
+    # --------------------------------------------
+    # 8. Start Hourly Gap Scan (Phase B, Chat 4, C4-3)
+    # --------------------------------------------
+    # Read-only background task. Scans btc_prices_hourly and
+    # macro_indicators_hourly for gaps every
+    # HOURLY_GAP_SCAN_INTERVAL_HOURS and logs a warning if any
+    # are found. Never repairs and never fetches from external
+    # providers. See docs/data-service-hourly-runbook.md.
+    try:
+        if settings.HOURLY_GAP_SCAN_ENABLED:
+            hourly_gap_scan_task = asyncio.create_task(
+                periodic_hourly_gap_scan()
+            )
+            logger.info(
+                "✅ Hourly gap scan started "
+                f"(interval={settings.HOURLY_GAP_SCAN_INTERVAL_HOURS}h, "
+                f"lookback={settings.HOURLY_GAP_SCAN_LOOKBACK_HOURS}h)"
+            )
+        else:
+            logger.info(
+                "ℹ️  Hourly gap scan disabled "
+                "(HOURLY_GAP_SCAN_ENABLED=False)"
+            )
+            hourly_gap_scan_task = None
+    except Exception as error:
+        logger.error(
+            f"⚠️ Hourly gap scan startup error: {error}"
+        )
+        hourly_gap_scan_task = None
+
     logger.info(f"✅ {settings.SERVICE_NAME} started successfully!")
     
     # ============================================
@@ -306,6 +339,25 @@ async def lifespan(app: FastAPI):
 
         finally:
             current_regime_task = None
+
+    if hourly_gap_scan_task:
+        hourly_gap_scan_task.cancel()
+
+        try:
+            await hourly_gap_scan_task
+
+        except asyncio.CancelledError:
+            logger.info(
+                "✅ Hourly gap scan task cancelled successfully"
+            )
+
+        except Exception as error:
+            logger.error(
+                f"⚠️ Hourly gap scan shutdown error: {error}"
+            )
+
+        finally:
+            hourly_gap_scan_task = None
 
     
     if rabbitmq_producer:
@@ -842,6 +894,89 @@ async def root():
     }
 
 
+# ============================================
+# HOURLY FRESHNESS (Phase B, Chat 4, C4-3)
+# ============================================
+#
+# Local helper for /health. Uses its own 3-hour staleness
+# threshold, distinct from hourly_backfill_service.is_source_stale
+# (which uses 6h for backfill-gating). The two checks mean
+# different things:
+#
+#   is_source_stale (6h): "Is the backfill source current enough
+#                         to skip a re-fetch?"  (headroom decision,
+#                         Binance publication lag)
+#
+#   _freshness_for  (3h): "Is the pipeline producing fresh rows?"
+#                         (alerting decision, hourly writers run
+#                         at :01 and :02)
+#
+# Same math, different semantics, different callers. Kept
+# separate on purpose (Chat 4, C4-3 Decision).
+
+HOURLY_FRESHNESS_STALE_HOURS = 3
+
+
+def _freshness_for(table: str) -> dict:
+    """
+    Return a freshness report for one hourly table.
+
+    Shape:
+        {
+          "latest_hour": ISO-8601 string or None,
+          "hours_behind": int or None,
+          "status":       "fresh" | "stale" | "unknown",
+        }
+
+    status is "unknown" when the table cannot be queried or the
+    latest hour is NULL. status is "stale" when the newest row is
+    more than HOURLY_FRESHNESS_STALE_HOURS behind now. Otherwise
+    "fresh".
+
+    Read-only. Never raises: on any DB error, returns "unknown".
+    """
+    try:
+        with engine.connect() as conn:
+            row = conn.execute(
+                text(f"SELECT max(time) FROM {table}")
+            ).first()
+    except Exception:
+        logger.exception(
+            "Hourly freshness query failed for %s", table
+        )
+        return {
+            "latest_hour": None,
+            "hours_behind": None,
+            "status": "unknown",
+        }
+
+    latest = row[0] if row else None
+    if latest is None:
+        return {
+            "latest_hour": None,
+            "hours_behind": None,
+            "status": "unknown",
+        }
+
+    # Ensure tz-aware comparison.
+    if latest.tzinfo is None:
+        latest = latest.replace(tzinfo=timezone.utc)
+
+    now = datetime.now(timezone.utc)
+    hours_behind = int((now - latest).total_seconds() // 3600)
+
+    if hours_behind > HOURLY_FRESHNESS_STALE_HOURS:
+        status = "stale"
+    else:
+        status = "fresh"
+
+    return {
+        "latest_hour": latest.isoformat(),
+        "hours_behind": hours_behind,
+        "status": status,
+    }
+
+
 @app.get("/health")
 async def health_check():
     """Health check endpoint for service monitoring"""
@@ -895,6 +1030,13 @@ async def health_check():
     # 'python -m app.scripts.run_live_path --backfill'.
     backfill_status = get_backfill_status()
 
+    # ✅ Hourly freshness (Phase B, Chat 4, C4-3):
+    # read-only; never raises. See _freshness_for above.
+    hourly_freshness = {
+        "btc_prices_hourly": _freshness_for("btc_prices_hourly"),
+        "macro_indicators_hourly": _freshness_for("macro_indicators_hourly"),
+    }
+
     return {
         "status": "healthy" if is_healthy else "degraded",
         "service": settings.SERVICE_NAME,
@@ -916,6 +1058,7 @@ async def health_check():
             "sources_run": backfill_status.sources_run,
             "sources_skipped": backfill_status.sources_skipped,
         },
+        "hourly_freshness": hourly_freshness,
     }
 
 

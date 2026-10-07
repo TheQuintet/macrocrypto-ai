@@ -260,6 +260,36 @@ class Settings(BaseSettings):
     MACRO_UPDATE_INTERVAL_MINUTES: int = 0
 
     # ============================================
+    # HOURLY GAP SCAN (Phase B, Chat 4, C4-3)
+    # ============================================
+    #
+    # Background task that scans btc_prices_hourly and
+    # macro_indicators_hourly for gaps, classifies each missing
+    # hour as MATERIALIZATION_GAP or RAW_DATA_GAP, and logs a
+    # warning if any gaps exist. Read-only: never auto-repairs.
+    #
+    # Runs once at startup, then every INTERVAL_HOURS.
+    # See docs/data-service-hourly-runbook.md for the operator
+    # playbook (how to repair gaps found by this scan).
+
+    # Master switch. Set to False to disable the background
+    # scan entirely. The CLI path
+    # (verify_hourly_tables.py) is unaffected by this flag.
+    HOURLY_GAP_SCAN_ENABLED: bool = True
+
+    # How often the scan runs, in hours.
+    # Default 6h: frequent enough to notice a broken writer the
+    # same day, infrequent enough not to spam logs on a healthy
+    # system.
+    HOURLY_GAP_SCAN_INTERVAL_HOURS: float = 6.0
+
+    # Look-back window for each scan, in hours.
+    # Default 168h = 7 days. Long enough to catch weekend gaps
+    # (when a backfill might have been missed) without scanning
+    # all history on every run.
+    HOURLY_GAP_SCAN_LOOKBACK_HOURS: int = 168
+
+    # ============================================
     # RATE LIMITING
     # ============================================
     RATE_LIMIT_ENABLED: bool = True
