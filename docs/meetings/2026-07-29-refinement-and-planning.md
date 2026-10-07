@@ -27,7 +27,7 @@ Combined backlog refinement and Sprint 2 planning session.
 |-------|----------|
 | **Sprint duration** | **1-week sprints** to maximize practice and iteration speed |
 | **Sprint scope** | Complete as many frontend tasks as possible; unfinished items **roll to the next sprint** (Kanban-style) |
-| **Daily standup** | **Async** messages in **role-specific Slack channels** (`frontend`, `backend`, `ML model`) — not the general channel |
+| **Daily coordination** | **No live daily standup.** **Async** updates in domain Slack (`#mc-frontend`, `#mc-backend`, `#mc-ml-model`, `#mc-software-design`) — not only the general channel |
 | **Frontend tech stack** | TypeScript, Vite, ShadCN, Tailwind CSS, TanStack Query, Vitest + Testing Library. Redux considered too heavy; **Zod proposed** as the lightweight alternative |
 | **Frontend WebSockets** | **Out of scope for now** — keep issues in the sprint but do not work on them (medium priority) |
 | **Diagrams** | Start with a **use case diagram**; Loredana creates, Mael supervises; tool TBD (Mermaid, PlantUML, or collaborative web app) |

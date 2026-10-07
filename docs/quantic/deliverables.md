@@ -46,7 +46,7 @@ To receive credit for the Capstone, we must submit **all** of the following. Use
 |                    |                                           |
 | ------------------ | ----------------------------------------- |
 | **Status**         | ⬜ Not started / 🟡 In progress / ✅ Done |
-| **URL / location** | _TBD_                                     |
+| **URL / location** | [Design hub](../design/README.md) · [Testing (local & CI/CD)](../test%20documents/local-and-ci-cd-tests.md) · [README index](https://github.com/TheQuintet/macrocrypto-ai#design-and-testing-documentation) |
 
 **Requirements**
 
@@ -62,7 +62,7 @@ To receive credit for the Capstone, we must submit **all** of the following. Use
 |            |                                           |
 | ---------- | ----------------------------------------- |
 | **Status** | ⬜ Not started / 🟡 In progress / ✅ Done |
-| **URL**    | _TBD_                                     |
+| **URL**    | [Sprint work board](https://github.com/orgs/TheQuintet/projects/3) (see also [Planning](https://github.com/orgs/TheQuintet/projects/1/views/1), [Retro](https://github.com/orgs/TheQuintet/projects/4), [Milestones](https://github.com/TheQuintet/macrocrypto-ai/milestones)) |
 
 **Requirements**
 
@@ -99,8 +99,8 @@ To receive credit for the Capstone, we must submit **all** of the following. Use
 | -------------------- | ----------------- | ----------------- |
 | GitHub repo          | _TBD_             | _TBD_             |
 | Deployed app         | _TBD_             | _TBD_             |
-| Design & testing doc | _TBD_             | _TBD_             |
-| Agile board (final)  | _TBD_             | _TBD_             |
+| Design & testing doc | [docs/design](../design/README.md) + [testing doc](../test%20documents/local-and-ci-cd-tests.md) | _TBD_             |
+| Agile board (final)  | [Sprint work board](https://github.com/orgs/TheQuintet/projects/3) | _TBD_             |
 | Video presentation   | _TBD_             | _TBD_             |
 
 Set **internal deadlines** at least a few days before official due dates for buffer.

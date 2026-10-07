@@ -26,18 +26,31 @@ Select stories, estimate, and assign owners. Product Owner prioritizes; the team
 
 Clarify stories and acceptance criteria before they enter a sprint.
 
-### Daily standup
+### Async coordination (domain Slack channels)
 
-Standups are **async** — we cannot sync daily across time zones. Each person posts their own update in `#capstone-project-group` on working days.
+We **did not hold a daily standup meeting** — the team agreed that live daily syncs do not work across time zones. Instead, updates and domain discussion happen in **private Slack channels by area**:
+
+| Channel | Domain |
+|---------|--------|
+| `#mc-frontend` | Dashboard, UI, client integration |
+| `#mc-backend` | Services, Gateway, data pipeline, deploy |
+| `#mc-ml-model` | AI/ML service, features, model research |
+| `#mc-software-design` | Architecture, patterns, design docs, UML |
+
+Post progress, questions, and blockers in the channel that matches your work. `#capstone-project-group` stays for whole-team announcements and decisions.
+
+**Trade-off:** some members felt **less visibility** into what others were doing when conversation was split by domain. Mitigations we used: weekly Capstone sync (see [team availability](./team-roles.md#recurring-meetings-through-14-oct-2026)), GitHub board status, PR notifications, and meeting notes in `docs/meetings/`.
+
+Example async update (any domain channel):
 
 ```markdown
-### You
-- Yesterday: Set up RabbitMQ
-- Today: Start Docker Compose
-- Blockers: None
+**[Your name]**
+- Done: …
+- Next: …
+- Blockers: …
 ```
 
-Replace the heading with your name. If you have a blocker, add the `blocked` label to the relevant issue and mention it here.
+If you have a blocker, add the `blocked` label to the relevant issue and mention it in the channel.
 
 ### Sprint review
 
@@ -45,7 +58,7 @@ There is no scheduled live demo. After each sprint (or when useful), every team 
 
 - [ ] Pull latest `main` and run the app locally (or use the shared environment if one is available)
 - [ ] Explore the new/changed behaviour yourself
-- [ ] Check completed work on the [Daily board](https://github.com/orgs/TheQuintet/projects/3)
+- [ ] Check completed work on the [Sprint work board](https://github.com/orgs/TheQuintet/projects/3)
 - [ ] Flag issues or feedback in Slack or on the relevant GitHub issue
 
 ### Retrospective
@@ -67,7 +80,7 @@ What went well, what to improve. Capture items on the [Team Retrospective board]
 | Resource | Purpose | How often |
 |----------|---------|-----------|
 | [GitHub Issues](https://github.com/TheQuintet/macrocrypto-ai/issues) | Track tasks and bugs | Daily |
-| [Daily board](https://github.com/orgs/TheQuintet/projects/3) | Day-to-day sprint work — primary board for standup and status | Daily |
+| [Sprint work board](https://github.com/orgs/TheQuintet/projects/3) | Sprint tasks and status (GitHub Project #3) | As you work |
 | [MacroCrypto AI Team Planning](https://github.com/orgs/TheQuintet/projects/1/views/1) | Sprint/backlog planning and ceremony prep | Weekly |
 | [MacroCrypto AI Team Retrospective](https://github.com/orgs/TheQuintet/projects/4) | Retro items (what went well / improvements / action items) | After each sprint |
 | [MacroCrypto AI Roadmap](https://github.com/orgs/TheQuintet/projects/5) | Epics, features, and longer-term roadmap visibility | Weekly |
@@ -76,7 +89,7 @@ What went well, what to improve. Capture items on the [Team Retrospective board]
 | [Pull Requests](https://github.com/TheQuintet/macrocrypto-ai/pulls?q=sort%3Aupdated-desc+is%3Apr+state%3Aopen+) | Code review | Daily |
 | Branch protection | Enforce quality | Always |
 
-**Rule:** If it is not on a board, it is not officially tracked. Use **Daily** for day-to-day status; **MacroCrypto AI Team Planning** for refinement/planning; **MacroCrypto AI Team Retrospective** for retro follow-ups; **MacroCrypto AI Roadmap** for epics/features and longer-term visibility.
+**Rule:** If it is not on a board, it is not officially tracked. Use the **Sprint work board** for in-sprint status; **MacroCrypto AI Team Planning** for refinement/planning; **MacroCrypto AI Team Retrospective** for retro follow-ups; **MacroCrypto AI Roadmap** for epics/features and longer-term visibility.
 
 ---
 
@@ -104,18 +117,18 @@ What went well, what to improve. Capture items on the [Team Retrospective board]
 
 ---
 
-When blocked, add the `blocked` label to the issue ([labels](https://github.com/TheQuintet/macrocrypto-ai/labels)), note the blocker in a comment, and flag it in your daily standup. The [Scrum Master](./team-roles.md) helps clear blockers.
+When blocked, add the `blocked` label to the issue ([labels](https://github.com/TheQuintet/macrocrypto-ai/labels)), note the blocker in a comment, and flag it in the relevant **domain Slack channel**. The [Scrum Master](./team-roles.md) helps clear blockers.
 
 ---
 
-## Daily developer workflow
+## Developer workflow
 
-1. **Start day** — check assigned issues on the [Daily board](https://github.com/orgs/TheQuintet/projects/3); `git pull origin main`
+1. **Start day** — check assigned issues on the [Sprint work board](https://github.com/orgs/TheQuintet/projects/3); `git pull origin main`
 2. **Work on issue** — move to In Progress; branch `feature/issue-name`; commit and push regularly
-3. **Daily standup** — post yesterday / today / blockers in Slack; label blocked issues
+3. **Async update** — post progress / blockers in the matching domain Slack channel (`#mc-frontend`, `#mc-backend`, `#mc-ml-model`, `#mc-software-design`); label blocked issues
 4. **Open PR** — move issue to Review; request review from a teammate
-5. **Review PRs** — review at least one PR per day; approve or request changes; merge when approved
-6. **End day** — update Daily board status; close issues when done
+5. **Review PRs** — review teammate PRs; approve or request changes; merge when approved
+6. **End day** — update board status; close issues when done
 
 Code changes follow [GitHub Flow](../GITHUB_FLOW.md). See also [Contributing](../CONTRIBUTING.md).
 
@@ -132,7 +145,8 @@ Code changes follow [GitHub Flow](../GITHUB_FLOW.md). See also [Contributing](..
 
 | Tool | Purpose |
 |------|---------|
-| Slack `#capstone-project-group` | Daily standups, quick questions, async updates |
+| Slack `#mc-frontend`, `#mc-backend`, `#mc-ml-model`, `#mc-software-design` | Domain async updates and technical discussion |
+| Slack `#capstone-project-group` | Whole-team announcements, decisions, blockers that cross domains |
 | Email / WhatsApp | See [team-roles.md](./team-roles.md#communication) |
 | GitHub Issues | Task discussions |
 | PR comments | Code discussions |
@@ -155,14 +169,14 @@ Code changes follow [GitHub Flow](../GITHUB_FLOW.md). See also [Contributing](..
 - [ ] Assign tasks to team members
 - [ ] Move issues to To Do
 - [ ] Share board link with team
-- [ ] Agree on async standup format (Slack, working days)
+- [ ] Agree which domain Slack channel each member uses (`#mc-frontend`, `#mc-backend`, `#mc-ml-model`, `#mc-software-design`)
 
 ### During sprint
 
-- [ ] Update board daily
+- [ ] Keep the sprint board current
 - [ ] Review PRs promptly
-- [ ] Label blocked issues and communicate blockers immediately
-- [ ] Post daily standup update in Slack
+- [ ] Label blocked issues and communicate blockers in the relevant domain channel
+- [ ] Post async progress in your domain Slack channel when you have meaningful updates
 
 ### After sprint ends
 
