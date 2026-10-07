@@ -8,15 +8,17 @@
 | Timing & run-of-show | **Richard Owusu** |
 | Facilitate recording | **Loredana Lungu** (SM) |
 
-Run-of-show table: [demo-prep.md](./demo-prep.md#recommended-run-of-show-18-min) · Tracker: [#752](https://github.com/TheQuintet/macrocrypto-ai/issues/752)
+Run-of-show: [demo-prep.md](./demo-prep.md#agreed-run-of-show-18-min) · Decisions: [7 Oct notes](../meetings/2026-10-07-final-demo-planning.md) · Tracker: [#752](https://github.com/TheQuintet/macrocrypto-ai/issues/752)
 
 **Deploy URL (fill when ready):** _TBD_
 
+**Recording:** Sat **10 Oct 2026** ~**18:00** (Zoom — Loredana). **Scripts due Thu 8 Oct.**
+
 ---
 
-## All members — intros (~1:30 total)
+## All members — intros & IDs (Quantic requirement)
 
-Each person: name, capstone role, one sentence on what you built. Then **hold government ID** to camera (~10–15 s) so name and photo are legible.
+Each person: name, capstone role, one sentence on what you built. Then **hold government ID** to camera (~10–15 s) so name and photo are legible. Order can follow the table below or a quick round-robin at the start.
 
 ### Sid Ahmed Mahieddine (Product Owner)
 
@@ -50,79 +52,60 @@ Each person: name, capstone role, one sentence on what you built. Then **hold go
 
 ---
 
-## Sid — problem & product (~1:30)
+## Kingson — opening & welcome (~4:00)
 
 - **First line:**
-- **Screen:** (architecture diagram? README? deployed home?)
-- **Talking points:**
-- **Handoff to next speaker:**
+- **Talking points:** (welcome, team, one-sentence product hook; transition into Sid)
+- **Handoff to Sid:**
 
 ---
 
-## Loredana — agile & process (~2:00)
+## Sid — problem, product & AI service (~4:00)
 
 - **First line:**
-- **Screen:** (GitHub board, README, CI badge — list URLs/paths)
-- **Talking points:** (≥3 sprints, PO/SM/Code Owner, PRs)
-- **Handoff:**
+- **Screen:** (optional architecture slide; deployed home if useful)
+- **Talking points:** origin, problem, solution, personas (BTC trader / investment analyst); **AI service** — six models, champion selection, scheduled correlation analysis
+- **Handoff to Mael:**
 
 ---
 
-## Mael — data & platform (~2:30)
+## Mael — architecture & platform (~4:00)
 
 - **First line:**
-- **Screen:** (deploy URL, optional API Gateway / data flow)
-- **Talking points:**
+- **Screen:** (deploy URL, services diagram, CI badge, link to software design doc in repo)
+- **Talking points:** tech stack, three services, RabbitMQ, Redis caching, CI/CD and test automation; point to design doc (MD + SVG), current vs future architecture
 - **If API fails:** (one sentence + what to show)
-- **Handoff:**
+- **Handoff to Richard:**
+- **Backup:** pre-recorded segment if live connectivity fails
 
 ---
 
-## Richard — AI / ML (~3:00)
+## Richard — data gathering & preprocessing (~4:00)
 
 - **First line:**
-- **Screen:** (prediction UI, AI service, or slides — specify)
-- **Talking points:** (models, horizons, features)
+- **Screen:** (research doc, preprocessing flow, or repo paths)
+- **Talking points:**
+- **Handoff to Loredana:**
+
+---
+
+## Loredana — agile process & alerts (~4:00)
+
+- **First line:**
+- **Screen:** (GitHub board — sprints + retro; alerts + notification bell on deploy)
+- **Talking points:** PO/SM/code owner, meeting notes, PR/CI process; **alerts with dummy data** — state clearly on camera
+- **If alerts fail:** (fallback line)
+- **Handoff to Kingson:**
+
+---
+
+## Kingson — dashboard, forecast & closing demo (~4:00)
+
+- **First line:**
+- **Screen:** (deploy URL — dashboard, charts, forecast routes)
+- **Click path:** (numbered steps; live data on deploy)
 - **If API fails:**
-- **Handoff:**
-
----
-
-## Kingson — frontend forecast (~3:30)
-
-- **First line:**
-- **Screen:** (deploy URL — dashboard / forecast routes)
-- **Click path:** (numbered steps)
-- **If API fails:**
-- **Handoff:**
-
----
-
-## Loredana — alerts & notifications (~2:30)
-
-- **First line:**
-- **Screen:** (alerts + notification bell)
-- **Click path:**
-- **If API fails:**
-- **Handoff:**
-
----
-
-## Mael or Loredana — design & testing doc (~1:30)
-
-- **Speaker:**
-- **First line:**
-- **Screen:** (link/path to design & testing document in repo)
-- **Talking points:** (2–3 bullets max — do not read the doc aloud)
-- **Handoff:**
-
----
-
-## Sid — board & close (~1:00)
-
-- **First line:**
-- **Screen:** (GitHub board — Done column)
-- **Closing line:**
+- **Closing line:** (thank judges / Quantic)
 
 ---
 
@@ -131,14 +114,15 @@ Each person: name, capstone role, one sentence on what you built. Then **hold go
 | Flow | If it breaks on camera, say | Show instead |
 |------|-----------------------------|--------------|
 | Forecast / prediction | | |
-| Alerts | | |
+| Alerts | Dummy data disclaimer + | board or recording backup |
 | Notifications | | |
-| Macro / BTC load | | |
+| Macro / BTC load | Demo with **9 indicators** if 13 unavailable | |
+| Deploy / health | | CI green pipelines |
 
 ---
 
 ## Status
 
-- [ ] Each member filled their section above
+- [ ] Each member filled their section above (**due Thu 8 Oct**)
 - [ ] Sid merged transitions; total read-through fits **15–20 min** (Richard)
 - [ ] Linked from [#752](https://github.com/TheQuintet/macrocrypto-ai/issues/752) or noted in Slack
