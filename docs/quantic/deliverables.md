@@ -81,7 +81,7 @@ To receive credit for the Capstone, we must submit **all** of the following. Use
 | **URL**    | _TBD_                                     |
 | **Length** | 15–20 minutes                             |
 
-**Prep:** follow the [3-step demo guide](./demo-prep.md) and GitHub issue [#752](https://github.com/TheQuintet/macrocrypto-ai/issues/752).
+**Prep:** [demo prep checklist](./demo-prep.md) · [team speaking script](./demo-script.md) · tracker [#752](https://github.com/TheQuintet/macrocrypto-ai/issues/752)
 
 **Requirements**
 
@@ -89,7 +89,7 @@ To receive credit for the Capstone, we must submit **all** of the following. Use
 - [ ] **Every team member** speaks on camera
 - [ ] **Every team member** is visible on camera
 - [ ] **Every team member** presents a **government-issued ID** for verification
-- [ ] Script / slide outline prepared and rehearsed
+- [ ] Speaking script in [demo-script.md](./demo-script.md) prepared and rehearsed
 
 ---
 

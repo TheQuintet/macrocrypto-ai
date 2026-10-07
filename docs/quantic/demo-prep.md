@@ -2,7 +2,14 @@
 
 **User story:** As a team, we want one compliant Capstone demo video that meets Quantic rules.
 
-Check boxes on **[#752](https://github.com/TheQuintet/macrocrypto-ai/issues/752)** or in this file (keep in sync).
+**Where things live**
+
+| | |
+|---|---|
+| **This file** | Prerequisites, run-of-show, record — check boxes here |
+| **[demo-script.md](./demo-script.md)** | Team speaking script — each member edits their section |
+| [deliverables.md](./deliverables.md) · [policies.md](./policies.md#presentation-standards) | Submission & Quantic rules |
+| [#752](https://github.com/TheQuintet/macrocrypto-ai/issues/752) | GitHub tracker only (links point back to these docs) |
 
 ---
 
@@ -47,7 +54,7 @@ Check boxes on **[#752](https://github.com/TheQuintet/macrocrypto-ai/issues/752)
 | Board + close | 1:00 | Sid | Done stories match demo |
 
 - [ ] Run-of-show timing agreed (Richard)
-- [ ] Script matches table (Sid)
+- [ ] [demo-script.md](./demo-script.md) matches this table (Sid merges; Richard checks 15–20 min)
 
 ---
 

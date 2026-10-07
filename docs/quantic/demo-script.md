@@ -8,7 +8,7 @@
 | Timing & run-of-show | **Richard Owusu** |
 | Facilitate recording | **Loredana Lungu** (SM) |
 
-Run-of-show table: [demo-prep.md](./demo-prep.md#recommended-run-of-show-18-min) · Tracker: [#752](https://github.com/TheQuintet/macrocrypto-ai/issues/752)
+Checklist & run-of-show: [demo-prep.md](./demo-prep.md#recommended-run-of-show-18-min)
 
 **Deploy URL (fill when ready):** _TBD_
 
@@ -141,4 +141,4 @@ Each person: name, capstone role, one sentence on what you built. Then **hold go
 
 - [ ] Each member filled their section above
 - [ ] Sid merged transitions; total read-through fits **15–20 min** (Richard)
-- [ ] Linked from [#752](https://github.com/TheQuintet/macrocrypto-ai/issues/752) or noted in Slack
+- [ ] Team notified in `#capstone-project-group` with link to this file on `main`
