@@ -2,7 +2,7 @@
 
 **AI-powered Bitcoin intelligence driven by macroeconomic data.**
 
-Quantic MBA capstone (cohort November 2026). GitHub repository for [TheQuintet/macrocrypto-ai](https://github.com/TheQuintet/macrocrypto-ai).
+Quantic MSSE capstone (cohort November 2026). GitHub repository for [TheQuintet/macrocrypto-ai](https://github.com/TheQuintet/macrocrypto-ai).
 
 Traders and analysts today split Bitcoin prices (CoinGecko, TradingView) from macroeconomic series (FRED). This platform puts **BTC market data, macro indicators, forecasts, and alerts** in one dashboard so users can see *why* price is moving, not only *what* it is.
 
