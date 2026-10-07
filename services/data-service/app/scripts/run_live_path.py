@@ -16,6 +16,11 @@ Usage
         --start 2024-01-01 --end 2024-12-31
     python -m app.scripts.run_live_path --macro-hourly-backfill --verify --days 30
     python -m app.scripts.run_live_path --macro-hourly-backfill --dry-run --days 30
+    python -m app.scripts.run_live_path --verify-hourly --table btc --days 30
+    python -m app.scripts.run_live_path --verify-hourly --table macro --days 30
+    python -m app.scripts.run_live_path --verify-hourly --table all --days 7
+    python -m app.scripts.run_live_path --verify-hourly --table btc \
+        --days 7 --repair
     python -m app.scripts.run_live_path --features-db
     python -m app.scripts.run_live_path --all
 
@@ -30,6 +35,15 @@ Phase B (Chat 3):
     --macro-hourly writes macro_indicators_hourly for the
         just-completed hour.
     --macro-hourly-backfill materializes a range of hours from raw data.
+
+Phase B (Chat 4, C4-2):
+    --verify-hourly scans one or more hourly tables for gaps and
+        classifies each missing hour as MATERIALIZATION_GAP or
+        RAW_DATA_GAP. Requires --table. Supports --repair (default
+        OFF) to fix MATERIALIZATION_GAP hours. This is the
+        consolidated verify path (Chat 4 Decision 8); Chat 3's
+        per-command --verify flag on the *-hourly-backfill
+        subcommands is left untouched.
 
 Phase B (still stubbed here):
     --features-db.
@@ -56,6 +70,14 @@ from typing import Awaitable, Callable
 from app.services.backfill_service import (
     check_and_backfill,
     get_backfill_status,
+)
+
+from app.services.gap_detection_service import (
+    SUPPORTED_TABLES,
+    TABLE_BTC,
+    TABLE_MACRO,
+    repair as repair_gaps,
+    scan as scan_gaps,
 )
 
 
@@ -350,6 +372,140 @@ async def _run_macro_hourly_backfill(
     return 0
 
 
+# ------------------------------------------------------------------
+# --verify-hourly (C4-2, Chat 4)
+# ------------------------------------------------------------------
+#
+# Consolidated verify path (Chat 4 Decision 8):
+#   --verify-hourly --table {btc,macro,all}
+#
+# Reuses the same gap_detection_service the new top-level CLI
+# (verify_hourly_tables.py) uses. Chat 3's --verify flag on the
+# *-hourly-backfill subcommands is untouched — it still works
+# and covers the per-service case.
+
+TABLE_ALIASES: dict[str, list[str]] = {
+    "btc": [TABLE_BTC],
+    "macro": [TABLE_MACRO],
+    "all": list(SUPPORTED_TABLES),
+}
+
+
+async def _run_verify_hourly(args: argparse.Namespace) -> int:
+    """
+    Scan one or more hourly tables for gaps; optionally repair.
+
+    Exit codes:
+        0   no gaps found
+        1   gaps found (regardless of --repair outcome)
+        2   invalid args
+        3   database or repair error
+    """
+    if args.table is None:
+        logger.error("[CLI] --verify-hourly requires --table")
+        return 2
+
+    if args.table not in TABLE_ALIASES:
+        logger.error(
+            "[CLI] --table must be one of: %s",
+            ", ".join(sorted(TABLE_ALIASES.keys())),
+        )
+        return 2
+
+    if args.verify and args.dry_run:
+        logger.warning(
+            "[CLI] --verify and --dry-run are mutually exclusive; "
+            "--verify takes precedence"
+        )
+
+    try:
+        start, end = _resolve_backfill_range(args)
+    except ValueError as exc:
+        logger.error("[CLI] %s", exc)
+        return 2
+
+    tables = TABLE_ALIASES[args.table]
+
+    logger.info(
+        "[CLI] verify-hourly: tables=%s range=%s -> %s repair=%s",
+        ",".join(tables),
+        start.isoformat(), end.isoformat(),
+        args.repair,
+    )
+
+    any_gaps = False
+    any_repair_errors = False
+
+    for table in tables:
+        try:
+            report = scan_gaps(table, start, end)
+        except ValueError as exc:
+            logger.error("[CLI] %s", exc)
+            return 2
+        except Exception:
+            logger.exception("[CLI] scan failed for %s", table)
+            return 3
+
+        # Print a compact human-readable summary.
+        print()
+        print(f"=== {table} ===")
+        print(
+            f"  range:           {report.start.isoformat()} -> "
+            f"{report.end.isoformat()}"
+        )
+        print(f"  expected hours:  {report.expected_hours}")
+        print(f"  actual hours:    {report.actual_hours}")
+        print(f"  missing hours:   {report.missing_count}")
+        if report.has_gaps:
+            print(
+                f"    MATERIALIZATION_GAP: "
+                f"{report.materialization_count}"
+            )
+            print(
+                f"    RAW_DATA_GAP:        "
+                f"{report.raw_data_count}"
+            )
+            for item in report.first_missing(20):
+                print(
+                    f"    {item.hour.isoformat()}  "
+                    f"{item.classification.value}"
+                )
+            if report.missing_count > 20:
+                print(
+                    f"    ... and {report.missing_count - 20} more"
+                )
+
+        if not report.has_gaps:
+            continue
+
+        any_gaps = True
+
+        if args.repair:
+            try:
+                summary = repair_gaps(report)
+            except Exception:
+                logger.exception(
+                    "[CLI] repair failed for %s", table
+                )
+                any_repair_errors = True
+                continue
+            print(
+                f"  repair: attempted={summary['attempted']} "
+                f"succeeded={summary['succeeded']} "
+                f"skipped={summary['skipped']} "
+                f"raw_gaps={summary['raw_gaps']} "
+                f"errors={summary['errors']}"
+            )
+            if summary["errors"] > 0:
+                any_repair_errors = True
+
+    if any_repair_errors:
+        return 3
+    if any_gaps:
+        return 1
+    return 0
+
+
 async def _run_features_db() -> int:
     _not_implemented("--features-db", "features_db writer (Phase B)")
     return 0
@@ -406,6 +562,11 @@ SUBCOMMANDS: dict[
         "Materialize macro_indicators_hourly over a range of hours",
         _run_macro_hourly_backfill,
     ),
+    "--verify-hourly": (
+        "Scan hourly tables for gaps; --repair to fix "
+        "MATERIALIZATION_GAP hours (requires --table)",
+        _run_verify_hourly,
+    ),
     "--features-db": (
         "Write the features_db hourly table (Phase B)",
         _run_features_db,
@@ -422,8 +583,9 @@ def build_parser() -> argparse.ArgumentParser:
         prog="run_live_path",
         description=(
             "Manually trigger data-service live-path steps. "
-            "Supports the daily backfill and the hourly BTC "
-            "and macro materializations."
+            "Supports the daily backfill, the hourly BTC "
+            "and macro materializations, and hourly gap "
+            "verification."
         ),
     )
 
@@ -478,6 +640,27 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
 
+    parser.add_argument(
+        "--table",
+        choices=["btc", "macro", "all"],
+        default=None,
+        help=(
+            "Which hourly table(s) --verify-hourly scans. "
+            "Required when --verify-hourly is used."
+        ),
+    )
+
+    parser.add_argument(
+        "--repair",
+        action="store_true",
+        help=(
+            "With --verify-hourly: attempt to repair "
+            "MATERIALIZATION_GAP hours by re-running Chat 3's "
+            "hourly writer on each. RAW_DATA_GAP hours are left "
+            "untouched. Defaults OFF."
+        ),
+    )
+
     return parser
 
 
@@ -487,10 +670,14 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 async def _dispatch(args: argparse.Namespace) -> int:
+    ARG_TAKING_FLAGS = (
+        "--btc-hourly-backfill",
+        "--macro-hourly-backfill",
+        "--verify-hourly",
+    )
     for flag, (_, handler) in SUBCOMMANDS.items():
         if getattr(args, flag.lstrip("-").replace("-", "_")):
-            # Both *-backfill commands take args; others don't.
-            if flag in ("--btc-hourly-backfill", "--macro-hourly-backfill"):
+            if flag in ARG_TAKING_FLAGS:
                 return await handler(args)
             return await handler()
     return 2  # unreachable: argparse enforces required=True
