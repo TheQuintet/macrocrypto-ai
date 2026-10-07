@@ -400,6 +400,52 @@ class Settings(BaseSettings):
     VINTAGE_LOOKBACK_YEARS: int = 20
 
     # ============================================
+    # FEATURES_DB (Phase B, Chat 5, B4)
+    # ============================================
+    #
+    # The ML feature table. Populated hourly by FeaturesDBWriter,
+    # which calls FeatureBuilderService.build_features() and
+    # persists the 53-column contract v2 vector to features_db.
+    #
+    # Consumed by the AI Service via the DB path
+    # (fetch_training_frame_from_features_db) once its config
+    # defaults point at the hourly tables.
+    #
+    # See:
+    #   - migrations/009_create_features_db.sql  (DDL)
+    #   - app/services/feature_builder_service.py  (SSOT)
+    #   - app/services/features_db_writer.py  (DB writer)
+    #   - app/services/features_parquet_writer.py  (Option B parquet)
+    #   - docs/data-service-schemas.md §3, §5
+
+    # Minute offset for the hourly features_db write.
+    #
+    # The write runs at :05 every hour, staggered after the
+    # hourly materializers (BTC at :01, macro at :02) so a slow
+    # upstream writer does not delay features_db.
+    #
+    # There is no FEATURES_DB_UPDATE_HOUR_UTC because the job
+    # is hourly, not daily. The minute offset is applied to
+    # every hour via wait_until_next_hour().
+    FEATURES_DB_UPDATE_MINUTE_UTC: int = 5
+
+    # Output directory for the Option B parquet set.
+    #
+    # Contains five self-contained artifacts:
+    #   train_scaled.parquet
+    #   val_scaled.parquet
+    #   test_scaled.parquet
+    #   live_frontier_scaled.parquet
+    #   feature_scaler.pkl
+    #
+    # This is a SEPARATE directory from app/data/processed/
+    # (which is frozen, D13, D21). Never write to processed/.
+    #
+    # Relative to the data-service working directory. Override
+    # in .env.local for non-default deployments.
+    FEATURES_DB_PARQUET_DIR: str = "app/data/processed_v2_builder"
+
+    # ============================================
     # RATE LIMITING
     # ============================================
     RATE_LIMIT_ENABLED: bool = True
