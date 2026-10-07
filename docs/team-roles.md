@@ -136,6 +136,7 @@ _Add more weeks by copying a template above. Keep this grid in sync with the [No
 
 | Channel                                   | Purpose                                                       |
 | ----------------------------------------- | ------------------------------------------------------------- |
-| Slack `#capstone-project-group` (private) | Daily standups, async updates, questions, and decisions       |
+| Slack `#mc-frontend`, `#mc-backend`, `#mc-ml-model`, `#mc-software-design` (private) | Domain async updates — **no daily standup meeting** |
+| Slack `#capstone-project-group` (private) | Whole-team announcements, cross-cutting decisions, blockers |
 | Email                                     | Direct contact — see team member addresses in the table above |
 | WhatsApp                                  | Quick informal coordination and urgent pings                  |

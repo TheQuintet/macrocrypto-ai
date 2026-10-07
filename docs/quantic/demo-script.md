@@ -13,6 +13,19 @@ References: [demo-prep run-of-show](./demo-prep.md#agreed-run-of-show-18-min) ·
 
 **Recording:** Sat **10 Oct 2026** ~**18:00** (Zoom — Loredana). All five on camera for the full session.
 
+**Key links (show on camera when relevant):**
+
+| | |
+|--|--|
+| Repo | https://github.com/TheQuintet/macrocrypto-ai |
+| Sprint work board | https://github.com/orgs/TheQuintet/projects/3 |
+| Domain Slack | `#mc-frontend`, `#mc-backend`, `#mc-ml-model`, `#mc-software-design` (async — no daily meeting) |
+| Retro board | https://github.com/orgs/TheQuintet/projects/4 |
+| Sprint milestones | https://github.com/TheQuintet/macrocrypto-ai/milestones |
+| Design docs | https://github.com/TheQuintet/macrocrypto-ai/tree/main/docs/design |
+| Testing doc | https://github.com/TheQuintet/macrocrypto-ai/blob/main/docs/test%20documents/local-and-ci-cd-tests.md |
+| Meeting notes | https://github.com/TheQuintet/macrocrypto-ai/tree/main/docs/meetings |
+
 ---
 
 ## Storyline rules (agreed 7 Oct)
@@ -181,7 +194,7 @@ Suggested intro order (same as speaking flow): Kingson → Sid → Mael → Rich
 <summary><strong>Suggestions</strong></summary>
 
 - **First line:** “Under the hood we use **microservices** so ingestion, alerts, and AI can scale independently — all exposed through one **API Gateway**.”
-- **Screen:** deploy URL health; GitHub Actions; `docs/design/` (C4 / microservices / software design MD + SVG folder).
+- **Screen:** deploy URL health; GitHub Actions; [docs/design/](https://github.com/TheQuintet/macrocrypto-ai/tree/main/docs/design) and [testing doc](https://github.com/TheQuintet/macrocrypto-ai/blob/main/docs/test%20documents/local-and-ci-cd-tests.md) (C4 / microservices / ADRs; consolidated software-design MD + SVG when ready).
 - **Talking points:**
   - **Three services you own:** e.g. **data-service** (BTC + macro collection/APIs), **alert-service** (rules + notifications), **api-gateway** (single entry for the frontend) — adjust to what you actually present.
   - **RabbitMQ:** collectors publish events; services stay decoupled ([ADR-001](../design/adr/ADR-001-use-rabbitmq.md)).
@@ -226,12 +239,13 @@ Suggested intro order (same as speaking flow): Kingson → Sid → Mael → Rich
 
 ## 5. Loredana — scrum process & alerts (~4:00)
 
-**Must cover:** Scrum process — board, sprints, meeting notes, retro; **frontend alerts** on deploy (**dummy data** — state on camera).
+**Must cover:** Scrum process — board, sprints, meeting notes, retro; **async domain Slack** (no daily standup); **frontend alerts** on deploy (**dummy data** — state on camera).
 
 - **First line:**
 - **Screen:** GitHub board (≥3 sprints, retro visible); deployed app — alerts + notifications
 - **Talking points:**
-  - PO / SM / code owner; how the team worked in sprints
+  - PO / SM / code owner; weekly sync + GitHub boards (not a daily meeting)
+  - Async updates in `#mc-frontend`, `#mc-backend`, `#mc-ml-model`, `#mc-software-design`
   - PRs, CI, meeting notes in repo
   - Create or show alert flow; **explicit dummy-data disclaimer**
 - **Click path (alerts):**
@@ -243,11 +257,13 @@ Suggested intro order (same as speaking flow): Kingson → Sid → Mael → Rich
 <details>
 <summary><strong>Suggestions</strong></summary>
 
-- **First line:** “We ran this capstone like a real product team — sprints, a visible board, and notes every week — while shipping a React dashboard on top of Mael’s Gateway.”
-- **Screen:** GitHub Projects/board URL; `docs/meetings/` (e.g. this 7 Oct plan); open **Alerts** on deploy + notification bell/inbox.
+- **First line:** “We ran this capstone with **sprints and boards**, but we **did not do a daily standup** — across time zones we agreed on **async updates in domain Slack channels** instead.”
+- **Screen:** [Sprint work board](https://github.com/orgs/TheQuintet/projects/3) + [Retro board](https://github.com/orgs/TheQuintet/projects/4) + [milestones](https://github.com/TheQuintet/macrocrypto-ai/milestones); [docs/meetings/](https://github.com/TheQuintet/macrocrypto-ai/tree/main/docs/meetings); [project workflow](https://github.com/TheQuintet/macrocrypto-ai/blob/main/docs/project-workflow.md#async-coordination-domain-slack-channels); open **Alerts** on deploy + notification bell/inbox.
 - **Talking points:**
   - **Roles:** Sid PO, you SM, Mael code owner; frontend split across Kingson, you, Richard where relevant.
-  - **Process:** user stories → PRs → review → CI; link **retro** column or doc; ≥3 sprints for graders.
+  - **Slack by domain:** `#mc-frontend`, `#mc-backend`, `#mc-ml-model`, `#mc-software-design` — discuss work where it lives; `#capstone-project-group` for whole-team items.
+  - **Honest retro note:** splitting channels improved focus but some members felt **less visibility** into others’ work; we compensated with **weekly Capstone sync**, the **GitHub board**, and **PR/meeting notes**.
+  - **Process:** user stories → PRs → review → CI; ≥3 sprints for graders.
   - **Engineering quality:** frontend lint/typecheck/unit tests + Playwright E2E; backend CI on services.
   - **Alerts demo:** “For this recording we’re using **dummy alert data** so you can see the UX without waiting on live triggers.”
 - **Click path (example — replace with deploy routes):**

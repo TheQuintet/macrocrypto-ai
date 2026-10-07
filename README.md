@@ -178,6 +178,14 @@ Secrets stay in environment variables; do not commit `.env` files.
 
 We follow Agile with **at least three sprints**, GitHub Issues, and Project boards. Work that is not on a board is not tracked.
 
+| Resource | URL |
+|----------|-----|
+| Repository | [github.com/TheQuintet/macrocrypto-ai](https://github.com/TheQuintet/macrocrypto-ai) |
+| Sprint work board | [TheQuintet projects #3](https://github.com/orgs/TheQuintet/projects/3) |
+| Sprint planning | [Team Planning (#1)](https://github.com/orgs/TheQuintet/projects/1/views/1) |
+| Retrospectives | [Team Retrospective (#4)](https://github.com/orgs/TheQuintet/projects/4) |
+| Sprints | [Milestones](https://github.com/TheQuintet/macrocrypto-ai/milestones) |
+
 ```
 PLAN → ASSIGN → WORK → REVIEW → TRACK → CLOSE → RETROSPECT
 ```
@@ -186,7 +194,7 @@ PLAN → ASSIGN → WORK → REVIEW → TRACK → CLOSE → RETROSPECT
 |----------|----------------|---------|
 | Planning | Select stories, estimate, assign owners | [Sprint planning](./docs/project-workflow.md#sprint-planning) |
 | Refinement | Clarify acceptance criteria before the sprint | [Backlog refinement](./docs/project-workflow.md#backlog-refinement) |
-| Daily standup | Async in Slack | [Daily standup](./docs/project-workflow.md#daily-standup) |
+| Coordination | Async in domain Slack channels (no daily meeting) | [Async coordination](./docs/project-workflow.md#async-coordination-domain-slack-channels) |
 | Review | Offline — pull `main` and use the app | [Sprint review](./docs/project-workflow.md#sprint-review) |
 | Retrospective | What went well / what to improve | [Retrospective](./docs/project-workflow.md#retrospective) |
 | Delivery | Branch from `main`, PR, review, merge | [GitHub Flow](./GITHUB_FLOW.md) |
@@ -195,7 +203,14 @@ PLAN → ASSIGN → WORK → REVIEW → TRACK → CLOSE → RETROSPECT
 
 ## Design and testing documentation
 
-The written design-and-testing deliverable must be **manual** (no pasted AI prose). Architecture, patterns, ADRs, and testing approach live under `docs/design/`:
+The written design-and-testing deliverable must be **manual** (no pasted AI prose). Primary entry points:
+
+| Deliverable | Location |
+|-------------|----------|
+| **Design & architecture** | [docs/design/README.md](./docs/design/README.md) (index into C4, microservices, ADRs, patterns) |
+| **Testing approach (local & CI/CD)** | [docs/test documents/local-and-ci-cd-tests.md](./docs/test%20documents/local-and-ci-cd-tests.md) |
+
+Detail by topic under `docs/design/`:
 
 | Document | What it covers |
 |----------|----------------|

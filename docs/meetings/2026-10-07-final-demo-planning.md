@@ -10,7 +10,7 @@ Stand-up, presentation order, deployment, and recording plan for the Capstone de
 | **Facilitator** | Loredana Lungu (Scrum Master) |
 | **Product Owner** | Sid Ahmed Mahieddine |
 
-**Context.** Integration is the critical path: **frontend on real backend data**, **Sid’s remaining data-service branches**, **Mael end-to-end AI wiring by Thu 8 Oct**, then **Vercel deploy** and **Sat 10 Oct recording**. Tracker: [#752](https://github.com/TheQuintet/macrocrypto-ai/issues/752) · [demo-prep](../quantic/demo-prep.md).
+**Context.** Integration is the critical path: **frontend on real backend data**, **Sid’s remaining data-service branches**, **Mael end-to-end AI wiring by Thu 8 Oct**, then **Vercel deploy** and **Sat 10 Oct recording**. Tracker: [#752](https://github.com/TheQuintet/macrocrypto-ai/issues/752) · [demo-prep](../quantic/demo-prep.md) (repo, [sprint board](https://github.com/orgs/TheQuintet/projects/3), domain Slack, design & testing links).
 
 ---
 
@@ -91,6 +91,7 @@ Stand-up, presentation order, deployment, and recording plan for the Capstone de
 | Post-submission changes | **None** unless Quantic (Katie) approves — Sid asked in global channel. |
 | Recording storage | Loredana records on **Zoom**; final **`.mp4`** on **Google Drive** (anyone with link). |
 | Presentation roles | See table above — supersedes the [30 Sep](./2026-09-30-review-and-planning.md) run-of-show for **who presents AI vs platform**. |
+| Daily coordination | **No daily standup meeting.** Async updates in domain Slack (`#mc-frontend`, `#mc-backend`, `#mc-ml-model`, `#mc-software-design`); document visibility trade-off in demo ([workflow](../project-workflow.md#async-coordination-domain-slack-channels)). |
 
 ---
 
