@@ -81,6 +81,8 @@ To receive credit for the Capstone, we must submit **all** of the following. Use
 | **URL**    | _TBD_                                     |
 | **Length** | 15–20 minutes                             |
 
+**Prep:** follow the [3-step demo guide](./demo-prep.md) and GitHub issue [#752](https://github.com/TheQuintet/macrocrypto-ai/issues/752).
+
 **Requirements**
 
 - [ ] Shows the **working system**
