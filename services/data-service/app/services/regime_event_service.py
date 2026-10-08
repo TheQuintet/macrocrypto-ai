@@ -1,40 +1,46 @@
 """
 Macro event analysis service.
 
-NOTE (regime subsystem, UNIT 2 Option B):
-    regime_event_analysis is intentionally NOT populated as of
-    this version.
+Computes BTC's reaction to macroeconomic events over a
+48-hour window centered on each event's timestamp, and writes
+one row per (regime, event_type, event_date) triple to
+regime_event_analysis.
 
-    The previous implementation of process_current_regime_event
-    was a QA placeholder: it treated the last two rows of
-    btc_prices as a synthetic "fed_meeting" reaction. That was
-    never real analysis and has been disabled.
+Design notes:
 
-    A real implementation would:
-      1. Read events from economic_events (event_name,
-         event_date, impact_level).
-      2. For each event, compute BTC's reaction over a 48-hour
-         window centered on the event date, using an
-         hourly BTC source.
-      3. Write to regime_event_analysis.
+    - Events come from economic_events (populated by
+      EconomicCalendarService from FRED). event_type is one of
+      {'fed','cpi','employment','gdp'}; we map those onto the
+      regime_event_analysis vocabulary
+      {'fed_meeting','cpi_release','employment_report','gdp_release'}.
 
-    The computation semantics should mirror the AI Service's
-    ReactionCalculator (port the logic, do not copy code). If
-    this feature is wanted later, prefer either porting that
-    logic here or exposing it via the AI Service API rather
-    than reimplementing it from scratch.
+    - The window is symmetric: [event - 24h, event + 24h].
+      Both endpoints use a PIT lookup — the last btc_prices tick
+      with time <= endpoint — so the analysis never peeks at a
+      future price.
 
-    The regime_event_analysis table itself is kept — its schema
-    is valid and it may be used later.
+    - Events are filtered to:
+        * impact_level in {high, medium}
+        * event_date within the last LOOKBACK days
+        * event_date at least 24h in the past
+          (so the "after" price exists)
 
-    The remainder of this service (analyze_event,
-    calculate_reaction, validate_event_type, get_event_analysis,
-    export_event_analysis_csv) is unchanged and remains usable
-    for a future real implementation.
+    - Idempotent by pre-check: regime_event_analysis has no
+      unique constraint on (regime_id, event_type, event_date),
+      so the service calls repository.exists(...) for each
+      candidate and skips matches.
+
+    - Batch write: all staged rows commit in one transaction.
+      A single bad event rolls back the batch.
+
+    The ReactionCalculator in the AI Service provides the
+    reference semantics for "BTC reaction to an event". This
+    service ports that logic (PIT lookup + symmetric window)
+    rather than copying its implementation.
 """
 
 import logging
-from datetime import date, datetime
+from datetime import date, datetime, timedelta, timezone
 import csv
 import io
 
@@ -56,6 +62,32 @@ SUPPORTED_EVENTS = {
     "gdp_release",
     "employment_report",
 }
+
+
+# Map economic_events.event_type -> regime_event_analysis.event_type.
+# The two tables use different vocabularies on purpose: the raw
+# calendar is short-form ('fed'), the analysis table is
+# human-readable ('fed_meeting').
+_EVENT_TYPE_MAP = {
+    "fed": "fed_meeting",
+    "cpi": "cpi_release",
+    "gdp": "gdp_release",
+    "employment": "employment_report",
+}
+
+
+# Impact levels we compute reactions for. Low-impact events are
+# excluded — they tend not to move BTC meaningfully and would
+# bloat the table.
+_IMPACT_LEVELS = ("high", "medium")
+
+
+# How far back to scan economic_events on each run.
+_DEFAULT_LOOKBACK_DAYS = 90
+
+
+# Half-width of the reaction window, in hours.
+_EVENT_WINDOW_HOURS = 24
 
 
 class RegimeEventService:
@@ -224,79 +256,280 @@ class RegimeEventService:
 
         return output.getvalue()
 
+    # ============================================================
+    # EVENT REACTION — REAL IMPLEMENTATION
+    # ============================================================
+
     def process_current_regime_event(self, regime):
         """
-        QA placeholder: DISABLED (regime subsystem, UNIT 2 Option B).
+        Compute BTC reactions for events in the active regime.
 
-        Previously, this method treated the last two rows of
-        btc_prices as a synthetic "fed_meeting" reaction and
-        wrote the result to regime_event_analysis. That was
-        never real event analysis and has been disabled so the
-        table stays unpopulated until a real implementation
-        lands.
-
-        A real implementation would:
-          1. Read events from economic_events (event_name,
-             event_date, impact_level).
-          2. For each event, compute BTC's reaction over a
-             48-hour window centered on the event date,
-             using an hourly BTC source.
-          3. Write to regime_event_analysis via
-             analyze_event(...).
-
-        See the module docstring for the full note.
-
-        Calling this method now logs a warning and returns None.
-        The method is kept (rather than deleted) so existing
-        imports continue to work and the shape of a future real
-        implementation is obvious.
+        Thin wrapper around process_regime_events() so existing
+        callers keep working. regime may be a MacroRegime or
+        CurrentRegime instance; only .id is used.
         """
 
-        logger.warning(
-            "RegimeEventService.process_current_regime_event "
-            "called, but the feature is disabled (UNIT 2 "
-            "Option B). regime_event_analysis is not populated "
-            "in this version. See module docstring for details."
-        )
-        return None
+        if regime is None:
+            logger.info(
+                "RegimeEventService: no active regime; "
+                "skipping event analysis"
+            )
+            return {
+                "events_scanned": 0,
+                "rows_inserted": 0,
+                "skipped_existing": 0,
+                "skipped_missing_price": 0,
+                "skipped_unmapped_type": 0,
+            }
 
-        # ------------------------------------------------------
-        # ORIGINAL QA PLACEHOLDER (kept for reference — do not
-        # re-enable without reading the module docstring first).
-        # ------------------------------------------------------
-        #
-        # if regime is None:
-        #     return None
-        #
-        # from app.models.btc_price import BTCPrice
-        #
-        # prices = (
-        #     self.db.query(BTCPrice)
-        #     .order_by(BTCPrice.time.desc())
-        #     .limit(2)
-        #     .all()
-        # )
-        #
-        # if len(prices) < 2:
-        #     logger.info(
-        #         "Not enough BTC price data for event analysis"
-        #     )
-        #     return None
-        #
-        # latest = prices[0]
-        # previous = prices[1]
-        # macro_regime = self.regimes.get_current_regime()
-        #
-        # if macro_regime is None:
-        #     logger.warning(
-        #         "No active macro regime found for event analysis"
-        #     )
-        #     return None
-        #
-        # return self.analyze_event(
-        #     regime_id= macro_regime.id,
-        #     event_type="fed_meeting",
-        #     event_date=latest.time.date(),
-        #     btc_price_before=previous.price,
-        #     btc_price_after=latest.price,
-        # )
+        regime_id = getattr(regime, "id", None)
+
+        if regime_id is None:
+            # CurrentRegime has an id, but guard against mocks
+            # and odd callers.
+            logger.warning(
+                "RegimeEventService: regime has no id; "
+                "skipping event analysis"
+            )
+            return {
+                "events_scanned": 0,
+                "rows_inserted": 0,
+                "skipped_existing": 0,
+                "skipped_missing_price": 0,
+                "skipped_unmapped_type": 0,
+            }
+
+        return self.process_regime_events(regime_id)
+
+    def process_regime_events(
+        self,
+        regime_id: int,
+        lookback_days: int = _DEFAULT_LOOKBACK_DAYS,
+    ) -> dict:
+        """
+        Scan recent economic_events and write BTC reactions to
+        regime_event_analysis for the given regime.
+
+        Returns a summary dict:
+            {
+                "events_scanned":        int,
+                "rows_inserted":         int,
+                "skipped_existing":      int,
+                "skipped_missing_price": int,
+                "skipped_unmapped_type": int,
+            }
+
+        Idempotent: a second call with the same events is a
+        no-op (the exists() pre-check skips them). The whole
+        batch commits in one transaction — a single failure
+        rolls back everything.
+        """
+
+        events = self._recent_events(lookback_days)
+
+        stats = {
+            "events_scanned": len(events),
+            "rows_inserted": 0,
+            "skipped_existing": 0,
+            "skipped_missing_price": 0,
+            "skipped_unmapped_type": 0,
+        }
+
+        if not events:
+            logger.info(
+                "RegimeEventService: no candidate events in the "
+                "last %d days; nothing to do",
+                lookback_days,
+            )
+            return stats
+
+        rows_to_insert: list[dict] = []
+        now = datetime.now(timezone.utc)
+
+        for event in events:
+            mapped_type = self._normalize_event_type(
+                event.event_type
+            )
+
+            if mapped_type is None:
+                stats["skipped_unmapped_type"] += 1
+                continue
+
+            event_dt = event.event_date
+            if event_dt.tzinfo is None:
+                event_dt = event_dt.replace(tzinfo=timezone.utc)
+
+            # Skip if the "after" window is still in the future.
+            # (Guaranteed by _recent_events, but belt-and-braces.)
+            if event_dt + timedelta(hours=_EVENT_WINDOW_HOURS) > now:
+                continue
+
+            event_day = event_dt.date()
+
+            if self.events.exists(
+                regime_id=regime_id,
+                event_type=mapped_type,
+                event_date=event_day,
+            ):
+                stats["skipped_existing"] += 1
+                continue
+
+            before_dt = event_dt - timedelta(
+                hours=_EVENT_WINDOW_HOURS
+            )
+            after_dt = event_dt + timedelta(
+                hours=_EVENT_WINDOW_HOURS
+            )
+
+            price_before = self._get_btc_price_at_or_before(
+                before_dt
+            )
+            price_after = self._get_btc_price_at_or_before(
+                after_dt
+            )
+
+            if price_before is None or price_after is None:
+                stats["skipped_missing_price"] += 1
+                continue
+
+            try:
+                btc_return = self.calculate_reaction(
+                    price_before,
+                    price_after,
+                )
+            except ValueError:
+                stats["skipped_missing_price"] += 1
+                continue
+
+            rows_to_insert.append(
+                {
+                    "regime_id": regime_id,
+                    "event_type": mapped_type,
+                    "event_date": event_day,
+                    "btc_price_before": price_before,
+                    "btc_price_after": price_after,
+                    "btc_return": btc_return,
+                }
+            )
+
+        if not rows_to_insert:
+            logger.info(
+                "RegimeEventService: %d event(s) scanned, no new "
+                "rows to insert (existing=%d, missing_price=%d, "
+                "unmapped=%d)",
+                stats["events_scanned"],
+                stats["skipped_existing"],
+                stats["skipped_missing_price"],
+                stats["skipped_unmapped_type"],
+            )
+            return stats
+
+        try:
+            stats["rows_inserted"] = (
+                self.events.create_event_analysis_many(
+                    rows_to_insert
+                )
+            )
+            self.db.commit()
+        except Exception:
+            self.db.rollback()
+            logger.exception(
+                "RegimeEventService: batch insert failed; "
+                "rolled back"
+            )
+            raise
+
+        logger.info(
+            "RegimeEventService: inserted %d row(s) for "
+            "regime_id=%s (scanned=%d, existing=%d, "
+            "missing_price=%d, unmapped=%d)",
+            stats["rows_inserted"],
+            regime_id,
+            stats["events_scanned"],
+            stats["skipped_existing"],
+            stats["skipped_missing_price"],
+            stats["skipped_unmapped_type"],
+        )
+
+        return stats
+
+    # ============================================================
+    # PRIVATE HELPERS
+    # ============================================================
+
+    def _recent_events(
+        self,
+        lookback_days: int,
+    ) -> list:
+        """
+        Return candidate economic_events for reaction analysis.
+
+        Filters:
+            - event_date >= now - lookback_days
+            - event_date <= now - EVENT_WINDOW_HOURS
+              (so the "after" price exists)
+            - impact_level in _IMPACT_LEVELS
+
+        Loaded lazily to avoid a top-level import cycle risk.
+        """
+
+        from app.models.economic_event import EconomicEvent
+
+        now = datetime.now(timezone.utc)
+        earliest = now - timedelta(days=lookback_days)
+        latest = now - timedelta(hours=_EVENT_WINDOW_HOURS)
+
+        return (
+            self.db.query(EconomicEvent)
+            .filter(
+                EconomicEvent.event_date >= earliest,
+                EconomicEvent.event_date <= latest,
+                EconomicEvent.impact_level.in_(
+                    _IMPACT_LEVELS
+                ),
+            )
+            .order_by(EconomicEvent.event_date.asc())
+            .all()
+        )
+
+    def _get_btc_price_at_or_before(
+        self,
+        dt: datetime,
+    ) -> float | None:
+        """
+        PIT lookup: the price of the last btc_prices tick with
+        time <= dt.
+
+        Returns None if no such tick exists (the raw table has
+        no history old enough).
+        """
+
+        from app.models.btc_price import BTCPrice
+
+        row = (
+            self.db.query(BTCPrice.price)
+            .filter(BTCPrice.time <= dt)
+            .order_by(BTCPrice.time.desc())
+            .first()
+        )
+
+        if row is None:
+            return None
+
+        return float(row[0])
+
+    @staticmethod
+    def _normalize_event_type(
+        raw: str | None,
+    ) -> str | None:
+        """
+        Map economic_events.event_type to the
+        regime_event_analysis vocabulary.
+
+        Returns None if the raw type has no mapping.
+        """
+
+        if not raw:
+            return None
+
+        return _EVENT_TYPE_MAP.get(raw.lower())
