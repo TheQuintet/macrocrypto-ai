@@ -59,28 +59,44 @@ To receive credit for the Capstone, we must submit **all** of the following. Use
 
 ### 4. Agile task board
 
-|            |                                           |
-| ---------- | ----------------------------------------- |
-| **Status** | ⬜ Not started / 🟡 In progress / ✅ Done |
-| **URL**    | [📊 All Work — Team Workflow #6](https://github.com/orgs/TheQuintet/projects/6/views/6) (see also [Planning](https://github.com/orgs/TheQuintet/projects/6/views/1), [Roadmap](https://github.com/orgs/TheQuintet/projects/6/views/5), [Sprint 2 retro board](https://github.com/orgs/TheQuintet/projects/6/views/10)) |
+|            |                                                                                                                                 |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| **Status** | ⬜ Not started / 🟡 In progress / ✅ Done                                                                                       |
+| **URL**    | [MacroCrypto AI Team Workflow (#6)](https://github.com/orgs/TheQuintet/projects/6) — primary view: [📊 All Work](https://github.com/orgs/TheQuintet/projects/6/views/6) |
 
-**Work overview** — we tracked day-to-day work on the org **[Team Workflow](https://github.com/orgs/TheQuintet/projects/6)** project, mainly the **[All Work](https://github.com/orgs/TheQuintet/projects/6/views/6)** view. Sprints use the board **Sprint** iteration field (we did **not** use GitHub Issues milestones on the repo). We often sorted the board by recent updates, e.g. [All Work sorted by `updated`](https://github.com/orgs/TheQuintet/projects/6/views/6?query=sort%3Aupdated-desc).
+We tracked Agile work on the org project **[Team Workflow #6](https://github.com/orgs/TheQuintet/projects/6)**, especially the **[All Work](https://github.com/orgs/TheQuintet/projects/6/views/6)** view. Sprints use the board **Sprint** iteration field. We did **not** use GitHub Issues milestones on the repository.
 
-**Three sprint URLs (capstone minimum)** — submit these for graders. Each link is **All Work** filtered to an early board sprint (**Sprint 1–3**) so stories stay readable; the full board grew much busier by project end.
+#### URLs to submit (copy for Quantic / demo)
 
-| Sprint | URL |
-| ------ | --- |
-| **Sprint 1** | [All Work — Sprint 1](https://github.com/orgs/TheQuintet/projects/6/views/6?query=sprint%3A%22Sprint%201%22) |
-| **Sprint 2** | [All Work — Sprint 2](https://github.com/orgs/TheQuintet/projects/6/views/6?query=sprint%3A%22Sprint%202%22) |
-| **Sprint 3** | [All Work — Sprint 3](https://github.com/orgs/TheQuintet/projects/6/views/6?query=sprint%3A%22Sprint%203%22) |
+| Purpose | Link |
+| ------- | ---- |
+| **Board overview** | [All Work](https://github.com/orgs/TheQuintet/projects/6/views/6) |
+| **Sprint 1** (required) | https://github.com/orgs/TheQuintet/projects/6/views/6?query=sprint%3A%22Sprint%201%22 |
+| **Sprint 2** (required) | https://github.com/orgs/TheQuintet/projects/6/views/6?query=sprint%3A%22Sprint%202%22 |
+| **Sprint 3** (required) | https://github.com/orgs/TheQuintet/projects/6/views/6?query=sprint%3A%22Sprint%203%22 |
+
+Submit **three sprint URLs** plus the **All Work** overview. We use board **Sprint 1–3** filters because those views stay readable; the full board accumulated many more items by project end.
+
+#### Supporting views (ceremonies & planning)
+
+| View | Link |
+| ---- | ---- |
+| Team planning | [Planning](https://github.com/orgs/TheQuintet/projects/6/views/1) |
+| Roadmap | [Roadmap](https://github.com/orgs/TheQuintet/projects/6/views/5) |
+| Sprint 2 retrospective (board) | [Retro — previous iteration](https://github.com/orgs/TheQuintet/projects/6/views/10) |
+| Sprint 2 retrospective (notes) | [5 Aug 2026 meeting](../meetings/2026-08-05-retrospective.md) |
+| Process write-up | [Agile & sprints](../project-workflow.md) · [Meeting notes](../meetings/) |
+
+**Retrospectives:** we ran a **full retro with board items** for **Sprint 2** (links above). Later weekly syncs were only 1–2 hours, so we discussed emergent blockers in the meeting instead of maintaining a retro board every sprint — see [how we ran retrospectives](../project-workflow.md#retrospective).
 
 **Requirements**
 
-- [ ] All sprints documented
-- [ ] User stories and tasks visible on the **project board** (All Work + three sprint filters above)
-- [ ] Completed work reflects what was demoed / shipped
-- [ ] At least **three sprints** recorded (use the three board links above)
-- [ ] **Retrospective evidence:** full retro for **Sprint 2** — [retro board items](https://github.com/orgs/TheQuintet/projects/6/views/10) and [5 Aug 2026 meeting notes](../meetings/2026-08-05-retrospective.md). Later sprints: process improvements captured in [weekly meeting notes](../meetings/) (see [how we ran retrospectives](../project-workflow.md#retrospective))
+- [ ] At least **three sprints** visible on the board (use the three sprint URLs above)
+- [ ] User stories and tasks on the project board; status columns reflect real progress
+- [ ] Completed work matches what we demoed / shipped (no fiction)
+- [ ] Planning / refinement evidence in [meeting notes](../meetings/) and board views
+- [ ] Sprint 2 retro evidence (board + notes) or equivalent documented in [project workflow](../project-workflow.md#retrospective)
+- [ ] `quantic-grader` can open the org project (same access as the repo)
 
 ---
 
@@ -111,7 +127,7 @@ To receive credit for the Capstone, we must submit **all** of the following. Use
 | GitHub repo          | _TBD_             | _TBD_             |
 | Deployed app         | _TBD_             | _TBD_             |
 | Design & testing doc | [docs/design](../design/README.md) + [testing doc](../test%20documents/local-and-ci-cd-tests.md) | _TBD_             |
-| Agile board (final)  | [Team Workflow board](https://github.com/orgs/TheQuintet/projects/6) | _TBD_             |
+| Agile board (final)  | [All Work](https://github.com/orgs/TheQuintet/projects/6/views/6) + [Sprint 1–3 URLs](#urls-to-submit-copy-for-quantic--demo) | _TBD_             |
 | Video presentation   | _TBD_             | _TBD_             |
 
 Set **internal deadlines** at least a few days before official due dates for buffer.
@@ -126,7 +142,7 @@ Before final submission, confirm:
 - [ ] All links in this wiki are updated and working
 - [ ] Design doc cites any AI influence where applicable — see [AI-assisted development disclosure](../ai-assisted-development-disclosure.md)
 - [ ] Video meets length and identity requirements for all six members
-- [ ] Task board matches what we actually built
+- [ ] Task board matches what we actually built ([§4 URLs](#4-agile-task-board) open for `quantic-grader`)
 
 ---
 
