@@ -26,11 +26,13 @@ Select stories, estimate, and assign owners. Product Owner prioritizes; the team
 
 Clarify stories and acceptance criteria before they enter a sprint.
 
-### Async coordination (domain Slack channels)
+### Coordination without daily standup (domain Slack)
 
-We **did not hold a daily standup meeting**. The team decided this after a **Slack poll** in `#capstone-project-group`: live daily syncs did not work across time zones and schedules. Instead, updates and domain discussion happen in **private Slack channels by area**:
+We **did not run a daily standup** — no live meeting and **no required offline/async** “every day” standup posts either.
 
-**Scrum Master note:** With no daily standup, the classic SM rhythm (facilitating a daily ceremony, nudging everyone every morning) was **hard to maintain** for **Loredana Lungu** (Scrum Master). The role shifted toward **weekly sync facilitation**, keeping the **GitHub board** accurate, meeting notes, and chasing blockers in Slack — not textbook daily Scrum Master overhead.
+In `#capstone-project-group` the team had a **Slack discussion** (including poll feedback) and **agreed** that daily standups were not workable across time zones and were **not something we would enforce in Slack**. People use **private domain channels** for normal work conversation when needed, not a fixed daily template.
+
+**Scrum Master note:** Without any daily standup, the textbook SM routine (facilitate a daily ceremony, chase everyone each morning) was **hard to maintain** for **Loredana Lungu** (Scrum Master). The role shifted to **weekly Capstone sync**, **GitHub board** hygiene, meeting notes, and blockers in Slack when they appear — see [team roles](../team-roles.md#mandatory-agile-roles).
 
 | Channel | Domain |
 |---------|--------|
@@ -39,20 +41,11 @@ We **did not hold a daily standup meeting**. The team decided this after a **Sla
 | `#mc-ml-model` | AI/ML service, features, model research |
 | `#mc-software-design` | Architecture, patterns, design docs, UML |
 
-Post progress, questions, and blockers in the channel that matches your work. `#capstone-project-group` stays for whole-team announcements and decisions.
+Use the channel that matches your work for questions and progress when you have something to share. `#capstone-project-group` is for whole-team announcements and decisions.
 
 **Trade-off:** some members felt **less visibility** into what others were doing when conversation was split by domain. Mitigations we used: weekly Capstone sync (see [team availability](./team-roles.md#recurring-meetings-through-14-oct-2026)), GitHub board status, PR notifications, and meeting notes in `docs/meetings/`.
 
-Example async update (any domain channel):
-
-```markdown
-**[Your name]**
-- Done: …
-- Next: …
-- Blockers: …
-```
-
-If you have a blocker, add the `blocked` label to the relevant issue and mention it in the channel.
+If you have a blocker, add the `blocked` label to the relevant issue and mention it in the relevant domain channel or `#capstone-project-group`.
 
 ### Sprint review
 

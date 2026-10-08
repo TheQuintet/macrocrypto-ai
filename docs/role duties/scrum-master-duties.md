@@ -1,6 +1,6 @@
 # Scrum Master (SM) – Clear Duties & Daily Tasks (3-Month Project)
 
-**MacroCrypto AI practice:** The team voted in a **Slack poll** not to run a **live daily standup**. **Loredana Lungu** (SM) found the textbook “daily SM” routine difficult to sustain without that touchpoint. In practice the SM focused on the **weekly Capstone sync**, **GitHub board** hygiene, meeting notes, and blockers in domain Slack — see [Async coordination](../project-workflow.md#async-coordination-domain-slack-channels). The daily task lists below are a **reference template**, not what we ran day to day.
+**MacroCrypto AI practice:** After a **Slack discussion** in `#capstone-project-group`, the team agreed **not** to run a daily standup (live or required offline/async posts). **Loredana Lungu** (SM) found the textbook “daily SM” routine difficult to sustain without that touchpoint. In practice the SM focused on the **weekly Capstone sync**, **GitHub board** hygiene, meeting notes, and blockers when they surfaced — see [Coordination without daily standup](../project-workflow.md#coordination-without-daily-standup-domain-slack). The daily task lists below are a **reference template**, not what we ran day to day.
 
 ## Core Responsibilities (High-Level)
 - Ensure the Scrum framework is understood and enacted by the team.

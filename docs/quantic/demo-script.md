@@ -241,7 +241,7 @@ Suggested intro order (same as speaking flow): Kingson → Sid → Mael → Rich
 
 ## 5. Loredana — scrum process & alerts (~4:00)
 
-**Must cover:** Scrum process — board, sprints, meeting notes, retro; **async domain Slack** (no daily standup); **frontend alerts** on deploy (**dummy data** — state on camera).
+**Must cover:** Scrum process — board, sprints, meeting notes, retro; **no daily standup** (team Slack discussion — domain channels only); **frontend alerts** on deploy (**dummy data** — state on camera).
 
 - **First line:**
 - **Screen:** [All Work](https://github.com/orgs/TheQuintet/projects/6/views/6) + [Sprint 1](https://github.com/orgs/TheQuintet/projects/6/views/6?query=sprint%3A%22Sprint%201%22) / [2](https://github.com/orgs/TheQuintet/projects/6/views/6?query=sprint%3A%22Sprint%202%22) / [3](https://github.com/orgs/TheQuintet/projects/6/views/6?query=sprint%3A%22Sprint%203%22) + Sprint 2 retro; deployed app — alerts + notifications
@@ -259,7 +259,7 @@ Suggested intro order (same as speaking flow): Kingson → Sid → Mael → Rich
 <details>
 <summary><strong>Suggestions</strong></summary>
 
-- **First line:** “We ran this capstone with **sprints and boards**, but we **did not do a daily standup** — across time zones we agreed on **async updates in domain Slack channels** instead.”
+- **First line:** “We ran this capstone with **sprints and boards**, but after a **Slack discussion** we agreed **not** to do a daily standup — live or required offline posts — we use **domain Slack** and the **weekly sync** instead.”
 - **Screen:** [All Work](https://github.com/orgs/TheQuintet/projects/6/views/6) + board sprints [1](https://github.com/orgs/TheQuintet/projects/6/views/6?query=sprint%3A%22Sprint%201%22) · [2](https://github.com/orgs/TheQuintet/projects/6/views/6?query=sprint%3A%22Sprint%202%22) · [3](https://github.com/orgs/TheQuintet/projects/6/views/6?query=sprint%3A%22Sprint%203%22) + [Sprint 2 retro board](https://github.com/orgs/TheQuintet/projects/6/views/10); [5 Aug retro notes](https://github.com/TheQuintet/macrocrypto-ai/blob/main/docs/meetings/2026-08-05-retrospective.md); [docs/meetings/](https://github.com/TheQuintet/macrocrypto-ai/tree/main/docs/meetings); open **Alerts** on deploy + notification bell/inbox.
 - **Talking points:**
   - **Roles:** Sid PO, you SM, Mael code owner; frontend split across Kingson, you, Richard where relevant.

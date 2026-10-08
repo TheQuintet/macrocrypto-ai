@@ -185,7 +185,7 @@ PLAN → ASSIGN → WORK → REVIEW → TRACK → CLOSE → RETROSPECT
 |----------|----------------|---------|
 | Planning | Select stories, estimate, assign owners | [Sprint planning](./docs/project-workflow.md#sprint-planning) |
 | Refinement | Clarify acceptance criteria before the sprint | [Backlog refinement](./docs/project-workflow.md#backlog-refinement) |
-| Coordination | Async in domain Slack channels (no daily meeting) | [Async coordination](./docs/project-workflow.md#async-coordination-domain-slack-channels) |
+| Coordination | Domain Slack — no daily standup (live or required offline) | [Coordination](./docs/project-workflow.md#coordination-without-daily-standup-domain-slack) |
 | Review | Offline — pull `main` and use the app | [Sprint review](./docs/project-workflow.md#sprint-review) |
 | Retrospective | What went well / what to improve | [Retrospective](./docs/project-workflow.md#retrospective) |
 | Delivery | Branch from `main`, PR, review, merge | [GitHub Flow](./GITHUB_FLOW.md) |
