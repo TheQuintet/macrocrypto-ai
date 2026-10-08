@@ -64,9 +64,11 @@ To receive credit for the Capstone, we must submit **all** of the following. Use
 | **Status** | ⬜ Not started / 🟡 In progress / ✅ Done                                                                        |
 | **URL**    | [https://github.com/orgs/TheQuintet/projects/6/views/6](https://github.com/orgs/TheQuintet/projects/6/views/6) |
 
+**Sprints (All Work filtered):** [Sprint 1](https://github.com/orgs/TheQuintet/projects/6/views/6?query=sprint%3A%22Sprint%201%22) · [Sprint 2](https://github.com/orgs/TheQuintet/projects/6/views/6?query=sprint%3A%22Sprint%202%22) · [Sprint 3](https://github.com/orgs/TheQuintet/projects/6/views/6?query=sprint%3A%22Sprint%203%22)
+
 **Requirements**
 
-- [ ] At least **three sprints**, user stories, and tasks visible on the board (see [Agile & sprints](../project-workflow.md))
+- [ ] At least **three sprints**, user stories, and tasks visible on the board ([Sprint 1–3](#4-agile-task-board) · [Agile & sprints](../project-workflow.md))
 - [ ] Completed work matches what we demoed / shipped
 - [ ] `quantic-grader` can open the org project (in addition to repo access in §1)
 
