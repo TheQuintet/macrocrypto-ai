@@ -32,6 +32,9 @@ Usage
     python -m app.scripts.run_live_path --features-db-parquet --days 365
     python -m app.scripts.run_live_path --features-db-parquet \
         --start 2023-01-01 --end 2024-12-31
+    python -m app.scripts.run_live_path --regime-backfill
+    python -m app.scripts.run_live_path --regime-backfill \
+        --start 2020-01-01 --end 2020-12-31
     python -m app.scripts.run_live_path --all
 
 Scope
@@ -76,6 +79,17 @@ Phase B (Chat 5, B4):
         app/data/processed_v2_builder/). Accepts --days /
         --start / --end.
 
+Phase B (regime subsystem):
+    --regime-backfill reconstructs the historical macro_regimes
+        timeline from raw macro_indicators by replaying
+        RegimeService.determine_regime point-in-time. Idempotent
+        by-skip: re-running on a fully-populated table is a
+        no-op. Guarded by a Postgres advisory lock so the CLI
+        cannot overlap with the scheduled weekly task.
+
+        Default range: DEFAULT_REGIME_BACKFILL_START
+        (2017-08-17) -> today. Override with --start / --end.
+
 Design notes
 ------------
 - CLI calls the same service methods the scheduler calls. No
@@ -87,6 +101,11 @@ Design notes
 - --features-db-backfill and --features-db-parquet use the same
   range shape (--days / --start / --end) as the hourly
   backfills. See _resolve_backfill_range().
+- --regime-backfill uses the same range shape but has a
+  different default (2017-08-17 -> today) since the point of
+  the command is to reconstruct the full history, not the last
+  30 days. This is handled inside its own handler, not by
+  changing the shared range default.
 """
 
 from __future__ import annotations
@@ -817,6 +836,119 @@ async def _run_features_db_parquet(
         db.close()
 
 
+# ------------------------------------------------------------------
+# --regime-backfill (regime subsystem)
+# ------------------------------------------------------------------
+#
+# Reconstructs the historical macro_regimes timeline from raw
+# macro_indicators by replaying RegimeService.determine_regime
+# point-in-time. Idempotent by-skip: runs already covered by
+# existing macro_regimes rows are dropped before insert.
+#
+# Guarded by a Postgres advisory lock so a CLI invocation cannot
+# overlap with the scheduled weekly task; if the lock is held,
+# the service returns {"status": "skipped_already_running"} and
+# the CLI exits 0 with a warning.
+#
+# Default range is DEFAULT_REGIME_BACKFILL_START (2017-08-17) ->
+# today, NOT the shared --days 30 default. Override with
+# --start / --end explicitly for a narrower window.
+
+
+async def _run_regime_backfill(args: argparse.Namespace) -> int:
+    """
+    Backfill historical macro_regimes rows.
+
+    Range resolution:
+        --start / --end   explicit window (dates or datetimes)
+        --days N          last N days (rarely useful here; the
+                          point is to reconstruct history)
+        (neither)         DEFAULT_REGIME_BACKFILL_START -> today
+
+    Exit codes:
+        0   backfill completed (rows_inserted may be 0 if all
+            runs were already covered)
+        1   advisory lock held by another process
+        2   bad args or DB error
+    """
+    from app.database.session import SessionLocal
+    from app.services.regime_backfill_service import (
+        DEFAULT_REGIME_BACKFILL_START,
+        RegimeBackfillService,
+    )
+
+    # Resolve range. Unlike other subcommands, the fallback is
+    # DEFAULT_REGIME_BACKFILL_START -> today, not --days 30.
+    if args.days is not None:
+        try:
+            start_dt, end_dt = _resolve_backfill_range(args)
+        except ValueError as exc:
+            logger.error("[CLI] %s", exc)
+            return 2
+        start_date = start_dt.date()
+        end_date = end_dt.date()
+    elif args.start is not None:
+        try:
+            start_dt, end_dt = _resolve_backfill_range(args)
+        except ValueError as exc:
+            logger.error("[CLI] %s", exc)
+            return 2
+        start_date = start_dt.date()
+        end_date = end_dt.date()
+    else:
+        start_date = DEFAULT_REGIME_BACKFILL_START
+        end_date = datetime.now(timezone.utc).date()
+
+    logger.info(
+        "[CLI] regime-backfill range: %s -> %s",
+        start_date.isoformat(),
+        end_date.isoformat(),
+    )
+
+    db = SessionLocal()
+    try:
+        service = RegimeBackfillService(db)
+        result = await service.backfill_regimes(
+            start_date=start_date,
+            end_date=end_date,
+        )
+
+        status = result.get("status")
+
+        if status == "skipped_already_running":
+            logger.warning(
+                "[CLI] regime-backfill skipped: another backfill "
+                "holds the advisory lock"
+            )
+            return 1
+
+        if status == "no_data":
+            logger.warning(
+                "[CLI] regime-backfill: no macro_indicators data "
+                "in range %s -> %s",
+                start_date.isoformat(),
+                end_date.isoformat(),
+            )
+            return 0
+
+        print()
+        print("=== regime_backfill ===")
+        print(f"  status:         {status}")
+        print(f"  range:          {result['date_range'][0]} -> "
+              f"{result['date_range'][1]}")
+        print(f"  rows_inserted:  {result['rows_inserted']}")
+        print(f"  regimes_found:  {', '.join(result['regimes_found']) or '(none)'}")
+
+        return 0
+
+    except Exception:
+        logger.exception("[CLI] regime-backfill failed")
+        return 2
+
+    finally:
+        db.close()
+
+
 async def _run_all() -> int:
     """
     Run everything in order. --backfill, --btc-hourly,
@@ -890,6 +1022,11 @@ SUBCOMMANDS: dict[
         "FEATURES_DB_PARQUET_DIR (split + scale)",
         _run_features_db_parquet,
     ),
+    "--regime-backfill": (
+        "Backfill historical macro_regimes rows from raw "
+        "macro_indicators (default 2017-08-17 -> today)",
+        _run_regime_backfill,
+    ),
     "--all": (
         "Run every step in order",
         _run_all,
@@ -905,7 +1042,7 @@ def build_parser() -> argparse.ArgumentParser:
             "Supports the daily backfill, the hourly BTC "
             "and macro materializations, hourly gap "
             "verification, FRED macro vintage ingestion, "
-            "and features_db writes."
+            "features_db writes, and regime history backfill."
         ),
     )
 
@@ -1010,6 +1147,7 @@ async def _dispatch(args: argparse.Namespace) -> int:
         "--macro-vintages-backfill",
         "--features-db-backfill",
         "--features-db-parquet",
+        "--regime-backfill",
     )
     for flag, (_, handler) in SUBCOMMANDS.items():
         if getattr(args, flag.lstrip("-").replace("-", "_")):
