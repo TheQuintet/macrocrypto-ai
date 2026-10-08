@@ -7,8 +7,8 @@ Capstone requirements, grading, policies, and deliverables for MacroCrypto AI.
 | Page                                    | Description                                                    |
 | --------------------------------------- | -------------------------------------------------------------- |
 | [Grading & Pass Criteria](./grading.md) | How the capstone is scored, pass threshold, how to aim for 4–5 |
-| [Deliverables](./deliverables.md)       | Mandatory submissions checklist                                |
-| [Demo prep](./demo-prep.md)             | Capstone video checklist (#752) |
+| [Deliverables](./deliverables.md)       | Mandatory submissions checklist (source of truth for URLs & status) |
+| [Demo prep](./demo-prep.md)             | Recording guide for §5 video — links to Deliverables for §1–§4 |
 | [Demo script](./demo-script.md)         | Team speaking script (one file; Loredana merges) |
 | [Policies & Standards](./policies.md)   | AI use, academic integrity, repo and presentation standards    |
 
