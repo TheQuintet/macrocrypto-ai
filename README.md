@@ -171,10 +171,11 @@ We follow Agile with **at least three sprints**, GitHub Issues, and Project boar
 | Resource | URL |
 |----------|-----|
 | Repository | [github.com/TheQuintet/macrocrypto-ai](https://github.com/TheQuintet/macrocrypto-ai) |
-| Sprint work board | [TheQuintet projects #3](https://github.com/orgs/TheQuintet/projects/3) |
-| Sprint planning | [Team Planning (#1)](https://github.com/orgs/TheQuintet/projects/1/views/1) |
-| Retrospectives | [Team Retrospective (#4)](https://github.com/orgs/TheQuintet/projects/4) |
-| Sprints | [Milestones](https://github.com/TheQuintet/macrocrypto-ai/milestones) |
+| Team Workflow board | [TheQuintet projects #6](https://github.com/orgs/TheQuintet/projects/6) |
+| All Work (overview) | [All Work view](https://github.com/orgs/TheQuintet/projects/6/views/6) |
+| Sprint planning | [Team Planning](https://github.com/orgs/TheQuintet/projects/6/views/1) |
+| Capstone sprints (×3) | [Sprint 1](https://github.com/orgs/TheQuintet/projects/6/views/6?query=sprint%3A%22Sprint%201%22) · [2](https://github.com/orgs/TheQuintet/projects/6/views/6?query=sprint%3A%22Sprint%202%22) · [3](https://github.com/orgs/TheQuintet/projects/6/views/6?query=sprint%3A%22Sprint%203%22) |
+| Sprint 2 retro | [Retro view](https://github.com/orgs/TheQuintet/projects/6/views/10) |
 
 ```
 PLAN → ASSIGN → WORK → REVIEW → TRACK → CLOSE → RETROSPECT
@@ -184,7 +185,7 @@ PLAN → ASSIGN → WORK → REVIEW → TRACK → CLOSE → RETROSPECT
 |----------|----------------|---------|
 | Planning | Select stories, estimate, assign owners | [Sprint planning](./docs/project-workflow.md#sprint-planning) |
 | Refinement | Clarify acceptance criteria before the sprint | [Backlog refinement](./docs/project-workflow.md#backlog-refinement) |
-| Coordination | Async in domain Slack channels (no daily meeting) | [Async coordination](./docs/project-workflow.md#async-coordination-domain-slack-channels) |
+| Coordination | Domain Slack — no daily standup (live or required offline) | [Coordination](./docs/project-workflow.md#coordination-without-daily-standup-domain-slack) |
 | Review | Offline — pull `main` and use the app | [Sprint review](./docs/project-workflow.md#sprint-review) |
 | Retrospective | What went well / what to improve | [Retrospective](./docs/project-workflow.md#retrospective) |
 | Delivery | Branch from `main`, PR, review, merge | [GitHub Flow](./GITHUB_FLOW.md) |

@@ -5,12 +5,14 @@ Developers use GitHub Projects as their primary tool for day-to-day work – tra
 
 Below is a detailed breakdown of exactly what Developers do on **each of the 4 GitHub Project boards**.
 
+**MacroCrypto AI practice:** Sprints live on [Team Workflow #6](https://github.com/orgs/TheQuintet/projects/6) via the **Sprint** field. We do **not** use GitHub Issues milestones on the repo.
+
 ---
 
 ## 1. TEAM PLANNING Board
 
 ### Purpose
-High-level strategic planning – epics, themes, major milestones, and release-level coordination.
+High-level strategic planning – epics, themes, major roadmap checkpoints, and release-level coordination.
 
 ### Developers' Responsibilities
 
@@ -52,23 +54,23 @@ High-level strategic planning – epics, themes, major milestones, and release-l
 ## 2. ROADMAP Board
 
 ### Purpose
-Timeline view – shows the project schedule, key milestones, and release dates over the 3-month horizon.
+Timeline view – shows the project schedule, key roadmap checkpoints, and release dates over the 3-month horizon.
 
 ### Developers' Responsibilities
 
 #### Daily / Ongoing
 - **Check the board** – know the deadlines and plan your work accordingly.
 - **Update your tasks** – ensure your progress is reflected so the board stays accurate.
-- **Flag timeline risks** – if you think a milestone is at risk, speak up early.
+- **Flag timeline risks** – if you think a roadmap checkpoint is at risk, speak up early.
 
 #### Weekly (every Friday)
-- **Review milestone progress** – check if you're on track to meet deadlines.
+- **Review roadmap checkpoint progress** – check if you're on track to meet deadlines.
 - **Adjust your pace** – if you're ahead, pick up extra tasks; if behind, ask for help.
-- **Add comments** – if a milestone seems unrealistic, provide constructive feedback.
+- **Add comments** – if a roadmap checkpoint seems unrealistic, provide constructive feedback.
 
 #### Every Sprint Review
-- **Review milestone updates** – see what was achieved and what moved to the next sprint.
-- **Celebrate milestone completions** – recognize the team's progress.
+- **Review roadmap checkpoint updates** – see what was achieved and what moved to the next sprint.
+- **Celebrate roadmap checkpoint completions** – recognize the team's progress.
 
 #### Every Month
 - **Review the overall timeline** – understand the 3-month plan and your role in it.
@@ -78,15 +80,15 @@ Timeline view – shows the project schedule, key milestones, and release dates 
 
 | Column | Developers' Action |
 |--------|-------------------|
-| **Backlog (Milestones)** | Know what's coming – prepare mentally and technically. |
-| **Current Sprint** | Track your daily progress – update your tasks to keep the milestone accurate. |
+| **Backlog (roadmap)** | Know what's coming – prepare mentally and technically. |
+| **Current Sprint** | Track your daily progress – update your tasks to keep the roadmap checkpoint accurate. |
 | **Next Sprint** | Prepare – start refining stories so they're ready. |
 | **Month 1 / 2 / 3** | Understand the big picture – plan your work accordingly. |
-| **Completed** | Celebrate – you helped deliver this milestone! |
+| **Completed** | Celebrate – you helped deliver this roadmap checkpoint! |
 
 ### Example Developers' Tasks on Roadmap
 - Update a task: "User Login API" – change from 50% to 80% complete.
-- Comment on "Sprint 2 – Core Features" milestone: "We might be 1 day behind – I'll work extra to catch up."
+- Comment on "Sprint 2 – Core Features" roadmap checkpoint: "We might be 1 day behind – I'll work extra to catch up."
 - Check that "Month 3 – Polish & Release" is approaching – start thinking about final testing.
 
 ---
@@ -246,7 +248,7 @@ Continuous improvement – track what went well, what didn't, and action items f
 
 ---
 
-## Developers' 3-Month Milestone Checkpoints (by Board)
+## Developers' 3-Month Roadmap Checkpoints (by Board)
 
 ### Month 1 (Ramp-up)
 - **Team Planning** – understand all epics – know the big picture.
@@ -256,7 +258,7 @@ Continuous improvement – track what went well, what didn't, and action items f
 
 ### Month 2 (Ownership)
 - **Team Planning** – take ownership of at least 1 epic – contribute to technical decisions.
-- **Roadmap** – track your milestones – ensure you're on schedule.
+- **Roadmap** – track your roadmap checkpoints – ensure you're on schedule.
 - **Iterative Development** – be a strong reviewer – help teammates improve code quality.
 - **Retrospective** – follow through on action items – show personal growth.
 
@@ -295,7 +297,7 @@ Continuous improvement – track what went well, what didn't, and action items f
 
 ### Weekly
 - [ ] Review upcoming epics on Team Planning.
-- [ ] Check milestone deadlines on Roadmap.
+- [ ] Check roadmap checkpoint deadlines on Roadmap.
 - [ ] Ensure all your tasks are updated for the week.
 - [ ] Add feedback to Retrospective.
 - [ ] Update your action items.
@@ -333,7 +335,7 @@ Before moving a story to "Done," ensure:
 |------|---------------|-------------|--------------|
 | **Product Owner** | Iterative Development | Prioritize backlog, accept/reject stories, refine requirements | Update epics, roadmap, prepare backlog |
 | **Scrum Master** | Iterative Development | Facilitate standup, unblock, enforce WIP, update board | Review metrics, refine backlog, track action items |
-| **Code Owner** | Iterative Development | Review PRs, enforce quality, check CI, unblock technical issues | Technical epics, milestones, debt management |
+| **Code Owner** | Iterative Development | Review PRs, enforce quality, check CI, unblock technical issues | Technical epics, roadmap checkpoints, debt management |
 | **Developers** | Iterative Development | Update tasks, code, test, review PRs, move issues | Review epics, check deadlines, add retro feedback |
 
 ---

@@ -10,7 +10,7 @@ Combined session: **Sprint 2** retrospective and review, plus refinement and **S
 | **Attendees** | Team (everyone participated in the retro) |
 | **Facilitator** | Loredana Lungu (Scrum Master) |
 | **Product Owner** | Sid Ahmed Mahieddine |
-| **Retro board** | [MacroCrypto AI Team Retrospective](https://github.com/orgs/TheQuintet/projects/4) |
+| **Retro board** | [Sprint 2 retro — Team Workflow](https://github.com/orgs/TheQuintet/projects/6/views/10) (formerly org project #4; consolidated into [project #6](https://github.com/orgs/TheQuintet/projects/6)) |
 
 ---
 
@@ -149,7 +149,7 @@ Both extra agenda items planned for this session were decided — nothing carrie
 
 ## Notes
 
-- Retro items were captured on the [Team Retrospective](https://github.com/orgs/TheQuintet/projects/4) board during the session; outcomes copied here.
+- Retro items were captured on the [Sprint 2 retro board](https://github.com/orgs/TheQuintet/projects/6/views/10) during the session; outcomes copied here. Later sprints prioritized emergent issues in the weekly sync over a separate retro board each time — see [Retrospective](../project-workflow.md#retrospective).
 - Previous session: [29 Jul 2026 Refinement & Planning](./2026-07-29-refinement-and-planning.md) — where Sprint 2 was planned, including the 1-week cadence and Kanban-style carryover rule applied here.
 
 ---

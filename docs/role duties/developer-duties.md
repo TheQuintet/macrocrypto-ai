@@ -161,7 +161,7 @@
 ## Tools & Boards Usage (Github Projects)
 | Board | Developer’s Responsibility |
 |-------|----------------------------|
-| **Team Planning** | Understand epics and milestones – align your work accordingly. |
+| **Team Planning** | Understand epics and sprint goals – align your work accordingly. |
 | **Roadmap** | Be aware of deadlines – plan your work to meet them. |
 | **Iterative Development** | Your main board – update it daily: To Do → In Progress → Review → Done. |
 | **Retrospective** | Actively participate – add items and follow up on actions. |

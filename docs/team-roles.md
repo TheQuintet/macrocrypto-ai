@@ -29,14 +29,14 @@ Every group must designate these roles to meet the Capstone grading criteria.
 | Role          | Member               | Responsibilities                                                                            |
 | ------------- | -------------------- | ------------------------------------------------------------------------------------------- |
 | Product Owner | Sid Ahmed Mahieddine | Owns project goals, prioritizes the backlog, clarifies the “what” and “why” of user stories |
-| Scrum Master  | Loredana Lungu       | Facilitates sprints and ceremonies; helps remove blockers                                   |
+| Scrum Master  | Loredana Lungu       | Facilitates weekly syncs and process; board and meeting notes — **no daily standup** ([team Slack discussion](./project-workflow.md#coordination-without-daily-standup-domain-slack); SM role adapted) |
 | Code Owner    | Mael Taye Deneke     | Reviews and approves pull requests to maintain code quality                                 |
 
 A member can hold both a mandatory Agile role and a technical role. Roles can rotate per sprint — log changes in [project-workflow.md](./project-workflow.md).
 
 ## Availability
 
-When people are free for **sync meetings** (planning, refinement) — separate from job roles above. Daily standups are async in Slack; see [project-workflow.md](./project-workflow.md#daily-standup).
+When people are free for **sync meetings** (planning, refinement) — separate from job roles above. **No daily standup** (live or required offline) — see [project-workflow.md](./project-workflow.md#coordination-without-daily-standup-domain-slack).
 
 A cell with your **color** = you're free for that 1-hour block. Empty = unknown / not free.
 
@@ -136,7 +136,7 @@ _Add more weeks by copying a template above. Keep this grid in sync with the [No
 
 | Channel                                   | Purpose                                                       |
 | ----------------------------------------- | ------------------------------------------------------------- |
-| Slack `#mc-frontend`, `#mc-backend`, `#mc-ml-model`, `#mc-software-design` (private) | Domain async updates — **no daily standup meeting** |
+| Slack `#mc-frontend`, `#mc-backend`, `#mc-ml-model`, `#mc-software-design` (private) | Domain work discussion — **no daily standup** (live or required offline) |
 | Slack `#capstone-project-group` (private) | Whole-team announcements, cross-cutting decisions, blockers |
 | Email                                     | Direct contact — see team member addresses in the table above |
 | WhatsApp                                  | Quick informal coordination and urgent pings                  |

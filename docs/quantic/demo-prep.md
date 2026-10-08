@@ -1,37 +1,22 @@
 # Capstone demo prep
 
-**User story:** As a team, we want one compliant Capstone demo video that meets Quantic rules.
+Operational guide for **[§5 Video presentation](./deliverables.md#5-video-presentation)** only.
 
-Check boxes on **[#752](https://github.com/TheQuintet/macrocrypto-ai/issues/752)** or in this file (keep in sync).
+| | |
+|---|---|
+| **Submission checklist (all 5 deliverables)** | **[Deliverables](./deliverables.md)** — URLs, status, requirements, [pre-submission checklist](./deliverables.md#pre-submission-checklist) |
+| **Issue tracker** | [#752](https://github.com/TheQuintet/macrocrypto-ai/issues/752) — tick **recording** boxes here or in this file (keep in sync) |
+| **Speaking script** | [demo-script.md](./demo-script.md) — Loredana merges sections into one narrative |
+| **Last planning sync** | [7 Oct 2026 meeting notes](../meetings/2026-10-07-final-demo-planning.md) |
 
-**Last planning sync:** [7 Oct 2026 meeting notes](../meetings/2026-10-07-final-demo-planning.md).
-
----
-
-## Key links (repo, board, docs)
-
-Use these on camera during the demo and in the README / [deliverables](./deliverables.md) checklist.
-
-| Resource | Link |
-|----------|------|
-| **GitHub repository** | [TheQuintet/macrocrypto-ai](https://github.com/TheQuintet/macrocrypto-ai) |
-| **Sprint work board** | [GitHub Project #3](https://github.com/orgs/TheQuintet/projects/3) — tasks and sprint columns |
-| **Sprint planning board** | [Team Planning](https://github.com/orgs/TheQuintet/projects/1/views/1) |
-| **Retrospective board** | [Team Retrospective](https://github.com/orgs/TheQuintet/projects/4) |
-| **Sprint milestones** | [GitHub Milestones](https://github.com/TheQuintet/macrocrypto-ai/milestones) |
-| **Async coordination** | Domain Slack: `#mc-frontend`, `#mc-backend`, `#mc-ml-model`, `#mc-software-design` — **no daily standup**; whole-team `#capstone-project-group` |
-| **Design documentation** | [Software design & architecture](../design/README.md) (`docs/design/`) |
-| **Testing documentation** | [Local and CI/CD testing](../test%20documents/local-and-ci-cd-tests.md) |
-| **Meeting notes (Scrum)** | [docs/meetings/](../meetings/) |
-
-Full board list: [Project workflow — Project resources](../project-workflow.md#project-resources).
+**On camera:** screen-share from [Deliverables](./deliverables.md) (§1 repo · §2 deploy · §3 design/testing · §4 board + [Sprint 1–3](./deliverables.md#4-agile-task-board)). Process detail (async Slack, retro): [Agile & sprints](../project-workflow.md).
 
 ---
 
 ## Schedule (team)
 
-| Milestone | When |
-|-----------|------|
+| Event | When |
+|-------|------|
 | **Code freeze** | Thu **8 Oct 2026** — integration complete; no dev on recording day |
 | **Recording** | Sat **10 Oct 2026**, ~**18:00** (TZ TBD) — Loredana sends Zoom invite |
 | **Submission** | **Sunday** after recording (exact deadline/TZ TBD) |
@@ -42,26 +27,25 @@ Full board list: [Project workflow — Project resources](../project-workflow.md
 
 - **15–20 minutes** · **one `.mp4`** on **Google Drive** (anyone with the link can view)
 - **All 5** on camera, **each speaks**, show **government ID** (name + photo legible)
-- **Screen share** the **deployed** app; BTC trader + prediction scope
+- **Screen share** the **deployed** app ([§2 URL](./deliverables.md#2-deployed-application)); BTC trader + prediction scope
 - **Not** a PowerPoint of separate clips, PDF, or ZIP
 - **One teammate** submits on Quantic dashboard + signed Group Project Agreement
 - Tell **one continuous storyline** (~**4 min** per segment); dummy data for **alerts** only — say so on camera
 
-[policies](./policies.md#presentation-standards) · [deliverables](./deliverables.md)
+Details: [§5 requirements](./deliverables.md#5-video-presentation) · [Presentation standards](./policies.md#presentation-standards)
 
 ---
 
-## Prerequisites (before rehearsing or recording)
+## Recording prerequisites
+
+Finish **[Deliverables §1–§4](./deliverables.md#mandatory-submissions)** before rehearsing. Additional **video-only** prep:
 
 - [ ] **Deploy host** — **Vercel** (primary); env vars set (Mael + Sid + Loredana). Fallback: Railway or Render (paid tier if memory-limited)
 - [x] **Deploy account owner** — **Loredana** (Vercel); post confirmation in `#capstone-project-group`
-- [ ] **Deploy URL** — public link works; in README + [deliverables](./deliverables.md)
-- [ ] **Smoke test** — health endpoints on deploy; **CI pipelines green** (show pipelines on camera; full post-deploy smoke not required)
-- [ ] **Documents** — [design](../design/README.md) + [testing](../test%20documents/local-and-ci-cd-tests.md) docs linked from README (consolidated software-design MD + SVG UML when ready — [7 Oct decisions](../meetings/2026-10-07-final-demo-planning.md))
-- [ ] **Board & grader** — [Sprint work board](https://github.com/orgs/TheQuintet/projects/3) (+ [retro](https://github.com/orgs/TheQuintet/projects/4)) in README; ≥3 sprints visible; `quantic-grader` invited (Sid)
+- [ ] **Smoke test on deploy** — health endpoints; **CI pipelines green** (show pipelines on camera; full post-deploy smoke not required)
 - [x] **Google Drive / recording owner** — Loredana (Zoom record → Drive link; anyone with link can view)
 - [ ] **Quantic submitter** — one person named for dashboard + Group Agreement
-- [ ] **Scripts** — each member fills their section in [demo-script.md](./demo-script.md) by **8 Oct**; **Loredana** merges the team’s scripts into one narrative and builds the recording plan from what is provided
+- [ ] **Scripts** — each member fills [demo-script.md](./demo-script.md) by **8 Oct**; **Loredana** merges and builds the recording plan
 
 ---
 
@@ -101,8 +85,8 @@ Plus **intros + government IDs** per Quantic rules (typically at the start of th
 - [ ] Deploy live; alerts use dummy data with on-camera disclaimer
 - [ ] Optional dry run timed (15–20 min)
 - [ ] Mael backup pre-record for his segment (connectivity fallback)
-- [ ] Final `.mp4` on Drive; link in README / deliverables
+- [ ] Final `.mp4` on Drive; update [§5 URL](./deliverables.md#5-video-presentation) on Deliverables
 - [ ] Quantic dashboard submit + Group Agreement
 - [ ] **No repo changes after submit** unless Quantic (Katie) approves
 
-Close **#752** when all boxes above are done.
+Close **#752** when recording tasks above are done and **[Deliverables](./deliverables.md)** is complete.

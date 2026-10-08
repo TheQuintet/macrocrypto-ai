@@ -26,7 +26,7 @@
    - Either accept (close) or reject with clear feedback (re-open with comments).
 
 4. **Update the “Roadmap” Project Board**  
-   - Move any completed milestones to “Done”.  
+   - Move any completed roadmap themes to “Done”.  
    - Adjust dates if scope or velocity changes.
 
 5. **Refine the “Iterative Development” board**  
@@ -44,7 +44,7 @@
   - Negotiate scope with the team based on capacity (velocity).  
   - Finalize the Sprint Goal and commit to the selected issues.  
 - **After planning:**  
-  - Update the “Iterative Development” board with the sprint’s issues and set the sprint milestone.
+  - Update the “Iterative Development” board with the sprint’s issues and set the **Sprint** field on the project board.
 
 ---
 
@@ -71,7 +71,7 @@
      - Ensure sub-issues are broken down into tasks no larger than 2 days of work.
 
 2. **Update “Team Planning” Project Board**  
-   - Move long-term epics/themes into milestones.  
+   - Move long-term epics/themes onto the Roadmap view.  
    - Check that dependencies between projects are mapped.
 
 3. **Update “Retrospective” Board**  
@@ -89,7 +89,7 @@
 
 ### Month 1 (Foundation)
 - **Define MVP scope** clearly – what is absolutely required for the first release.  
-- **Create a release plan** on the “Roadmap” board with 3 milestones (monthly).  
+- **Create a release plan** on the “Roadmap” board with three monthly checkpoints.  
 - **Establish the Definition of Ready** (DoR) and **Definition of Done** (DoD) with the team.
 
 ### Month 2 (Iteration & Adjustment)
@@ -113,7 +113,7 @@
 ## Tools & Boards Usage (Github Projects)
 | Board | PO’s Responsibility |
 |-------|----------------------|
-| **Team Planning** | Set high-level milestones, epics, and release dates. |
+| **Team Planning** | Set high-level epics, release dates, and sprint goals. |
 | **Roadmap** | Keep the timeline realistic – update after each sprint. |
 | **Iterative Development** | Own the priority order of the current sprint’s issues. |
 | **Retrospective** | Add product-related improvement actions (e.g., better acceptance criteria). |

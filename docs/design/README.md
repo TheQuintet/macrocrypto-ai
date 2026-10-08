@@ -16,7 +16,7 @@ Before starting the design phase, we already have:
 | User Stories (17) | ✅ Written and prioritized |
 | Sub-Issues (~279) | ✅ Defined |
 | Epics (9) | ✅ Created |
-| Milestones / Sprints | ✅ Defined/Planned ahead of each meeting |
+| Sprints (project board) | ✅ Defined/planned ahead of each meeting |
 | GitHub Projects | ✅ Set up |
 
 We are now entering the **analysis → design → architecture** phase.

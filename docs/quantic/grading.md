@@ -83,10 +83,11 @@ The program expects a **high-quality portfolio piece** — not just a basic web 
 
 ### 5. Strong Agile evidence
 
-- 3+ sprints with clear goals and outcomes
+- 3+ sprints with clear goals and outcomes — [Agile task board URL](./deliverables.md#4-agile-task-board) + [Agile & sprints](../project-workflow.md)
 - User stories with **acceptance criteria**
 - Task board matches repo and demo — no fiction
 - Planning and refinement notes kept up to date
+- Retrospective evidence: [Sprint 2 retro board + notes](../meetings/2026-08-05-retrospective.md); later improvements in [meeting notes](../meetings/) — see [how we ran retrospectives](../project-workflow.md#retrospective)
 
 ### 6. Excellent documentation
 

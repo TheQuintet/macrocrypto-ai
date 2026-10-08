@@ -58,7 +58,7 @@
   - Commit to technical deliverables (e.g., refactoring, test automation).  
   - Ensure each story has a clear "Definition of Done" from a code perspective.  
 - **After planning:**  
-  - Update any technical milestones on the "Roadmap" board.  
+  - Update any technical checkpoints on the "Roadmap" board.  
   - Create technical subtasks (e.g., setup new service, add monitoring).
 
 ---
@@ -159,7 +159,7 @@
 | Board | Code Owner’s Responsibility |
 |-------|-----------------------------|
 | **Team Planning** | Add technical epics (infrastructure, upgrades, refactoring). |
-| **Roadmap** | Mark technical milestones (e.g., "CI/CD complete," "API v1 ready"). |
+| **Roadmap** | Mark technical checkpoints (e.g., "CI/CD complete," "API v1 ready"). |
 | **Iterative Development** | Own all technical subtasks – ensure they move to "Done" each sprint. |
 | **Retrospective** | Add technical improvements that require team adoption. |
 

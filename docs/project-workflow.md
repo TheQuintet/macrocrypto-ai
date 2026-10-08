@@ -1,6 +1,6 @@
 # Agile & Sprints
 
-How we manage MacroCrypto AI using GitHub Issues, Projects, and milestones.
+How we manage MacroCrypto AI using GitHub Issues and Projects (Team Workflow board). We do **not** use GitHub Issues milestones on the repo.
 
 We follow **Agile** with at least **three sprints** during the capstone. All tasks and user stories must be tracked on the **GitHub Project boards**.
 
@@ -26,9 +26,13 @@ Select stories, estimate, and assign owners. Product Owner prioritizes; the team
 
 Clarify stories and acceptance criteria before they enter a sprint.
 
-### Async coordination (domain Slack channels)
+### Coordination without daily standup (domain Slack)
 
-We **did not hold a daily standup meeting** — the team agreed that live daily syncs do not work across time zones. Instead, updates and domain discussion happen in **private Slack channels by area**:
+We **did not run a daily standup** — no live meeting and **no required offline/async** “every day” standup posts either.
+
+In `#capstone-project-group` the team had a **Slack discussion** (including poll feedback) and **agreed** that daily standups were not workable across time zones and were **not something we would enforce in Slack**. People use **private domain channels** for normal work conversation when needed, not a fixed daily template.
+
+**Scrum Master note:** Without any daily standup, the textbook SM routine (facilitate a daily ceremony, chase everyone each morning) was **hard to maintain** for **Loredana Lungu** (Scrum Master). The role shifted to **weekly Capstone sync**, **GitHub board** hygiene, meeting notes, and blockers in Slack when they appear — see [Scrum Master role](./team-roles.md#mandatory-agile-roles).
 
 | Channel | Domain |
 |---------|--------|
@@ -37,20 +41,11 @@ We **did not hold a daily standup meeting** — the team agreed that live daily 
 | `#mc-ml-model` | AI/ML service, features, model research |
 | `#mc-software-design` | Architecture, patterns, design docs, UML |
 
-Post progress, questions, and blockers in the channel that matches your work. `#capstone-project-group` stays for whole-team announcements and decisions.
+Use the channel that matches your work for questions and progress when you have something to share. `#capstone-project-group` is for whole-team announcements and decisions.
 
 **Trade-off:** some members felt **less visibility** into what others were doing when conversation was split by domain. Mitigations we used: weekly Capstone sync (see [team availability](./team-roles.md#recurring-meetings-through-14-oct-2026)), GitHub board status, PR notifications, and meeting notes in `docs/meetings/`.
 
-Example async update (any domain channel):
-
-```markdown
-**[Your name]**
-- Done: …
-- Next: …
-- Blockers: …
-```
-
-If you have a blocker, add the `blocked` label to the relevant issue and mention it in the channel.
+If you have a blocker, add the `blocked` label to the relevant issue and mention it in the relevant domain channel or `#capstone-project-group`.
 
 ### Sprint review
 
@@ -58,12 +53,16 @@ There is no scheduled live demo. After each sprint (or when useful), every team 
 
 - [ ] Pull latest `main` and run the app locally (or use the shared environment if one is available)
 - [ ] Explore the new/changed behaviour yourself
-- [ ] Check completed work on the [Sprint work board](https://github.com/orgs/TheQuintet/projects/3)
+- [ ] Check completed work on the [Sprint work board](https://github.com/orgs/TheQuintet/projects/6/views/7)
 - [ ] Flag issues or feedback in Slack or on the relevant GitHub issue
 
 ### Retrospective
 
-What went well, what to improve. Capture items on the [Team Retrospective board](https://github.com/orgs/TheQuintet/projects/4), agree action items and owners, and add a write-up next to the other session notes in `docs/meetings/`.
+We treat **retrospective** and **review** as separate ceremonies in principle. Our weekly Capstone sync is only **1–2 hours**, so we often combine review, refinement, and planning in one session (see [Ceremonies](#ceremonies)).
+
+**Sprint 2 (5 Aug 2026)** — we ran a **full retrospective** in that slot. The team added **what went well / improvements / action items** on the GitHub retro board during the meeting, and published a write-up in [5 Aug 2026 retrospective, review, refinement, and planning](./meetings/2026-08-05-retrospective.md). For grading and demos, use the [Sprint 2 retro board view](https://github.com/orgs/TheQuintet/projects/6/views/10) together with those notes.
+
+**Later sprints** — we still improved every week, but we **did not keep filling a separate retro board each sprint**. With limited meeting time, we **prioritized live discussion of emergent issues** (integration, PR bottlenecks, scope) over spending part of the sync maintaining retro columns. Outcomes and action items live in the [weekly meeting notes](./meetings/) and on the [Team Workflow board](https://github.com/orgs/TheQuintet/projects/6).
 
 | Question | Purpose |
 |----------|---------|
@@ -80,16 +79,17 @@ What went well, what to improve. Capture items on the [Team Retrospective board]
 | Resource | Purpose | How often |
 |----------|---------|-----------|
 | [GitHub Issues](https://github.com/TheQuintet/macrocrypto-ai/issues) | Track tasks and bugs | Daily |
-| [Sprint work board](https://github.com/orgs/TheQuintet/projects/3) | Sprint tasks and status (GitHub Project #3) | As you work |
-| [MacroCrypto AI Team Planning](https://github.com/orgs/TheQuintet/projects/1/views/1) | Sprint/backlog planning and ceremony prep | Weekly |
-| [MacroCrypto AI Team Retrospective](https://github.com/orgs/TheQuintet/projects/4) | Retro items (what went well / improvements / action items) | After each sprint |
-| [MacroCrypto AI Roadmap](https://github.com/orgs/TheQuintet/projects/5) | Epics, features, and longer-term roadmap visibility | Weekly |
-| [GitHub Milestones](https://github.com/TheQuintet/macrocrypto-ai/milestones) | Track sprint progress | Weekly |
+| [MacroCrypto AI Team Workflow](https://github.com/orgs/TheQuintet/projects/6) | Single org project — planning, sprints, roadmap, retro views | Daily |
+| [All Work](https://github.com/orgs/TheQuintet/projects/6/views/6) | Primary overview — issues/PRs across sprints (main board we used) | Daily |
+| [Current sprint](https://github.com/orgs/TheQuintet/projects/6/views/7) | In-sprint tasks and status | As you work |
+| [Team Planning](https://github.com/orgs/TheQuintet/projects/6/views/1) | Sprint/backlog planning and ceremony prep | Weekly |
+| [Sprint 2 retro board](https://github.com/orgs/TheQuintet/projects/6/views/10) | Retro items from our **5 Aug 2026** full retro (see [notes](./meetings/2026-08-05-retrospective.md)) | Reference |
+| [Roadmap](https://github.com/orgs/TheQuintet/projects/6/views/5) | Epics, features, and longer-term visibility | Weekly |
 | [GitHub Labels](https://github.com/TheQuintet/macrocrypto-ai/labels) | Prioritize and categorize | As needed |
 | [Pull Requests](https://github.com/TheQuintet/macrocrypto-ai/pulls?q=sort%3Aupdated-desc+is%3Apr+state%3Aopen+) | Code review | Daily |
 | Branch protection | Enforce quality | Always |
 
-**Rule:** If it is not on a board, it is not officially tracked. Use the **Sprint work board** for in-sprint status; **MacroCrypto AI Team Planning** for refinement/planning; **MacroCrypto AI Team Retrospective** for retro follow-ups; **MacroCrypto AI Roadmap** for epics/features and longer-term visibility.
+**Rule:** If it is not on a board or in `docs/meetings/`, it is not officially tracked. Use **Current sprint** for in-sprint status; **Team Planning** for refinement/planning; **Sprint 2 retro board** (+ [5 Aug notes](./meetings/2026-08-05-retrospective.md)) for formal retro evidence; **Roadmap** for epics and longer-term visibility. Later process improvements are in meeting notes — see [Retrospective](#retrospective).
 
 ---
 
@@ -123,7 +123,7 @@ When blocked, add the `blocked` label to the issue ([labels](https://github.com/
 
 ## Developer workflow
 
-1. **Start day** — check assigned issues on the [Sprint work board](https://github.com/orgs/TheQuintet/projects/3); `git pull origin main`
+1. **Start day** — check assigned issues on the [Current sprint](https://github.com/orgs/TheQuintet/projects/6/views/7) view; `git pull origin main`
 2. **Work on issue** — move to In Progress; branch `feature/issue-name`; commit and push regularly
 3. **Async update** — post progress / blockers in the matching domain Slack channel (`#mc-frontend`, `#mc-backend`, `#mc-ml-model`, `#mc-software-design`); label blocked issues
 4. **Open PR** — move issue to Review; request review from a teammate
@@ -189,10 +189,13 @@ Code changes follow [GitHub Flow](../GITHUB_FLOW.md). See also [Contributing](..
 
 ## Sprint log
 
+**Capstone grading:** submit **three sprint URLs** on the project board — [All Work — Sprint 1](https://github.com/orgs/TheQuintet/projects/6/views/6?query=sprint%3A%22Sprint%201%22), [Sprint 2](https://github.com/orgs/TheQuintet/projects/6/views/6?query=sprint%3A%22Sprint%202%22), [Sprint 3](https://github.com/orgs/TheQuintet/projects/6/views/6?query=sprint%3A%22Sprint%203%22). Day-to-day tracking used **[All Work](https://github.com/orgs/TheQuintet/projects/6/views/6)** on [Team Workflow #6](https://github.com/orgs/TheQuintet/projects/6). Details: [Deliverables §4](./quantic/deliverables.md#4-agile-task-board).
+
 ### Sprint 1 — Foundation (Weeks 1–2)
 
 | | |
 |---|---|
+| **Board URL (capstone)** | [All Work — Sprint 1](https://github.com/orgs/TheQuintet/projects/6/views/6?query=sprint%3A%22Sprint%201%22) |
 | **Dates** | _TBD_ |
 | **Sprint goal** | Infrastructure foundation — Docker, data ingestion, messaging |
 | **Product Owner** | _TBD_ |
@@ -222,6 +225,7 @@ Code changes follow [GitHub Flow](../GITHUB_FLOW.md). See also [Contributing](..
 
 | | |
 |---|---|
+| **Board URL (capstone)** | [All Work — Sprint 2](https://github.com/orgs/TheQuintet/projects/6/views/6?query=sprint%3A%22Sprint%202%22) |
 | **Dates** | Wed 29 Jul – Wed 5 Aug 2026 (1-week cadence) |
 | **Status** | **Closed** 5 Aug 2026 — unfinished work carried into Sprint 3 |
 | **Sprint goal** | Forecasting and correlation models |
@@ -240,6 +244,7 @@ Code changes follow [GitHub Flow](../GITHUB_FLOW.md). See also [Contributing](..
 **Retrospective notes**
 
 - Full notes: [5 Aug 2026 retrospective](./meetings/2026-08-05-retrospective.md)
+- Retro board (items captured live): [Sprint 2 retro view](https://github.com/orgs/TheQuintet/projects/6/views/10)
 - Went well: backend collaboration, repo organization, peer reviews starting
 - To improve: PR review turnaround (biggest velocity blocker), consistent daily updates, centralized docs, earlier UI sharing
 
@@ -249,6 +254,7 @@ Code changes follow [GitHub Flow](../GITHUB_FLOW.md). See also [Contributing](..
 
 | | |
 |---|---|
+| **Board URL (capstone)** | [All Work — Sprint 3](https://github.com/orgs/TheQuintet/projects/6/views/6?query=sprint%3A%22Sprint%203%22) |
 | **Dates** | Started Wed 5 Aug 2026 (1-week cadence) |
 | **Status** | **In progress** — 2 Sep session: S1 closed, T7/T8 in focus (see below) |
 | **Sprint goal** | API Gateway and Alert Service |
@@ -272,7 +278,7 @@ Code changes follow [GitHub Flow](../GITHUB_FLOW.md). See also [Contributing](..
 
 **Retrospective notes**
 
-- A full retro was proposed for 26 Aug if time allowed; it was not captured in the [26 Aug session notes](./meetings/2026-08-26-review-and-planning.md)
+- No separate retro board session — the weekly sync focused on emergent integration and scope issues instead (see [Retrospective](#retrospective)). [26 Aug session notes](./meetings/2026-08-26-review-and-planning.md) capture planning and review topics only.
 - Current-sprint constraint: keep essential work only; ML model, results, and performance metrics remain the principal technical gaps for Quantic
 
 ---

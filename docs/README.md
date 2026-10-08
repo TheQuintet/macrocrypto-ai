@@ -4,7 +4,7 @@ Long-form project documentation. How to clone and run the app is in the [root RE
 
 ## Project
 
-- [**Scope**](./project-scope.md) — what we're building, architecture, milestones
+- [**Scope**](./project-scope.md) — what we're building, architecture, sprints
 - [**User personas**](./user-personas.md) — who uses the platform and what they need
 - [**Structure**](./project-structure-and-architecture.md) — repository layout and high-level architecture
 - [**AI-assisted development disclosure**](./ai-assisted-development-disclosure.md) — final statement of how we used coding assistants and agents (academic integrity)

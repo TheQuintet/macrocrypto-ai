@@ -5,19 +5,21 @@ The Scrum Master (SM) uses GitHub Projects as the primary tool to facilitate Scr
 
 Below is a detailed breakdown of exactly what the SM does on **each of the 4 GitHub Project boards**.
 
+**MacroCrypto AI practice:** Sprints live on [Team Workflow #6](https://github.com/orgs/TheQuintet/projects/6) via the **Sprint** field. We do **not** use GitHub Issues milestones on the repo.
+
 ---
 
 ## 1. TEAM PLANNING Board
 
 ### Purpose
-High-level strategic planning – epics, themes, major milestones, and release-level coordination.
+High-level strategic planning – epics, themes, major roadmap checkpoints, and release-level coordination.
 
 ### SM Responsibilities
 
 #### Daily / Ongoing
 - **Monitor the board** – ensure epics have clear owners and timelines.
 - **Check for dependencies** – identify if any epics are blocking others and escalate.
-- **Ensure consistency** – verify that epics on this board match the Roadmap milestones.
+- **Ensure consistency** – verify that epics on this board match the Roadmap roadmap checkpoints.
 
 #### Weekly (every Friday)
 - **Review epic progress** – check if epics are on track based on team velocity.
@@ -37,7 +39,7 @@ High-level strategic planning – epics, themes, major milestones, and release-l
 
 | Column | SM Action |
 |--------|-----------|
-| **Backlog (Epics)** | Ensure all epics have descriptions, owners, and target milestones. Add labels (e.g., "High Risk," "Needs Refinement"). |
+| **Backlog (Epics)** | Ensure all epics have descriptions, owners, and target roadmap checkpoints. Add labels (e.g., "High Risk," "Needs Refinement"). |
 | **Next Up (Epics)** | Verify that epics moved here have refined stories in the Iterative Development backlog. |
 | **In Progress (Epics)** | Track overall progress – if an epic is stuck, investigate and escalate to the PO. |
 | **Blocked** | Add detailed blocker descriptions. Coordinate with the PO and Code Owner to unblock. |
@@ -53,25 +55,25 @@ High-level strategic planning – epics, themes, major milestones, and release-l
 ## 2. ROADMAP Board
 
 ### Purpose
-Timeline view – shows the project schedule, key milestones, and release dates over the 3-month horizon.
+Timeline view – shows the project schedule, key roadmap checkpoints, and release dates over the 3-month horizon.
 
 ### SM Responsibilities
 
 #### Daily / Ongoing
-- **Check the board** – ensure milestones are aligned with the Iterative Development board.
-- **Update milestone progress** – add daily completion percentages (e.g., "Sprint 1: 60% done").
-- **Flag slips** – if a milestone is at risk, add a comment explaining why and what's being done.
+- **Check the board** – ensure roadmap checkpoints are aligned with the Iterative Development board.
+- **Update roadmap checkpoint progress** – add daily completion percentages (e.g., "Sprint 1: 60% done").
+- **Flag slips** – if a roadmap checkpoint is at risk, add a comment explaining why and what's being done.
 
 #### Weekly (every Friday)
 - **Review the 3-month timeline** – compare planned vs. actual progress.
-- **Calculate velocity** – use completed story points to forecast milestone completion.
-- **Update the board** – adjust milestone dates if the team is consistently ahead or behind.
+- **Calculate velocity** – use completed story points to forecast roadmap checkpoint completion.
+- **Update the board** – adjust roadmap checkpoint dates if the team is consistently ahead or behind.
 - **Share updates** – send a summary of the roadmap status to the team.
 
 #### Every Sprint Review
-- **Update milestone status** – mark completed milestones as "Achieved."
-- **Add new milestones** – if new work emerges, add it to the roadmap.
-- **Revise future milestones** – based on the team's velocity and remaining backlog.
+- **Update roadmap checkpoint status** – mark completed roadmap checkpoints as "Achieved."
+- **Add new roadmap checkpoints** – if new work emerges, add it to the roadmap.
+- **Revise future roadmap checkpoints** – based on the team's velocity and remaining backlog.
 
 #### Every Month
 - **Facilitate a roadmap review session** – with the PO and team.
@@ -81,16 +83,16 @@ Timeline view – shows the project schedule, key milestones, and release dates 
 
 | Column | SM Action |
 |--------|-----------|
-| **Backlog (Milestones)** | Ensure all future milestones have realistic dates and descriptions. Add notes about assumptions. |
+| **Backlog (roadmap)** | Ensure all future roadmap checkpoints have realistic dates and descriptions. Add notes about assumptions. |
 | **Current Sprint** | Update daily – track % complete, add blockers, and adjust if needed. |
-| **Next Sprint** | Prepare the next milestone – ensure stories are refined and estimated. |
-| **Month 1 / 2 / 3** | Organize milestones – if the team is off-track, suggest moving items between months. |
-| **Completed** | Move milestones here when all associated stories are done. Add a summary of what was delivered. |
+| **Next Sprint** | Prepare the next roadmap checkpoint – ensure stories are refined and estimated. |
+| **Month 1 / 2 / 3** | Organize roadmap checkpoints – if the team is off-track, suggest moving items between months. |
+| **Completed** | Move roadmap checkpoints here when all associated stories are done. Add a summary of what was delivered. |
 
 ### Example SM Tasks on Roadmap
 - Update "Sprint 2 – Core Features" from 40% to 60% complete.
-- Add a comment: "Milestone at risk – team is 1 day behind due to environment issues."
-- Create a new milestone: "Hotfix Release – Week 8" for critical bugs found during testing.
+- Add a comment: "Roadmap checkpoint at risk – team is 1 day behind due to environment issues."
+- Create a new roadmap checkpoint: "Hotfix Release – Week 8" for critical bugs found during testing.
 
 ---
 
@@ -199,7 +201,7 @@ Continuous improvement – track what went well, what didn't, and action items f
 | Board | Primary SM Focus | Frequency | Key Actions |
 |-------|------------------|-----------|-------------|
 | **Team Planning** | Strategic alignment & dependency management | Weekly / Monthly | Flag epic risks, track dependencies, ensure refinement. |
-| **Roadmap** | Timeline tracking & forecasting | Daily / Weekly | Update milestone progress, adjust dates, flag slips. |
+| **Roadmap** | Timeline tracking & forecasting | Daily / Weekly | Update roadmap checkpoint progress, adjust dates, flag slips. |
 | **Iterative Development** | Daily execution & blocker removal | Daily (CRITICAL) | Facilitate standup, enforce WIP, unblock, refine backlog. |
 | **Retrospective** | Process improvement & team health | Every Sprint / Weekly | Facilitate retro, track action items, share metrics. |
 
@@ -210,7 +212,7 @@ Continuous improvement – track what went well, what didn't, and action items f
 1. **Check Iterative Development (Morning)** – review "Blocked," check "In Progress" ages, ensure board accuracy.
 2. **Facilitate Standup** – use the board as the agenda.
 3. **Impediment Triage** – investigate all "Blocked" items – escalate/resolve.
-4. **Check Roadmap** – update milestone progress if needed.
+4. **Check Roadmap** – update roadmap checkpoint progress if needed.
 5. **Check Retrospective** – review action item status.
 6. **End-of-day check** – ensure the board is updated for tomorrow's standup.
 
@@ -219,7 +221,7 @@ Continuous improvement – track what went well, what didn't, and action items f
 ## SM's Weekly GitHub Routine (Every Friday)
 
 1. **Team Planning** – review epic progress, flag risks, check dependencies.
-2. **Roadmap** – update milestone progress, adjust dates, forecast completion.
+2. **Roadmap** – update roadmap checkpoint progress, adjust dates, forecast completion.
 3. **Iterative Development** – ensure the "Ready" column has at least 3–5 refined stories.
 4. **Retrospective** – add new insights, follow up on action items, send a summary to the team.
 5. **Metrics** – calculate velocity, cycle time, and blocker frequency – share with the team.
@@ -232,28 +234,28 @@ Continuous improvement – track what went well, what didn't, and action items f
 |-------|-------------------|
 | **Sprint Planning** | Prepare the board – ensure "Ready" is full. Move stories to "To Do." Create Sprint Goal. Facilitate task breakdown. |
 | **During Sprint** | Daily – check "Blocked," enforce WIP limits, update board, facilitate standup. |
-| **Sprint Review** | Ensure all "Done" stories meet DoD. Move completed milestones to "Achieved." Validate board accuracy. |
+| **Sprint Review** | Ensure all "Done" stories meet DoD. Move completed roadmap checkpoints to "Achieved." Validate board accuracy. |
 | **Sprint Retro** | Prepare the board with prompts. Facilitate the session. Create action items with owners. Share metrics. |
 
 ---
 
-## SM's 3-Month Milestone Checkpoints (by Board)
+## SM's 3-Month Roadmap Checkpoints (by Board)
 
 ### Month 1 (Foundation)
 - **Team Planning** – ensure all epics are defined and dependencies mapped.
-- **Roadmap** – create the initial 3-month timeline with milestones.
+- **Roadmap** – create the initial 3-month timeline with roadmap checkpoints.
 - **Iterative Development** – set up the board with WIP limits, labels, and workflows.
 - **Retrospective** – facilitate the first retro – establish baseline metrics.
 
 ### Month 2 (Optimization)
 - **Team Planning** – review epic progress – recommend reprioritization if needed.
-- **Roadmap** – adjust milestones based on actual velocity.
+- **Roadmap** – adjust roadmap checkpoints based on actual velocity.
 - **Iterative Development** – monitor and improve processes – e.g., faster PR reviews.
 - **Retrospective** – track that at least 50% of action items are completed.
 
 ### Month 3 (Finalization)
 - **Team Planning** – ensure all epics are completed or handed off.
-- **Roadmap** – finalize the release milestone – track it daily.
+- **Roadmap** – finalize the release roadmap checkpoint – track it daily.
 - **Iterative Development** – final sprint: ensure all stories meet DoD.
 - **Retrospective** – facilitate the final retro – capture lessons learned.
 
@@ -284,7 +286,7 @@ Continuous improvement – track what went well, what didn't, and action items f
 
 ### Weekly
 - [ ] Review epic progress on Team Planning.
-- [ ] Update milestone progress on Roadmap.
+- [ ] Update roadmap checkpoint progress on Roadmap.
 - [ ] Ensure "Ready" column has 3–5 stories.
 - [ ] Follow up on Retrospective action items.
 - [ ] Share velocity and blocker metrics with the team.
