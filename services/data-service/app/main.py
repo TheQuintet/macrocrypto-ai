@@ -36,6 +36,7 @@ from app.services.scheduler import (
     periodic_macro_collection,
     periodic_economic_calendar_collection,
     periodic_regime_collection,
+    periodic_regime_backfill,
     periodic_hourly_gap_scan,
     periodic_high_yield_credit_stress,
     periodic_macro_vintages,
@@ -66,6 +67,7 @@ hourly_gap_scan_task: Optional[asyncio.Task] = None
 hy_proxy_task: Optional[asyncio.Task] = None
 macro_vintage_task: Optional[asyncio.Task] = None
 features_db_task: Optional[asyncio.Task] = None
+regime_backfill_task: Optional[asyncio.Task] = None
 
 price_service: Optional[PriceService] = None
 data_processor: Optional[DataProcessor] = None
@@ -80,7 +82,7 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     """Lifespan context manager for startup and shutdown events"""
     # global btc_task, price_service, data_processor, cache_client, rabbitmq_producer
-    global btc_task, market_cap_task, economic_task, current_regime_task, hourly_gap_scan_task, hy_proxy_task, macro_vintage_task, features_db_task, price_service, data_processor, cache_client, rabbitmq_producer, market_cap_service 
+    global btc_task, market_cap_task, economic_task, current_regime_task, hourly_gap_scan_task, hy_proxy_task, macro_vintage_task, features_db_task, regime_backfill_task, price_service, data_processor, cache_client, rabbitmq_producer, market_cap_service 
 
     # ============================================
     # STARTUP PHASE
@@ -373,6 +375,36 @@ async def lifespan(app: FastAPI):
         )
         features_db_task = None
 
+    # --------------------------------------------
+    # 12. Start Regime Backfill (Phase B, regime subsystem)
+    # --------------------------------------------
+    # Historical backfill for macro_regimes. The live path
+    # writes current_regime but never wrote macro_regimes, so
+    # the historical table is empty or stale. This task:
+    #
+    #   1. On startup, if macro_regimes is empty, runs a full
+    #      backfill from DEFAULT_REGIME_BACKFILL_START
+    #      (2017-08-17) to today.
+    #   2. Then runs once per week, Sunday 03:00 UTC, to
+    #      catch any gaps.
+    #
+    # Idempotent by-skip and guarded by a Postgres advisory
+    # lock, so a CLI invocation and the scheduler cannot
+    # overlap. See app/services/regime_backfill_service.py.
+    try:
+        regime_backfill_task = asyncio.create_task(
+            periodic_regime_backfill()
+        )
+        logger.info(
+            "✅ Regime backfill scheduler started "
+            "(startup-if-empty, weekly Sunday 03:00 UTC)"
+        )
+    except Exception as error:
+        logger.error(
+            f"⚠️ Regime backfill scheduler startup error: {error}"
+        )
+        regime_backfill_task = None
+
     logger.info(f"✅ {settings.SERVICE_NAME} started successfully!")
     
     # ============================================
@@ -510,6 +542,25 @@ async def lifespan(app: FastAPI):
 
         finally:
             features_db_task = None
+
+    if regime_backfill_task:
+        regime_backfill_task.cancel()
+
+        try:
+            await regime_backfill_task
+
+        except asyncio.CancelledError:
+            logger.info(
+                "✅ Regime backfill task cancelled successfully"
+            )
+
+        except Exception as error:
+            logger.error(
+                f"⚠️ Regime backfill shutdown error: {error}"
+            )
+
+        finally:
+            regime_backfill_task = None
 
     
     if rabbitmq_producer:

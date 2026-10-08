@@ -10,6 +10,7 @@ Handles:
 import logging
 from datetime import date, datetime, timezone
 
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.models.macro_regime import MacroRegime
@@ -273,3 +274,134 @@ class RegimeRepository:
             )
             .first()
         )
+
+    # --------------------------------------------------
+    # REGIME BACKFILL SUPPORT
+    # --------------------------------------------------
+
+    def count_regimes(self) -> int:
+        """
+        Return the total number of rows in macro_regimes.
+
+        Used by the scheduler to decide whether an initial
+        backfill is needed (count == 0) or whether the table
+        is already populated.
+        """
+
+        return (
+            self.db.query(MacroRegime)
+            .count()
+        )
+
+    def get_regimes_in_range(
+        self,
+        start_date: date,
+        end_date: date,
+    ) -> list[MacroRegime]:
+        """
+        Return all macro regimes that overlap [start_date, end_date].
+
+        "Overlap" is inclusive on both ends:
+
+            regime.start_date <= end_date
+            AND (regime.end_date IS NULL OR regime.end_date >= start_date)
+
+        An open regime (end_date IS NULL) is treated as extending
+        to infinity, so it overlaps any range whose end_date is
+        after the regime's start_date.
+
+        Used by RegimeBackfillService for idempotency: a candidate
+        backfilled run is skipped if it is fully covered by an
+        existing regime.
+        """
+
+        return (
+            self.db.query(MacroRegime)
+            .filter(
+                MacroRegime.start_date <= end_date,
+                or_(
+                    MacroRegime.end_date.is_(None),
+                    MacroRegime.end_date >= start_date,
+                ),
+            )
+            .order_by(MacroRegime.start_date.asc())
+            .all()
+        )
+
+    def create_regime_many(
+        self,
+        rows: list[dict],
+    ) -> int:
+        """
+        Batch-insert macro regime rows.
+
+        Each row is a dict with keys:
+            regime_type    (str)
+            start_date     (date)
+            end_date       (date | None)
+            duration_days  (int | None)
+
+        Does NOT commit. The caller owns the transaction so that a
+        delete + insert sequence can be atomic.
+
+        Returns the number of rows added to the session.
+
+        Idempotency is the caller's responsibility: this method
+        does not check for existing rows. Use get_regimes_in_range
+        for that check, then insert only the missing runs.
+        """
+
+        if not rows:
+            return 0
+
+        now = datetime.now(timezone.utc)
+
+        regimes = [
+            MacroRegime(
+                regime_type=row["regime_type"],
+                start_date=row["start_date"],
+                end_date=row.get("end_date"),
+                duration_days=row.get("duration_days"),
+                created_at=now,
+            )
+            for row in rows
+        ]
+
+        self.db.add_all(regimes)
+        self.db.flush()
+
+        logger.info(
+            "Staged %d macro regime row(s) for insertion",
+            len(regimes),
+        )
+
+        return len(regimes)
+
+    def delete_open_regime(self) -> int:
+        """
+        Delete any macro_regimes row with end_date IS NULL.
+
+        Used by the backfill as a defensive step before writing the
+        full historical sequence. On an empty table this is a no-op;
+        on a table that already has a placeholder open row (from the
+        old RegimeService path, or from a partially-completed
+        backfill), it removes the conflicting row.
+
+        Does NOT commit. The caller owns the transaction.
+
+        Returns the number of rows deleted.
+        """
+
+        deleted = (
+            self.db.query(MacroRegime)
+            .filter(MacroRegime.end_date.is_(None))
+            .delete(synchronize_session=False)
+        )
+
+        if deleted:
+            logger.info(
+                "Deleted %d open macro_regimes row(s)",
+                deleted,
+            )
+
+        return deleted

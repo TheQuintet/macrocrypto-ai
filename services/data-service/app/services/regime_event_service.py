@@ -1,5 +1,36 @@
 """
 Macro event analysis service.
+
+NOTE (regime subsystem, UNIT 2 Option B):
+    regime_event_analysis is intentionally NOT populated as of
+    this version.
+
+    The previous implementation of process_current_regime_event
+    was a QA placeholder: it treated the last two rows of
+    btc_prices as a synthetic "fed_meeting" reaction. That was
+    never real analysis and has been disabled.
+
+    A real implementation would:
+      1. Read events from economic_events (event_name,
+         event_date, impact_level).
+      2. For each event, compute BTC's reaction over a 48-hour
+         window centered on the event date, using an
+         hourly BTC source.
+      3. Write to regime_event_analysis.
+
+    The computation semantics should mirror the AI Service's
+    ReactionCalculator (port the logic, do not copy code). If
+    this feature is wanted later, prefer either porting that
+    logic here or exposing it via the AI Service API rather
+    than reimplementing it from scratch.
+
+    The regime_event_analysis table itself is kept — its schema
+    is valid and it may be used later.
+
+    The remainder of this service (analyze_event,
+    calculate_reaction, validate_event_type, get_event_analysis,
+    export_event_analysis_csv) is unchanged and remains usable
+    for a future real implementation.
 """
 
 import logging
@@ -195,41 +226,77 @@ class RegimeEventService:
 
     def process_current_regime_event(self, regime):
         """
-        Create/update a QA macro event analysis for the active regime.
+        QA placeholder: DISABLED (regime subsystem, UNIT 2 Option B).
+
+        Previously, this method treated the last two rows of
+        btc_prices as a synthetic "fed_meeting" reaction and
+        wrote the result to regime_event_analysis. That was
+        never real event analysis and has been disabled so the
+        table stays unpopulated until a real implementation
+        lands.
+
+        A real implementation would:
+          1. Read events from economic_events (event_name,
+             event_date, impact_level).
+          2. For each event, compute BTC's reaction over a
+             48-hour window centered on the event date,
+             using an hourly BTC source.
+          3. Write to regime_event_analysis via
+             analyze_event(...).
+
+        See the module docstring for the full note.
+
+        Calling this method now logs a warning and returns None.
+        The method is kept (rather than deleted) so existing
+        imports continue to work and the shape of a future real
+        implementation is obvious.
         """
 
-        if regime is None:
-            return None
-
-        from app.models.btc_price import BTCPrice
-
-        prices = (
-            self.db.query(BTCPrice)
-            .order_by(BTCPrice.time.desc())
-            .limit(2)
-            .all()
+        logger.warning(
+            "RegimeEventService.process_current_regime_event "
+            "called, but the feature is disabled (UNIT 2 "
+            "Option B). regime_event_analysis is not populated "
+            "in this version. See module docstring for details."
         )
+        return None
 
-        if len(prices) < 2:
-            logger.info(
-                "Not enough BTC price data for event analysis"
-            )
-            return None
-
-        latest = prices[0]
-        previous = prices[1]
-        macro_regime = self.regimes.get_current_regime()
-
-        if macro_regime is None:
-            logger.warning(
-                "No active macro regime found for event analysis"
-            )
-            return None
-
-        return self.analyze_event(
-            regime_id= macro_regime.id, 
-            event_type="fed_meeting",
-            event_date=latest.time.date(),
-            btc_price_before=previous.price,
-            btc_price_after=latest.price,
-        )
+        # ------------------------------------------------------
+        # ORIGINAL QA PLACEHOLDER (kept for reference — do not
+        # re-enable without reading the module docstring first).
+        # ------------------------------------------------------
+        #
+        # if regime is None:
+        #     return None
+        #
+        # from app.models.btc_price import BTCPrice
+        #
+        # prices = (
+        #     self.db.query(BTCPrice)
+        #     .order_by(BTCPrice.time.desc())
+        #     .limit(2)
+        #     .all()
+        # )
+        #
+        # if len(prices) < 2:
+        #     logger.info(
+        #         "Not enough BTC price data for event analysis"
+        #     )
+        #     return None
+        #
+        # latest = prices[0]
+        # previous = prices[1]
+        # macro_regime = self.regimes.get_current_regime()
+        #
+        # if macro_regime is None:
+        #     logger.warning(
+        #         "No active macro regime found for event analysis"
+        #     )
+        #     return None
+        #
+        # return self.analyze_event(
+        #     regime_id= macro_regime.id,
+        #     event_type="fed_meeting",
+        #     event_date=latest.time.date(),
+        #     btc_price_before=previous.price,
+        #     btc_price_after=latest.price,
+        # )

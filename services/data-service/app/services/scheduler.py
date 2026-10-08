@@ -6,7 +6,10 @@ Responsibilities:
 - Trigger current macroeconomic regime classification.
 - Trigger BTC regime performance calculation.
 - Trigger similar historical period analysis.
-- Optionally trigger macro event analysis in QA mode.
+- Keep macro_regimes current (reconcile against current_regime
+  on each daily regime run).
+- Backfill historical macro_regimes on startup (if empty) and
+  weekly thereafter.
 - Support configurable QA execution intervals.
 - Handle scheduler errors without crashing the background loop.
 - Clean up database/service resources after each scheduled run.
@@ -22,13 +25,14 @@ CURRENT_REGIME_UPDATE_INTERVAL_MINUTES
 REGIME_PERFORMANCE_QA_MODE
     Enables regime_performance processing during QA.
 
-REGIME_EVENT_QA_MODE
-    Enables regime_event_analysis processing during QA.
+Note:
+    regime_event_analysis is intentionally not populated. The QA
+    placeholder was removed; see RegimeEventService for details.
 """
 
 import asyncio
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from app.config import settings
 from app.database.session import SessionLocal
@@ -728,6 +732,81 @@ async def periodic_economic_calendar_collection():
 
 
 # ============================================================
+# MACRO_REGIMES RECONCILIATION HELPER
+# ============================================================
+
+
+def _reconcile_macro_regime_row(db, current_regime):
+    """
+    Keep macro_regimes in sync with current_regime.
+
+    The live path writes current_regime but not macro_regimes.
+    This helper closes that gap: after each daily current-regime
+    classification, ensure the historical table has exactly one
+    open row matching the fresh label.
+
+    Behavior:
+        - No open row in macro_regimes
+            -> create one starting today.
+        - Open row exists with the same regime_type
+            -> no-op.
+        - Open row exists with a different regime_type
+            -> close the open row at today, then create a new
+               open row starting today.
+
+    Idempotent: running twice in a row with the same label is a
+    no-op the second time.
+
+    Never raises: any failure is logged and swallowed so the
+    surrounding daily job continues.
+    """
+
+    if current_regime is None:
+        return
+
+    from app.database.regime_repository import RegimeRepository
+
+    try:
+        repository = RegimeRepository(db)
+
+        open_row = repository.get_current_regime()
+        today = date.today()
+        new_type = current_regime.regime_type
+
+        if open_row is None:
+            repository.create_regime(
+                regime_type=new_type,
+                start_date=today,
+            )
+            logger.info(
+                "macro_regimes: created initial open row for %s",
+                new_type,
+            )
+            return
+
+        if open_row.regime_type == new_type:
+            # Nothing to do.
+            return
+
+        repository.close_regime(open_row, today)
+        repository.create_regime(
+            regime_type=new_type,
+            start_date=today,
+        )
+        logger.info(
+            "macro_regimes: closed %s, opened %s",
+            open_row.regime_type,
+            new_type,
+        )
+
+    except Exception:
+        logger.exception(
+            "macro_regimes reconciliation failed; will retry "
+            "on next daily run"
+        )
+
+
+# ============================================================
 # CURRENT REGIME SCHEDULER
 # ============================================================
 
@@ -748,8 +827,8 @@ async def periodic_regime_collection():
 
     1. Wait for configured QA interval or production schedule.
     2. Process current macroeconomic regime.
-    3. Calculate/update BTC regime performance when enabled.
-    4. Process macro event analysis when enabled.
+    3. Reconcile macro_regimes (close/open the open row).
+    4. Calculate/update BTC regime performance when enabled.
     5. Update similar historical periods.
     6. Clean up database/service resources.
     7. Continue until cancelled.
@@ -785,11 +864,6 @@ async def periodic_regime_collection():
         settings.REGIME_PERFORMANCE_QA_MODE,
     )
 
-    logger.info(
-        "Regime event QA mode: %s",
-        settings.REGIME_EVENT_QA_MODE,
-    )
-
     # ========================================================
     # IMPORTS
     # ========================================================
@@ -806,10 +880,6 @@ async def periodic_regime_collection():
 
     from app.services.regime_performance_service import (
         RegimePerformanceService,
-    )
-
-    from app.services.regime_event_service import (
-        RegimeEventService,
     )
 
     from app.services.similar_period_service import (
@@ -871,7 +941,20 @@ async def periodic_regime_collection():
                 )
 
                 # ==================================================
-                # 2. REGIME PERFORMANCE
+                # 2. RECONCILE macro_regimes
+                # ==================================================
+                #
+                # Keep the historical table aligned with the
+                # fresh current_regime snapshot. The backfill
+                # filled history; this step keeps it current
+                # going forward.
+
+                _reconcile_macro_regime_row(
+                    db, current_regime
+                )
+
+                # ==================================================
+                # 3. REGIME PERFORMANCE
                 # ==================================================
 
                 if current_regime is not None:
@@ -942,56 +1025,6 @@ async def periodic_regime_collection():
                     logger.info(
                         "No current regime identified; "
                         "skipping regime_performance"
-                    )
-
-                # ==================================================
-                # 3. REGIME EVENT ANALYSIS
-                # ==================================================
-
-                if current_regime is not None:
-
-                    if settings.REGIME_EVENT_QA_MODE:
-
-                        logger.info(
-                            "🧪 Regime event QA mode enabled"
-                        )
-
-                        event_service = (
-                            RegimeEventService(db)
-                        )
-
-                        try:
-
-                            event_result = (
-                                event_service
-                                .process_current_regime_event(
-                                    current_regime
-                                )
-                            )
-
-                            logger.info(
-                                "Regime event analysis completed: %s",
-                                event_result,
-                            )
-
-                        except Exception:
-
-                            logger.exception(
-                                "❌ Regime event analysis failed"
-                            )
-
-                    else:
-
-                        logger.info(
-                            "Regime event QA mode disabled; "
-                            "skipping regime_event_analysis"
-                        )
-
-                else:
-
-                    logger.info(
-                        "No current regime identified; "
-                        "skipping regime_event_analysis"
                     )
 
                 # ==================================================
@@ -1327,4 +1360,132 @@ async def periodic_hourly_gap_scan():
         except Exception:
             logger.exception(
                 "🔥 Hourly gap scan scheduler failed"
+            )
+
+
+# ============================================================
+# REGIME BACKFILL SCHEDULER
+# ============================================================
+
+
+async def periodic_regime_backfill():
+    """
+    Backfill and maintain the macro_regimes historical table.
+
+    The live path writes current_regime but never wrote
+    macro_regimes, so the historical table is empty or stale.
+    This task:
+
+      1. On startup, if macro_regimes is empty, run a full
+         backfill from DEFAULT_REGIME_BACKFILL_START (2017-08-17)
+         to today.
+
+      2. Then loop: run the backfill once per week, Sunday at
+         03:00 UTC, to catch any gaps.
+
+    The backfill itself is idempotent and guarded by an advisory
+    lock (RegimeBackfillService), so overlapping with a CLI
+    invocation is safe.
+
+    Never raises out of the loop: any failure is logged and the
+    task continues to the next scheduled run.
+    """
+
+    from app.services.regime_backfill_service import (
+        DEFAULT_REGIME_BACKFILL_START,
+        RegimeBackfillService,
+    )
+
+    logger.info("🗂️  Regime backfill scheduler started")
+
+    # ========================================================
+    # STARTUP RUN — only if macro_regimes is empty
+    # ========================================================
+
+    try:
+        db = SessionLocal()
+        try:
+            from app.database.regime_repository import (
+                RegimeRepository,
+            )
+
+            count = RegimeRepository(db).count_regimes()
+        finally:
+            db.close()
+
+        if count == 0:
+            logger.info(
+                "🗂️  macro_regimes is empty; running initial "
+                "backfill from %s",
+                DEFAULT_REGIME_BACKFILL_START,
+            )
+
+            db = SessionLocal()
+            try:
+                service = RegimeBackfillService(db)
+                result = await service.backfill_regimes(
+                    start_date=DEFAULT_REGIME_BACKFILL_START,
+                )
+                logger.info(
+                    "🗂️  Initial regime backfill result: %s",
+                    result,
+                )
+            finally:
+                db.close()
+        else:
+            logger.info(
+                "🗂️  macro_regimes already populated (%d rows); "
+                "skipping startup backfill",
+                count,
+            )
+
+    except Exception:
+        logger.exception(
+            "🗂️  Initial regime backfill failed; "
+            "will retry on the weekly schedule"
+        )
+
+    # ========================================================
+    # WEEKLY LOOP — Sunday 03:00 UTC
+    # ========================================================
+    #
+    # wait_until_next_run handles the daily rollover but not the
+    # "which weekday" question, so we add a small check after
+    # waking up: if today is not Sunday, sleep another day.
+
+    while True:
+        try:
+            # Align to Sunday 03:00 UTC.
+            while True:
+                await wait_until_next_run(3, 0, "regime backfill")
+                if datetime.now(timezone.utc).weekday() == 6:
+                    # Monday=0 .. Sunday=6
+                    break
+
+            logger.info("🗂️  Regime backfill scheduler woke up")
+
+            db = SessionLocal()
+            try:
+                service = RegimeBackfillService(db)
+                result = await service.backfill_regimes(
+                    start_date=DEFAULT_REGIME_BACKFILL_START,
+                )
+                logger.info(
+                    "🗂️  Weekly regime backfill result: %s",
+                    result,
+                )
+            finally:
+                db.close()
+
+            logger.info(
+                "🗂️  Regime backfill scheduled job completed"
+            )
+
+        except asyncio.CancelledError:
+            logger.info("Regime backfill scheduler cancelled")
+            raise
+
+        except Exception:
+            logger.exception(
+                "🔥 Regime backfill scheduler failed"
             )
