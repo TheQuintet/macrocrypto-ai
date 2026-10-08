@@ -206,6 +206,7 @@ The written design-and-testing deliverable must be **manual** (no pasted AI pros
 | [API design](./docs/design/api-design.md) | HTTP surface |
 | [ADRs](./docs/design/adr/README.md) | Why RabbitMQ, FastAPI, Prophet, database-per-service |
 | [Non-functional requirements](./docs/design/non-functional-requirements.md) | Performance, availability, security |
+| [Local and CI testing](./docs/test%20documents/local-and-ci-cd-tests.md) | Test types, Playwright UI integration vs system E2E, GitHub Actions jobs |
 
 Submission status for that deliverable: [docs/quantic/deliverables.md](./docs/quantic/deliverables.md#3-design-and-testing-document).
 

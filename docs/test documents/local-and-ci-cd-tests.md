@@ -17,13 +17,15 @@ This guide describes the test types in the repository and the checks run by
   `frontend/e2e/ui-integration/`. They exercise browser flows against the
   frontend, usually with simulated frontend data; they do not by themselves
   validate backend services.
-- **System stack smoke** starts selected services together with Docker Compose
-  and checks selected cross-service routes and one dashboard flow. It is a
-  focused smoke check, not exhaustive system or end-to-end coverage.
-- **Playwright E2E tests** are configured in the `e2e` project for
-  `frontend/e2e/system/`, for full journeys involving APIs/services. That
-  directory is currently a placeholder; the Compose-backed CI smoke currently
-  runs a UI-integration spec against the live Gateway instead.
+- **Frontend system E2E tests** use Playwright in `frontend/e2e/system/` (the
+  `e2e` project). They drive the real Vite app against a **reachable API
+  gateway** and backing services (live HTTP/WebSocket data, not mocked in the
+  browser). Specs **skip** when the gateway is down so local runs without
+  Compose do not fail.
+- **System stack job** starts selected services with Docker Compose, verifies
+  cross-service Gateway routes with `curl`, then runs the **system E2E**
+  Playwright suite against the live stack. It is a focused smoke check, not
+  exhaustive coverage of every endpoint or workflow.
 - **Quality and security checks** are separate from behavioral tests:
   ESLint, TypeScript typechecking, Python lint/format checks, and `pip-audit`
   inspect code or dependencies rather than exercise user journeys.
@@ -45,17 +47,37 @@ npx playwright install chromium
 npm run test:ui-integration
 ```
 
-Playwright also has commands for the configured E2E project and for running
-both projects:
+Playwright also has commands for the **system E2E** project and for running
+both browser projects:
 
 ```bash
 npm run test:e2e:system
 npm run test:e2e
 ```
 
-The `e2e` project currently has no specs in `frontend/e2e/system/`; the UI
-integration suite is the active browser-test suite. To run just the dashboard
-spec selected by CI, use:
+**System E2E locally** (gateway on port **8000**, e.g. `docker compose up` for
+postgres, redis, data-service, alert-service, api-gateway):
+
+```bash
+VITE_API_GATEWAY_BASE_URL=http://127.0.0.1:8000 npm run test:e2e:system
+```
+
+`playwright.config.ts` forwards `VITE_API_GATEWAY_BASE_URL` into the Vite dev
+server so the app hits the gateway during E2E runs. See
+[`frontend/e2e/system/README.md`](../../frontend/e2e/system/README.md) for
+spec inventory and the UI-integration vs system split.
+
+| Spec | What it checks |
+|------|----------------|
+| `app.smoke.spec.ts` | Dashboard loads with live BTC price from the gateway |
+| `routing.spec.ts` | Sidebar navigation to macro, forecasts, and calendar |
+| `alerts.spec.ts` | Alerts page loads price, macro, and prediction tabs via gateway |
+
+Shared helpers: `gateway.specHelpers.ts` (gateway health + skip), co-located
+`*.specHelpers.ts` per spec; routing/price helpers are reused from
+`e2e/ui-integration/` where flows overlap.
+
+To run only the **UI integration** dashboard smoke (simulated data, no stack):
 
 ```bash
 npm run test:ui-integration -- e2e/ui-integration/app.smoke.spec.ts
@@ -86,13 +108,13 @@ can set `run-everything` to run the path-filtered checks across the repository.
 | Job | What it checks | When it runs |
 |---|---|---|
 | Frontend | ESLint, TypeScript typecheck, and Vitest unit tests | Frontend or CI workflow changes |
-| Frontend UI integration | The selected dashboard smoke spec in Chromium using the default simulated frontend data | Frontend or CI workflow changes |
+| Frontend UI integration | Dashboard smoke spec in Chromium using simulated frontend data (no Compose) | Frontend or CI workflow changes |
 | API Gateway | Gateway pytest suite with TimescaleDB PostgreSQL; coverage shown in the job summary | API Gateway or CI workflow changes, or manual run-everything |
 | Alert Service | Alert Service pytest suite with TimescaleDB PostgreSQL; coverage shown in the job summary | Alert Service or CI workflow changes, or manual run-everything |
 | Data Service | Starts PostgreSQL, Redis, and RabbitMQ; starts the FastAPI app; runs pytest (excluding `tests/ml_qa`); coverage shown in the job summary | Data Service or CI workflow changes, or manual run-everything |
 | Python quality | Flake8 checks on changed Python files; Black formatting is advisory | Changed Python files |
 | Security Audit | `pip-audit` for API Gateway, Alert Service, and Data Service requirements | After its backend test job dependencies succeed |
-| System stack | Starts infrastructure and selected backend services in Docker Compose, verifies service APIs and Gateway routes, then runs the dashboard smoke test against the live Gateway | Frontend, selected backend service, shared, infrastructure, Compose, or CI workflow changes |
+| System stack | Starts infrastructure and selected backend services in Docker Compose, verifies Gateway routes with `curl`, then runs **`npm run test:e2e:system`** (Playwright system E2E against the live gateway) | Frontend, selected backend service, shared, infrastructure, Compose, or CI workflow changes |
 
 Coverage is reported separately for API Gateway, Alert Service, and Data
 Service in their respective GitHub Actions job summaries. There is no enforced
@@ -109,8 +131,9 @@ mean every dependency is necessarily healthy.
 The system stack job does not use `/health` for its readiness checks. It
 verifies the relevant OpenAPI documents and makes actual routed requests: the
 Gateway must return a populated BTC price from Data Service and a notifications
-response from Alert Service, and the dashboard must render price data through
-the live Gateway.
+response from Alert Service. After that, Playwright **system E2E** specs assert
+that the dashboard, navigation, and alerts UI work through the live gateway
+(with `VITE_API_GATEWAY_BASE_URL=http://127.0.0.1:8000`).
 
 The stack job exercises the API Gateway, Data Service, Alert Service,
 PostgreSQL, Redis, and RabbitMQ. To avoid external Binance availability, CI
@@ -126,9 +149,12 @@ The `system-stack-smoke` job has been confirmed passing in GitHub Actions.
 
 - Backend coverage is displayed for the three services tested by these pytest
   jobs, but CI does not enforce a coverage threshold.
-- The system stack smoke checks selected routes and one dashboard flow; it
-  does not cover every endpoint or cross-service workflow.
-- The Playwright `e2e` project is configured but currently has no system specs.
+- The system stack job checks selected Gateway routes and a small Playwright
+  system E2E suite (dashboard, navigation, alerts); it does not cover every
+  endpoint or cross-service workflow.
+- AI Service and prediction flows are not exercised by the current system E2E
+  specs; UI integration tests may still use simulated data where backends are
+  optional.
 - The CD workflow builds and pushes container images to GHCR; it does not
   deploy to an environment, so there is no post-deployment smoke test yet.
 - CI path filters intentionally skip jobs unrelated to the changed files.

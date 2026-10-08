@@ -85,7 +85,7 @@ npx playwright install chromium
 
 ```bash
 npm run test:ui-integration   # FE-only browser flows (headless)
-npm run test:e2e:system       # API/service-backed journeys (when specs exist)
+npm run test:e2e:system       # API/service-backed journeys (see e2e/system/)
 npm run test:e2e              # both Playwright projects (headless)
 ```
 
@@ -101,6 +101,15 @@ npm run test:e2e:ui                  # Playwright UI mode — pick/debug tests i
 - **UI mode** (`--ui`) opens Playwright’s test runner UI to step through specs, time-travel, and inspect actions.
 
 Default CI/local `test:e2e` stays **headless** (faster, no window).
+
+**System E2E** needs a running gateway. From `frontend/`:
+
+```bash
+VITE_API_GATEWAY_BASE_URL=http://127.0.0.1:8000 npm run test:e2e:system
+```
+
+If the gateway is unreachable, system specs **skip** (see `e2e/system/README.md`).
+The Vite dev server receives `VITE_API_GATEWAY_BASE_URL` via `playwright.config.ts`.
 
 **Testing names we use:**
 
@@ -143,7 +152,7 @@ Source lives in `src/` (`@/` alias → `src/`).
 | `src/test/` | Vitest setup |
 | `src/alerts/`, `src/utils/` | Reserved / placeholders |
 | `e2e/ui-integration/` | Playwright **UI integration** specs (`*.spec.ts`) + `*.specHelpers.ts` |
-| `e2e/system/` | Playwright **E2E** specs (API/service-backed; add when ready) |
+| `e2e/system/` | Playwright **system E2E** specs + `gateway.specHelpers.ts` (live gateway) |
 
 Naming: **one function component per file** (PascalCase name = export); group related UI in camelCase folders under `components/` (nest when a domain grows, e.g. `dashboard/controls/`). **Shared types** in `src/types/`. CamelCase for hooks and modules. Co-located tests use `*.test.ts(x)`; helpers use `*.testHelpers.ts(x)`. Leave `components/ui/*` as ShadCN generates them.
 
