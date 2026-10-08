@@ -37,6 +37,7 @@ from app.services.scheduler import (
     periodic_economic_calendar_collection,
     periodic_regime_collection,
     periodic_regime_backfill,
+    periodic_regime_event_analysis,
     periodic_hourly_gap_scan,
     periodic_high_yield_credit_stress,
     periodic_macro_vintages,
@@ -68,6 +69,7 @@ hy_proxy_task: Optional[asyncio.Task] = None
 macro_vintage_task: Optional[asyncio.Task] = None
 features_db_task: Optional[asyncio.Task] = None
 regime_backfill_task: Optional[asyncio.Task] = None
+regime_event_analysis_task: Optional[asyncio.Task] = None
 
 price_service: Optional[PriceService] = None
 data_processor: Optional[DataProcessor] = None
@@ -82,7 +84,7 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     """Lifespan context manager for startup and shutdown events"""
     # global btc_task, price_service, data_processor, cache_client, rabbitmq_producer
-    global btc_task, market_cap_task, economic_task, current_regime_task, hourly_gap_scan_task, hy_proxy_task, macro_vintage_task, features_db_task, regime_backfill_task, price_service, data_processor, cache_client, rabbitmq_producer, market_cap_service 
+    global btc_task, market_cap_task, economic_task, current_regime_task, hourly_gap_scan_task, hy_proxy_task, macro_vintage_task, features_db_task, regime_backfill_task, regime_event_analysis_task, price_service, data_processor, cache_client, rabbitmq_producer, market_cap_service 
 
     # ============================================
     # STARTUP PHASE
@@ -405,6 +407,43 @@ async def lifespan(app: FastAPI):
         )
         regime_backfill_task = None
 
+    # --------------------------------------------
+    # 13. Start Regime Event Analysis (Phase B, regime subsystem)
+    # --------------------------------------------
+    # Daily job that computes BTC's reaction to recent
+    # economic events and writes one row per
+    # (regime_id, event_type, event_date) triple to
+    # regime_event_analysis. Runs at
+    # REGIME_EVENT_UPDATE_HOUR_UTC:
+    # REGIME_EVENT_UPDATE_MINUTE_UTC (default 01:15 UTC),
+    # staggered after the 01:00 UTC current-regime job so the
+    # open macro_regimes row is fresh before events are
+    # attached.
+    #
+    # Reads economic_events, filters to high/medium impact and
+    # to events whose +24h window is in the past, computes BTC
+    # return over the symmetric window [event - 24h,
+    # event + 24h] using a PIT-correct price lookup, and writes
+    # to regime_event_analysis. Idempotent by pre-check.
+    #
+    # See app/services/regime_event_service.py and
+    # app/services/scheduler.py::periodic_regime_event_analysis.
+    try:
+        regime_event_analysis_task = asyncio.create_task(
+            periodic_regime_event_analysis()
+        )
+        logger.info(
+            "✅ Regime event analysis scheduler started "
+            f"(daily at "
+            f"{settings.REGIME_EVENT_UPDATE_HOUR_UTC}:"
+            f"{settings.REGIME_EVENT_UPDATE_MINUTE_UTC:02d} UTC)"
+        )
+    except Exception as error:
+        logger.error(
+            f"⚠️ Regime event analysis scheduler startup error: {error}"
+        )
+        regime_event_analysis_task = None
+
     logger.info(f"✅ {settings.SERVICE_NAME} started successfully!")
     
     # ============================================
@@ -561,6 +600,25 @@ async def lifespan(app: FastAPI):
 
         finally:
             regime_backfill_task = None
+
+    if regime_event_analysis_task:
+        regime_event_analysis_task.cancel()
+
+        try:
+            await regime_event_analysis_task
+
+        except asyncio.CancelledError:
+            logger.info(
+                "✅ Regime event analysis task cancelled successfully"
+            )
+
+        except Exception as error:
+            logger.error(
+                f"⚠️ Regime event analysis shutdown error: {error}"
+            )
+
+        finally:
+            regime_event_analysis_task = None
 
     
     if rabbitmq_producer:
