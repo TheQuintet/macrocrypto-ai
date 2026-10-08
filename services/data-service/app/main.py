@@ -38,6 +38,9 @@ from app.services.scheduler import (
     periodic_regime_collection,
 )
 
+# ✅ Backfill status for /health visibility (Phase A, Chat 2)
+from app.services.backfill_service import get_backfill_status
+
 # Import rate limiting
 from app.core.rate_limit import limiter
 
@@ -886,7 +889,12 @@ async def health_check():
         dependencies["database"] == "connected" and
         dependencies["rabbitmq"] == "connected"
     )
-    
+
+    # ✅ Backfill status (Phase A, Chat 2): manual-triggered only,
+    # so this reads 'idle' unless a human runs
+    # 'python -m app.scripts.run_live_path --backfill'.
+    backfill_status = get_backfill_status()
+
     return {
         "status": "healthy" if is_healthy else "degraded",
         "service": settings.SERVICE_NAME,
@@ -896,7 +904,18 @@ async def health_check():
             "task_running": btc_task is not None and not btc_task.done()
         },
         "dependencies": dependencies,
-        "price_7d_reference": price_service.price_7d_reference if price_service else None
+        "price_7d_reference": price_service.price_7d_reference if price_service else None,
+        "backfill_status": {
+            "state": backfill_status.state,
+            "current_source": backfill_status.current_source,
+            "error": backfill_status.error,
+            "started_at": backfill_status.started_at.isoformat()
+                if backfill_status.started_at else None,
+            "completed_at": backfill_status.completed_at.isoformat()
+                if backfill_status.completed_at else None,
+            "sources_run": backfill_status.sources_run,
+            "sources_skipped": backfill_status.sources_skipped,
+        },
     }
 
 
