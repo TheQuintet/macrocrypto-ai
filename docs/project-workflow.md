@@ -32,7 +32,7 @@ We **did not run a daily standup** — no live meeting and **no required offline
 
 In `#capstone-project-group` the team had a **Slack discussion** (including poll feedback) and **agreed** that daily standups were not workable across time zones and were **not something we would enforce in Slack**. People use **private domain channels** for normal work conversation when needed, not a fixed daily template.
 
-**Scrum Master note:** Without any daily standup, the textbook SM routine (facilitate a daily ceremony, chase everyone each morning) was **hard to maintain** for **Loredana Lungu** (Scrum Master). The role shifted to **weekly Capstone sync**, **GitHub board** hygiene, meeting notes, and blockers in Slack when they appear — see [team roles](../team-roles.md#mandatory-agile-roles).
+**Scrum Master note:** Without any daily standup, the textbook SM routine (facilitate a daily ceremony, chase everyone each morning) was **hard to maintain** for **Loredana Lungu** (Scrum Master). The role shifted to **weekly Capstone sync**, **GitHub board** hygiene, meeting notes, and blockers in Slack when they appear — see [Scrum Master role](./team-roles.md#mandatory-agile-roles).
 
 | Channel | Domain |
 |---------|--------|
