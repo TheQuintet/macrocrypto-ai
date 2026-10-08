@@ -808,3 +808,60 @@ async def periodic_hourly_btc_prices():
 
         except Exception:
             logger.exception("🔥 Hourly BTC prices scheduler failed")
+
+
+# ============================================================
+# HOURLY MACRO INDICATORS SCHEDULER (Phase B, Chat 3)
+# ============================================================
+
+
+async def periodic_hourly_macro_indicators():
+    """
+    Materialize macro_indicators_hourly for the previous hour.
+
+    Runs at :02 of every hour (one minute after the BTC hourly
+    writer, so the two don't contend for the same connection).
+    Writes the hour [H-1, H) where H is the current wall-clock
+    hour.
+    """
+    from app.services.hourly_macro_indicators_service import (
+        HourlyMacroIndicatorsService,
+    )
+
+    logger.info("📈 Hourly macro indicators scheduler started")
+
+    while True:
+        try:
+            await wait_until_next_hour(2, "hourly macro indicators")
+
+            logger.info("📈 Hourly macro indicators scheduler woke up")
+
+            now = datetime.now(timezone.utc)
+            target_hour = now.replace(
+                minute=0, second=0, microsecond=0
+            ) - timedelta(hours=1)
+
+            db = SessionLocal()
+            service = None
+
+            try:
+                service = HourlyMacroIndicatorsService(db)
+                service.write_hour(target_hour)
+
+                logger.info(
+                    "📈 Wrote macro_indicators_hourly row for %s",
+                    target_hour.isoformat(),
+                )
+            finally:
+                if service:
+                    await service.close()
+                db.close()
+
+        except asyncio.CancelledError:
+            logger.info("Hourly macro indicators scheduler cancelled")
+            raise
+
+        except Exception:
+            logger.exception(
+                "🔥 Hourly macro indicators scheduler failed"
+            )
