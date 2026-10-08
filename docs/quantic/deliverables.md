@@ -62,7 +62,7 @@ To receive credit for the Capstone, we must submit **all** of the following. Use
 |            |                                           |
 | ---------- | ----------------------------------------- |
 | **Status** | ⬜ Not started / 🟡 In progress / ✅ Done |
-| **URL**    | [Sprint work board](https://github.com/orgs/TheQuintet/projects/3) (see also [Planning](https://github.com/orgs/TheQuintet/projects/1/views/1), [Retro](https://github.com/orgs/TheQuintet/projects/4), [Milestones](https://github.com/TheQuintet/macrocrypto-ai/milestones)) |
+| **URL**    | [MacroCrypto AI Team Workflow](https://github.com/orgs/TheQuintet/projects/6) — [Current sprint](https://github.com/orgs/TheQuintet/projects/6/views/7) (see also [Planning](https://github.com/orgs/TheQuintet/projects/6/views/1), [Retro](https://github.com/orgs/TheQuintet/projects/6/views/9), [Milestones](https://github.com/TheQuintet/macrocrypto-ai/milestones)) |
 
 **Requirements**
 
@@ -100,7 +100,7 @@ To receive credit for the Capstone, we must submit **all** of the following. Use
 | GitHub repo          | _TBD_             | _TBD_             |
 | Deployed app         | _TBD_             | _TBD_             |
 | Design & testing doc | [docs/design](../design/README.md) + [testing doc](../test%20documents/local-and-ci-cd-tests.md) | _TBD_             |
-| Agile board (final)  | [Sprint work board](https://github.com/orgs/TheQuintet/projects/3) | _TBD_             |
+| Agile board (final)  | [Team Workflow board](https://github.com/orgs/TheQuintet/projects/6) | _TBD_             |
 | Video presentation   | _TBD_             | _TBD_             |
 
 Set **internal deadlines** at least a few days before official due dates for buffer.
