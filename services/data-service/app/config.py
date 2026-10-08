@@ -345,6 +345,61 @@ class Settings(BaseSettings):
     HY_PROXY_LOOKBACK_DAYS: int = 730
 
     # ============================================
+    # MACRO INDICATOR VINTAGES (Phase B, Chat 5, B6)
+    # ============================================
+    #
+    # Daily job that fetches the full revision history (vintages)
+    # of 5 revision-prone FRED series and writes them to
+    # macro_indicator_vintages:
+    #
+    #     cpi                 <- CPIAUCSL
+    #     unemployment        <- UNRATE
+    #     federal_funds_rate  <- FEDFUNDS
+    #     m2_money_supply     <- M2SL
+    #     gdp                 <- GDP
+    #
+    # Why vintages matter: FRED revisions mean the value known
+    # for an observation changes over time. Training a model on
+    # the *final* value of, say, January 2024 CPI leaks future
+    # information. Vintages preserve every release so the
+    # features writer (B4) can merge point-in-time.
+    #
+    # Consumed by features_db for 5 of its 53 columns:
+    #     cpi, federal_funds_rate, gdp, m2_money_supply,
+    #     unemployment.
+    # See docs/data-service-schemas.md §5, rows 15-19, and §6.1
+    # for the rename map.
+    #
+    # Retention is unlimited (a few thousand rows per series per
+    # year after the no-op filter).
+    #
+    # No-op filter: consecutive releases for the same
+    # (series_id, observation_date) where the value did not
+    # change are collapsed to the first. Halves the row count;
+    # does not change PIT merge results. Applied in the service,
+    # not the table; see migration 008 and
+    # app/services/macro_vintage_service.py for detail.
+
+    # Production schedule for the daily vintage collection.
+    # 03:30 UTC is staggered after the 03:00 UTC HY proxy job
+    # (B5) and after the 01:00 UTC macro/FRED task.
+    VINTAGE_UPDATE_HOUR_UTC: int = 3
+    VINTAGE_UPDATE_MINUTE_UTC: int = 30
+
+    # Lookback window per run, in years.
+    #
+    # 20 years covers any realistic ML training window. The
+    # first run fetches the full window per series (a one-time
+    # cost; FRED's response time dominates); subsequent runs
+    # are effectively free because every already-stored triple
+    # is skipped by the ON CONFLICT clause.
+    #
+    # The CLI can override this per run with --years N.
+    # Lowering this is safe; raising it re-fetches history that
+    # will be deduplicated.
+    VINTAGE_LOOKBACK_YEARS: int = 20
+
+    # ============================================
     # RATE LIMITING
     # ============================================
     RATE_LIMIT_ENABLED: bool = True

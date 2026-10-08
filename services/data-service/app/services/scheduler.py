@@ -379,6 +379,114 @@ async def periodic_high_yield_credit_stress():
 
 
 # ============================================================
+# MACRO INDICATOR VINTAGES SCHEDULER (Phase B, Chat 5, B6)
+# ============================================================
+
+
+async def periodic_macro_vintages():
+    """
+    Daily collection of FRED macro indicator vintages.
+
+    Fetches the full revision history (vintages) for 5
+    revision-prone FRED series and writes them to
+    macro_indicator_vintages:
+
+        cpi                 <- CPIAUCSL
+        unemployment        <- UNRATE
+        federal_funds_rate  <- FEDFUNDS
+        m2_money_supply     <- M2SL
+        gdp                 <- GDP
+
+    Runs once per day at VINTAGE_UPDATE_HOUR_UTC:
+    VINTAGE_UPDATE_MINUTE_UTC (default 03:30 UTC), staggered
+    after the 03:00 UTC HY credit stress job (B5) and after the
+    01:00 UTC macro/FRED task.
+
+    Why vintages: FRED revisions mean the value known for an
+    observation changes over time. The features writer (B4)
+    needs point-in-time values to avoid look-ahead bias when
+    training. See migration 008 and
+    app/services/macro_vintage_service.py.
+
+    Idempotent: the service returns one record per
+    (series_id, observation_date, release_date) in the
+    VINTAGE_LOOKBACK_YEARS window, and the repository's
+    ON CONFLICT (series_id, observation_date, release_date)
+    clause skips any triple already stored. Re-running on the
+    same day is a no-op.
+
+    Note: this task requires a real FRED_API_KEY. If the key is
+    missing or still the placeholder from .env, the service
+    constructor raises RuntimeError; the outer except logs it
+    and the loop continues to the next scheduled run.
+
+    Consumed by features_db for 5 of its 53 columns. See
+    docs/data-service-schemas.md §5, rows 15-19.
+    """
+
+    from app.services.macro_vintage_service import (
+        MacroVintageService,
+    )
+
+    logger.info("📚 Macro vintage scheduler started")
+    logger.info(
+        "Macro vintage production schedule enabled: "
+        "running daily at %02d:%02d UTC",
+        settings.VINTAGE_UPDATE_HOUR_UTC,
+        settings.VINTAGE_UPDATE_MINUTE_UTC,
+    )
+
+    while True:
+        try:
+            await wait_until_next_run(
+                settings.VINTAGE_UPDATE_HOUR_UTC,
+                settings.VINTAGE_UPDATE_MINUTE_UTC,
+                "macro vintage update",
+            )
+
+            logger.info("📚 Macro vintage scheduler woke up")
+
+            db = SessionLocal()
+            service = None
+
+            try:
+                service = MacroVintageService(db)
+
+                records = await service.collect()
+
+                if records:
+                    service.repository.create_many(records)
+
+                    logger.info(
+                        "📚 Persisted %d macro vintage record(s)",
+                        len(records),
+                    )
+                else:
+                    logger.warning(
+                        "📚 Macro vintage collection produced "
+                        "no records"
+                    )
+
+            finally:
+                if service:
+                    await service.close()
+                db.close()
+
+            logger.info(
+                "📚 Macro vintage scheduled job completed"
+            )
+
+        except asyncio.CancelledError:
+            logger.info("Macro vintage scheduler cancelled")
+            raise
+
+        except Exception:
+            logger.exception(
+                "🔥 Macro vintage scheduler failed"
+            )
+
+
+# ============================================================
 # ECONOMIC CALENDAR SCHEDULER
 # ============================================================
 

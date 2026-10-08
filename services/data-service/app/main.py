@@ -38,6 +38,7 @@ from app.services.scheduler import (
     periodic_regime_collection,
     periodic_hourly_gap_scan,
     periodic_high_yield_credit_stress,
+    periodic_macro_vintages,
 )
 
 # ✅ Backfill status for /health visibility (Phase A, Chat 2)
@@ -62,6 +63,7 @@ economic_task: Optional[asyncio.Task] = None
 current_regime_task: Optional[asyncio.Task] = None
 hourly_gap_scan_task: Optional[asyncio.Task] = None
 hy_proxy_task: Optional[asyncio.Task] = None
+macro_vintage_task: Optional[asyncio.Task] = None
 
 price_service: Optional[PriceService] = None
 data_processor: Optional[DataProcessor] = None
@@ -76,7 +78,7 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     """Lifespan context manager for startup and shutdown events"""
     # global btc_task, price_service, data_processor, cache_client, rabbitmq_producer
-    global btc_task, market_cap_task, economic_task, current_regime_task, hourly_gap_scan_task, hy_proxy_task, price_service, data_processor, cache_client, rabbitmq_producer, market_cap_service 
+    global btc_task, market_cap_task, economic_task, current_regime_task, hourly_gap_scan_task, hy_proxy_task, macro_vintage_task, price_service, data_processor, cache_client, rabbitmq_producer, market_cap_service 
 
     # ============================================
     # STARTUP PHASE
@@ -309,6 +311,40 @@ async def lifespan(app: FastAPI):
         )
         hy_proxy_task = None
 
+    # --------------------------------------------
+    # 10. Start Macro Vintage Collection (Phase B, Chat 5, B6)
+    # --------------------------------------------
+    # Daily job that fetches the full revision history
+    # (vintages) for 5 revision-prone FRED series and writes them
+    # to macro_indicator_vintages. Runs at
+    # VINTAGE_UPDATE_HOUR_UTC:VINTAGE_UPDATE_MINUTE_UTC (default
+    # 03:30 UTC), staggered after the 03:00 UTC HY proxy job (B5)
+    # and the 01:00 UTC macro/FRED task. Idempotent: relies on
+    # the (series_id, observation_date, release_date) unique
+    # constraint in MacroVintageRepository. Consumed by
+    # features_db for 5 of its 53 columns. See
+    # docs/data-service-schemas.md §5, rows 15-19.
+    #
+    # Requires a real FRED_API_KEY. If the key is missing or
+    # still the placeholder, the service constructor raises
+    # RuntimeError; the task catches it inside its loop and logs,
+    # so the scheduler survives.
+    try:
+        macro_vintage_task = asyncio.create_task(
+            periodic_macro_vintages()
+        )
+        logger.info(
+            "✅ Macro vintage scheduler started "
+            f"(daily at "
+            f"{settings.VINTAGE_UPDATE_HOUR_UTC}:"
+            f"{settings.VINTAGE_UPDATE_MINUTE_UTC:02d} UTC)"
+        )
+    except Exception as error:
+        logger.error(
+            f"⚠️ Macro vintage scheduler startup error: {error}"
+        )
+        macro_vintage_task = None
+
     logger.info(f"✅ {settings.SERVICE_NAME} started successfully!")
     
     # ============================================
@@ -408,6 +444,25 @@ async def lifespan(app: FastAPI):
 
         finally:
             hy_proxy_task = None
+
+    if macro_vintage_task:
+        macro_vintage_task.cancel()
+
+        try:
+            await macro_vintage_task
+
+        except asyncio.CancelledError:
+            logger.info(
+                "✅ Macro vintage task cancelled successfully"
+            )
+
+        except Exception as error:
+            logger.error(
+                f"⚠️ Macro vintage shutdown error: {error}"
+            )
+
+        finally:
+            macro_vintage_task = None
 
     
     if rabbitmq_producer:
