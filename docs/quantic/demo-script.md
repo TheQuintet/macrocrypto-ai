@@ -18,10 +18,11 @@ References: [demo-prep run-of-show](./demo-prep.md#agreed-run-of-show-18-min) ·
 | | |
 |--|--|
 | Repo | https://github.com/TheQuintet/macrocrypto-ai |
-| Sprint work board | https://github.com/orgs/TheQuintet/projects/3 |
+| Team Workflow board | https://github.com/orgs/TheQuintet/projects/6 |
+| Capstone sprints (×3) | https://github.com/TheQuintet/macrocrypto-ai/milestone/1 · /milestone/2 · /milestone/3 |
 | Domain Slack | `#mc-frontend`, `#mc-backend`, `#mc-ml-model`, `#mc-software-design` (async — no daily meeting) |
 | Sprint 2 retro board | https://github.com/orgs/TheQuintet/projects/6/views/10 |
-| Sprint milestones | https://github.com/TheQuintet/macrocrypto-ai/milestones |
+| All milestones | https://github.com/TheQuintet/macrocrypto-ai/milestones |
 | Design docs | https://github.com/TheQuintet/macrocrypto-ai/tree/main/docs/design |
 | Testing doc | https://github.com/TheQuintet/macrocrypto-ai/blob/main/docs/test%20documents/local-and-ci-cd-tests.md |
 | Meeting notes | https://github.com/TheQuintet/macrocrypto-ai/tree/main/docs/meetings |
