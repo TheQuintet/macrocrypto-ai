@@ -86,6 +86,15 @@ class Settings(BaseSettings):
         description="Directory containing data-service parquet files",
     )
 
+    # Optional override for the partition used as prediction history
+    # (FeatureContext.PREDICTION). Empty means the default mapping
+    # (live_frontier). Set to "test" for local dev when live_frontier
+    # holds fewer rows than the generator's minimum history.
+    prediction_feature_partition: str = Field(
+        default="",
+        description="Partition override for prediction history (e.g. 'test')",
+    )
+
     # ============================================================
     # CLI ISOLATION
     # ============================================================

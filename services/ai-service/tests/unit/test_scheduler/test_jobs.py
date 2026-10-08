@@ -933,6 +933,62 @@ class TestHourlyPredictionJob:
             with pytest.raises(FileNotFoundError, match="missing model"):
                 await hourly_prediction_job()
 
+    @pytest.mark.asyncio
+    async def test_generates_every_confidence_level(self) -> None:
+        """Test that a batch is generated at 0.70, 0.85 and 0.95."""
+        mock_model = _make_trained_model()
+
+        mock_generator = MagicMock()
+        mock_generator.generate = AsyncMock(
+            return_value=_make_generation_result(succeeded=True)
+        )
+
+        with patch(
+            "app.scheduler.jobs._load_champion_model",
+            new_callable=AsyncMock,
+            return_value=mock_model,
+        ), patch(
+            "app.scheduler.jobs.PredictionGenerator",
+            return_value=mock_generator,
+        ) as mock_gen_class, patch(
+            "app.scheduler.jobs.session_scope",
+            return_value=_session_scope_mock(),
+        ):
+            await hourly_prediction_job()
+
+        calls = [call.kwargs for call in mock_gen_class.call_args_list]
+        assert [c["confidence"] for c in calls] == [0.70, 0.85, 0.95]
+        assert all(c["horizon"] == "24h" for c in calls)
+        assert all(c["horizon_hours"] == 24 for c in calls)
+
+    @pytest.mark.asyncio
+    async def test_raises_when_one_confidence_level_fails(self) -> None:
+        """Test that a failure at any level raises with that level named."""
+        mock_model = _make_trained_model()
+
+        mock_generator = MagicMock()
+        mock_generator.generate = AsyncMock(
+            side_effect=[
+                _make_generation_result(succeeded=True),
+                _make_generation_result(succeeded=True),
+                _make_generation_result(succeeded=False, error="boom"),
+            ]
+        )
+
+        with patch(
+            "app.scheduler.jobs._load_champion_model",
+            new_callable=AsyncMock,
+            return_value=mock_model,
+        ), patch(
+            "app.scheduler.jobs.PredictionGenerator",
+            return_value=mock_generator,
+        ), patch(
+            "app.scheduler.jobs.session_scope",
+            return_value=_session_scope_mock(),
+        ):
+            with pytest.raises(RuntimeError, match="confidence=0.95: boom"):
+                await hourly_prediction_job()
+
 
 # ============================================================
 # DAILY 7D PREDICTION JOB
@@ -1086,11 +1142,12 @@ class TestDaily7dPredictionJob:
         ):
             await daily_7d_prediction_job()
 
-        call_kwargs = mock_gen_class.call_args.kwargs
-        assert call_kwargs["horizon"] == "7d"
-        assert call_kwargs["horizon_hours"] == 168
-        assert call_kwargs["confidence"] == 0.85
-        assert call_kwargs["history_hours"] == 2160
+        calls = [call.kwargs for call in mock_gen_class.call_args_list]
+        assert [c["confidence"] for c in calls] == [0.70, 0.85, 0.95]
+        for call_kwargs in calls:
+            assert call_kwargs["horizon"] == "7d"
+            assert call_kwargs["horizon_hours"] == 168
+            assert call_kwargs["history_hours"] == 2160
 
 
 # ============================================================

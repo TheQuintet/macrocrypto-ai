@@ -94,8 +94,9 @@ btc_prices = Table(
     settings.db_table_btc_prices,
     metadata,
     Column("time", DateTime(timezone=True), primary_key=True),
-    # Target price (Prophet's `y`)
-    Column("close", Float, nullable=False),
+    # Target price (Prophet's `y`). The data-service column is
+    # `price`; `key="close"` keeps `btc_prices.c.close` for callers.
+    Column("price", Float, nullable=False, key="close"),
     # BTC market features (the 5 BTC regressors)
     Column("volume", Float, nullable=True),
     Column("volatility", Float, nullable=True),
