@@ -61,7 +61,7 @@ To receive credit for the Capstone, we must submit **all** of the following. Use
 
 |            |                                                                                                                  |
 | ---------- | ---------------------------------------------------------------------------------------------------------------- |
-| **Status** | ⬜ Not started / 🟡 In progress / ✅ Done                                                                        |
+| **Status** | ✅ Done                                                                                                          |
 | **URL**    | [https://github.com/orgs/TheQuintet/projects/6/views/6](https://github.com/orgs/TheQuintet/projects/6/views/6) |
 
 **Sprints:** we ran **9 sprints** in total on the board (**Sprint 1–9** on Team Workflow #6). Links below are **Sprint 1–3** (capstone evidence on All Work):
