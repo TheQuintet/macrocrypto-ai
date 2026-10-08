@@ -13,7 +13,7 @@ To receive credit for the Capstone, we must submit **all** of the following. Use
 
 |            |                                                                                                                  |
 | ---------- | ---------------------------------------------------------------------------------------------------------------- |
-| **Status** | ⬜ Not started / 🟡 In progress / ✅ Done                                                                        |
+| **Status** | ✅ Done                                                                                                          |
 | **URL**    | [https://github.com/TheQuintet/macrocrypto-ai/tree/main](https://github.com/TheQuintet/macrocrypto-ai/tree/main) |
 
 **Requirements**
