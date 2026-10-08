@@ -16,7 +16,8 @@ Use these on camera during the demo and in the README / [deliverables](./deliver
 |----------|------|
 | **GitHub repository** | [TheQuintet/macrocrypto-ai](https://github.com/TheQuintet/macrocrypto-ai) |
 | **Team Workflow board** | [GitHub Project #6](https://github.com/orgs/TheQuintet/projects/6) — planning, sprints, roadmap |
-| **Three sprints (capstone)** | [Sprint 1 / milestone 1](https://github.com/TheQuintet/macrocrypto-ai/milestone/1) · [Sprint 2 / milestone 2](https://github.com/TheQuintet/macrocrypto-ai/milestone/2) · [Sprint 3 / milestone 3](https://github.com/TheQuintet/macrocrypto-ai/milestone/3) — show these on camera (focused scope vs full board) |
+| **All Work (overview)** | [📊 All Work view](https://github.com/orgs/TheQuintet/projects/6/views/6) — main board the team used day to day |
+| **Three sprints (capstone)** | [Sprint 1](https://github.com/orgs/TheQuintet/projects/6/views/6?query=sprint%3A%22Sprint%201%22) · [Sprint 2](https://github.com/orgs/TheQuintet/projects/6/views/6?query=sprint%3A%22Sprint%202%22) · [Sprint 3](https://github.com/orgs/TheQuintet/projects/6/views/6?query=sprint%3A%22Sprint%203%22) — All Work filtered by board **Sprint** field |
 | **Current sprint** | [Current sprint view](https://github.com/orgs/TheQuintet/projects/6/views/7) |
 | **Sprint planning** | [Team Planning](https://github.com/orgs/TheQuintet/projects/6/views/1) |
 | **Sprint 2 retro (evidence)** | [Retro board view](https://github.com/orgs/TheQuintet/projects/6/views/10) + [5 Aug 2026 notes](../meetings/2026-08-05-retrospective.md) — full retro with board items; later sprints: improvements in [meeting notes](../meetings/) |

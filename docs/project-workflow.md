@@ -85,6 +85,7 @@ We treat **retrospective** and **review** as separate ceremonies in principle. O
 |----------|---------|-----------|
 | [GitHub Issues](https://github.com/TheQuintet/macrocrypto-ai/issues) | Track tasks and bugs | Daily |
 | [MacroCrypto AI Team Workflow](https://github.com/orgs/TheQuintet/projects/6) | Single org project — planning, sprints, roadmap, retro views | Daily |
+| [All Work](https://github.com/orgs/TheQuintet/projects/6/views/6) | Primary overview — issues/PRs across sprints (main board we used) | Daily |
 | [Current sprint](https://github.com/orgs/TheQuintet/projects/6/views/7) | In-sprint tasks and status | As you work |
 | [Team Planning](https://github.com/orgs/TheQuintet/projects/6/views/1) | Sprint/backlog planning and ceremony prep | Weekly |
 | [Sprint 2 retro board](https://github.com/orgs/TheQuintet/projects/6/views/10) | Retro items from our **5 Aug 2026** full retro (see [notes](./meetings/2026-08-05-retrospective.md)) | Reference |
@@ -194,13 +195,13 @@ Code changes follow [GitHub Flow](../GITHUB_FLOW.md). See also [Contributing](..
 
 ## Sprint log
 
-**Capstone grading:** submit **three sprint URLs** — [milestone 1](https://github.com/TheQuintet/macrocrypto-ai/milestone/1), [milestone 2](https://github.com/TheQuintet/macrocrypto-ai/milestone/2), [milestone 3](https://github.com/TheQuintet/macrocrypto-ai/milestone/3). We point graders at these early milestones because scope stayed readable; the [Team Workflow board](https://github.com/orgs/TheQuintet/projects/6) grew much busier by project end. Details: [Deliverables §4](./quantic/deliverables.md#4-agile-task-board).
+**Capstone grading:** submit **three sprint URLs** on the project board — [All Work — Sprint 1](https://github.com/orgs/TheQuintet/projects/6/views/6?query=sprint%3A%22Sprint%201%22), [Sprint 2](https://github.com/orgs/TheQuintet/projects/6/views/6?query=sprint%3A%22Sprint%202%22), [Sprint 3](https://github.com/orgs/TheQuintet/projects/6/views/6?query=sprint%3A%22Sprint%203%22). Day-to-day tracking used **[All Work](https://github.com/orgs/TheQuintet/projects/6/views/6)** on [Team Workflow #6](https://github.com/orgs/TheQuintet/projects/6) (not repo milestones). Details: [Deliverables §4](./quantic/deliverables.md#4-agile-task-board).
 
 ### Sprint 1 — Foundation (Weeks 1–2)
 
 | | |
 |---|---|
-| **Board URL (capstone)** | [GitHub milestone 1](https://github.com/TheQuintet/macrocrypto-ai/milestone/1) — Sprint 1: Foundation & Data Layer |
+| **Board URL (capstone)** | [All Work — Sprint 1](https://github.com/orgs/TheQuintet/projects/6/views/6?query=sprint%3A%22Sprint%201%22) |
 | **Dates** | _TBD_ |
 | **Sprint goal** | Infrastructure foundation — Docker, data ingestion, messaging |
 | **Product Owner** | _TBD_ |
@@ -230,7 +231,7 @@ Code changes follow [GitHub Flow](../GITHUB_FLOW.md). See also [Contributing](..
 
 | | |
 |---|---|
-| **Board URL (capstone)** | [GitHub milestone 2](https://github.com/TheQuintet/macrocrypto-ai/milestone/2) — Data Integration & Indicators |
+| **Board URL (capstone)** | [All Work — Sprint 2](https://github.com/orgs/TheQuintet/projects/6/views/6?query=sprint%3A%22Sprint%202%22) |
 | **Dates** | Wed 29 Jul – Wed 5 Aug 2026 (1-week cadence) |
 | **Status** | **Closed** 5 Aug 2026 — unfinished work carried into Sprint 3 |
 | **Sprint goal** | Forecasting and correlation models |
@@ -259,7 +260,7 @@ Code changes follow [GitHub Flow](../GITHUB_FLOW.md). See also [Contributing](..
 
 | | |
 |---|---|
-| **Board URL (capstone)** | [GitHub milestone 3](https://github.com/TheQuintet/macrocrypto-ai/milestone/3) — 24h Predictions |
+| **Board URL (capstone)** | [All Work — Sprint 3](https://github.com/orgs/TheQuintet/projects/6/views/6?query=sprint%3A%22Sprint%203%22) |
 | **Dates** | Started Wed 5 Aug 2026 (1-week cadence) |
 | **Status** | **In progress** — 2 Sep session: S1 closed, T7/T8 in focus (see below) |
 | **Sprint goal** | API Gateway and Alert Service |

@@ -62,22 +62,24 @@ To receive credit for the Capstone, we must submit **all** of the following. Use
 |            |                                           |
 | ---------- | ----------------------------------------- |
 | **Status** | ⬜ Not started / 🟡 In progress / ✅ Done |
-| **URL**    | [MacroCrypto AI Team Workflow](https://github.com/orgs/TheQuintet/projects/6) (see also [Planning](https://github.com/orgs/TheQuintet/projects/6/views/1), [Sprint 2 retro board](https://github.com/orgs/TheQuintet/projects/6/views/10), [All milestones](https://github.com/TheQuintet/macrocrypto-ai/milestones)) |
+| **URL**    | [📊 All Work — Team Workflow #6](https://github.com/orgs/TheQuintet/projects/6/views/6) (see also [Planning](https://github.com/orgs/TheQuintet/projects/6/views/1), [Sprint 2 retro board](https://github.com/orgs/TheQuintet/projects/6/views/10), [GitHub milestones](https://github.com/TheQuintet/macrocrypto-ai/milestones) for epics only) |
 
-**Three sprint URLs (capstone minimum)** — submit these for graders. We use **milestones 1–3** (our first three sprints) because they show focused user stories and completed work; the live board later accumulated many more issues and is harder to review in one pass.
+**Work overview** — we tracked day-to-day work on the org **[Team Workflow](https://github.com/orgs/TheQuintet/projects/6)** project, mainly the **[All Work](https://github.com/orgs/TheQuintet/projects/6/views/6)** view (not repo milestones). Repo milestones exist for epics/releases; sprint execution lives on the board **Sprint** field. We often sorted the board by recent updates, e.g. [All Work sorted by `updated`](https://github.com/orgs/TheQuintet/projects/6/views/6?query=sort%3Aupdated-desc).
 
-| Sprint | Milestone | URL |
-| ------ | --------- | --- |
-| **Sprint 1** | Sprint 1: Foundation & Data Layer | [milestone/1](https://github.com/TheQuintet/macrocrypto-ai/milestone/1) |
-| **Sprint 2** | Data Integration & Indicators | [milestone/2](https://github.com/TheQuintet/macrocrypto-ai/milestone/2) |
-| **Sprint 3** | 24h Predictions | [milestone/3](https://github.com/TheQuintet/macrocrypto-ai/milestone/3) |
+**Three sprint URLs (capstone minimum)** — submit these for graders. Each link is **All Work** filtered to an early board sprint (**Sprint 1–3**) so stories stay readable; the full board grew much busier by project end.
+
+| Sprint | URL |
+| ------ | --- |
+| **Sprint 1** | [All Work — Sprint 1](https://github.com/orgs/TheQuintet/projects/6/views/6?query=sprint%3A%22Sprint%201%22) |
+| **Sprint 2** | [All Work — Sprint 2](https://github.com/orgs/TheQuintet/projects/6/views/6?query=sprint%3A%22Sprint%202%22) |
+| **Sprint 3** | [All Work — Sprint 3](https://github.com/orgs/TheQuintet/projects/6/views/6?query=sprint%3A%22Sprint%203%22) |
 
 **Requirements**
 
 - [ ] All sprints documented
-- [ ] User stories and tasks visible on **milestones 1, 2, and 3** (URLs above)
+- [ ] User stories and tasks visible on the **project board** (All Work + three sprint filters above)
 - [ ] Completed work reflects what was demoed / shipped
-- [ ] At least **three sprints** recorded (use the three milestone links above)
+- [ ] At least **three sprints** recorded (use the three board links above)
 - [ ] **Retrospective evidence:** full retro for **Sprint 2** — [retro board items](https://github.com/orgs/TheQuintet/projects/6/views/10) and [5 Aug 2026 meeting notes](../meetings/2026-08-05-retrospective.md). Later sprints: process improvements captured in [weekly meeting notes](../meetings/) (see [how we ran retrospectives](../project-workflow.md#retrospective))
 
 ---
