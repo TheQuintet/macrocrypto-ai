@@ -54,7 +54,7 @@ Stand-up, presentation order, deployment, and recording plan for the Capstone de
 | Owner | Action | Target | Status |
 |-------|--------|--------|--------|
 | **Loredana** | Share final presentation order and expectations with the team | After meeting | ✅ Done ([demo-prep](../quantic/demo-prep.md), [demo-script](../quantic/demo-script.md); merged 7 Oct) |
-| **Loredana** | Merge Playwright E2E PR | 7 Oct | 🟡 In progress ([#718](https://github.com/TheQuintet/macrocrypto-ai/pull/718) open) |
+| **Loredana** | Merge Playwright E2E PR | 7 Oct | ✅ Done ([#718](https://github.com/TheQuintet/macrocrypto-ai/pull/718) merged 8 Oct; system E2E in CI — [testing doc](../test%20documents/local-and-ci-cd-tests.md)) |
 | **Loredana** | Connect real backend data to the frontend (prediction + macro indicators) | **Thu 8 Oct** (code freeze) | 🟡 In progress |
 | **Loredana** | Deploy to **Vercel** (her account); share URL; verify health endpoints and green CI | Before recording | 🟡 In progress |
 | **Loredana** | Update Quantic/docs from frontend side; fix README (**MBA → MSSE** where wrong) | Before submission | ✅ Done (PRs [#789](https://github.com/TheQuintet/macrocrypto-ai/pull/789)–[#791](https://github.com/TheQuintet/macrocrypto-ai/pull/791); [deliverables](../quantic/deliverables.md), [AI disclosure](../ai-assisted-development-disclosure.md)) |
@@ -82,7 +82,7 @@ Stand-up, presentation order, deployment, and recording plan for the Capstone de
 
 | Who | Update |
 |-----|--------|
-| **Loredana** | Capstone docs and demo prep aligned in repo ([#789](https://github.com/TheQuintet/macrocrypto-ai/pull/789)–[#791](https://github.com/TheQuintet/macrocrypto-ai/pull/791)): [deliverables](../quantic/deliverables.md) statuses, agile board links, demo prep run-of-show. **Sat ~18:00** recording invite sent. Still on critical path: merge Playwright system E2E ([#718](https://github.com/TheQuintet/macrocrypto-ai/pull/718)), finish frontend ↔ backend integration (prediction + macro indicators), **Vercel** deploy + smoke/CI, and sync with Mael on indicator count. |
+| **Loredana** | Capstone docs and demo prep aligned ([#789](https://github.com/TheQuintet/macrocrypto-ai/pull/789)–[#791](https://github.com/TheQuintet/macrocrypto-ai/pull/791)); **Sat ~18:00** recording invite sent. Merged **Playwright system E2E** ([#718](https://github.com/TheQuintet/macrocrypto-ai/pull/718)) — `frontend/e2e/system/` in **system-stack** CI against the live Gateway ([testing doc](../test%20documents/local-and-ci-cd-tests.md)). Remaining critical path: frontend ↔ backend integration (prediction + macro indicators), **Vercel** deploy + smoke/green CI, sync with Mael on **9 vs 13** indicators. |
 
 ---
 
