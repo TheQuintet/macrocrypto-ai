@@ -37,6 +37,7 @@ from app.services.indicator_service import IndicatorService
 from app.services.equity_corr_service import EquityCorrService
 from app.services.active_addresses_service import ActiveAddressesService
 from app.services.gold_spot_service import GoldSpotService
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -79,6 +80,41 @@ async def wait_until_next_run(
 
     await asyncio.sleep(wait_seconds)
 
+
+async def wait_until_next_hour(
+    minute_offset: int,
+    job_name: str,
+):
+    """
+    Sleep until the next occurrence of <minute_offset> past the hour.
+
+    Example: minute_offset=1 sleeps until the next :01.
+    """
+    now = datetime.now(timezone.utc)
+
+    next_run = now.replace(
+        minute=minute_offset,
+        second=0,
+        microsecond=0,
+    )
+
+    if next_run <= now:
+        next_run += timedelta(hours=1)
+
+    wait_seconds = (next_run - now).total_seconds()
+
+    logger.info(
+        "Next %s scheduled at %s",
+        job_name,
+        next_run.isoformat(),
+    )
+
+    await asyncio.sleep(wait_seconds)
+
+
+# ============================================================
+# MACRO / FRED SCHEDULER
+# ============================================================
 
 
 async def periodic_macro_collection(cache_client=None):
@@ -152,7 +188,7 @@ async def periodic_macro_collection(cache_client=None):
                 else:
                     logger.warning(
                         "📈 equity_corr calculation produced no records"
-                    )    
+                    )
 
                 # Active address from blockchain.com is a derived feature that is not part of the FRED collection.
                 active_addresses_service = ActiveAddressesService(db)
@@ -167,7 +203,7 @@ async def periodic_macro_collection(cache_client=None):
                     )
 
                     logger.info(
-                        "📈 Active addresses calculation completed: " \
+                        "📈 Active addresses calculation completed: "
                         "📈 Persisted %d active_addresses records",
                         len(active_addresses_records),
                     )
@@ -198,7 +234,7 @@ async def periodic_macro_collection(cache_client=None):
                 else:
                     logger.warning(
                         "🪙 Gold spot data acquisition produced no records"
-                    )   
+                    )
 
             finally:
                 if equity_corr_service:
@@ -218,6 +254,8 @@ async def periodic_macro_collection(cache_client=None):
 
         except Exception:
             logger.exception("🔥 Macro/FRED scheduler failed")
+
+
 # ============================================================
 # ECONOMIC CALENDAR SCHEDULER
 # ============================================================
@@ -366,6 +404,12 @@ async def periodic_economic_calendar_collection():
                 "🔥 Economic calendar scheduler failed"
             )
 
+
+# ============================================================
+# CURRENT REGIME SCHEDULER
+# ============================================================
+
+
 async def periodic_regime_collection():
     """
     Scheduled current macroeconomic regime processing.
@@ -380,7 +424,7 @@ async def periodic_regime_collection():
 
     Workflow:
 
-    1. Wait for configured QA interval orperiodic_macro_collection production schedule.
+    1. Wait for configured QA interval or production schedule.
     2. Process current macroeconomic regime.
     3. Calculate/update BTC regime performance when enabled.
     4. Process macro event analysis when enabled.
@@ -507,57 +551,6 @@ async def periodic_regime_collection():
                 # ==================================================
                 # 2. REGIME PERFORMANCE
                 # ==================================================
-
-                # if current_regime is not None:
-
-                #     if settings.REGIME_PERFORMANCE_QA_MODE:
-
-                #         logger.info(
-                #             "📈 Regime performance QA mode enabled"
-                #         )
-
-                #         performance_service = (
-                #             RegimePerformanceService(db)
-                #         )
-
-                #         try:
-
-                #             performance_result = (
-                #                 performance_service
-                #                 .calculate_regime_performance(
-                #                     current_regime
-                #                 )
-                #             )
-
-                #             logger.info(
-                #                 "Regime performance calculation "
-                #                 "completed: %s",
-                #                 performance_result,
-                #             )
-
-                #         except Exception:
-
-                #             logger.exception(
-                #                 "❌ Regime performance calculation failed"
-                #             )
-
-                #     else:
-
-                #         logger.info(
-                #             "Regime performance QA mode disabled; "
-                #             "skipping regime_performance"
-                #         )
-
-                # else:
-
-                #     logger.info(
-                #         "No current regime identified; "
-                #         "skipping regime_performance"
-                #     )
-
-# ==================================================
-# 2. REGIME PERFORMANCE
-# ==================================================
 
                 if current_regime is not None:
 
@@ -755,3 +748,63 @@ async def periodic_regime_collection():
             logger.exception(
                 "🔥 Current regime scheduler failed"
             )
+
+
+# ============================================================
+# HOURLY BTC PRICES SCHEDULER (Phase B, Chat 3)
+# ============================================================
+
+
+async def periodic_hourly_btc_prices():
+    """
+    Materialize btc_prices_hourly for the previous hour.
+
+    Runs at :01 of every hour. Writes the hour [H-1, H) where H
+    is the current wall-clock hour, i.e. the just-completed hour.
+    """
+    from app.services.hourly_btc_prices_service import (
+        HourlyBTCPricesService,
+    )
+
+    logger.info("⏱️  Hourly BTC prices scheduler started")
+
+    while True:
+        try:
+            await wait_until_next_hour(1, "hourly BTC prices")
+
+            logger.info("⏱️  Hourly BTC prices scheduler woke up")
+
+            now = datetime.now(timezone.utc)
+            target_hour = now.replace(
+                minute=0, second=0, microsecond=0
+            ) - timedelta(hours=1)
+
+            db = SessionLocal()
+            service = None
+
+            try:
+                service = HourlyBTCPricesService(db)
+                wrote = service.write_hour(target_hour)
+
+                if wrote:
+                    logger.info(
+                        "⏱️  Wrote btc_prices_hourly row for %s",
+                        target_hour.isoformat(),
+                    )
+                else:
+                    logger.info(
+                        "⏱️  Skipped btc_prices_hourly %s "
+                        "(no raw ticks)",
+                        target_hour.isoformat(),
+                    )
+            finally:
+                if service:
+                    await service.close()
+                db.close()
+
+        except asyncio.CancelledError:
+            logger.info("Hourly BTC prices scheduler cancelled")
+            raise
+
+        except Exception:
+            logger.exception("🔥 Hourly BTC prices scheduler failed")
