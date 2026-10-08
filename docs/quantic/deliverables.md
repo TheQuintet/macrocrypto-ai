@@ -29,7 +29,7 @@ To receive credit for the Capstone, we must submit **all** of the following. Use
 
 |              |                                           |
 | ------------ | ----------------------------------------- |
-| **Status**   | ⬜ Not started / 🟡 In progress / ✅ Done |
+| **Status**   | 🟡 In progress                            |
 | **URL**      | _TBD_                                     |
 | **Platform** | _TBD — e.g., Render, Railway_             |
 
