@@ -241,6 +241,42 @@ class Settings(BaseSettings):
     REGIME_EVENT_QA_MODE: bool = True
 
     # ============================================
+    # REGIME EVENT ANALYSIS (UNIT 2, Option A)
+    # ============================================
+    #
+    # Daily job that computes BTC's reaction to recent
+    # economic events and writes one row per
+    # (regime_id, event_type, event_date) triple to
+    # regime_event_analysis.
+    #
+    # Source events come from economic_events (populated by
+    # EconomicCalendarService from FRED). The service filters
+    # them to:
+    #   - impact_level in {high, medium}
+    #   - event_date within the last 90 days
+    #   - event_date at least 24h in the past (so the +24h
+    #     window has a price to look up)
+    #
+    # For each event it computes BTC's return over the
+    # symmetric window [event - 24h, event + 24h] using a
+    # PIT-correct price lookup (last btc_prices tick with
+    # time <= endpoint).
+    #
+    # 01:15 UTC is staggered after the 01:00 UTC current-regime
+    # job (which refreshes current_regime and reconciles the
+    # open macro_regimes row) so the event analysis always
+    # attaches to a fresh regime_id.
+    #
+    # Idempotent: existing (regime_id, event_type, event_date)
+    # triples are skipped via a pre-check in the service.
+    #
+    # See app/services/regime_event_service.py and
+    # app/services/scheduler.py::periodic_regime_event_analysis.
+
+    REGIME_EVENT_UPDATE_HOUR_UTC: int = 1
+    REGIME_EVENT_UPDATE_MINUTE_UTC: int = 15
+
+    # ============================================
     # COLLECTION INTERVALS (seconds)
     # ============================================
     PRICE_COLLECTION_INTERVAL: int = 60

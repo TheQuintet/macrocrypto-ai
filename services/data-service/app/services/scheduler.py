@@ -6,6 +6,7 @@ Responsibilities:
 - Trigger current macroeconomic regime classification.
 - Trigger BTC regime performance calculation.
 - Trigger similar historical period analysis.
+- Trigger macro event analysis (BTC reactions to economic events).
 - Keep macro_regimes current (reconcile against current_regime
   on each daily regime run).
 - Backfill historical macro_regimes on startup (if empty) and
@@ -25,9 +26,8 @@ CURRENT_REGIME_UPDATE_INTERVAL_MINUTES
 REGIME_PERFORMANCE_QA_MODE
     Enables regime_performance processing during QA.
 
-Note:
-    regime_event_analysis is intentionally not populated. The QA
-    placeholder was removed; see RegimeEventService for details.
+REGIME_EVENT_UPDATE_HOUR_UTC / REGIME_EVENT_UPDATE_MINUTE_UTC
+    Controls the macro event analysis scheduler.
 """
 
 import asyncio
@@ -1488,4 +1488,109 @@ async def periodic_regime_backfill():
         except Exception:
             logger.exception(
                 "🔥 Regime backfill scheduler failed"
+            )
+
+
+# ============================================================
+# REGIME EVENT ANALYSIS SCHEDULER
+# ============================================================
+
+
+async def periodic_regime_event_analysis():
+    """
+    Daily BTC reaction analysis for recent economic events.
+
+    Runs once per day at REGIME_EVENT_UPDATE_HOUR_UTC:
+    REGIME_EVENT_UPDATE_MINUTE_UTC (default 01:15 UTC), staggered
+    after the 01:00 UTC current-regime job so the open
+    macro_regimes row is fresh before events are attached to it.
+
+    What it does:
+        1. Load the current open MacroRegime from the repository.
+        2. Call RegimeEventService.process_regime_events(regime_id).
+        3. Log the summary dict.
+
+    The service itself:
+        - Reads economic_events from the last N days (default 90),
+          filtered to high/medium impact and to events whose
+          +24h window is in the past.
+        - For each event, computes BTC's reaction over the
+          symmetric window [event - 24h, event + 24h] using a
+          PIT-correct price lookup (last btc_prices tick with
+          time <= endpoint).
+        - Writes one row per (regime_id, event_type, event_date)
+          triple, skipping existing triples.
+        - Commits the whole batch in one transaction.
+
+    Idempotent: re-running on the same day is a no-op for
+    events already analyzed.
+
+    Never raises out of the loop: any failure is logged and the
+    task continues to the next scheduled run.
+    """
+
+    from app.services.regime_event_service import (
+        RegimeEventService,
+    )
+
+    logger.info("🧪 Regime event analysis scheduler started")
+    logger.info(
+        "Regime event analysis production schedule enabled: "
+        "running daily at %02d:%02d UTC",
+        settings.REGIME_EVENT_UPDATE_HOUR_UTC,
+        settings.REGIME_EVENT_UPDATE_MINUTE_UTC,
+    )
+
+    while True:
+        try:
+            await wait_until_next_run(
+                settings.REGIME_EVENT_UPDATE_HOUR_UTC,
+                settings.REGIME_EVENT_UPDATE_MINUTE_UTC,
+                "regime event analysis",
+            )
+
+            logger.info("🧪 Regime event analysis scheduler woke up")
+
+            db = SessionLocal()
+
+            try:
+                from app.database.regime_repository import (
+                    RegimeRepository,
+                )
+
+                repo = RegimeRepository(db)
+                macro_regime = repo.get_current_regime()
+
+                if macro_regime is None:
+                    logger.warning(
+                        "🧪 No open macro_regimes row; skipping "
+                        "event analysis"
+                    )
+                    continue
+
+                service = RegimeEventService(db)
+
+                result = service.process_regime_events(
+                    regime_id=macro_regime.id,
+                )
+
+                logger.info(
+                    "🧪 Regime event analysis completed: %s",
+                    result,
+                )
+
+            finally:
+                db.close()
+
+            logger.info(
+                "🧪 Regime event analysis scheduled job completed"
+            )
+
+        except asyncio.CancelledError:
+            logger.info("Regime event analysis scheduler cancelled")
+            raise
+
+        except Exception:
+            logger.exception(
+                "🔥 Regime event analysis scheduler failed"
             )
