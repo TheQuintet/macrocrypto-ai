@@ -59,23 +59,12 @@ To receive credit for the Capstone, we must submit **all** of the following. Use
 
 ### 4. Agile task board
 
-|            |                                                                                                                                 |
-| ---------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| **Status** | ⬜ Not started / 🟡 In progress / ✅ Done                                                                                       |
-| **URL**    | [MacroCrypto AI Team Workflow (#6)](https://github.com/orgs/TheQuintet/projects/6) — primary view: [📊 All Work](https://github.com/orgs/TheQuintet/projects/6/views/6) |
+|            |                                                                                                                  |
+| ---------- | ---------------------------------------------------------------------------------------------------------------- |
+| **Status** | ⬜ Not started / 🟡 In progress / ✅ Done                                                                        |
+| **URL**    | [https://github.com/orgs/TheQuintet/projects/6/views/6](https://github.com/orgs/TheQuintet/projects/6/views/6) |
 
-We tracked Agile work on the org project **[Team Workflow #6](https://github.com/orgs/TheQuintet/projects/6)**, especially the **[All Work](https://github.com/orgs/TheQuintet/projects/6/views/6)** view. Sprints use the board **Sprint** iteration field. We did **not** use GitHub Issues milestones on the repository.
-
-#### URLs to submit (copy for Quantic / demo)
-
-| Purpose | Link |
-| ------- | ---- |
-| **Board overview** | [All Work](https://github.com/orgs/TheQuintet/projects/6/views/6) |
-| **Sprint 1** (required) | https://github.com/orgs/TheQuintet/projects/6/views/6?query=sprint%3A%22Sprint%201%22 |
-| **Sprint 2** (required) | https://github.com/orgs/TheQuintet/projects/6/views/6?query=sprint%3A%22Sprint%202%22 |
-| **Sprint 3** (required) | https://github.com/orgs/TheQuintet/projects/6/views/6?query=sprint%3A%22Sprint%203%22 |
-
-Submit **three sprint URLs** plus the **All Work** overview. We use board **Sprint 1–3** filters because those views stay readable; the full board accumulated many more items by project end.
+**All Work** on [Team Workflow #6](https://github.com/orgs/TheQuintet/projects/6) is the single board we submit. Sprints use the **Sprint** iteration field (filter **Sprint 1**, **Sprint 2**, **Sprint 3** on that view for capstone evidence). We did **not** use GitHub Issues milestones on the repository.
 
 #### Supporting views (ceremonies & planning)
 
@@ -91,7 +80,7 @@ Submit **three sprint URLs** plus the **All Work** overview. We use board **Spri
 
 **Requirements**
 
-- [ ] At least **three sprints** visible on the board (use the three sprint URLs above)
+- [ ] At least **three sprints** visible on the board (**Sprint 1–3** on All Work)
 - [ ] User stories and tasks on the project board; status columns reflect real progress
 - [ ] Completed work matches what we demoed / shipped (no fiction)
 - [ ] Planning / refinement evidence in [meeting notes](../meetings/) and board views
@@ -127,7 +116,7 @@ Submit **three sprint URLs** plus the **All Work** overview. We use board **Spri
 | GitHub repo          | _TBD_             | _TBD_             |
 | Deployed app         | _TBD_             | _TBD_             |
 | Design & testing doc | [docs/design](../design/README.md) + [testing doc](../test%20documents/local-and-ci-cd-tests.md) | _TBD_             |
-| Agile board (final)  | [All Work](https://github.com/orgs/TheQuintet/projects/6/views/6) + [Sprint 1–3 URLs](#urls-to-submit-copy-for-quantic--demo) | _TBD_             |
+| Agile board (final)  | [All Work (project #6)](https://github.com/orgs/TheQuintet/projects/6/views/6) | _TBD_             |
 | Video presentation   | _TBD_             | _TBD_             |
 
 Set **internal deadlines** at least a few days before official due dates for buffer.
@@ -142,7 +131,7 @@ Before final submission, confirm:
 - [ ] All links in this wiki are updated and working
 - [ ] Design doc cites any AI influence where applicable — see [AI-assisted development disclosure](../ai-assisted-development-disclosure.md)
 - [ ] Video meets length and identity requirements for all six members
-- [ ] Task board matches what we actually built ([§4 URLs](#4-agile-task-board) open for `quantic-grader`)
+- [ ] Task board matches what we actually built ([§4 URL](#4-agile-task-board) opens for `quantic-grader`)
 
 ---
 
