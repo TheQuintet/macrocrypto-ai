@@ -20,7 +20,7 @@ References: [demo-prep run-of-show](./demo-prep.md#agreed-run-of-show-18-min) ·
 | Repo | https://github.com/TheQuintet/macrocrypto-ai |
 | Team Workflow board | https://github.com/orgs/TheQuintet/projects/6 |
 | All Work (overview) | https://github.com/orgs/TheQuintet/projects/6/views/6 |
-| Capstone sprints (×3) | All Work + `Sprint 1` / `Sprint 2` / `Sprint 3` filters — see deliverables §4 |
+| Capstone sprints (×3) | [Sprint 1](https://github.com/orgs/TheQuintet/projects/6/views/18) · [Sprint 2](https://github.com/orgs/TheQuintet/projects/6/views/19) · [Sprint 3](https://github.com/orgs/TheQuintet/projects/6/views/20) — [deliverables §4](./deliverables.md#4-agile-task-board) |
 | Domain Slack | `#mc-frontend`, `#mc-backend`, `#mc-ml-model`, `#mc-software-design` (async — no daily meeting) |
 | Sprint 2 retro board | https://github.com/orgs/TheQuintet/projects/6/views/10 |
 | Roadmap | https://github.com/orgs/TheQuintet/projects/6/views/5 |
@@ -244,7 +244,7 @@ Suggested intro order (same as speaking flow): Kingson → Sid → Mael → Rich
 **Must cover:** Scrum process — board, sprints, meeting notes, retro; **no daily standup** (team Slack discussion — domain channels only); **frontend alerts** on deploy (**dummy data** — state on camera).
 
 - **First line:**
-- **Screen:** [All Work](https://github.com/orgs/TheQuintet/projects/6/views/6) + [Sprint 1](https://github.com/orgs/TheQuintet/projects/6/views/6?query=sprint%3A%22Sprint%201%22) / [2](https://github.com/orgs/TheQuintet/projects/6/views/6?query=sprint%3A%22Sprint%202%22) / [3](https://github.com/orgs/TheQuintet/projects/6/views/6?query=sprint%3A%22Sprint%203%22) + Sprint 2 retro; deployed app — alerts + notifications
+- **Screen:** [All Work](https://github.com/orgs/TheQuintet/projects/6/views/6) + [Sprint 1](https://github.com/orgs/TheQuintet/projects/6/views/18) / [2](https://github.com/orgs/TheQuintet/projects/6/views/19) / [3](https://github.com/orgs/TheQuintet/projects/6/views/20) + Sprint 2 retro; deployed app — alerts + notifications
 - **Talking points:**
   - PO / SM / code owner; weekly sync + GitHub boards (not a daily meeting)
   - Async updates in `#mc-frontend`, `#mc-backend`, `#mc-ml-model`, `#mc-software-design`
@@ -260,13 +260,13 @@ Suggested intro order (same as speaking flow): Kingson → Sid → Mael → Rich
 <summary><strong>Suggestions</strong></summary>
 
 - **First line:** “We ran this capstone with **sprints and boards**, but after a **Slack discussion** we agreed **not** to do a daily standup — live or required offline posts — we use **domain Slack** and the **weekly sync** instead.”
-- **Screen:** [All Work](https://github.com/orgs/TheQuintet/projects/6/views/6) + board sprints [1](https://github.com/orgs/TheQuintet/projects/6/views/6?query=sprint%3A%22Sprint%201%22) · [2](https://github.com/orgs/TheQuintet/projects/6/views/6?query=sprint%3A%22Sprint%202%22) · [3](https://github.com/orgs/TheQuintet/projects/6/views/6?query=sprint%3A%22Sprint%203%22) + [Sprint 2 retro board](https://github.com/orgs/TheQuintet/projects/6/views/10); [5 Aug retro notes](https://github.com/TheQuintet/macrocrypto-ai/blob/main/docs/meetings/2026-08-05-retrospective.md); [docs/meetings/](https://github.com/TheQuintet/macrocrypto-ai/tree/main/docs/meetings); open **Alerts** on deploy + notification bell/inbox.
+- **Screen:** [All Work](https://github.com/orgs/TheQuintet/projects/6/views/6) + board sprints [1](https://github.com/orgs/TheQuintet/projects/6/views/18) · [2](https://github.com/orgs/TheQuintet/projects/6/views/19) · [3](https://github.com/orgs/TheQuintet/projects/6/views/20) + [Sprint 2 retro board](https://github.com/orgs/TheQuintet/projects/6/views/10); [5 Aug retro notes](https://github.com/TheQuintet/macrocrypto-ai/blob/main/docs/meetings/2026-08-05-retrospective.md); [docs/meetings/](https://github.com/TheQuintet/macrocrypto-ai/tree/main/docs/meetings); open **Alerts** on deploy + notification bell/inbox.
 - **Talking points:**
   - **Roles:** Sid PO, you SM, Mael code owner; frontend split across Kingson, you, Richard where relevant.
   - **Slack by domain:** `#mc-frontend`, `#mc-backend`, `#mc-ml-model`, `#mc-software-design` — discuss work where it lives; `#capstone-project-group` for whole-team items.
   - **Retro:** **Sprint 2 (5 Aug)** — full retro with items on the [retro board](https://github.com/orgs/TheQuintet/projects/6/views/10) and written notes. **Later sprints** — our weekly sync is only **1–2 hours**, so we **discussed emergent blockers live** in the meeting instead of maintaining a retro board every sprint; improvements are in **meeting notes** and the workflow board.
   - **Honest process note:** domain Slack improved focus but some members felt **less visibility**; we compensated with **weekly Capstone sync**, the **GitHub board**, and **PR/meeting notes**.
-  - **Board for graders:** we worked from **[All Work](https://github.com/orgs/TheQuintet/projects/6/views/6)** on Team Workflow #6 (sprints on the board **Sprint** field — we did not use GitHub Issues milestones). Capstone **three sprint URLs:** [Sprint 1](https://github.com/orgs/TheQuintet/projects/6/views/6?query=sprint%3A%22Sprint%201%22), [2](https://github.com/orgs/TheQuintet/projects/6/views/6?query=sprint%3A%22Sprint%202%22), [3](https://github.com/orgs/TheQuintet/projects/6/views/6?query=sprint%3A%22Sprint%203%22) — early board sprints stay readable vs the full backlog later.
+  - **Board for graders:** day-to-day work is **[All Work](https://github.com/orgs/TheQuintet/projects/6/views/6)** on Team Workflow #6 (sprints on the project **Sprint** field — we did not use GitHub Issues milestones). Capstone **three sprint boards** are saved views: [Sprint 1](https://github.com/orgs/TheQuintet/projects/6/views/18), [Sprint 2](https://github.com/orgs/TheQuintet/projects/6/views/19), [Sprint 3](https://github.com/orgs/TheQuintet/projects/6/views/20).
   - **Process:** user stories → PRs → review → CI.
   - **Engineering quality:** frontend lint/typecheck/unit tests + Playwright E2E; backend CI on services.
   - **Alerts demo:** “For this recording we’re using **dummy alert data** so you can see the UX without waiting on live triggers.”

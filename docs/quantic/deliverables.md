@@ -64,9 +64,9 @@ To receive credit for the Capstone, we must submit **all** of the following. Use
 | **Status** | ✅ Done                                                                                                          |
 | **URL**    | [https://github.com/orgs/TheQuintet/projects/6/views/6](https://github.com/orgs/TheQuintet/projects/6/views/6) |
 
-**Sprints:** we ran **9 sprints** in total on the board (**Sprint 1–9** on Team Workflow #6). Links below are **Sprint 1–3** (capstone evidence on All Work):
+**Sprints:** we ran **9 sprints** in total on the board (**Sprint 1–9** on Team Workflow #6). Capstone evidence uses **saved project views** for the first three sprints (not All Work URL filters):
 
-[Sprint 1](https://github.com/orgs/TheQuintet/projects/6/views/6?query=sprint%3A%22Sprint%201%22) · [Sprint 2](https://github.com/orgs/TheQuintet/projects/6/views/6?query=sprint%3A%22Sprint%202%22) · [Sprint 3](https://github.com/orgs/TheQuintet/projects/6/views/6?query=sprint%3A%22Sprint%203%22)
+[Sprint 1](https://github.com/orgs/TheQuintet/projects/6/views/18) · [Sprint 2](https://github.com/orgs/TheQuintet/projects/6/views/19) · [Sprint 3](https://github.com/orgs/TheQuintet/projects/6/views/20)
 
 **Requirements**
 

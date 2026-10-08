@@ -178,7 +178,7 @@ We follow Agile with **at least three sprints**, GitHub Issues, and Project boar
 | Team Workflow board | [TheQuintet projects #6](https://github.com/orgs/TheQuintet/projects/6) |
 | All Work (overview) | [All Work view](https://github.com/orgs/TheQuintet/projects/6/views/6) |
 | Sprint planning | [Team Planning](https://github.com/orgs/TheQuintet/projects/6/views/1) |
-| Capstone sprints (×3) | [Sprint 1](https://github.com/orgs/TheQuintet/projects/6/views/6?query=sprint%3A%22Sprint%201%22) · [2](https://github.com/orgs/TheQuintet/projects/6/views/6?query=sprint%3A%22Sprint%202%22) · [3](https://github.com/orgs/TheQuintet/projects/6/views/6?query=sprint%3A%22Sprint%203%22) |
+| Capstone sprints (×3) | [Sprint 1](https://github.com/orgs/TheQuintet/projects/6/views/18) · [Sprint 2](https://github.com/orgs/TheQuintet/projects/6/views/19) · [Sprint 3](https://github.com/orgs/TheQuintet/projects/6/views/20) |
 | Sprint 2 retro | [Retro view](https://github.com/orgs/TheQuintet/projects/6/views/10) |
 
 ```
