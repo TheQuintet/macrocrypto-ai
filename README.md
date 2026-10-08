@@ -96,15 +96,11 @@ cp services/alert-service/.env.example services/alert-service/.env
 cp services/ai-service/.env.example services/ai-service/.env
 cp services/api-gateway/.env.example services/api-gateway/.env
 make up
-make ps
 ```
 
-`make up` starts infrastructure (including MLflow), **data-service**, **alert-service**, **ai-service**, and **api-gateway**. To start (or rebuild) one of those after the rest is already up:
+**`make up`** (repository root) starts the full backend stack via Docker Compose: **Postgres (TimescaleDB)**, **Redis**, **RabbitMQ**, **MLflow**, and the four microservices — **api-gateway** (8000), **data-service** (8001), **ai-service** (8002), and **alert-service** (8003). That is the default path for local development and grading.
 
-```bash
-make ai-up
-make api-up
-```
+If you need to rebuild or restart a single microservice while the rest stays running, use **`make data-up`**, **`make alert-up`**, **`make ai-up`**, or **`make api-up`**. More commands live in the Makefile (`make help`) and [services/README.md](./services/README.md).
 
 | Service | Docs | Health |
 |---------|------|--------|
@@ -113,7 +109,7 @@ make api-up
 | AI service | http://localhost:8002/docs | http://localhost:8002/health |
 | Alert service | http://localhost:8003/docs | http://localhost:8003/health |
 
-Env files, commands, and troubleshooting: [services/README.md — Quick start](./services/README.md#quick-start) · [ai-service README](./services/ai-service/README.md) · [api-gateway README](./services/api-gateway/README.md).
+Env files and troubleshooting: [services/README.md — Quick start](./services/README.md#quick-start).
 
 ### Frontend
 
@@ -154,13 +150,7 @@ npm test                      # Vitest unit tests
 npm run test:ui-integration   # Playwright UI integration
 ```
 
-**Backend** (from the repository root, with Compose up):
-
-```bash
-make data-test                # data-service pytest
-make alert-test               # alert-service pytest
-make ai-test                  # ai-service pytest
-```
+**Backend** (with `make up` running): per-service pytest targets are documented in [services/README.md](./services/README.md).
 
 What we test and why: [frontend/README.md](./frontend/README.md) (unit / UI integration / E2E split) and the [design and testing](#design-and-testing-documentation) docs below.
 
