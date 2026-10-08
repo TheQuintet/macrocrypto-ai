@@ -64,28 +64,11 @@ To receive credit for the Capstone, we must submit **all** of the following. Use
 | **Status** | ⬜ Not started / 🟡 In progress / ✅ Done                                                                        |
 | **URL**    | [https://github.com/orgs/TheQuintet/projects/6/views/6](https://github.com/orgs/TheQuintet/projects/6/views/6) |
 
-**All Work** on [Team Workflow #6](https://github.com/orgs/TheQuintet/projects/6) is the single board we submit. Sprints use the **Sprint** iteration field (filter **Sprint 1**, **Sprint 2**, **Sprint 3** on that view for capstone evidence). We did **not** use GitHub Issues milestones on the repository.
-
-#### Supporting views (ceremonies & planning)
-
-| View | Link |
-| ---- | ---- |
-| Team planning | [Planning](https://github.com/orgs/TheQuintet/projects/6/views/1) |
-| Roadmap | [Roadmap](https://github.com/orgs/TheQuintet/projects/6/views/5) |
-| Sprint 2 retrospective (board) | [Retro — previous iteration](https://github.com/orgs/TheQuintet/projects/6/views/10) |
-| Sprint 2 retrospective (notes) | [5 Aug 2026 meeting](../meetings/2026-08-05-retrospective.md) |
-| Process write-up | [Agile & sprints](../project-workflow.md) · [Meeting notes](../meetings/) |
-
-**Retrospectives:** we ran a **full retro with board items** for **Sprint 2** (links above). Later weekly syncs were only 1–2 hours, so we discussed emergent blockers in the meeting instead of maintaining a retro board every sprint — see [how we ran retrospectives](../project-workflow.md#retrospective).
-
 **Requirements**
 
-- [ ] At least **three sprints** visible on the board (**Sprint 1–3** on All Work)
-- [ ] User stories and tasks on the project board; status columns reflect real progress
-- [ ] Completed work matches what we demoed / shipped (no fiction)
-- [ ] Planning / refinement evidence in [meeting notes](../meetings/) and board views
-- [ ] Sprint 2 retro evidence (board + notes) or equivalent documented in [project workflow](../project-workflow.md#retrospective)
-- [ ] `quantic-grader` can open the org project (same access as the repo)
+- [ ] At least **three sprints**, user stories, and tasks visible on the board (see [Agile & sprints](../project-workflow.md))
+- [ ] Completed work matches what we demoed / shipped
+- [ ] `quantic-grader` can open the org project (in addition to repo access in §1)
 
 ---
 
@@ -116,7 +99,7 @@ To receive credit for the Capstone, we must submit **all** of the following. Use
 | GitHub repo          | _TBD_             | _TBD_             |
 | Deployed app         | _TBD_             | _TBD_             |
 | Design & testing doc | [docs/design](../design/README.md) + [testing doc](../test%20documents/local-and-ci-cd-tests.md) | _TBD_             |
-| Agile board (final)  | [All Work (project #6)](https://github.com/orgs/TheQuintet/projects/6/views/6) | _TBD_             |
+| Agile board (final)  | [§4](#4-agile-task-board) | _TBD_             |
 | Video presentation   | _TBD_             | _TBD_             |
 
 Set **internal deadlines** at least a few days before official due dates for buffer.
@@ -131,7 +114,7 @@ Before final submission, confirm:
 - [ ] All links in this wiki are updated and working
 - [ ] Design doc cites any AI influence where applicable — see [AI-assisted development disclosure](../ai-assisted-development-disclosure.md)
 - [ ] Video meets length and identity requirements for all six members
-- [ ] Task board matches what we actually built ([§4 URL](#4-agile-task-board) opens for `quantic-grader`)
+- [ ] Task board matches what we actually built (§4)
 
 ---
 

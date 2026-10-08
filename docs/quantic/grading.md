@@ -83,7 +83,7 @@ The program expects a **high-quality portfolio piece** — not just a basic web 
 
 ### 5. Strong Agile evidence
 
-- 3+ sprints with clear goals and outcomes — we submit [All Work — Sprint 1–3](https://github.com/orgs/TheQuintet/projects/6/views/6) board filters ([URLs](./deliverables.md#4-agile-task-board))
+- 3+ sprints with clear goals and outcomes — [Agile task board URL](./deliverables.md#4-agile-task-board) + [Agile & sprints](../project-workflow.md)
 - User stories with **acceptance criteria**
 - Task board matches repo and demo — no fiction
 - Planning and refinement notes kept up to date
