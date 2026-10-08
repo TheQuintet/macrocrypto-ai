@@ -29,14 +29,14 @@ Every group must designate these roles to meet the Capstone grading criteria.
 | Role          | Member               | Responsibilities                                                                            |
 | ------------- | -------------------- | ------------------------------------------------------------------------------------------- |
 | Product Owner | Sid Ahmed Mahieddine | Owns project goals, prioritizes the backlog, clarifies the “what” and “why” of user stories |
-| Scrum Master  | Loredana Lungu       | Facilitates sprints and ceremonies; helps remove blockers                                   |
+| Scrum Master  | Loredana Lungu       | Facilitates weekly syncs and process; board and meeting notes — **no live daily standup** ([Slack poll](./project-workflow.md#async-coordination-domain-slack-channels); SM role adapted) |
 | Code Owner    | Mael Taye Deneke     | Reviews and approves pull requests to maintain code quality                                 |
 
 A member can hold both a mandatory Agile role and a technical role. Roles can rotate per sprint — log changes in [project-workflow.md](./project-workflow.md).
 
 ## Availability
 
-When people are free for **sync meetings** (planning, refinement) — separate from job roles above. Daily standups are async in Slack; see [project-workflow.md](./project-workflow.md#daily-standup).
+When people are free for **sync meetings** (planning, refinement) — separate from job roles above. **No live daily standup** (team Slack poll); async updates in domain Slack — see [project-workflow.md](./project-workflow.md#async-coordination-domain-slack-channels).
 
 A cell with your **color** = you're free for that 1-hour block. Empty = unknown / not free.
 

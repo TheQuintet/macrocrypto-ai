@@ -28,7 +28,9 @@ Clarify stories and acceptance criteria before they enter a sprint.
 
 ### Async coordination (domain Slack channels)
 
-We **did not hold a daily standup meeting** — the team agreed that live daily syncs do not work across time zones. Instead, updates and domain discussion happen in **private Slack channels by area**:
+We **did not hold a daily standup meeting**. The team decided this after a **Slack poll** in `#capstone-project-group`: live daily syncs did not work across time zones and schedules. Instead, updates and domain discussion happen in **private Slack channels by area**:
+
+**Scrum Master note:** With no daily standup, the classic SM rhythm (facilitating a daily ceremony, nudging everyone every morning) was **hard to maintain** for **Loredana Lungu** (Scrum Master). The role shifted toward **weekly sync facilitation**, keeping the **GitHub board** accurate, meeting notes, and chasing blockers in Slack — not textbook daily Scrum Master overhead.
 
 | Channel | Domain |
 |---------|--------|

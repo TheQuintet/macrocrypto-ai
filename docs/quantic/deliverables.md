@@ -70,7 +70,7 @@ To receive credit for the Capstone, we must submit **all** of the following. Use
 
 **Requirements**
 
-- [ ] At least **three sprints**, user stories, and tasks visible on the board ([Sprint 1–3](#4-agile-task-board) · [Agile & sprints](../project-workflow.md))
+- [ ] At least **three sprints**, user stories, and tasks visible on the board ([Sprint 1–3](#4-agile-task-board) · [Agile & sprints](../project-workflow.md) — includes **no daily standup** decision and adapted SM role)
 - [ ] Completed work matches what we demoed / shipped
 - [ ] `quantic-grader` can open the org project (in addition to repo access in §1)
 
