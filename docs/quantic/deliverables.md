@@ -96,20 +96,6 @@ To receive credit for the Capstone, we must submit **all** of the following. Use
 
 ---
 
-## Submission timeline
-
-| Deliverable          | Internal deadline | Official due date |
-| -------------------- | ----------------- | ----------------- |
-| GitHub repo          | _TBD_             | _TBD_             |
-| Deployed app         | _TBD_             | _TBD_             |
-| Design & testing doc | [docs/design](../design/README.md) + [testing doc](../test%20documents/local-and-ci-cd-tests.md) | _TBD_             |
-| Agile board (final)  | [§4](#4-agile-task-board) | _TBD_             |
-| Video presentation   | _TBD_             | _TBD_             |
-
-Set **internal deadlines** at least a few days before official due dates for buffer.
-
----
-
 ## Pre-submission checklist
 
 Before final submission, confirm:
