@@ -62,14 +62,22 @@ To receive credit for the Capstone, we must submit **all** of the following. Use
 |            |                                           |
 | ---------- | ----------------------------------------- |
 | **Status** | ⬜ Not started / 🟡 In progress / ✅ Done |
-| **URL**    | [MacroCrypto AI Team Workflow](https://github.com/orgs/TheQuintet/projects/6) — [Current sprint](https://github.com/orgs/TheQuintet/projects/6/views/7) (see also [Planning](https://github.com/orgs/TheQuintet/projects/6/views/1), [Sprint 2 retro board](https://github.com/orgs/TheQuintet/projects/6/views/10), [Milestones](https://github.com/TheQuintet/macrocrypto-ai/milestones)) |
+| **URL**    | [MacroCrypto AI Team Workflow](https://github.com/orgs/TheQuintet/projects/6) (see also [Planning](https://github.com/orgs/TheQuintet/projects/6/views/1), [Sprint 2 retro board](https://github.com/orgs/TheQuintet/projects/6/views/10), [All milestones](https://github.com/TheQuintet/macrocrypto-ai/milestones)) |
+
+**Three sprint URLs (capstone minimum)** — submit these for graders. We use **milestones 1–3** (our first three sprints) because they show focused user stories and completed work; the live board later accumulated many more issues and is harder to review in one pass.
+
+| Sprint | Milestone | URL |
+| ------ | --------- | --- |
+| **Sprint 1** | Sprint 1: Foundation & Data Layer | [milestone/1](https://github.com/TheQuintet/macrocrypto-ai/milestone/1) |
+| **Sprint 2** | Data Integration & Indicators | [milestone/2](https://github.com/TheQuintet/macrocrypto-ai/milestone/2) |
+| **Sprint 3** | 24h Predictions | [milestone/3](https://github.com/TheQuintet/macrocrypto-ai/milestone/3) |
 
 **Requirements**
 
 - [ ] All sprints documented
-- [ ] User stories and tasks visible
+- [ ] User stories and tasks visible on **milestones 1, 2, and 3** (URLs above)
 - [ ] Completed work reflects what was demoed / shipped
-- [ ] At least **three sprints** recorded
+- [ ] At least **three sprints** recorded (use the three milestone links above)
 - [ ] **Retrospective evidence:** full retro for **Sprint 2** — [retro board items](https://github.com/orgs/TheQuintet/projects/6/views/10) and [5 Aug 2026 meeting notes](../meetings/2026-08-05-retrospective.md). Later sprints: process improvements captured in [weekly meeting notes](../meetings/) (see [how we ran retrospectives](../project-workflow.md#retrospective))
 
 ---

@@ -194,10 +194,13 @@ Code changes follow [GitHub Flow](../GITHUB_FLOW.md). See also [Contributing](..
 
 ## Sprint log
 
+**Capstone grading:** submit **three sprint URLs** — [milestone 1](https://github.com/TheQuintet/macrocrypto-ai/milestone/1), [milestone 2](https://github.com/TheQuintet/macrocrypto-ai/milestone/2), [milestone 3](https://github.com/TheQuintet/macrocrypto-ai/milestone/3). We point graders at these early milestones because scope stayed readable; the [Team Workflow board](https://github.com/orgs/TheQuintet/projects/6) grew much busier by project end. Details: [Deliverables §4](./quantic/deliverables.md#4-agile-task-board).
+
 ### Sprint 1 — Foundation (Weeks 1–2)
 
 | | |
 |---|---|
+| **Board URL (capstone)** | [GitHub milestone 1](https://github.com/TheQuintet/macrocrypto-ai/milestone/1) — Sprint 1: Foundation & Data Layer |
 | **Dates** | _TBD_ |
 | **Sprint goal** | Infrastructure foundation — Docker, data ingestion, messaging |
 | **Product Owner** | _TBD_ |
@@ -227,6 +230,7 @@ Code changes follow [GitHub Flow](../GITHUB_FLOW.md). See also [Contributing](..
 
 | | |
 |---|---|
+| **Board URL (capstone)** | [GitHub milestone 2](https://github.com/TheQuintet/macrocrypto-ai/milestone/2) — Data Integration & Indicators |
 | **Dates** | Wed 29 Jul – Wed 5 Aug 2026 (1-week cadence) |
 | **Status** | **Closed** 5 Aug 2026 — unfinished work carried into Sprint 3 |
 | **Sprint goal** | Forecasting and correlation models |
@@ -255,6 +259,7 @@ Code changes follow [GitHub Flow](../GITHUB_FLOW.md). See also [Contributing](..
 
 | | |
 |---|---|
+| **Board URL (capstone)** | [GitHub milestone 3](https://github.com/TheQuintet/macrocrypto-ai/milestone/3) — 24h Predictions |
 | **Dates** | Started Wed 5 Aug 2026 (1-week cadence) |
 | **Status** | **In progress** — 2 Sep session: S1 closed, T7/T8 in focus (see below) |
 | **Sprint goal** | API Gateway and Alert Service |

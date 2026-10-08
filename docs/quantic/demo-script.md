@@ -242,7 +242,7 @@ Suggested intro order (same as speaking flow): Kingson → Sid → Mael → Rich
 **Must cover:** Scrum process — board, sprints, meeting notes, retro; **async domain Slack** (no daily standup); **frontend alerts** on deploy (**dummy data** — state on camera).
 
 - **First line:**
-- **Screen:** GitHub board (≥3 sprints, retro visible); deployed app — alerts + notifications
+- **Screen:** [Milestone 1](https://github.com/TheQuintet/macrocrypto-ai/milestone/1), [2](https://github.com/TheQuintet/macrocrypto-ai/milestone/2), [3](https://github.com/TheQuintet/macrocrypto-ai/milestone/3) (three capstone sprints) + Sprint 2 retro; deployed app — alerts + notifications
 - **Talking points:**
   - PO / SM / code owner; weekly sync + GitHub boards (not a daily meeting)
   - Async updates in `#mc-frontend`, `#mc-backend`, `#mc-ml-model`, `#mc-software-design`
@@ -258,13 +258,14 @@ Suggested intro order (same as speaking flow): Kingson → Sid → Mael → Rich
 <summary><strong>Suggestions</strong></summary>
 
 - **First line:** “We ran this capstone with **sprints and boards**, but we **did not do a daily standup** — across time zones we agreed on **async updates in domain Slack channels** instead.”
-- **Screen:** [Team Workflow board](https://github.com/orgs/TheQuintet/projects/6) + [Sprint 2 retro board](https://github.com/orgs/TheQuintet/projects/6/views/10) + [milestones](https://github.com/TheQuintet/macrocrypto-ai/milestones); [5 Aug retro notes](https://github.com/TheQuintet/macrocrypto-ai/blob/main/docs/meetings/2026-08-05-retrospective.md); [docs/meetings/](https://github.com/TheQuintet/macrocrypto-ai/tree/main/docs/meetings); open **Alerts** on deploy + notification bell/inbox.
+- **Screen:** [Sprint 1](https://github.com/TheQuintet/macrocrypto-ai/milestone/1) · [Sprint 2](https://github.com/TheQuintet/macrocrypto-ai/milestone/2) · [Sprint 3](https://github.com/TheQuintet/macrocrypto-ai/milestone/3) milestones + [Team Workflow board](https://github.com/orgs/TheQuintet/projects/6) + [Sprint 2 retro board](https://github.com/orgs/TheQuintet/projects/6/views/10); [5 Aug retro notes](https://github.com/TheQuintet/macrocrypto-ai/blob/main/docs/meetings/2026-08-05-retrospective.md); [docs/meetings/](https://github.com/TheQuintet/macrocrypto-ai/tree/main/docs/meetings); open **Alerts** on deploy + notification bell/inbox.
 - **Talking points:**
   - **Roles:** Sid PO, you SM, Mael code owner; frontend split across Kingson, you, Richard where relevant.
   - **Slack by domain:** `#mc-frontend`, `#mc-backend`, `#mc-ml-model`, `#mc-software-design` — discuss work where it lives; `#capstone-project-group` for whole-team items.
   - **Retro:** **Sprint 2 (5 Aug)** — full retro with items on the [retro board](https://github.com/orgs/TheQuintet/projects/6/views/10) and written notes. **Later sprints** — our weekly sync is only **1–2 hours**, so we **discussed emergent blockers live** in the meeting instead of maintaining a retro board every sprint; improvements are in **meeting notes** and the workflow board.
   - **Honest process note:** domain Slack improved focus but some members felt **less visibility**; we compensated with **weekly Capstone sync**, the **GitHub board**, and **PR/meeting notes**.
-  - **Process:** user stories → PRs → review → CI; ≥3 sprints for graders.
+  - **Three sprint URLs for graders:** milestones [1](https://github.com/TheQuintet/macrocrypto-ai/milestone/1), [2](https://github.com/TheQuintet/macrocrypto-ai/milestone/2), [3](https://github.com/TheQuintet/macrocrypto-ai/milestone/3) — early sprints with clear stories; the full board got much busier later.
+  - **Process:** user stories → PRs → review → CI.
   - **Engineering quality:** frontend lint/typecheck/unit tests + Playwright E2E; backend CI on services.
   - **Alerts demo:** “For this recording we’re using **dummy alert data** so you can see the UX without waiting on live triggers.”
 - **Click path (example — replace with deploy routes):**

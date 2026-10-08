@@ -83,7 +83,7 @@ The program expects a **high-quality portfolio piece** — not just a basic web 
 
 ### 5. Strong Agile evidence
 
-- 3+ sprints with clear goals and outcomes
+- 3+ sprints with clear goals and outcomes — we submit [milestone 1](https://github.com/TheQuintet/macrocrypto-ai/milestone/1), [milestone 2](https://github.com/TheQuintet/macrocrypto-ai/milestone/2), [milestone 3](https://github.com/TheQuintet/macrocrypto-ai/milestone/3) ([why these URLs](./deliverables.md#4-agile-task-board))
 - User stories with **acceptance criteria**
 - Task board matches repo and demo — no fiction
 - Planning and refinement notes kept up to date
