@@ -87,7 +87,7 @@ These files are **team-authored configuration** for steering assistants; they ar
 | Member | Tools used | Contributions with AI assist |
 |--------|------------|------------------------------|
 | **Sid Ahmed Mahieddine** | ChatGPT, DeepSeek | Product direction, microservices architecture, backend and DevOps, Docker/Compose |
-| **Loredana Lungu** | Cursor (Agent) | Frontend architecture, React/TypeScript, agent/repo rules (`.cursor/rules/`, `AGENTS.md` alignment), process docs |
+| **Loredana Lungu** | Cursor (Agent), Claude Code | Frontend architecture, React/TypeScript, agent/repo rules (`.cursor/rules/`, `AGENTS.md` alignment), process and capstone docs; same [AGENTS.md](../AGENTS.md) / [CLAUDE.md](../CLAUDE.md) conventions as the rest of the repo |
 | **Mael Taye Deneke** | Cursor, Copilot | Backend services, PR review as Code Owner, CI workflows |
 | **Kingson Emma-Ochu** | Copilot, Cursor | Frontend features, UI integration flows |
 | **Richard Owusu (Ph.D.)** | Cursor, Copilot, chat UIs | `ai-service` ML pipeline, frontend and alerts-related work, data/analysis scripts |

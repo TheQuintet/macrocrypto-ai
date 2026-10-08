@@ -2,7 +2,7 @@
 
 Backend microservices and the infrastructure they depend on, run through Docker Compose from the repository root.
 
-**data-service** and **alert-service** are active in Compose today; `ai-service` and `api-gateway` are still scaffolding. See [Services](#services).
+**`make up`** starts four infrastructure containers (Postgres/TimescaleDB, Redis, RabbitMQ, MLflow) and four application services (api-gateway, data-service, ai-service, alert-service). See [Services](#services).
 
 ## Prerequisites
 
@@ -17,11 +17,13 @@ Backend microservices and the infrastructure they depend on, run through Docker 
 ```bash
 cp services/data-service/.env.example services/data-service/.env
 cp services/alert-service/.env.example services/alert-service/.env
+cp services/ai-service/.env.example services/ai-service/.env
+cp services/api-gateway/.env.example services/api-gateway/.env
 ```
 
-**Required.** `docker-compose.yml` declares `env_file` for both services, so Compose needs these files. They are gitignored and are not in a fresh clone.
+**Required.** `docker-compose.yml` declares `env_file` for all four microservices, so Compose needs these files. They are gitignored and are not in a fresh clone.
 
-No edits needed. The defaults use Compose service names (`postgres`, `redis`, `rabbitmq`) rather than `localhost`, which is what the containers need.
+No edits needed for a first run. The defaults use Compose service names (`postgres`, `redis`, `rabbitmq`, `mlflow`) rather than `localhost`, which is what the containers need.
 
 ### 2. Start
 
@@ -33,7 +35,7 @@ make up
 
 The first run takes a few minutes — it builds the service images and pulls the infrastructure images. Later starts take seconds.
 
-data-service and alert-service declare `depends_on: condition: service_healthy`, so they wait for Postgres, Redis and RabbitMQ to pass their health checks before starting. A pause with no output is normal.
+Microservices wait on healthy infrastructure: **ai-service** also waits for **MLflow**; **api-gateway** starts after the other three app services have started. RabbitMQ can take up to ~90s on slower machines before its health check passes — a long pause with little output is normal.
 
 ### 3. Verify
 
@@ -41,15 +43,26 @@ data-service and alert-service declare `depends_on: condition: service_healthy`,
 make ps
 ```
 
-Four containers `Up` for infrastructure plus data-service `(healthy)`. With this Compose file you should also see `macro-alert-service`.
+You should see **eight** containers `Up`: `macro-postgres`, `macro-redis`, `macro-rabbitmq`, `macro-mlflow`, `macro-data-service`, `macro-ai-service`, `macro-alert-service`, and `macro-api-gateway`. Services with a health check may show `(healthy)` once ready.
 
-```bash
-make price
-```
+| Check | URL or command |
+|-------|----------------|
+| All containers | `make ps` |
+| BTC price (data-service) | `make price` |
+| Per-service health | `make api-health`, `make ai-health`, `make alert-health`, or `make health` (data-service) |
 
-Returns the current BTC snapshot. **`null` for the first few seconds is expected** — the Binance WebSocket has not delivered a tick yet.
+**`null` for the first few seconds from `make price` is expected** — the Binance WebSocket has not delivered a tick yet.
 
-For anything unexpected, `make health` breaks down each dependency and `make data-logs` shows the service log. Interactive API docs: <http://localhost:8001/docs>
+Interactive API docs (Swagger): gateway **8000**, data **8001**, AI **8002**, alert **8003** — see [Health and API docs](#health-and-api-docs). For issues, `make logs` or service-specific targets such as `make data-logs`.
+
+## Health and API docs
+
+| Service | OpenAPI (`/docs`) | Health |
+|---------|-------------------|--------|
+| API Gateway | http://localhost:8000/docs | http://localhost:8000/health |
+| Data service | http://localhost:8001/docs | http://localhost:8001/health |
+| AI service | http://localhost:8002/docs | http://localhost:8002/health |
+| Alert service | http://localhost:8003/docs | http://localhost:8003/health |
 
 ## Connecting the frontend
 
@@ -67,30 +80,38 @@ A **"Simulated" badge** next to `BTC / USD` on the dashboard tells you which mod
 
 ## What is real once the backend is up
 
-Starting the backend does not make everything live. Current state:
+Starting the backend does not make every dashboard feature live. Current state:
 
 | Frontend feature | Source | Why |
 |---|---|---|
-| Price, 24h/7d change, 24h high/low/volume | **Real** | `GET /api/v1/btc/price` serves live Binance data |
+| Price, 24h/7d change, 24h high/low/volume | **Real** (when UI points at gateway) | Gateway proxies `GET /api/v1/btc/price`; data-service serves live Binance data |
 | Price chart history | Simulated | `/price/history` is a placeholder ([#507](https://github.com/TheQuintet/macrocrypto-ai/issues/507)). The OHLCV data exists internally via `BinanceCollector.get_klines()`, just not over HTTP |
-| Live price stream | Polling | No client-facing WebSocket exists ([#36](https://github.com/TheQuintet/macrocrypto-ai/issues/36)). data-service's socket is inbound only; the design docs assign a client stream to the API Gateway, still a scaffold. The connection indicator reads "Polling" |
+| Live price stream | Polling | No client-facing WebSocket exists ([#36](https://github.com/TheQuintet/macrocrypto-ai/issues/36)). data-service's socket is inbound only; the design docs assign a client stream to the API Gateway. The connection indicator reads "Polling" |
 | Macro indicators | Empty | `FRED_API_KEY` is a placeholder. Free key: <https://fred.stlouisfed.org/docs/api/api_key.html>. BTC price needs no key |
+| Forecasts / ML | Varies | ai-service and MLflow run in Compose; which routes the gateway exposes to the UI depends on current implementation — see [ai-service/README.md](./ai-service/README.md) |
 
 ## Services
 
-| Service | Container | Port | Purpose | Status |
-|---|---|---|---|---|
-| `data-service` | `macro-data-service` | 8001 | Collects BTC data from Binance and macro data from FRED; serves the price and indicator APIs | **Active** |
-| postgres | `macro-postgres` | 5432 | Primary datastore (`macrocrypto` db, user `macro`) | **Active** |
-| redis | `macro-redis` | 6379 | Response and snapshot caching | **Active** |
-| rabbitmq | `macro-rabbitmq` | 5672, 15672 | Event bus; management UI on 15672 (`guest`/`guest`) | **Active** |
-| `ai-service` | — | 8002 | Prophet price forecasting | Commented out in Compose |
-| `alert-service` | `macro-alert-service` | 8003 | Alert rules and notifications | **Active** |
-| `api-gateway` | — | — | REST + WebSocket gateway | Commented out; folder is empty `__init__.py` stubs |
+Compose project name in Docker Desktop is typically **`macrocrypto-ai`** (folder name). Host ports below are the defaults from `docker-compose.yml`.
 
-The frontend is in `docker-compose.yml` too but commented out, and there is no `frontend/Dockerfile`, so it cannot start that way. Run it on the host — see [frontend/README.md](../frontend/README.md).
+| Compose service | Container | Host port(s) | Purpose |
+|-----------------|-----------|--------------|---------|
+| `postgres` | `macro-postgres` | 5432 | TimescaleDB on Postgres 15 — primary datastore (`macrocrypto`, user `macro`) |
+| `redis` | `macro-redis` | 6379 | Response and snapshot caching |
+| `rabbitmq` | `macro-rabbitmq` | 5672 (AMQP), 15672 (mgmt UI) | Event bus; UI `guest` / `guest`. Override host ports with `RABBITMQ_AMQP_HOST_PORT` / `RABBITMQ_MGMT_HOST_PORT` if another stack uses the defaults |
+| `mlflow` | `macro-mlflow` | 5000 | Model registry and experiment UI; ai-service uses `MLFLOW_TRACKING_URI=http://mlflow:5000` inside the network |
+| `api-gateway` | `macro-api-gateway` | 8000 | External REST entry; proxies to internal services |
+| `data-service` | `macro-data-service` | 8001 | BTC (Binance) and macro (FRED) collection; price and indicator APIs |
+| `ai-service` | `macro-ai-service` | 8002 | BTC forecasting (Prophet, XGBoost, LightGBM) |
+| `alert-service` | `macro-alert-service` | 8003 | Alert rules and notifications |
+
+The **frontend** service block in `docker-compose.yml` is commented out, and there is no `frontend/Dockerfile`, so the dashboard does not run in Compose. Run it on the host — see [frontend/README.md](../frontend/README.md).
+
+Per-service design and endpoints: [ai-service/README.md](./ai-service/README.md), [alert-service/README.md](./alert-service/README.md), [api-gateway/README.md](./api-gateway/README.md). data-service code lives under `services/data-service/`.
 
 ## data-service endpoints
+
+Direct access on port **8001** (gateway may expose the same paths under **8000**):
 
 | Endpoint | Purpose | Status |
 |---|---|---|
@@ -111,7 +132,7 @@ Run from the repository root; `make help` lists everything.
 | Command | What it does |
 |---|---|
 | `make up` / `make down` | Start / stop all services |
-| `make down-clean` | Stop **and drop volumes** — wipes the database |
+| `make down-clean` | Stop **and drop volumes** — wipes the database and MLflow/RabbitMQ/Redis data |
 | `make restart` | Restart all services |
 | `make ps` | Container status |
 | `make logs` | Tail logs for all services |
@@ -131,15 +152,48 @@ Run from the repository root; `make help` lists everything.
 | `make data-test-cov` | Tests with coverage |
 | `make data-lint` / `make data-format` | Lint / format |
 
+### ai-service
+
+| Command | What it does |
+|---|---|
+| `make ai-up` / `make ai-down` | Start (rebuild if needed) / stop ai-service |
+| `make ai-restart` / `make ai-logs` / `make ai-shell` | Restart, logs, shell |
+| `make ai-health` / `make ai-ready` | HTTP health / readiness |
+| `make ai-test` / `make ai-test-cov` | Tests / coverage |
+| `make ai-lint` / `make ai-format` | Lint / format |
+| `make ai-run` | Run locally (outside Docker) |
+
+### alert-service
+
+| Command | What it does |
+|---|---|
+| `make alert-up` / `make alert-down` | Start (rebuild if needed) / stop alert-service |
+| `make alert-restart` / `make alert-logs` / `make alert-shell` | Restart, logs, shell |
+| `make alert-health` / `make alert-ready` | HTTP health / readiness |
+| `make alert-test` / `make alert-test-cov` | Tests / coverage |
+| `make alert-lint` / `make alert-format` | Lint / format |
+
+### api-gateway
+
+| Command | What it does |
+|---|---|
+| `make api-up` / `make api-down` | Start (rebuild if needed) / stop api-gateway |
+| `make api-restart` / `make api-logs` / `make api-shell` | Restart, logs, shell |
+| `make api-health` / `make api-ready` | HTTP health / readiness |
+| `make api-test` / `make api-test-cov` | Tests / coverage |
+| `make api-lint` / `make api-format` | Lint / format |
+| `make api-run` | Run locally (outside Docker) |
+
 ### Infrastructure and monitoring
 
 | Command | What it does |
 |---|---|
 | `make postgres-cli` | `psql` inside the Postgres container |
 | `make redis-cli` | `redis-cli` inside the Redis container |
-| `make rabbitmq-ui` | Open the RabbitMQ management UI |
-| `make health` | Pretty-print `/health` |
-| `make price` | Pretty-print the current BTC price |
+| `make rabbitmq-ui` | Open the RabbitMQ management UI (default http://localhost:15672) |
+| `make mlflow-ui` | Open the MLflow UI (http://localhost:5000) |
+| `make health` | Pretty-print data-service `/health` |
+| `make price` | Pretty-print the current BTC price (data-service) |
 | `make watch-price` | Live-refreshing price view (Ctrl+C to stop) |
 
 ## Running data-service without Docker
@@ -166,11 +220,13 @@ Beyond the notes in [Quick start](#quick-start):
 
 | Symptom | Cause |
 |---|---|
-| data-service never turns healthy | Still waiting on a dependency's health check. `make ps` shows which, `make logs` shows why |
-| `make price` prints the "not running" message | Service is down, or `jq` is missing — compare against `curl http://localhost:8001/api/v1/btc/price` |
-| Containers come back after you quit Docker | data-service uses `restart: unless-stopped`; use `make down` to stop it properly |
-| Frontend still shows "Simulated" | Missing variable in `frontend/.env.local`, or the dev server was not restarted |
+| Stack stuck starting | Often RabbitMQ or MLflow health checks. `make ps` and `make logs` show which service is not healthy yet |
+| data-service never turns healthy | Still waiting on postgres, redis, or rabbitmq. `make data-logs` for detail |
+| `make price` prints the "not running" message | data-service is down, or `jq` is missing — try `curl http://localhost:8001/api/v1/btc/price` |
+| Containers come back after you quit Docker | Services use `restart: unless-stopped`; use `make down` to stop the stack |
+| Frontend still shows "Simulated" | Missing `VITE_API_GATEWAY_BASE_URL` in `frontend/.env.local`, or the dev server was not restarted |
 | Real price, but chart and stream look fake | Expected — see [What is real once the backend is up](#what-is-real-once-the-backend-is-up) |
+| RabbitMQ UI on a different host port | Another project may own 15672; check `RABBITMQ_MGMT_HOST_PORT` in your environment |
 
 ## Related documentation
 
