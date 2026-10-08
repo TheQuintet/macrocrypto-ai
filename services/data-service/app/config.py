@@ -290,6 +290,61 @@ class Settings(BaseSettings):
     HOURLY_GAP_SCAN_LOOKBACK_HOURS: int = 168
 
     # ============================================
+    # HIGH YIELD CREDIT STRESS PROXY (Phase B, Chat 5, B5)
+    # ============================================
+    #
+    # Daily job that computes (HYG / SHY).pct_change() and writes
+    # one row per trading day into the raw macro_indicators table
+    # with:
+    #     indicator_name = 'high_yield_credit_stress_proxy'
+    #     source         = 'derived'
+    #
+    # This value is consumed by features_db as the
+    # high_yield_credit_stress_proxy column (see
+    # docs/data-service-schemas.md §5, row 14). The features
+    # writer treats it as a market feature and ffills it
+    # without a limit.
+    #
+    # The timestamp written is midnight UTC of the observation
+    # day, NOT datetime.now(). This is required for two reasons:
+    #
+    #   1. Idempotency. Same calendar day -> same timestamp, so
+    #      the ON CONFLICT (time, indicator_name) constraint in
+    #      MacroIndicatorRepository.create_many deduplicates
+    #      correctly. datetime.now() would produce a different
+    #      row on every run.
+    #
+    #   2. PIT correctness. The features writer picks the latest
+    #      observation with time <= the feature hour. Midnight
+    #      UTC means "the value for day D" is available for
+    #      every hour of day D, which is what a daily series
+    #      means.
+    #
+    # Note: this differs from gold_spot, which uses
+    # datetime.now() because it is a point-in-time snapshot,
+    # not a daily series. See the service docstring for detail.
+
+    # Production schedule for the daily HY proxy collection.
+    # 03:00 UTC is staggered after the 01:00 UTC macro/FRED
+    # task and before the 03:30 UTC vintages task (B6).
+    HY_PROXY_UPDATE_HOUR_UTC: int = 3
+    HY_PROXY_UPDATE_MINUTE_UTC: int = 0
+
+    # Yahoo Finance history window per run, in days.
+    #
+    # 730 (2 years) covers the largest plausible multi-day
+    # outage, and the writer is idempotent, so a wide window is
+    # free on a healthy system: the ON CONFLICT clause skips
+    # every day already stored.
+    #
+    # If Yahoo ever changes its history retention policy such
+    # that 2y daily candles are no longer returned, lower this
+    # value. A shorter window is still correct — it just means
+    # a longer outage needs an explicit backfill instead of
+    # being absorbed by the next scheduled run.
+    HY_PROXY_LOOKBACK_DAYS: int = 730
+
+    # ============================================
     # RATE LIMITING
     # ============================================
     RATE_LIMIT_ENABLED: bool = True
