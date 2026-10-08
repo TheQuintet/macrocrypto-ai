@@ -112,6 +112,35 @@ async def wait_until_next_hour(
     await asyncio.sleep(wait_seconds)
 
 
+async def wait_for_interval_hours(
+    hours: float,
+    job_name: str,
+):
+    """
+    Sleep for a fixed interval of hours.
+
+    Unlike wait_until_next_run and wait_until_next_hour, this
+    helper is anchored to "now" rather than to a wall-clock
+    boundary. Used by tasks that run on a rolling interval
+    (e.g. the hourly gap scan, every 6h) rather than at a fixed
+    time-of-day or minute-past-the-hour.
+
+    hours may be fractional (e.g. 0.5 for a 30-minute interval),
+    which is useful for testing.
+    """
+    now = datetime.now(timezone.utc)
+    next_run = now + timedelta(hours=hours)
+
+    logger.info(
+        "Next %s in %.1f hours (at %s)",
+        job_name,
+        hours,
+        next_run.isoformat(),
+    )
+
+    await asyncio.sleep(hours * 3600)
+
+
 # ============================================================
 # MACRO / FRED SCHEDULER
 # ============================================================
@@ -864,4 +893,145 @@ async def periodic_hourly_macro_indicators():
         except Exception:
             logger.exception(
                 "🔥 Hourly macro indicators scheduler failed"
+            )
+
+
+# ============================================================
+# HOURLY GAP SCAN SCHEDULER (Phase B, Chat 4, C4-3)
+# ============================================================
+
+
+def _run_gap_scan_once(prefix: str) -> None:
+    """
+    Run one gap scan across both hourly tables and log the result.
+
+    Read-only. Never repairs. Never fetches from external
+    providers. The point is visibility: if a writer has stopped
+    producing rows, we want a warning in the logs before the next
+    backfill runs.
+
+    prefix: "startup scan" or "periodic scan", used in log lines
+    so operators can distinguish the two call sites.
+    """
+    from app.services.gap_detection_service import (
+        SUPPORTED_TABLES,
+        scan as scan_gaps,
+    )
+
+    now = datetime.now(timezone.utc)
+    lookback_hours = settings.HOURLY_GAP_SCAN_LOOKBACK_HOURS
+    start = now - timedelta(hours=lookback_hours)
+
+    for table in SUPPORTED_TABLES:
+        try:
+            report = scan_gaps(table, start, now)
+        except Exception:
+            logger.exception(
+                "🔍 Hourly gap scan (%s) failed for %s",
+                prefix,
+                table,
+            )
+            continue
+
+        if not report.has_gaps:
+            logger.info(
+                "🔍 Hourly gap scan (%s): %s has no gaps "
+                "over the last %dh",
+                prefix,
+                table,
+                lookback_hours,
+            )
+            continue
+
+        logger.warning(
+            "🔍 Hourly gap scan (%s): %s has %d missing hour(s) "
+            "over the last %dh "
+            "(MATERIALIZATION_GAP=%d, RAW_DATA_GAP=%d). "
+            "Run `python -m app.scripts.verify_hourly_tables "
+            "--table %s --days %d` for details, or --repair "
+            "to fix MATERIALIZATION_GAP hours.",
+            prefix,
+            table,
+            report.missing_count,
+            lookback_hours,
+            report.materialization_count,
+            report.raw_data_count,
+            "btc" if table == "btc_prices_hourly" else "macro",
+            max(1, lookback_hours // 24),
+        )
+
+        # Show the first few missing hours for quick triage.
+        for item in report.first_missing(5):
+            logger.warning(
+                "🔍   %s  %s",
+                item.hour.isoformat(),
+                item.classification.value,
+            )
+
+
+async def periodic_hourly_gap_scan():
+    """
+    Periodic read-only scan of the hourly tables for gaps.
+
+    Chat 4 C4-3: visibility only. Never repairs, never fetches
+    from external providers. If gaps exist, emits a WARNING with
+    a pointer to verify_hourly_tables.
+
+    Runs once at startup (wrapped in its own try/except so a
+    failed startup scan does not prevent the interval loop from
+    starting), then every HOURLY_GAP_SCAN_INTERVAL_HOURS.
+
+    Controlled by HOURLY_GAP_SCAN_ENABLED. If disabled, this
+    task should not be started at all by main.py, but as a
+    defensive measure it also self-disables if called.
+    """
+    if not settings.HOURLY_GAP_SCAN_ENABLED:
+        logger.info(
+            "🔍 Hourly gap scan disabled "
+            "(HOURLY_GAP_SCAN_ENABLED=False); scheduler exiting"
+        )
+        return
+
+    logger.info(
+        "🔍 Hourly gap scan scheduler started "
+        "(interval=%sh, lookback=%sh)",
+        settings.HOURLY_GAP_SCAN_INTERVAL_HOURS,
+        settings.HOURLY_GAP_SCAN_LOOKBACK_HOURS,
+    )
+
+    # Startup scan: run once immediately, then enter the interval
+    # loop. Wrapped so a failure here does not prevent the loop.
+    try:
+        _run_gap_scan_once(prefix="startup scan")
+    except Exception:
+        logger.exception(
+            "🔍 Hourly gap scan (startup scan) raised; "
+            "continuing to interval loop"
+        )
+
+    while True:
+        try:
+            await wait_for_interval_hours(
+                settings.HOURLY_GAP_SCAN_INTERVAL_HOURS,
+                "hourly gap scan",
+            )
+
+            logger.info("🔍 Hourly gap scan scheduler woke up")
+
+            try:
+                _run_gap_scan_once(prefix="periodic scan")
+            except Exception:
+                # Keep the loop alive even if one scan fails.
+                logger.exception(
+                    "🔍 Hourly gap scan (periodic scan) raised; "
+                    "will retry at next interval"
+                )
+
+        except asyncio.CancelledError:
+            logger.info("Hourly gap scan scheduler cancelled")
+            raise
+
+        except Exception:
+            logger.exception(
+                "🔥 Hourly gap scan scheduler failed"
             )
