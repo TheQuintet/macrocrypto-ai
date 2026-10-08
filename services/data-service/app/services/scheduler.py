@@ -487,6 +487,98 @@ async def periodic_macro_vintages():
 
 
 # ============================================================
+# FEATURES_DB SCHEDULER (Phase B, Chat 5, B4)
+# ============================================================
+
+
+async def periodic_features_db():
+    """
+    Hourly write of the features_db ML feature table.
+
+    Runs at :05 of every hour, staggered after the hourly
+    materializers (BTC at :01, macro at :02) so a slow upstream
+    writer does not delay features_db.
+
+    Writes the just-completed hour's feature row. Enforces the
+    D9 writer lag by construction:
+
+        target_hour = floor(now) - 1h
+
+    At 14:05, the row written is for 13:00, whose target y is
+    btc_prices_hourly.close at 14:00. The 14:00 row is not
+    written (its y is 15:00's close, unknown).
+
+    Idempotent: FeaturesDBRepository.create_many uses
+    ON CONFLICT (ds) DO NOTHING. Re-running an hour is a no-op.
+
+    The task does not raise on a "no row to write" outcome: if
+    the successor hour's close has not yet landed (unusual, but
+    possible if an upstream job was delayed), the writer logs
+    at debug and returns False. The loop continues to the next
+    scheduled run.
+
+    See:
+        migrations/009_create_features_db.sql
+        app/services/feature_builder_service.py  (SSOT)
+        app/services/features_db_writer.py
+        docs/data-service-schemas.md §3, §5
+    """
+
+    from app.services.features_db_writer import FeaturesDBWriter
+
+    logger.info("🧬 FeaturesDB scheduler started")
+    logger.info(
+        "FeaturesDB production schedule enabled: "
+        "running hourly at :%02d UTC",
+        settings.FEATURES_DB_UPDATE_MINUTE_UTC,
+    )
+
+    while True:
+        try:
+            await wait_until_next_hour(
+                settings.FEATURES_DB_UPDATE_MINUTE_UTC,
+                "features_db write",
+            )
+
+            logger.info("🧬 FeaturesDB scheduler woke up")
+
+            db = SessionLocal()
+            writer = None
+
+            try:
+                writer = FeaturesDBWriter(db)
+                wrote = writer.write_current_hour()
+
+                if wrote:
+                    logger.info(
+                        "🧬 Wrote features_db row for the "
+                        "previous hour"
+                    )
+                else:
+                    logger.info(
+                        "🧬 Skipped features_db write "
+                        "(no row available for the "
+                        "previous hour)"
+                    )
+
+            finally:
+                db.close()
+
+            logger.info(
+                "🧬 FeaturesDB scheduled job completed"
+            )
+
+        except asyncio.CancelledError:
+            logger.info("FeaturesDB scheduler cancelled")
+            raise
+
+        except Exception:
+            logger.exception(
+                "🔥 FeaturesDB scheduler failed"
+            )
+
+
+# ============================================================
 # ECONOMIC CALENDAR SCHEDULER
 # ============================================================
 
