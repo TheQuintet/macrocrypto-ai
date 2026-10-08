@@ -47,65 +47,56 @@ SessionLocal = sessionmaker(
 
 def init_db():
     """
-    Initialize database connection and create TimescaleDB hypertables.
+    Initialize database schema and TimescaleDB hypertables.
+
+    Schema is owned by migrations (D5). The runner is idempotent
+    and applies only unapplied files.
+
+    Hypertable creation stays here because it is orthogonal to
+    table DDL and is already idempotent via if_not_exists.
     """
     try:
-        # Create tables if they do not already exist
-        Base.metadata.create_all(bind=engine)
+        # Phase B (Chat 3): schema is owned by migrations.
+        # Base.metadata.create_all(bind=engine) removed here.
+        # Historical reference:
+        #     Base.metadata.create_all(bind=engine)
+        from app.database import migrate
+        migrate.run_migrations()
 
         with engine.connect() as connection:
-
-            # Verify database connection
             connection.execute(text("SELECT 1"))
 
-            # Create btc_prices hypertable
-            connection.execute(
-                text(
-                    """
-                    SELECT create_hypertable(
-                        'btc_prices',
-                        'time',
-                        if_not_exists => TRUE,
-                        migrate_data => TRUE
-                    )
-                    """
+            connection.execute(text("""
+                SELECT create_hypertable(
+                    'btc_prices', 'time',
+                    if_not_exists => TRUE,
+                    migrate_data => TRUE
                 )
-            )
+            """))
 
-            # Create macro indicators hypertable
-            connection.execute(
-                text(
-                    """
-                    SELECT create_hypertable(
-                        'macro_indicators',
-                        'time',
-                        chunk_time_interval => INTERVAL '1 year',
-                        if_not_exists => TRUE,
-                        migrate_data => TRUE
-                    )
-                    """
+            connection.execute(text("""
+                SELECT create_hypertable(
+                    'macro_indicators', 'time',
+                    chunk_time_interval => INTERVAL '1 year',
+                    if_not_exists => TRUE,
+                    migrate_data => TRUE
                 )
-            )
+            """))
 
-            # Create btc_dominance hypertable
-            connection.execute(
-                text(
-                    """
-                    SELECT create_hypertable(
-                        'btc_dominance',
-                        'time',
-                        chunk_time_interval => INTERVAL '1 year',
-                        if_not_exists => TRUE,
-                        migrate_data => TRUE
-                    )
-                    """
+            connection.execute(text("""
+                SELECT create_hypertable(
+                    'btc_dominance', 'time',
+                    chunk_time_interval => INTERVAL '1 year',
+                    if_not_exists => TRUE,
+                    migrate_data => TRUE
                 )
-            )
+            """))
 
             connection.commit()
 
         logger.info("Database connection initialized")
-        logger.info("TimescaleDB hypertable initialized")
+        logger.info("Migrations applied")
+        logger.info("TimescaleDB hypertables initialized")
 
     except Exception as e:
         logger.error(f"Database initialization failed: {e}")
