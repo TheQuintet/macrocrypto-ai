@@ -35,6 +35,8 @@ Usage
     python -m app.scripts.run_live_path --regime-backfill
     python -m app.scripts.run_live_path --regime-backfill \
         --start 2020-01-01 --end 2020-12-31
+    python -m app.scripts.run_live_path --regime-event-analysis
+    python -m app.scripts.run_live_path --regime-event-analysis --days 30
     python -m app.scripts.run_live_path --all
 
 Scope
@@ -90,6 +92,16 @@ Phase B (regime subsystem):
         Default range: DEFAULT_REGIME_BACKFILL_START
         (2017-08-17) -> today. Override with --start / --end.
 
+    --regime-event-analysis computes BTC's reaction to recent
+        economic events and writes one row per
+        (regime_id, event_type, event_date) triple to
+        regime_event_analysis. Attaches events to the current
+        open macro_regimes row. Idempotent by pre-check.
+
+        Accepts --days N to override the default 90-day lookback.
+        Runs daily in production at REGIME_EVENT_UPDATE_HOUR_UTC:
+        REGIME_EVENT_UPDATE_MINUTE_UTC (default 01:15 UTC).
+
 Design notes
 ------------
 - CLI calls the same service methods the scheduler calls. No
@@ -106,6 +118,10 @@ Design notes
   the command is to reconstruct the full history, not the last
   30 days. This is handled inside its own handler, not by
   changing the shared range default.
+- --regime-event-analysis uses --days as its own knob (defaults
+  to the service's _DEFAULT_LOOKBACK_DAYS when not given); it
+  does not use the range group's --start / --end, since event
+  analysis is event-driven, not range-driven.
 """
 
 from __future__ import annotations
@@ -949,6 +965,100 @@ async def _run_regime_backfill(args: argparse.Namespace) -> int:
         db.close()
 
 
+# ------------------------------------------------------------------
+# --regime-event-analysis (regime subsystem, UNIT 2 Option A)
+# ------------------------------------------------------------------
+#
+# Computes BTC's reaction to recent economic events and writes
+# one row per (regime_id, event_type, event_date) triple to
+# regime_event_analysis. Attaches events to the current open
+# macro_regimes row (the one the daily current-regime job
+# maintains).
+#
+# Idempotent by pre-check: existing triples are skipped. The
+# whole batch commits in one transaction.
+#
+# Accepts --days N to override the service default lookback
+# (_DEFAULT_LOOKBACK_DAYS, currently 90). Unlike the range-shaped
+# subcommands, --start / --end do not apply here — event analysis
+# is event-driven, not range-driven.
+#
+# Exit codes:
+#   0  completed (rows_inserted may be 0)
+#   1  no open macro_regimes row to attach events to
+#   2  bad args or DB error
+
+
+async def _run_regime_event_analysis(
+    args: argparse.Namespace,
+) -> int:
+    """
+    Compute BTC reactions to recent economic events for the
+    current open macro_regimes row.
+
+    --days N overrides the service default lookback (90 days).
+    """
+    from app.database.session import SessionLocal
+    from app.services.regime_event_service import (
+        RegimeEventService,
+    )
+    from app.database.regime_repository import (
+        RegimeRepository,
+    )
+
+    lookback_days = args.days
+
+    logger.info(
+        "[CLI] regime-event-analysis: lookback_days=%s",
+        lookback_days if lookback_days is not None else "default",
+    )
+
+    db = SessionLocal()
+    try:
+        repo = RegimeRepository(db)
+        macro_regime = repo.get_current_regime()
+
+        if macro_regime is None:
+            logger.warning(
+                "[CLI] regime-event-analysis: no open "
+                "macro_regimes row; nothing to attach events to. "
+                "Run --regime-backfill first."
+            )
+            return 1
+
+        service = RegimeEventService(db)
+
+        kwargs = {"regime_id": macro_regime.id}
+        if lookback_days is not None:
+            if lookback_days <= 0:
+                logger.error(
+                    "[CLI] --days must be a positive integer"
+                )
+                return 2
+            kwargs["lookback_days"] = lookback_days
+
+        result = service.process_regime_events(**kwargs)
+
+        print()
+        print("=== regime_event_analysis ===")
+        print(f"  regime_id:              {macro_regime.id}")
+        print(f"  regime_type:            {macro_regime.regime_type}")
+        print(f"  events_scanned:         {result['events_scanned']}")
+        print(f"  rows_inserted:          {result['rows_inserted']}")
+        print(f"  skipped_existing:       {result['skipped_existing']}")
+        print(f"  skipped_missing_price:  {result['skipped_missing_price']}")
+        print(f"  skipped_unmapped_type:  {result['skipped_unmapped_type']}")
+
+        return 0
+
+    except Exception:
+        logger.exception("[CLI] regime-event-analysis failed")
+        return 2
+
+    finally:
+        db.close()
+
+
 async def _run_all() -> int:
     """
     Run everything in order. --backfill, --btc-hourly,
@@ -1027,6 +1137,13 @@ SUBCOMMANDS: dict[
         "macro_indicators (default 2017-08-17 -> today)",
         _run_regime_backfill,
     ),
+    "--regime-event-analysis": (
+        "Compute BTC reactions to recent economic events and "
+        "write them to regime_event_analysis. Attaches to the "
+        "current open macro_regimes row. Accepts --days to "
+        "override the 90-day default lookback.",
+        _run_regime_event_analysis,
+    ),
     "--all": (
         "Run every step in order",
         _run_all,
@@ -1042,7 +1159,8 @@ def build_parser() -> argparse.ArgumentParser:
             "Supports the daily backfill, the hourly BTC "
             "and macro materializations, hourly gap "
             "verification, FRED macro vintage ingestion, "
-            "features_db writes, and regime history backfill."
+            "features_db writes, regime history backfill, "
+            "and regime event analysis."
         ),
     )
 
@@ -1055,6 +1173,10 @@ def build_parser() -> argparse.ArgumentParser:
     # --days and --start are mutually exclusive; --end pairs with
     # --start. If neither --days nor --start is given, the service
     # defaults to --days 30.
+    #
+    # --regime-event-analysis also uses --days, but as a plain
+    # lookback override (not as a range); it ignores --start /
+    # --end.
     range_group = parser.add_mutually_exclusive_group()
     range_group.add_argument(
         "--days",
@@ -1062,7 +1184,9 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help=(
             "Backfill the last N days (mutually exclusive with "
-            "--start/--end). Defaults to 30 if --start is not given."
+            "--start/--end). Defaults to 30 if --start is not given. "
+            "Also used by --regime-event-analysis to override the "
+            "90-day default lookback."
         ),
     )
     range_group.add_argument(
@@ -1148,6 +1272,7 @@ async def _dispatch(args: argparse.Namespace) -> int:
         "--features-db-backfill",
         "--features-db-parquet",
         "--regime-backfill",
+        "--regime-event-analysis",
     )
     for flag, (_, handler) in SUBCOMMANDS.items():
         if getattr(args, flag.lstrip("-").replace("-", "_")):
