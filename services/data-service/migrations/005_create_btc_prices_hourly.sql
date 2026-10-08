@@ -29,3 +29,19 @@ CREATE TABLE IF NOT EXISTS btc_prices_hourly (
 
 CREATE INDEX IF NOT EXISTS idx_btc_prices_hourly_time_desc
     ON btc_prices_hourly (time DESC);
+
+-- Convert to a TimescaleDB hypertable.
+--
+-- if_not_exists: safe on existing databases.
+-- migrate_data:   moves any pre-existing rows into the hypertable.
+--
+-- No chunk_time_interval is set; TimescaleDB's default (7 days)
+-- is appropriate for hourly-resolution tables (24x the row
+-- density of daily tables).
+
+SELECT create_hypertable(
+    'btc_prices_hourly',
+    'time',
+    if_not_exists => TRUE,
+    migrate_data => TRUE
+);
