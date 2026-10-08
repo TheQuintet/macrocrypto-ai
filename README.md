@@ -52,16 +52,20 @@ Contacts, timezones, and availability: [docs/team-roles.md](./docs/team-roles.md
 
 Event-driven microservices. Collectors publish on **RabbitMQ**; services store history in **TimescaleDB (Postgres)** and cache in **Redis**. The dashboard is a separate React app. We chose this so data ingestion, forecasting, and alerts can scale independently — [ADR-003](./docs/design/adr/ADR-003-event-driven-architecture.md), [ADR-001](./docs/design/adr/ADR-001-use-rabbitmq.md).
 
-| Piece | Role |
-|-------|------|
-| **Frontend** | Vite + React dashboard (TypeScript, Tailwind, ShadCN, Zustand, TanStack Query) |
-| **data-service** | BTC (Binance) and macro (FRED) collection; HTTP APIs |
-| **alert-service** | Alert rules and notifications |
-| **ai-service** | BTC price forecasting (Prophet, XGBoost, LightGBM) |
-| **api-gateway** | External REST entry point (proxies data-service and alert-service) |
-| **Postgres / Redis / RabbitMQ / MLflow** | Persistence, cache, events, model registry |
+**`make up`** (repository root) starts the containers below. The **frontend** is not in Compose — run it on the host (`npm run dev`, port **3000**); it calls the API gateway only.
 
-Which containers Compose starts today, ports, and endpoints: [services/README.md](./services/README.md#services). Diagrams and service boundaries: [C4 model](./docs/design/c4-model.md) · [microservices](./docs/design/microservices.md).
+| Group | Container name | Host port(s) | Purpose |
+|-------|----------------|--------------|---------|
+| **Infrastructure** | `macro-postgres` | 5432 | TimescaleDB / Postgres |
+| | `macro-redis` | 6379 | Cache |
+| | `macro-rabbitmq` | 5672, 15672 (mgmt UI) | Event bus |
+| | `macro-mlflow` | 5000 (UI/API) | Model tracking for ai-service |
+| **Microservices** | `macro-api-gateway` | 8000 | External REST entry |
+| | `macro-data-service` | 8001 | BTC + macro ingestion/APIs |
+| | `macro-ai-service` | 8002 | Forecasting |
+| | `macro-alert-service` | 8003 | Alerts |
+
+Swagger and health URLs for the four backend apps: [Run locally — Backend](#backend). Compose runbook (env files, Make targets, troubleshooting): [services/README.md](./services/README.md). Diagrams and boundaries: [C4 model](./docs/design/c4-model.md) · [microservices](./docs/design/microservices.md).
 
 ---
 
