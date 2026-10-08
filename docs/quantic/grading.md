@@ -93,7 +93,7 @@ The program expects a **high-quality portfolio piece** — not just a basic web 
 - Design doc shows we understand the system end-to-end
 - Explains trade-offs (“we chose X over Y because…”)
 - Architecture / data-flow diagrams where helpful
-- AI influence cited honestly where relevant
+- AI influence cited honestly where relevant — [AI-assisted development disclosure](../ai-assisted-development-disclosure.md)
 
 ### 7. Strong video presentation
 

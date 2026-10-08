@@ -113,7 +113,7 @@ Before final submission, confirm:
 
 - [ ] `quantic-grader` has access to the repo
 - [ ] All links in this wiki are updated and working
-- [ ] Design doc cites any AI influence where applicable
+- [ ] Design doc cites any AI influence where applicable — see [AI-assisted development disclosure](../ai-assisted-development-disclosure.md)
 - [ ] Video meets length and identity requirements for all six members
 - [ ] Task board matches what we actually built
 
