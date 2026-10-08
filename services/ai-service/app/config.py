@@ -55,12 +55,12 @@ class Settings(BaseSettings):
     # Where training and prediction features come from.
     #
     # Supported values:
-    #   "parquet"      — data-service parquet files (50 features).
+    #   "parquet"      — data-service parquet files (47 columns).
     #                    Used by the manual CLI file-path pipeline.
-    #   "features_db"  — the future DB table (50 features, live-updated).
+    #   "features_db"  — the future DB table (47 columns, live-updated).
     #                    This is the target production source.
     #
-    # Both sources provide the same canonical 50-feature contract.
+    # Both sources provide the same canonical 47-column contract.
     # Only the physical storage differs.
     #
     # The legacy 10-feature path (btc_prices + macro_indicators) is
@@ -69,7 +69,7 @@ class Settings(BaseSettings):
     # unreachable via this setting.
     feature_source: str = Field(default="features_db")
 
-    # Name of the DB table that holds the canonical 50-feature set.
+    # Name of the DB table that holds the canonical 47-column set.
     # Used when feature_source="features_db". Owned by the data-service;
     # the AI Service reads from it, never writes.
     features_db_table: str = Field(

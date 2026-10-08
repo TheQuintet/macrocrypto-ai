@@ -3,7 +3,7 @@
 Reads scaled feature partitions and the fitted scaler artifact from
 the data-service's shared output directory. This is the entry point
 for the manual file-path pipeline (see ``app/ai/pipeline.py``) and
-for any code that needs to consume the canonical 50-feature dataset
+for any code that needs to consume the canonical 47-column dataset
 outside the live DB path.
 
 Design:
@@ -27,7 +27,7 @@ Usage:
     X, y = loader.prepare_training_data("train")
 
 Notes on the canonical feature set:
-    - The parquet files carry the full 50-feature contract used by
+    - The parquet files carry the full 47-column contract used by
       all six model variants (Prophet, XGBoost, LightGBM × fresh /
       warm-incremental).
     - Column names use the model-expected vocabulary
@@ -120,8 +120,8 @@ class FeatureLoader:
 
         Reads the parquet file for the requested partition and
         returns it as a pandas DataFrame. The DataFrame contains the
-        canonical 50-feature set plus the timestamp and target
-        columns, with column names matching the model adapters'
+        canonical 47-column set (45 features plus the timestamp and
+        target), with column names matching the model adapters'
         expectations.
 
         Args:
