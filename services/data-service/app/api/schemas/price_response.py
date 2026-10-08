@@ -4,7 +4,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from typing import Literal, Optional
 from datetime import datetime
 
-TimeRange = Literal["24h", "7d", "30d", "90d"]
+TimeRange = Literal["24h", "7d", "30d", "90d", "1y", "5y"]
 ChartInterval = Literal["1m", "5m", "1h", "1d", "1w", "1y"]
 
 

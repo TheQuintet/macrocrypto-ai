@@ -3,7 +3,8 @@ import type { TimeRange } from '@/types/preferences'
 
 /**
  * Production-shaped history request.
- * Real gateway: GET /api/v1/btc/price/history?range=7d&interval=1h
+ * Real gateway: GET /api/v1/btc/price/history?range=30d&interval=1d
+ * (`range`: 24h | 7d | 30d | 90d | 1y | 5y; `interval`: 1m | 5m | 1h | 1d | 1w | 1y)
  */
 export type BtcPriceHistoryParams = {
   range: TimeRange
