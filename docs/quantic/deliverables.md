@@ -45,7 +45,7 @@ To receive credit for the Capstone, we must submit **all** of the following. Use
 
 |                    |                                           |
 | ------------------ | ----------------------------------------- |
-| **Status**         | ⬜ Not started / 🟡 In progress / ✅ Done |
+| **Status**         | 🟡 In progress                            |
 | **URL / location** | [Design hub](../design/README.md) · [Testing (local & CI/CD)](../test%20documents/local-and-ci-cd-tests.md) · [README index](https://github.com/TheQuintet/macrocrypto-ai#design-and-testing-documentation) |
 
 **Requirements**
