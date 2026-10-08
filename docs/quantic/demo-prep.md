@@ -15,9 +15,10 @@ Use these on camera during the demo and in the README / [deliverables](./deliver
 | Resource | Link |
 |----------|------|
 | **GitHub repository** | [TheQuintet/macrocrypto-ai](https://github.com/TheQuintet/macrocrypto-ai) |
-| **Sprint work board** | [GitHub Project #3](https://github.com/orgs/TheQuintet/projects/3) — tasks and sprint columns |
-| **Sprint planning board** | [Team Planning](https://github.com/orgs/TheQuintet/projects/1/views/1) |
-| **Retrospective board** | [Team Retrospective](https://github.com/orgs/TheQuintet/projects/4) |
+| **Team Workflow board** | [GitHub Project #6](https://github.com/orgs/TheQuintet/projects/6) — planning, sprints, roadmap |
+| **Current sprint** | [Current sprint view](https://github.com/orgs/TheQuintet/projects/6/views/7) |
+| **Sprint planning** | [Team Planning](https://github.com/orgs/TheQuintet/projects/6/views/1) |
+| **Sprint 2 retro (evidence)** | [Retro board view](https://github.com/orgs/TheQuintet/projects/6/views/10) + [5 Aug 2026 notes](../meetings/2026-08-05-retrospective.md) — full retro with board items; later sprints: improvements in [meeting notes](../meetings/) |
 | **Sprint milestones** | [GitHub Milestones](https://github.com/TheQuintet/macrocrypto-ai/milestones) |
 | **Async coordination** | Domain Slack: `#mc-frontend`, `#mc-backend`, `#mc-ml-model`, `#mc-software-design` — **no daily standup**; whole-team `#capstone-project-group` |
 | **Design documentation** | [Software design & architecture](../design/README.md) (`docs/design/`) |
@@ -58,7 +59,7 @@ Full board list: [Project workflow — Project resources](../project-workflow.md
 - [ ] **Deploy URL** — public link works; in README + [deliverables](./deliverables.md)
 - [ ] **Smoke test** — health endpoints on deploy; **CI pipelines green** (show pipelines on camera; full post-deploy smoke not required)
 - [ ] **Documents** — [design](../design/README.md) + [testing](../test%20documents/local-and-ci-cd-tests.md) docs linked from README (consolidated software-design MD + SVG UML when ready — [7 Oct decisions](../meetings/2026-10-07-final-demo-planning.md))
-- [ ] **Board & grader** — [Sprint work board](https://github.com/orgs/TheQuintet/projects/3) (+ [retro](https://github.com/orgs/TheQuintet/projects/4)) in README; ≥3 sprints visible; `quantic-grader` invited (Sid)
+- [ ] **Board & grader** — [Team Workflow board](https://github.com/orgs/TheQuintet/projects/6) (+ [Sprint 2 retro](https://github.com/orgs/TheQuintet/projects/6/views/10)) in README; ≥3 sprints visible; explain retro approach per [project workflow](../project-workflow.md#retrospective); `quantic-grader` invited (Sid)
 - [x] **Google Drive / recording owner** — Loredana (Zoom record → Drive link; anyone with link can view)
 - [ ] **Quantic submitter** — one person named for dashboard + Group Agreement
 - [ ] **Scripts** — each member fills their section in [demo-script.md](./demo-script.md) by **8 Oct**; **Loredana** merges the team’s scripts into one narrative and builds the recording plan from what is provided

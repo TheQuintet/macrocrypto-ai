@@ -58,12 +58,16 @@ There is no scheduled live demo. After each sprint (or when useful), every team 
 
 - [ ] Pull latest `main` and run the app locally (or use the shared environment if one is available)
 - [ ] Explore the new/changed behaviour yourself
-- [ ] Check completed work on the [Sprint work board](https://github.com/orgs/TheQuintet/projects/3)
+- [ ] Check completed work on the [Sprint work board](https://github.com/orgs/TheQuintet/projects/6/views/7)
 - [ ] Flag issues or feedback in Slack or on the relevant GitHub issue
 
 ### Retrospective
 
-What went well, what to improve. Capture items on the [Team Retrospective board](https://github.com/orgs/TheQuintet/projects/4), agree action items and owners, and add a write-up next to the other session notes in `docs/meetings/`.
+We treat **retrospective** and **review** as separate ceremonies in principle. Our weekly Capstone sync is only **1–2 hours**, so we often combine review, refinement, and planning in one session (see [Ceremonies](#ceremonies)).
+
+**Sprint 2 (5 Aug 2026)** — we ran a **full retrospective** in that slot. The team added **what went well / improvements / action items** on the GitHub retro board during the meeting, and published a write-up in [5 Aug 2026 retrospective, review, refinement, and planning](./meetings/2026-08-05-retrospective.md). For grading and demos, use the [Sprint 2 retro board view](https://github.com/orgs/TheQuintet/projects/6/views/10) together with those notes.
+
+**Later sprints** — we still improved every week, but we **did not keep filling a separate retro board each sprint**. With limited meeting time, we **prioritized live discussion of emergent issues** (integration, PR bottlenecks, scope) over spending part of the sync maintaining retro columns. Outcomes and action items live in the [weekly meeting notes](./meetings/) and on the [Team Workflow board](https://github.com/orgs/TheQuintet/projects/6).
 
 | Question | Purpose |
 |----------|---------|
@@ -80,16 +84,17 @@ What went well, what to improve. Capture items on the [Team Retrospective board]
 | Resource | Purpose | How often |
 |----------|---------|-----------|
 | [GitHub Issues](https://github.com/TheQuintet/macrocrypto-ai/issues) | Track tasks and bugs | Daily |
-| [Sprint work board](https://github.com/orgs/TheQuintet/projects/3) | Sprint tasks and status (GitHub Project #3) | As you work |
-| [MacroCrypto AI Team Planning](https://github.com/orgs/TheQuintet/projects/1/views/1) | Sprint/backlog planning and ceremony prep | Weekly |
-| [MacroCrypto AI Team Retrospective](https://github.com/orgs/TheQuintet/projects/4) | Retro items (what went well / improvements / action items) | After each sprint |
-| [MacroCrypto AI Roadmap](https://github.com/orgs/TheQuintet/projects/5) | Epics, features, and longer-term roadmap visibility | Weekly |
+| [MacroCrypto AI Team Workflow](https://github.com/orgs/TheQuintet/projects/6) | Single org project — planning, sprints, roadmap, retro views | Daily |
+| [Current sprint](https://github.com/orgs/TheQuintet/projects/6/views/7) | In-sprint tasks and status | As you work |
+| [Team Planning](https://github.com/orgs/TheQuintet/projects/6/views/1) | Sprint/backlog planning and ceremony prep | Weekly |
+| [Sprint 2 retro board](https://github.com/orgs/TheQuintet/projects/6/views/10) | Retro items from our **5 Aug 2026** full retro (see [notes](./meetings/2026-08-05-retrospective.md)) | Reference |
+| [Roadmap](https://github.com/orgs/TheQuintet/projects/6/views/5) | Epics, features, and longer-term visibility | Weekly |
 | [GitHub Milestones](https://github.com/TheQuintet/macrocrypto-ai/milestones) | Track sprint progress | Weekly |
 | [GitHub Labels](https://github.com/TheQuintet/macrocrypto-ai/labels) | Prioritize and categorize | As needed |
 | [Pull Requests](https://github.com/TheQuintet/macrocrypto-ai/pulls?q=sort%3Aupdated-desc+is%3Apr+state%3Aopen+) | Code review | Daily |
 | Branch protection | Enforce quality | Always |
 
-**Rule:** If it is not on a board, it is not officially tracked. Use the **Sprint work board** for in-sprint status; **MacroCrypto AI Team Planning** for refinement/planning; **MacroCrypto AI Team Retrospective** for retro follow-ups; **MacroCrypto AI Roadmap** for epics/features and longer-term visibility.
+**Rule:** If it is not on a board or in `docs/meetings/`, it is not officially tracked. Use **Current sprint** for in-sprint status; **Team Planning** for refinement/planning; **Sprint 2 retro board** (+ [5 Aug notes](./meetings/2026-08-05-retrospective.md)) for formal retro evidence; **Roadmap** for epics and longer-term visibility. Later process improvements are in meeting notes — see [Retrospective](#retrospective).
 
 ---
 
@@ -123,7 +128,7 @@ When blocked, add the `blocked` label to the issue ([labels](https://github.com/
 
 ## Developer workflow
 
-1. **Start day** — check assigned issues on the [Sprint work board](https://github.com/orgs/TheQuintet/projects/3); `git pull origin main`
+1. **Start day** — check assigned issues on the [Current sprint](https://github.com/orgs/TheQuintet/projects/6/views/7) view; `git pull origin main`
 2. **Work on issue** — move to In Progress; branch `feature/issue-name`; commit and push regularly
 3. **Async update** — post progress / blockers in the matching domain Slack channel (`#mc-frontend`, `#mc-backend`, `#mc-ml-model`, `#mc-software-design`); label blocked issues
 4. **Open PR** — move issue to Review; request review from a teammate
@@ -240,6 +245,7 @@ Code changes follow [GitHub Flow](../GITHUB_FLOW.md). See also [Contributing](..
 **Retrospective notes**
 
 - Full notes: [5 Aug 2026 retrospective](./meetings/2026-08-05-retrospective.md)
+- Retro board (items captured live): [Sprint 2 retro view](https://github.com/orgs/TheQuintet/projects/6/views/10)
 - Went well: backend collaboration, repo organization, peer reviews starting
 - To improve: PR review turnaround (biggest velocity blocker), consistent daily updates, centralized docs, earlier UI sharing
 
@@ -272,7 +278,7 @@ Code changes follow [GitHub Flow](../GITHUB_FLOW.md). See also [Contributing](..
 
 **Retrospective notes**
 
-- A full retro was proposed for 26 Aug if time allowed; it was not captured in the [26 Aug session notes](./meetings/2026-08-26-review-and-planning.md)
+- No separate retro board session — the weekly sync focused on emergent integration and scope issues instead (see [Retrospective](#retrospective)). [26 Aug session notes](./meetings/2026-08-26-review-and-planning.md) capture planning and review topics only.
 - Current-sprint constraint: keep essential work only; ML model, results, and performance metrics remain the principal technical gaps for Quantic
 
 ---

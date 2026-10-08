@@ -62,7 +62,7 @@ To receive credit for the Capstone, we must submit **all** of the following. Use
 |            |                                           |
 | ---------- | ----------------------------------------- |
 | **Status** | ⬜ Not started / 🟡 In progress / ✅ Done |
-| **URL**    | [MacroCrypto AI Team Workflow](https://github.com/orgs/TheQuintet/projects/6) — [Current sprint](https://github.com/orgs/TheQuintet/projects/6/views/7) (see also [Planning](https://github.com/orgs/TheQuintet/projects/6/views/1), [Retro](https://github.com/orgs/TheQuintet/projects/6/views/9), [Milestones](https://github.com/TheQuintet/macrocrypto-ai/milestones)) |
+| **URL**    | [MacroCrypto AI Team Workflow](https://github.com/orgs/TheQuintet/projects/6) — [Current sprint](https://github.com/orgs/TheQuintet/projects/6/views/7) (see also [Planning](https://github.com/orgs/TheQuintet/projects/6/views/1), [Sprint 2 retro board](https://github.com/orgs/TheQuintet/projects/6/views/10), [Milestones](https://github.com/TheQuintet/macrocrypto-ai/milestones)) |
 
 **Requirements**
 
@@ -70,6 +70,7 @@ To receive credit for the Capstone, we must submit **all** of the following. Use
 - [ ] User stories and tasks visible
 - [ ] Completed work reflects what was demoed / shipped
 - [ ] At least **three sprints** recorded
+- [ ] **Retrospective evidence:** full retro for **Sprint 2** — [retro board items](https://github.com/orgs/TheQuintet/projects/6/views/10) and [5 Aug 2026 meeting notes](../meetings/2026-08-05-retrospective.md). Later sprints: process improvements captured in [weekly meeting notes](../meetings/) (see [how we ran retrospectives](../project-workflow.md#retrospective))
 
 ---
 
