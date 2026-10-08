@@ -80,11 +80,11 @@ To receive credit for the Capstone, we must submit **all** of the following. Use
 
 |            |                                           |
 | ---------- | ----------------------------------------- |
-| **Status** | ⬜ Not started / 🟡 In progress / ✅ Done |
+| **Status** | 🟡 In progress                            |
 | **URL**    | _TBD_                                     |
 | **Length** | 15–20 minutes                             |
 
-**Prep:** follow the [3-step demo guide](./demo-prep.md) and GitHub issue [#752](https://github.com/TheQuintet/macrocrypto-ai/issues/752).
+**Prep:** follow the [3-step demo guide](./demo-prep.md) and GitHub issue [#752](https://github.com/TheQuintet/macrocrypto-ai/issues/752). **Speaking order and script:** [demo script](./demo-script.md) · [run-of-show](./demo-prep.md#agreed-run-of-show-18-min).
 
 **Requirements**
 
