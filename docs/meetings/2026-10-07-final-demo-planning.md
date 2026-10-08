@@ -53,13 +53,13 @@ Stand-up, presentation order, deployment, and recording plan for the Capstone de
 
 | Owner | Action | Target | Status |
 |-------|--------|--------|--------|
-| **Loredana** | Share final presentation order and expectations with the team | After meeting | ⏳ Open |
-| **Loredana** | Merge Playwright E2E PR | 7 Oct | ⏳ Open |
-| **Loredana** | Connect real backend data to the frontend (prediction + macro indicators) | **Thu 8 Oct** (code freeze) | ⏳ Open |
-| **Loredana** | Deploy to **Vercel** (her account); share URL; verify health endpoints and green CI | Before recording | ⏳ Open |
-| **Loredana** | Update Quantic/docs from frontend side; fix README (**MBA → MSSE** where wrong) | Before submission | ⏳ Open |
-| **Loredana** | Prepare board for demo (sprints with visible progress + retro) | Before recording | ⏳ Open |
-| **Loredana** | Send **Sat 10 Oct ~18:00** Zoom invite; record, upload to Google Drive, share link | 10 Oct | ⏳ Open |
+| **Loredana** | Share final presentation order and expectations with the team | After meeting | ✅ Done ([demo-prep](../quantic/demo-prep.md), [demo-script](../quantic/demo-script.md); merged 7 Oct) |
+| **Loredana** | Merge Playwright E2E PR | 7 Oct | 🟡 In progress ([#718](https://github.com/TheQuintet/macrocrypto-ai/pull/718) open) |
+| **Loredana** | Connect real backend data to the frontend (prediction + macro indicators) | **Thu 8 Oct** (code freeze) | 🟡 In progress |
+| **Loredana** | Deploy to **Vercel** (her account); share URL; verify health endpoints and green CI | Before recording | 🟡 In progress |
+| **Loredana** | Update Quantic/docs from frontend side; fix README (**MBA → MSSE** where wrong) | Before submission | ✅ Done (PRs [#789](https://github.com/TheQuintet/macrocrypto-ai/pull/789)–[#791](https://github.com/TheQuintet/macrocrypto-ai/pull/791); [deliverables](../quantic/deliverables.md), [AI disclosure](../ai-assisted-development-disclosure.md)) |
+| **Loredana** | Prepare board for demo (sprints with visible progress + retro) | Before recording | ✅ Done ([deliverables §4](../quantic/deliverables.md#4-agile-task-board), Sprint 1–3 links) |
+| **Loredana** | Send **Sat 10 Oct ~18:00** Zoom invite; record, upload to Google Drive, share link | 10 Oct | ✅ Done (invite sent — recording + Drive upload still **10 Oct**) |
 | **Loredana** | Short sync with Mael on **9 vs 13 indicators** if still mismatched | **Thu 8 Oct** | ⏳ Open |
 | **Sid** | Finish two data-service branches; apply Mael’s review | **Thu 8 Oct** | ⏳ Open |
 | **Sid** | Hand off AI integration details to Mael; stay reachable through Thu | **Thu 8 Oct** | ⏳ Open |
@@ -75,6 +75,14 @@ Stand-up, presentation order, deployment, and recording plan for the Capstone de
 | **Kingson** | Prepare opening + closing demo segments | **Thu 8 Oct** | ⏳ Open |
 | **Everyone** | Share talking points / scripts ([demo-script](../quantic/demo-script.md)) | **Thu 8 Oct** | ⏳ Open |
 | **Everyone** | Attend Sat recording, on camera | **10 Oct ~18:00** | ⏳ Open |
+
+---
+
+## Progress update (8 Oct 2026)
+
+| Who | Update |
+|-----|--------|
+| **Loredana** | Capstone docs and demo prep aligned in repo ([#789](https://github.com/TheQuintet/macrocrypto-ai/pull/789)–[#791](https://github.com/TheQuintet/macrocrypto-ai/pull/791)): [deliverables](../quantic/deliverables.md) statuses, agile board links, demo prep run-of-show. **Sat ~18:00** recording invite sent. Still on critical path: merge Playwright system E2E ([#718](https://github.com/TheQuintet/macrocrypto-ai/pull/718)), finish frontend ↔ backend integration (prediction + macro indicators), **Vercel** deploy + smoke/CI, and sync with Mael on indicator count. |
 
 ---
 
