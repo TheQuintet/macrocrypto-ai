@@ -5,12 +5,14 @@ The Code Owner uses GitHub Projects as the primary tool to enforce code quality,
 
 Below is a detailed breakdown of exactly what the Code Owner does on **each of the 4 GitHub Project boards**.
 
+**MacroCrypto AI practice:** Sprints live on [Team Workflow #6](https://github.com/orgs/TheQuintet/projects/6) via the **Sprint** field. We do **not** use GitHub Issues milestones on the repo.
+
 ---
 
 ## 1. TEAM PLANNING Board
 
 ### Purpose
-High-level strategic planning – epics, themes, major milestones, and release-level coordination.
+High-level strategic planning – epics, themes, major roadmap checkpoints, and release-level coordination.
 
 ### Code Owner Responsibilities
 
@@ -52,22 +54,22 @@ High-level strategic planning – epics, themes, major milestones, and release-l
 ## 2. ROADMAP Board
 
 ### Purpose
-Timeline view – shows the project schedule, key milestones, and release dates over the 3-month horizon.
+Timeline view – shows the project schedule, key roadmap checkpoints, and release dates over the 3-month horizon.
 
 ### Code Owner Responsibilities
 
 #### Daily / Ongoing
-- **Check technical milestones** – ensure they are on track (e.g., "CI/CD Complete," "Security Audit Passed").
-- **Flag technical risks** – if a milestone is at risk, add a comment explaining technical blockers.
-- **Update technical milestones** – add progress updates (e.g., "Build pipeline 80% configured").
+- **Check technical roadmap checkpoints** – ensure they are on track (e.g., "CI/CD Complete," "Security Audit Passed").
+- **Flag technical risks** – if a roadmap checkpoint is at risk, add a comment explaining technical blockers.
+- **Update technical roadmap checkpoints** – add progress updates (e.g., "Build pipeline 80% configured").
 
 #### Weekly (every Friday)
-- **Review technical milestone progress** – compare planned vs. actual.
-- **Adjust technical milestones** – if the team is ahead/behind, update dates.
-- **Add new technical milestones** – if new technical work emerges, add it to the roadmap.
+- **Review technical roadmap checkpoint progress** – compare planned vs. actual.
+- **Adjust technical roadmap checkpoints** – if the team is ahead/behind, update dates.
+- **Add new technical roadmap checkpoints** – if new technical work emerges, add it to the roadmap.
 
 #### Every Sprint Review
-- **Update technical milestones** – mark as "Achieved" when completed.
+- **Update technical roadmap checkpoints** – mark as "Achieved" when completed.
 - **Add technical accomplishments** – e.g., "Test coverage increased to 82%."
 
 #### Every Month
@@ -78,16 +80,16 @@ Timeline view – shows the project schedule, key milestones, and release dates 
 
 | Column | Code Owner Action |
 |--------|-------------------|
-| **Backlog (Milestones)** | Add technical milestones with realistic dates (e.g., "API v2 Complete – Month 2"). |
+| **Backlog (roadmap)** | Add technical roadmap checkpoints with realistic dates (e.g., "API v2 Complete – Month 2"). |
 | **Current Sprint** | Track technical tasks – ensure they're progressing alongside features. |
-| **Next Sprint** | Prepare technical milestones – ensure associated tasks are refined. |
-| **Month 1 / 2 / 3** | Organize technical milestones – ensure they don't slip. |
-| **Completed** | Move technical milestones here – add a summary of technical achievements. |
+| **Next Sprint** | Prepare technical roadmap checkpoints – ensure associated tasks are refined. |
+| **Month 1 / 2 / 3** | Organize technical roadmap checkpoints – ensure they don't slip. |
+| **Completed** | Move technical roadmap checkpoints here – add a summary of technical achievements. |
 
 ### Example Code Owner Tasks on Roadmap
-- Create a milestone: "CI/CD Pipeline Fully Automated – End of Month 1."
-- Add a milestone: "Security Audit Passed – Month 2 Week 2."
-- If the team is behind, extend "Database Migration" milestone by 1 week and comment on the reason.
+- Create a roadmap checkpoint: "CI/CD Pipeline Fully Automated – End of Month 1."
+- Add a roadmap checkpoint: "Security Audit Passed – Month 2 Week 2."
+- If the team is behind, extend "Database Migration" roadmap checkpoint by 1 week and comment on the reason.
 
 ---
 
@@ -188,7 +190,7 @@ Continuous improvement – track what went well, what didn't, and action items f
 | Board | Primary Code Owner Focus | Frequency | Key Actions |
 |-------|--------------------------|-----------|-------------|
 | **Team Planning** | Technical strategy & debt epics | Weekly / Monthly | Add technical epics, flag risks, ensure tech debt is scheduled. |
-| **Roadmap** | Technical milestones & infrastructure | Weekly / Sprint Review | Update technical milestones, flag risks, add new technical milestones. |
+| **Roadmap** | Technical roadmap checkpoints & infrastructure | Weekly / Sprint Review | Update technical roadmap checkpoints, flag risks, add new technical roadmap checkpoints. |
 | **Iterative Development** | Code quality & PR reviews | Daily (CRITICAL) | Review PRs, enforce standards, monitor CI, unblock technical issues. |
 | **Retrospective** | Technical process improvement | Every Sprint / Weekly | Share metrics, propose improvements, track technical action items. |
 
@@ -200,7 +202,7 @@ Continuous improvement – track what went well, what didn't, and action items f
 2. **Check CI/CD** – ensure all builds pass – if not, investigate and assign fixes.
 3. **Check "Blocked" column** – resolve any technical blockers (test failures, environment issues).
 4. **Monitor "In Progress"** – ensure developers are writing tests and following standards.
-5. **Check Roadmap** – update technical milestone progress if needed.
+5. **Check Roadmap** – update technical roadmap checkpoint progress if needed.
 6. **Check Retrospective** – review progress on technical action items.
 7. **End-of-day check** – ensure no PRs are left unreviewed for > 4 hours.
 
@@ -209,7 +211,7 @@ Continuous improvement – track what went well, what didn't, and action items f
 ## Code Owner's Weekly GitHub Routine (Every Friday)
 
 1. **Team Planning** – review technical epics – add/remove, adjust priorities.
-2. **Roadmap** – update technical milestone progress, adjust dates if needed.
+2. **Roadmap** – update technical roadmap checkpoint progress, adjust dates if needed.
 3. **Iterative Development** – ensure technical debt tasks are in the backlog (at least 20% of total).
 4. **Retrospective** – add technical insights, update action item status.
 5. **Metrics** – generate test coverage, static analysis, and build health reports – share with the team.
@@ -227,23 +229,23 @@ Continuous improvement – track what went well, what didn't, and action items f
 
 ---
 
-## Code Owner's 3-Month Milestone Checkpoints (by Board)
+## Code Owner's 3-Month Roadmap Checkpoints (by Board)
 
 ### Month 1 (Foundation)
 - **Team Planning** – create technical epics for infrastructure, CI/CD, and security.
-- **Roadmap** – set up technical milestones (e.g., "CI/CD Complete," "Test Coverage 70%").
+- **Roadmap** – set up technical roadmap checkpoints (e.g., "CI/CD Complete," "Test Coverage 70%").
 - **Iterative Development** – enforce coding standards – add linting, pre-commit hooks.
 - **Retrospective** – establish baseline metrics (coverage, build time, debt).
 
 ### Month 2 (Optimization)
 - **Team Planning** – ensure tech debt epics are being addressed – allocate 20% capacity.
-- **Roadmap** – adjust technical milestones based on progress – add new ones if needed.
+- **Roadmap** – adjust technical roadmap checkpoints based on progress – add new ones if needed.
 - **Iterative Development** – enforce stricter quality – reject PRs that drop coverage.
 - **Retrospective** – track that technical action items are completed.
 
 ### Month 3 (Finalization)
 - **Team Planning** – close all technical epics – ensure no critical debt remains.
-- **Roadmap** – finalize technical milestones – ensure all are "Achieved."
+- **Roadmap** – finalize technical roadmap checkpoints – ensure all are "Achieved."
 - **Iterative Development** – final review – ensure every story meets technical DoD.
 - **Retrospective** – final retro – capture lessons learned for future projects.
 
@@ -270,11 +272,11 @@ Continuous improvement – track what went well, what didn't, and action items f
 - [ ] Check "Blocked" – investigate technical blockers.
 - [ ] Ensure test coverage is not declining.
 - [ ] Enforce coding standards – add comments if needed.
-- [ ] Update technical milestone progress on Roadmap.
+- [ ] Update technical roadmap checkpoint progress on Roadmap.
 
 ### Weekly
 - [ ] Review technical epics on Team Planning.
-- [ ] Update technical milestones on Roadmap.
+- [ ] Update technical roadmap checkpoints on Roadmap.
 - [ ] Ensure technical debt tasks are in the backlog.
 - [ ] Follow up on Retrospective technical action items.
 - [ ] Share technical metrics with the team.

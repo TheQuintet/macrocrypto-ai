@@ -25,7 +25,7 @@ At the start of each sprint (1-2 weeks), we plan what to build.
 | Review backlog | Team lead | Look at all open issues |
 | Select tasks | Team | Choose what fits in the sprint |
 | Set priority | Team lead | Label as `high-priority`, `medium-priority` |
-| Assign to milestone | Team lead | Add to `Sprint 1`, `Sprint 2`, etc. |
+| Assign to sprint | Team lead | Set **Sprint** on [Team Workflow #6](https://github.com/orgs/TheQuintet/projects/6) (`Sprint 1`, `Sprint 2`, …) |
 | Move to "To Do" | Anyone | Drag issues to the "To Do" column |
 
 ---
@@ -191,7 +191,6 @@ Questions to ask:
 |------|---------|-----------|
 | GitHub Issues | Track tasks and bugs | Daily |
 | GitHub Projects | Visualize workflow | Daily |
-| GitHub Milestones | Track sprint progress | Weekly |
 | GitHub Labels | Prioritize and categorize | As needed |
 | Pull Requests | Code review | Daily |
 | Branch Protection | Enforce quality | Always |
@@ -261,10 +260,12 @@ Questions to ask:
 | `enhancement` | Green | New features |
 | `documentation` | Blue | Docs-related tasks |
 
-### Milestones
+### Sprints (project board)
 
-| Milestone | Description | Due Date |
-|-----------|-------------|----------|
+Track sprints with the **Sprint** field on [Team Workflow #6](https://github.com/orgs/TheQuintet/projects/6) — not GitHub Issues milestones on the repo.
+
+| Sprint | Description | Target |
+|--------|-------------|--------|
 | **Sprint 1: Foundation** | Setup infrastructure, Docker, and data ingestion | Week 1-2 |
 | **Sprint 2: AI Models** | Implement forecasting and correlation models | Week 3-4 |
 | **Sprint 3: API & Alerts** | Build API Gateway and Alert Service | Week 5-6 |

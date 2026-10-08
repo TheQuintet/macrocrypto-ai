@@ -62,9 +62,9 @@ To receive credit for the Capstone, we must submit **all** of the following. Use
 |            |                                           |
 | ---------- | ----------------------------------------- |
 | **Status** | ⬜ Not started / 🟡 In progress / ✅ Done |
-| **URL**    | [📊 All Work — Team Workflow #6](https://github.com/orgs/TheQuintet/projects/6/views/6) (see also [Planning](https://github.com/orgs/TheQuintet/projects/6/views/1), [Sprint 2 retro board](https://github.com/orgs/TheQuintet/projects/6/views/10), [GitHub milestones](https://github.com/TheQuintet/macrocrypto-ai/milestones) for epics only) |
+| **URL**    | [📊 All Work — Team Workflow #6](https://github.com/orgs/TheQuintet/projects/6/views/6) (see also [Planning](https://github.com/orgs/TheQuintet/projects/6/views/1), [Roadmap](https://github.com/orgs/TheQuintet/projects/6/views/5), [Sprint 2 retro board](https://github.com/orgs/TheQuintet/projects/6/views/10)) |
 
-**Work overview** — we tracked day-to-day work on the org **[Team Workflow](https://github.com/orgs/TheQuintet/projects/6)** project, mainly the **[All Work](https://github.com/orgs/TheQuintet/projects/6/views/6)** view (not repo milestones). Repo milestones exist for epics/releases; sprint execution lives on the board **Sprint** field. We often sorted the board by recent updates, e.g. [All Work sorted by `updated`](https://github.com/orgs/TheQuintet/projects/6/views/6?query=sort%3Aupdated-desc).
+**Work overview** — we tracked day-to-day work on the org **[Team Workflow](https://github.com/orgs/TheQuintet/projects/6)** project, mainly the **[All Work](https://github.com/orgs/TheQuintet/projects/6/views/6)** view. Sprints use the board **Sprint** iteration field (we did **not** use GitHub Issues milestones on the repo). We often sorted the board by recent updates, e.g. [All Work sorted by `updated`](https://github.com/orgs/TheQuintet/projects/6/views/6?query=sort%3Aupdated-desc).
 
 **Three sprint URLs (capstone minimum)** — submit these for graders. Each link is **All Work** filtered to an early board sprint (**Sprint 1–3**) so stories stay readable; the full board grew much busier by project end.
 

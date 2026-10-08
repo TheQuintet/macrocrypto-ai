@@ -3,12 +3,14 @@
 ## Overview
 The Product Owner (PO) uses GitHub Projects as the primary tool to manage the product backlog, communicate priorities, track progress toward release goals, and ensure transparency with stakeholders. Below is a detailed breakdown of exactly what the PO does on **each of the 4 GitHub Project boards**.
 
+**MacroCrypto AI practice:** Sprints live on [Team Workflow #6](https://github.com/orgs/TheQuintet/projects/6) via the **Sprint** field. We do **not** use GitHub Issues milestones on the repo.
+
 ---
 
 ## 1. TEAM PLANNING Board
 
 ### Purpose
-High-level strategic planning – epics, themes, major milestones, and release-level coordination.
+High-level strategic planning – epics, themes, major roadmap checkpoints, and release-level coordination.
 
 ### PO Responsibilities
 
@@ -20,7 +22,7 @@ High-level strategic planning – epics, themes, major milestones, and release-l
 
 #### Weekly (every Friday)
 - **Update epic descriptions** – clarify business value, target users, and success metrics.
-- **Review milestone dates** – adjust if scope or velocity changes.
+- **Review roadmap checkpoint dates** – adjust if scope or velocity changes.
 - **Add/remove epics** based on the 3-month roadmap – if an epic won't fit, move it to a "Future" column.
 
 #### Every Sprint Planning
@@ -44,7 +46,7 @@ High-level strategic planning – epics, themes, major milestones, and release-l
 
 ### Example PO Tasks on Team Planning
 - Create an epic: "MVP Core Features" with 5 associated user stories.
-- Create a milestone: "Sprint 1-3 MVP" and link all stories to it.
+- Create a roadmap checkpoint: "Sprint 1-3 MVP" and link all stories to it.
 - Add a new epic: "Payment Integration" – reprioritize it above "Advanced Reporting" based on stakeholder demand.
 
 ---
@@ -52,24 +54,24 @@ High-level strategic planning – epics, themes, major milestones, and release-l
 ## 2. ROADMAP Board
 
 ### Purpose
-Timeline view – shows the project schedule, key milestones, and release dates over the 3-month horizon.
+Timeline view – shows the project schedule, key roadmap checkpoints, and release dates over the 3-month horizon.
 
 ### PO Responsibilities
 
 #### Daily / Ongoing
-- **Check the board** – ensure all milestones are up-to-date.
+- **Check the board** – ensure all roadmap checkpoints are up-to-date.
 - **Adjust dates** if the team is ahead or behind schedule.
-- **Flag risks** – add notes to milestones that are at risk of slipping.
+- **Flag risks** – add notes to roadmap checkpoints that are at risk of slipping.
 
 #### Weekly (every Friday)
-- **Update milestone progress** – add % complete or number of stories done/total.
+- **Update roadmap checkpoint progress** – add % complete or number of stories done/total.
 - **Communicate changes** – if a release date shifts, update the board and notify the team.
 - **Review the 3-month timeline** – ensure it remains realistic based on velocity.
 
 #### Every Sprint Review
-- **Update the board** – mark completed milestones as "Achieved."
-- **Add new milestones** for any newly discovered work (e.g., "Hotfix Release").
-- **Adjust future milestones** based on the team's velocity and remaining scope.
+- **Update the board** – mark completed roadmap checkpoints as "Achieved."
+- **Add new roadmap checkpoints** for any newly discovered work (e.g., "Hotfix Release").
+- **Adjust future roadmap checkpoints** based on the team's velocity and remaining scope.
 
 #### Every Month
 - **Present the roadmap** to stakeholders (visual timeline).
@@ -79,15 +81,15 @@ Timeline view – shows the project schedule, key milestones, and release dates 
 
 | Column | PO Action |
 |--------|-----------|
-| **Backlog (Milestones)** | Add future milestones with target dates (e.g., "Alpha Release – Month 2"). |
-| **Current Sprint** | Link the current sprint milestone – track daily progress. |
-| **Next Sprint** | Prepare the next sprint milestone – ensure stories are refined. |
-| **Month 1 / 2 / 3** | Organize milestones by month – drag to adjust timing. |
-| **Completed** | Move milestones when all associated stories are delivered. |
+| **Backlog (roadmap)** | Add future roadmap checkpoints with target dates (e.g., "Alpha Release – Month 2"). |
+| **Current Sprint** | Link the current sprint roadmap checkpoint – track daily progress. |
+| **Next Sprint** | Prepare the next sprint roadmap checkpoint – ensure stories are refined. |
+| **Month 1 / 2 / 3** | Organize roadmap checkpoints by month – drag to adjust timing. |
+| **Completed** | Move roadmap checkpoints when all associated stories are delivered. |
 
 ### Example PO Tasks on Roadmap
-- Create a milestone: "Month 1 – Foundation (Auth + User Profiles)" with target date end of Month 1.
-- Add a milestone: "Month 2 – Core Features (Dashboard + Reports)".
+- Create a roadmap checkpoint: "Month 1 – Foundation (Auth + User Profiles)" with target date end of Month 1.
+- Add a roadmap checkpoint: "Month 2 – Core Features (Dashboard + Reports)".
 - If the team is behind, drag "Month 3 – Polish & Release" later by 1 week.
 
 ---
@@ -187,7 +189,7 @@ Continuous improvement – track what went well, what didn't, and action items f
 | Board | Primary PO Focus | Frequency | Key Actions |
 |-------|------------------|-----------|-------------|
 | **Team Planning** | Strategy & epics | Weekly / Monthly | Add epics, link stories, reprioritize based on roadmap. |
-| **Roadmap** | Timeline & milestones | Weekly / Sprint Review | Update dates, add/remove milestones, track release progress. |
+| **Roadmap** | Timeline & roadmap checkpoints | Weekly / Sprint Review | Update dates, add/remove roadmap checkpoints, track release progress. |
 | **Iterative Development** | Day-to-day backlog & sprint execution | Daily / Sprint Planning | Prioritize backlog, refine stories, accept/reject, unblock. |
 | **Retrospective** | Continuous improvement | Every Sprint / Weekly | Add retro items, track action items, improve product processes. |
 
@@ -197,7 +199,7 @@ Continuous improvement – track what went well, what didn't, and action items f
 
 1. **Check Iterative Development** – respond to comments, review "Review/QA" stories, reprioritize backlog.
 2. **Check Team Planning** – ensure epics are up-to-date and aligned with the roadmap.
-3. **Check Roadmap** – verify milestone dates and progress.
+3. **Check Roadmap** – verify roadmap checkpoint dates and progress.
 4. **Check Retrospective** – review progress on your action items.
 5. **Update any boards** – if you changed priorities or accepted/rejected stories.
 
@@ -206,7 +208,7 @@ Continuous improvement – track what went well, what didn't, and action items f
 ## PO's Weekly GitHub Routine (Every Friday)
 
 1. **Team Planning** – review epics, add/remove, re-prioritize.
-2. **Roadmap** – update milestone progress, adjust dates if needed.
+2. **Roadmap** – update roadmap checkpoint progress, adjust dates if needed.
 3. **Iterative Development** – ensure the backlog has 3–5 "Ready" stories for next sprint.
 4. **Retrospective** – add any new insights, update action item status.
 
@@ -223,23 +225,23 @@ Continuous improvement – track what went well, what didn't, and action items f
 
 ---
 
-## PO's 3-Month Milestone Checkpoints (by Board)
+## PO's 3-Month Roadmap Checkpoints (by Board)
 
 ### Month 1
 - **Team Planning** – define all epics for MVP.
-- **Roadmap** – create initial 3-month timeline with 3 major milestones.
+- **Roadmap** – create initial 3-month timeline with 3 major roadmap checkpoints.
 - **Iterative Development** – ensure Sprint 1 and 2 backlogs are fully refined.
 - **Retrospective** – establish baseline – what's working/not working.
 
 ### Month 2
 - **Team Planning** – re-prioritize epics based on feedback.
-- **Roadmap** – adjust remaining milestones based on velocity.
+- **Roadmap** – adjust remaining roadmap checkpoints based on velocity.
 - **Iterative Development** – focus on high-value features; accept/reject aggressively.
 - **Retrospective** – act on at least 2 improvement actions.
 
 ### Month 3
 - **Team Planning** – finalize all epics; archive completed ones.
-- **Roadmap** – ensure the final release milestone is on track.
+- **Roadmap** – ensure the final release roadmap checkpoint is on track.
 - **Iterative Development** – final sprint: only critical bugs and polish.
 - **Retrospective** – final retro – capture lessons learned.
 

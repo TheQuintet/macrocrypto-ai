@@ -138,7 +138,7 @@ The team reviewed Capstone resources via the concentration dashboard and discuss
 
 ### Dr. Robert meeting preparation
 
-Sid will present AI service progress: entry price calculation, recommendation engine, and threshold monitoring. The team will focus on milestones and architectural decisions rather than a long written pre-read. Owusu suggested prepared questions to make the most of limited time. They agreed on a consolidated AI-focused email; a second meeting with Dr. Robert is already scheduled.
+Sid will present AI service progress: entry price calculation, recommendation engine, and threshold monitoring. The team will focus on delivery targets and architectural decisions rather than a long written pre-read. Owusu suggested prepared questions to make the most of limited time. They agreed on a consolidated AI-focused email; a second meeting with Dr. Robert is already scheduled.
 
 ### Economic calendar demo
 

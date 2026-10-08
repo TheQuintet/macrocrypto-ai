@@ -23,7 +23,7 @@ References: [demo-prep run-of-show](./demo-prep.md#agreed-run-of-show-18-min) ·
 | Capstone sprints (×3) | All Work + `Sprint 1` / `Sprint 2` / `Sprint 3` filters — see deliverables §4 |
 | Domain Slack | `#mc-frontend`, `#mc-backend`, `#mc-ml-model`, `#mc-software-design` (async — no daily meeting) |
 | Sprint 2 retro board | https://github.com/orgs/TheQuintet/projects/6/views/10 |
-| All milestones | https://github.com/TheQuintet/macrocrypto-ai/milestones |
+| Roadmap | https://github.com/orgs/TheQuintet/projects/6/views/5 |
 | Design docs | https://github.com/TheQuintet/macrocrypto-ai/tree/main/docs/design |
 | Testing doc | https://github.com/TheQuintet/macrocrypto-ai/blob/main/docs/test%20documents/local-and-ci-cd-tests.md |
 | Meeting notes | https://github.com/TheQuintet/macrocrypto-ai/tree/main/docs/meetings |
@@ -266,7 +266,7 @@ Suggested intro order (same as speaking flow): Kingson → Sid → Mael → Rich
   - **Slack by domain:** `#mc-frontend`, `#mc-backend`, `#mc-ml-model`, `#mc-software-design` — discuss work where it lives; `#capstone-project-group` for whole-team items.
   - **Retro:** **Sprint 2 (5 Aug)** — full retro with items on the [retro board](https://github.com/orgs/TheQuintet/projects/6/views/10) and written notes. **Later sprints** — our weekly sync is only **1–2 hours**, so we **discussed emergent blockers live** in the meeting instead of maintaining a retro board every sprint; improvements are in **meeting notes** and the workflow board.
   - **Honest process note:** domain Slack improved focus but some members felt **less visibility**; we compensated with **weekly Capstone sync**, the **GitHub board**, and **PR/meeting notes**.
-  - **Board for graders:** we worked from **[All Work](https://github.com/orgs/TheQuintet/projects/6/views/6)** on Team Workflow #6 (not repo milestones). Capstone **three sprint URLs:** [Sprint 1](https://github.com/orgs/TheQuintet/projects/6/views/6?query=sprint%3A%22Sprint%201%22), [2](https://github.com/orgs/TheQuintet/projects/6/views/6?query=sprint%3A%22Sprint%202%22), [3](https://github.com/orgs/TheQuintet/projects/6/views/6?query=sprint%3A%22Sprint%203%22) — early board sprints stay readable vs the full backlog later.
+  - **Board for graders:** we worked from **[All Work](https://github.com/orgs/TheQuintet/projects/6/views/6)** on Team Workflow #6 (sprints on the board **Sprint** field — we did not use GitHub Issues milestones). Capstone **three sprint URLs:** [Sprint 1](https://github.com/orgs/TheQuintet/projects/6/views/6?query=sprint%3A%22Sprint%201%22), [2](https://github.com/orgs/TheQuintet/projects/6/views/6?query=sprint%3A%22Sprint%202%22), [3](https://github.com/orgs/TheQuintet/projects/6/views/6?query=sprint%3A%22Sprint%203%22) — early board sprints stay readable vs the full backlog later.
   - **Process:** user stories → PRs → review → CI.
   - **Engineering quality:** frontend lint/typecheck/unit tests + Playwright E2E; backend CI on services.
   - **Alerts demo:** “For this recording we’re using **dummy alert data** so you can see the UX without waiting on live triggers.”

@@ -1,6 +1,6 @@
 # Agile & Sprints
 
-How we manage MacroCrypto AI using GitHub Issues, Projects, and milestones.
+How we manage MacroCrypto AI using GitHub Issues and Projects (Team Workflow board). We do **not** use GitHub Issues milestones on the repo.
 
 We follow **Agile** with at least **three sprints** during the capstone. All tasks and user stories must be tracked on the **GitHub Project boards**.
 
@@ -90,7 +90,6 @@ We treat **retrospective** and **review** as separate ceremonies in principle. O
 | [Team Planning](https://github.com/orgs/TheQuintet/projects/6/views/1) | Sprint/backlog planning and ceremony prep | Weekly |
 | [Sprint 2 retro board](https://github.com/orgs/TheQuintet/projects/6/views/10) | Retro items from our **5 Aug 2026** full retro (see [notes](./meetings/2026-08-05-retrospective.md)) | Reference |
 | [Roadmap](https://github.com/orgs/TheQuintet/projects/6/views/5) | Epics, features, and longer-term visibility | Weekly |
-| [GitHub Milestones](https://github.com/TheQuintet/macrocrypto-ai/milestones) | Track sprint progress | Weekly |
 | [GitHub Labels](https://github.com/TheQuintet/macrocrypto-ai/labels) | Prioritize and categorize | As needed |
 | [Pull Requests](https://github.com/TheQuintet/macrocrypto-ai/pulls?q=sort%3Aupdated-desc+is%3Apr+state%3Aopen+) | Code review | Daily |
 | Branch protection | Enforce quality | Always |
@@ -195,7 +194,7 @@ Code changes follow [GitHub Flow](../GITHUB_FLOW.md). See also [Contributing](..
 
 ## Sprint log
 
-**Capstone grading:** submit **three sprint URLs** on the project board — [All Work — Sprint 1](https://github.com/orgs/TheQuintet/projects/6/views/6?query=sprint%3A%22Sprint%201%22), [Sprint 2](https://github.com/orgs/TheQuintet/projects/6/views/6?query=sprint%3A%22Sprint%202%22), [Sprint 3](https://github.com/orgs/TheQuintet/projects/6/views/6?query=sprint%3A%22Sprint%203%22). Day-to-day tracking used **[All Work](https://github.com/orgs/TheQuintet/projects/6/views/6)** on [Team Workflow #6](https://github.com/orgs/TheQuintet/projects/6) (not repo milestones). Details: [Deliverables §4](./quantic/deliverables.md#4-agile-task-board).
+**Capstone grading:** submit **three sprint URLs** on the project board — [All Work — Sprint 1](https://github.com/orgs/TheQuintet/projects/6/views/6?query=sprint%3A%22Sprint%201%22), [Sprint 2](https://github.com/orgs/TheQuintet/projects/6/views/6?query=sprint%3A%22Sprint%202%22), [Sprint 3](https://github.com/orgs/TheQuintet/projects/6/views/6?query=sprint%3A%22Sprint%203%22). Day-to-day tracking used **[All Work](https://github.com/orgs/TheQuintet/projects/6/views/6)** on [Team Workflow #6](https://github.com/orgs/TheQuintet/projects/6). Details: [Deliverables §4](./quantic/deliverables.md#4-agile-task-board).
 
 ### Sprint 1 — Foundation (Weeks 1–2)
 

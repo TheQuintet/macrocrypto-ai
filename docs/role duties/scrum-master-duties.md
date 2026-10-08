@@ -55,7 +55,7 @@
   - Guide the team to break down stories into actionable tasks.  
   - Finalise the sprint backlog and update the board.  
 - **After planning:**  
-  - Update the sprint timeline and milestone on GitHub.  
+  - Update the sprint timeline on the Team Workflow board.  
   - Send a summary to all team members (since all are owners).
 
 ---
@@ -119,7 +119,7 @@
 ### Month 1 (Establish Foundation)
 - **Define Working Agreement** with the team – hours, communication channels, DoD, DoR.  
 - **Set up metrics** – velocity tracking, cycle time, and lead time.  
-- **Train the team** on GitHub Projects usage (labels, milestones, boards).  
+- **Train the team** on GitHub Projects usage (labels, boards, Sprint field).  
 - **Establish a “Definition of Ready”** – stories must have AC, estimates, and dependencies mapped.
 
 ### Month 2 (Optimize & Stabilize)
@@ -146,7 +146,7 @@
 ## Tools & Boards Usage (Github Projects)
 | Board | SM’s Responsibility |
 |-------|----------------------|
-| **Team Planning** | Ensure milestones and epics are logically sequenced. |
+| **Team Planning** | Ensure sprints and epics are logically sequenced. |
 | **Roadmap** | Flag any timeline risks to PO and team. |
 | **Iterative Development** | Main board – keep it clean, updated, and accurate at all times. |
 | **Retrospective** | Own this board – track improvement actions and their status. |
