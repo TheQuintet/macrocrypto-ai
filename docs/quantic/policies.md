@@ -17,6 +17,7 @@ Summary of program rules that apply to our Capstone work. When in doubt, follow 
 - Use AI to prototype, refactor, and explore architecture — then **review and own** every line merged.
 - Design and testing documents: write in your own words; note tools or prompts that influenced major decisions.
 - Do not paste AI-generated paragraphs into formal docs without rewriting and citing.
+- Team disclosure of tools and usage: [AI-assisted development disclosure](../ai-assisted-development-disclosure.md).
 
 ---
 
@@ -87,4 +88,5 @@ Plan speaking time so all six members contribute meaningfully.
 - [Deliverables](./deliverables.md)
 - [Scope](../project-scope.md)
 - [Team](../team-roles.md)
+- [AI-assisted development disclosure](../ai-assisted-development-disclosure.md)
 - [Graduation home](./README.md)

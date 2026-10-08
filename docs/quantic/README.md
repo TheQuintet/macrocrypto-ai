@@ -26,6 +26,7 @@ Capstone requirements, grading, policies, and deliverables for MacroCrypto AI.
 
 ## Related
 
+- [AI-assisted development disclosure](../ai-assisted-development-disclosure.md) — coding assistants and agents (repository-wide)
 - [Team](../team-roles.md) — members, roles, availability
 - [Agile & Sprints](../project-workflow.md) — ceremonies, sprint log
 - [Scope](../project-scope.md) — project overview

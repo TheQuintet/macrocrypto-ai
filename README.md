@@ -227,6 +227,7 @@ Add or rename long-form docs via [docs/README.md](./docs/README.md), not by expa
 | Frontend runbook | [frontend/README.md](./frontend/README.md) |
 | Team and sprints | [docs/team-roles.md](./docs/team-roles.md) · [docs/project-workflow.md](./docs/project-workflow.md) |
 | Capstone grading and policies | [docs/quantic/grading.md](./docs/quantic/grading.md) · [docs/quantic/policies.md](./docs/quantic/policies.md) |
+| AI-assisted development (integrity) | [docs/ai-assisted-development-disclosure.md](./docs/ai-assisted-development-disclosure.md) |
 
 ---
 
