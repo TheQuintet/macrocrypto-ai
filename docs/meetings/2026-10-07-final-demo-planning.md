@@ -56,7 +56,7 @@ Stand-up, presentation order, deployment, and recording plan for the Capstone de
 | **Loredana** | Share final presentation order and expectations with the team | After meeting | ✅ Done ([demo-prep](../quantic/demo-prep.md), [demo-script](../quantic/demo-script.md); merged 7 Oct) |
 | **Loredana** | Merge Playwright E2E PR | 7 Oct | ✅ Done ([#718](https://github.com/TheQuintet/macrocrypto-ai/pull/718) merged 8 Oct; system E2E in CI — [testing doc](../test%20documents/local-and-ci-cd-tests.md)) |
 | **Loredana** | Connect real backend data to the frontend (prediction + macro indicators) | **Thu 8 Oct** (code freeze) | 🟡 In progress (PRs open, awaiting review/merge: [#796](https://github.com/TheQuintet/macrocrypto-ai/pull/796) live BTC price history + 1y/5y ranges, [#797](https://github.com/TheQuintet/macrocrypto-ai/pull/797) live BTC forecasts on Forecasts screen, [#798](https://github.com/TheQuintet/macrocrypto-ai/pull/798) remove target-leaking `eng_*` features) |
-| **Loredana** | Deploy to **Vercel** (her account); share URL; verify health endpoints and green CI | Before recording | 🟡 In progress |
+| **Loredana** | Deploy to **Vercel** (her account); share URL; verify health endpoints and green CI | Before recording | 🟡 In progress (platform analysis + steps: [deployment-platform-analysis](../guides/deployment-platform-analysis.md), [#802](https://github.com/TheQuintet/macrocrypto-ai/pull/802)) |
 | **Loredana** | Update Quantic/docs from frontend side; fix README (**MBA → MSSE** where wrong) | Before submission | ✅ Done (PRs [#789](https://github.com/TheQuintet/macrocrypto-ai/pull/789)–[#791](https://github.com/TheQuintet/macrocrypto-ai/pull/791); [deliverables](../quantic/deliverables.md), [AI disclosure](../ai-assisted-development-disclosure.md)) |
 | **Loredana** | Prepare board for demo (sprints with visible progress + retro) | Before recording | ✅ Done ([deliverables §4](../quantic/deliverables.md#4-agile-task-board), Sprint 1–3 links) |
 | **Loredana** | Send **Sat 10 Oct ~18:00** Zoom invite; record, upload to Google Drive, share link | 10 Oct | ✅ Done (invite sent — recording + Drive upload still **10 Oct**) |
@@ -113,7 +113,7 @@ Stand-up, presentation order, deployment, and recording plan for the Capstone de
 ## Open questions
 
 - Exact **submission deadline** and **time zone** for the Sat **18:00** slot.
-- **Memory/CPU** for deployed AI service (Mael expects clarity by Thu 8 Oct).
+- **Memory/CPU** for deployed AI service (Mael expects clarity by Thu 8 Oct). Sizing estimate in [deployment-platform-analysis](../guides/deployment-platform-analysis.md#recommendation-and-sizing).
 - Fallback if **all hosting fails** (local demo was raised — avoid if possible).
 - **All-six-models** predictions page (Sid’s idea): only if time allows; **BTC forecast** remains priority.
 
