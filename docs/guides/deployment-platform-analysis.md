@@ -119,27 +119,32 @@ The current compose file is set up for local development and needs a `docker-com
 
 Use this instead of Vercel if the Vercel project can't deploy from the private organisation repo on the Hobby plan. The repo already contains `frontend/wrangler.jsonc`, which serves `dist` as a single-page app.
 
+**Before you start**
+- Choose the API domain, for example `api.<your-domain>`. It must point at the VM (an A record) and serve HTTPS. The frontend runs on HTTPS, so the browser blocks an API that uses plain HTTP.
+- The `*.workers.dev` address is created on the first deploy, so you can't set it in advance.
+
 **Steps**
 
 1. In the Cloudflare dashboard, click **Compute → Workers & Pages → Create → Create an app**.
 2. Under **Select a method**, choose **Connect a Git repository**, not **Clone a public repository via Git URL**.
 3. If `macrocrypto-ai` isn't listed, click **Configure GitHub**, grant Cloudflare access to the TheQuintet organisation, and select the repo.
 4. Select `TheQuintet/macrocrypto-ai` and click **Next**.
-5. Set **Root directory** to `frontend`. Open **Advanced settings** if the field isn't on the screen.
-6. Set **Build command** to `npm run build`.
-7. Set **Deploy command** to `npx wrangler deploy`. Leave the default.
-8. Turn off **Enable Preview builds**.
-9. In **Advanced settings → Environment variables**, add `VITE_API_GATEWAY_BASE_URL` = `https://api.<domain>`. It must be set before the build runs.
-10. Click **Deploy**. Copy the `https://macrocrypto-ai.<your-subdomain>.workers.dev` URL shown after the deploy.
-11. On the VM, set `CORS_ALLOW_ORIGINS=["https://macrocrypto-ai.<your-subdomain>.workers.dev"]` and restart `api-gateway`.
-12. After you change any variable, redeploy from the Worker's **Deployments** page.
-13. Open the site. In DevTools → Network, API calls go to `https://api.<domain>/...` with no CORS errors. Reload `/macro`; it must load.
+5. Set **Build command** to `npm run build`.
+6. Set **Deploy command** to `npx wrangler deploy`. Leave the default.
+7. Turn off **Enable Preview builds**.
+8. Open **Advanced settings** and set **Path** to `/frontend`.
+9. Under **Advanced settings**, leave **API token** as **Create new token**. Leave **API token name** empty.
+10. Under **Advanced settings**, set **Variable name** to `VITE_API_GATEWAY_BASE_URL` and **Variable value** to `https://api.<your-domain>`. Leave **Encrypt** off.
+11. Click **Deploy**. Copy the `https://macrocrypto-ai.<your-subdomain>.workers.dev` URL shown after the deploy.
+12. On the VM, set `CORS_ALLOW_ORIGINS=["https://macrocrypto-ai.<your-subdomain>.workers.dev"]` and restart `api-gateway`.
+13. After you change any variable, redeploy from the Worker's **Deployments** page.
+14. Open the site. In DevTools → Network, API calls go to `https://api.<your-domain>/...` with no CORS errors. Reload `/macro`; it must load.
 
 **If something fails**
 - Repo not listed → repeat step 3.
-- Build error "package.json not found" → **Root directory** must be `frontend`.
-- Simulated data, no error → fix step 9 and redeploy.
-- CORS error in the console → fix step 11.
+- Build error "package.json not found" → **Path** must be `/frontend` (step 8).
+- Simulated data, no error → fix step 10 and redeploy.
+- CORS error in the console → fix step 12.
 - Deployment fails at the deploy step → check that `frontend/wrangler.jsonc` is in the repo.
 
 ## Deployment steps
