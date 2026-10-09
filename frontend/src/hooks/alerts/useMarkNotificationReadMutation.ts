@@ -12,7 +12,7 @@ import type {
 export function useMarkNotificationReadMutation(userId: string) {
   const queryClient = useQueryClient()
 
-  return useMutation<void, Error, Pick<InAppNotification, 'id' | 'source'>>({
+  return useMutation<void, Error, Pick<InAppNotification, 'id' | 'source' | 'notification_type'>>({
     mutationFn: (notification) => markNotificationAsRead(notification),
     onSuccess: (_result, { id: notificationId }) => {
       const readAt = new Date().toISOString()

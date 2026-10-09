@@ -81,7 +81,7 @@ describe('notification API', () => {
     const response = await fetchNotifications(ALERTS_USER_ID)
 
     expect(axiosMock.get).toHaveBeenCalledWith(NOTIFICATIONS_URL, {
-      params: {},
+      params: { limit: 50 },
       headers: { Accept: 'application/json' },
     })
     expect(response.notifications[0]?.id).toBe(LIVE_NOTIFICATION.id)
@@ -136,8 +136,16 @@ describe('notification API', () => {
     axiosMock.put.mockResolvedValue({ data: {} })
     const { markNotificationAsRead } = await loadApi()
 
-    await markNotificationAsRead({ id: 'price-1', source: 'alerts' })
-    await markNotificationAsRead({ id: 'macro-1', source: 'macro' })
+    await markNotificationAsRead({
+      id: 'price-1',
+      source: 'alerts',
+      notification_type: 'price_alert',
+    })
+    await markNotificationAsRead({
+      id: 'macro-1',
+      source: 'macro',
+      notification_type: 'macro_alert',
+    })
 
     expect(axiosMock.put.mock.calls.map(([url]) => url)).toEqual([
       `${ALERT_NOTIFICATIONS_URL}/price-1/read`,
@@ -155,6 +163,47 @@ describe('notification API', () => {
     const response = await markAllNotificationsAsRead(ALERTS_USER_ID)
 
     expect(response.count).toBe(5)
+  })
+
+  it('fails mark all read when either list fails', async () => {
+    vi.stubEnv('VITE_API_GATEWAY_BASE_URL', GATEWAY_BASE)
+    axiosMock.post.mockImplementation(async (url: string) => {
+      if (url === `${NOTIFICATIONS_URL}/read-all`) throw new Error('macro down')
+      return { data: { count: 3 } }
+    })
+    const { markAllNotificationsAsRead } = await loadApi()
+
+    await expect(markAllNotificationsAsRead(ALERTS_USER_ID)).rejects.toThrow(
+      'macro down',
+    )
+  })
+
+  it('surfaces a failed mark read instead of simulating it', async () => {
+    vi.stubEnv('VITE_API_GATEWAY_BASE_URL', GATEWAY_BASE)
+    axiosMock.put.mockRejectedValue(new Error('not found'))
+    const { markNotificationAsRead } = await loadApi()
+
+    await expect(
+      markNotificationAsRead({
+        id: 'price-1',
+        source: 'alerts',
+        notification_type: 'price_alert',
+      }),
+    ).rejects.toThrow('not found')
+  })
+
+  it('routes a row without a source by its notification type', async () => {
+    vi.stubEnv('VITE_API_GATEWAY_BASE_URL', GATEWAY_BASE)
+    axiosMock.put.mockResolvedValue({ data: {} })
+    const { markNotificationAsRead } = await loadApi()
+
+    await markNotificationAsRead({ id: 'price-1', notification_type: 'price_alert' })
+    await markNotificationAsRead({ id: 'macro-1', notification_type: 'macro_alert' })
+
+    expect(axiosMock.put.mock.calls.map(([url]) => url)).toEqual([
+      `${ALERT_NOTIFICATIONS_URL}/price-1/read`,
+      `${NOTIFICATIONS_URL}/macro-1/read`,
+    ])
   })
 
   it('maps the macro notification wire onto the inbox row', async () => {
@@ -187,5 +236,57 @@ describe('notification API', () => {
       created_at: '2026-09-01T12:00:00.000Z',
       read: false,
     })
+  })
+
+  it('reads naive backend timestamps as UTC', async () => {
+    vi.stubEnv('VITE_API_GATEWAY_BASE_URL', GATEWAY_BASE)
+    axiosMock.get.mockImplementation(async (url: string) => ({
+      data:
+        url === ALERT_NOTIFICATIONS_URL
+          ? {
+              total: 1,
+              notifications: [
+                { ...LIVE_NOTIFICATION, created_at: '2026-10-09T09:17:49.146017' },
+              ],
+            }
+          : { total: 0, notifications: [] },
+    }))
+    const { fetchNotifications } = await loadApi()
+
+    const response = await fetchNotifications(ALERTS_USER_ID)
+
+    expect(response.notifications[0]?.created_at).toBe(
+      '2026-10-09T09:17:49.146017Z',
+    )
+  })
+
+  it('pages the merged list rather than each source', async () => {
+    vi.stubEnv('VITE_API_GATEWAY_BASE_URL', GATEWAY_BASE)
+    const row = (id: string, hour: number) => ({
+      ...LIVE_NOTIFICATION,
+      id,
+      created_at: `2026-10-09T${String(hour).padStart(2, '0')}:00:00Z`,
+    })
+    axiosMock.get.mockImplementation(async (url: string) => ({
+      data:
+        url === ALERT_NOTIFICATIONS_URL
+          ? { total: 2, notifications: [row('price-10', 10), row('price-8', 8)] }
+          : { total: 2, notifications: [row('macro-9', 9), row('macro-7', 7)] },
+    }))
+    const { fetchNotifications } = await loadApi()
+
+    const response = await fetchNotifications(ALERTS_USER_ID, {
+      limit: 2,
+      offset: 1,
+    })
+
+    expect(axiosMock.get).toHaveBeenCalledWith(NOTIFICATIONS_URL, {
+      params: { limit: 3 },
+      headers: { Accept: 'application/json' },
+    })
+    expect(response.notifications.map((item) => item.id)).toEqual([
+      'macro-9',
+      'price-8',
+    ])
   })
 })

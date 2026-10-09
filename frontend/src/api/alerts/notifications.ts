@@ -7,7 +7,8 @@ import {
 import { withSimulatedFallback } from '@/api/alerts/withSimulatedFallback'
 import { ALERT_NOTIFICATIONS_PATH, NOTIFICATIONS_PATH } from '@/constants/apiUrls'
 import { sortNotificationsByDateNewestFirst } from '@/lib/alerts/sortNotifications'
-import { apiUrl } from '@/lib/apiConfig'
+import { asUtcTimestamp } from '@/lib/alerts/utcTimestamp'
+import { apiUrl, isApiGatewayConfigured } from '@/lib/apiConfig'
 import type {
   AlertNotificationListResponse,
   InAppNotification,
@@ -43,8 +44,8 @@ function toInAppNotification(
     action_url: raw.action_url ?? null,
     read: Boolean(raw.read),
     is_archived: Boolean(raw.is_archived),
-    created_at: raw.created_at ?? raw.sent_at ?? '',
-    read_at: raw.read_at ?? null,
+    created_at: asUtcTimestamp(raw.created_at ?? raw.sent_at ?? ''),
+    read_at: raw.read_at ? asUtcTimestamp(raw.read_at) : null,
     source,
   }
 }
@@ -93,17 +94,36 @@ async function fromEverySource<T>(
   return values
 }
 
+/**
+ * Read updates are live-only once the gateway is set: a failure must reach the
+ * mutation instead of a simulated success that marks the row read in the UI.
+ */
+async function liveOrSimulated<T>(
+  live: () => Promise<T>,
+  simulate: () => Promise<T>,
+): Promise<T> {
+  return isApiGatewayConfigured() ? live() : simulate()
+}
+
+/**
+ * List a row belongs to. Rows without `source` (e.g. from the stream) follow
+ * the backend split: macro reminders vs. price/prediction triggers.
+ */
+export function notificationSource(
+  notification: Pick<InAppNotification, 'source' | 'notification_type'>,
+): NotificationSource {
+  if (notification.source) return notification.source
+  return notification.notification_type === 'macro_alert' ? 'macro' : 'alerts'
+}
+
 async function fetchSourceNotifications(
   source: NotificationSource,
-  params: NotificationListParams,
+  limit: number,
 ): Promise<{ total: number; notifications: InAppNotification[] }> {
   const response = await axios.get<AlertNotificationListResponse>(
     sourceUrl(source),
     {
-      params: {
-        ...(params.limit !== undefined ? { limit: params.limit } : {}),
-        ...(params.offset !== undefined ? { offset: params.offset } : {}),
-      },
+      params: { limit },
       headers: JSON_HEADERS,
     },
   )
@@ -122,18 +142,21 @@ export async function fetchNotifications(
 ): Promise<NotificationResponse> {
   return withSimulatedFallback(
     async () => {
-      const lists = await fromEverySource((source) =>
-        fetchSourceNotifications(source, params),
-      )
+      // Each source is paged on its own, so a merged page at `offset` needs
+      // every source's first `offset + limit` rows, sliced after the merge.
       const limit = params.limit ?? DEFAULT_LIST_LIMIT
+      const offset = params.offset ?? 0
+      const lists = await fromEverySource((source) =>
+        fetchSourceNotifications(source, offset + limit),
+      )
       const merged = sortNotificationsByDateNewestFirst(
         lists.flatMap((list) => list.notifications),
       )
       return {
         total: lists.reduce((sum, list) => sum + list.total, 0),
         limit,
-        offset: params.offset ?? 0,
-        notifications: merged.slice(0, limit),
+        offset,
+        notifications: merged.slice(offset, offset + limit),
       }
     },
     async () => sortedResponse(await simulateGetNotifications(userId, params)),
@@ -150,12 +173,12 @@ export async function fetchUnreadNotificationCount(
 }
 
 export async function markNotificationAsRead(
-  notification: Pick<InAppNotification, 'id' | 'source'>,
+  notification: Pick<InAppNotification, 'id' | 'source' | 'notification_type'>,
 ): Promise<void> {
-  return withSimulatedFallback(
+  return liveOrSimulated(
     async () => {
       const url = sourceUrl(
-        notification.source ?? 'macro',
+        notificationSource(notification),
         `/${notification.id}/read`,
       )
       await axios.put(url, undefined, { headers: JSON_HEADERS })
@@ -169,16 +192,19 @@ export async function markNotificationAsRead(
 export async function markAllNotificationsAsRead(
   userId: string,
 ): Promise<{ count: number }> {
-  return withSimulatedFallback(
+  return liveOrSimulated(
     async () => {
-      const counts = await fromEverySource(async (source) => {
-        const response = await axios.post<{ count?: number }>(
-          sourceUrl(source, '/read-all'),
-          undefined,
-          { headers: JSON_HEADERS },
-        )
-        return response.data?.count ?? 0
-      })
+      // Every list must succeed: the caller marks all cached rows read.
+      const counts = await Promise.all(
+        NOTIFICATION_SOURCES.map(async (source) => {
+          const response = await axios.post<{ count?: number }>(
+            sourceUrl(source, '/read-all'),
+            undefined,
+            { headers: JSON_HEADERS },
+          )
+          return response.data?.count ?? 0
+        }),
+      )
       return { count: counts.reduce((sum, count) => sum + count, 0) }
     },
     () => simulateMarkAllAsRead(userId),
