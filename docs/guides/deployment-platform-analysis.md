@@ -70,32 +70,9 @@ Choose the provider by where the team has credits; the setup is the same on all 
 
 Use Ubuntu 24.04 LTS, at least 50 GB SSD and a static public IP. Point a domain (or a free subdomain) at it for TLS.
 
-```mermaid
-flowchart TB
-    users["Users (browser)"]
-    subgraph vm["VM · Docker Compose · private network"]
-        nginx["nginx (reverse proxy)<br/>TLS · serves the frontend build"]
-        gw["api-gateway"]
-        ds["data-service<br/>ingests market data"]
-        ai["ai-service<br/>predicts, retrains 06:00 UTC"]
-        al["alert-service<br/>evaluates price alerts"]
-        pg[("postgres<br/>TimescaleDB")]
-        rd[("redis<br/>cache")]
-        mq[["rabbitmq<br/>event bus"]]
-        ml["mlflow<br/>tracking, registry"]
-        vol[/"Persistent volumes: postgres_data · rabbitmq_data · mlflow_data · model files"/]
-    end
-    backup["Off-server backup storage"]
+![Target deployment: the frontend is served by Vercel, and the API and all services run on one VM with Docker Compose](../images/deployment-architecture.svg)
 
-    users -- "HTTPS 443" --> nginx
-    nginx -- "/api requests" --> gw
-    gw --> ds & ai & al
-    ds & ai & al --> pg & rd & mq
-    ai --> ml
-    vol -- "nightly pg_dump" --> backup
-```
-
-Traffic enters only through nginx on 443. Services reach the databases, queue and MLflow by name on the private Docker network, and stateful data lives on persistent volumes that are backed up nightly.
+The browser loads the frontend from Vercel. API calls go only to nginx on 443 on the VM. Services reach the databases, queue and MLflow by name on the private Docker network, and stateful data lives on persistent volumes that are backed up nightly.
 
 ## Production readiness changes
 
@@ -104,19 +81,82 @@ The current compose file is set up for local development and needs a `docker-com
 - [ ] Remove dev bind mounts (`./services/*/app:/app/app`, `./shared:/app/shared`) so images run the code they were built with
 - [ ] Replace hardcoded credentials (Postgres `macro`/`crypto`, RabbitMQ `guest`/`guest`) with values from a server-only `.env` file
 - [ ] Stop publishing internal ports (5432, 6379, 5672, 15672, 5001, 8001–8003) to the host; expose only 80/443
-- [ ] Enable the reverse proxy (the commented-out `nginx` service, or Caddy) with TLS certificates
-- [ ] Build the frontend with `VITE_API_GATEWAY_BASE_URL` set to the public API URL and serve it as static files
+- [ ] Enable the reverse proxy (the commented-out `nginx` service, or Caddy) with TLS certificates for `api.<domain>` only
+- [ ] Deploy the frontend to Vercel (see [Frontend on Vercel](#frontend-on-vercel)), not from the VM
 - [ ] Add a named volume for `ai-service` model files so trained models survive redeploys
 - [ ] Move MLflow's backend store from SQLite to the Postgres instance (optional, more robust)
-- [ ] Restrict the API gateway's CORS settings to the production domain
+- [ ] Set the gateway's `CORS_ALLOW_ORIGINS` to the Vercel production domain
 - [ ] Add a nightly `pg_dump` backup copied off the server
+
+## Frontend on Vercel
+
+**Steps**
+
+1. In Vercel, click **Add New… → Project**. If `macrocrypto-ai` is not listed, click **Adjust GitHub App Permissions**.
+2. On GitHub, choose the **TheQuintet** organisation, select **Only select repositories**, pick **macrocrypto-ai**, and click **Install**.
+3. Back in Vercel, refresh. Click **Import** next to `TheQuintet/macrocrypto-ai`. Don't use a Deploy template.
+4. Set **Project Name** to `macrocrypto-ai`.
+5. Keep **Framework Preset** as **Vite**.
+6. Click **Edit** next to **Root Directory**, choose `frontend`, and click **Continue**.
+7. Leave **Build Command** as `npm run build` and **Output Directory** as `dist`.
+8. Expand **Environment Variables**. Add Name `VITE_API_GATEWAY_BASE_URL`, Value `https://api.<domain>`, Environment **Production**.
+9. Click **Deploy**. Copy the `https://<project>.vercel.app` URL shown after the deploy.
+10. On the VM, set `CORS_ALLOW_ORIGINS=["https://<project>.vercel.app"]` and restart `api-gateway`.
+11. In Vercel, open **Deployments**, choose the latest deployment, click **⋯ → Redeploy** after any change to step 8.
+12. Open the Vercel URL. In DevTools → Network, API calls go to `https://api.<domain>/...` with no CORS errors. Reload `/macro`; it must load.
+
+**Optional:** in Vercel, **Settings → Domains**, add `app.<domain>`, and add `https://app.<domain>` to `CORS_ALLOW_ORIGINS` on the VM.
+
+**If something fails**
+
+- Repo not listed → repeat steps 1–2.
+- Build error "package.json not found" → **Settings → General → Root Directory** must be `frontend`; then Redeploy.
+- Simulated data, no error → fix step 8 and Redeploy.
+- CORS error in the console → fix step 10 and restart `api-gateway`.
+- 404 on `/macro` → `frontend/vercel.json` is missing; merge PR #803.
+
+## Frontend deploy on Cloudflare
+
+Use this instead of Vercel if the Vercel project can't deploy from the private organisation repo on the Hobby plan. The repo already contains `frontend/wrangler.jsonc`, which serves `dist` as a single-page app.
+
+**Current status:** deploy without the API variable for now, so the site shows simulated data. Add the variable and the VM CORS setting later, once the API domain is ready.
+
+**Steps: first deploy**
+
+1. In the Cloudflare dashboard, click **Compute → Workers & Pages → Create → Create an app**.
+2. Under **Select a method**, choose **Connect a Git repository**, not **Clone a public repository via Git URL**.
+3. If `macrocrypto-ai` isn't listed, click **Configure GitHub**, grant Cloudflare access to the TheQuintet organisation, and select the repo.
+4. Select `TheQuintet/macrocrypto-ai` and click **Next**.
+5. Set **Build command** to `npm run build`.
+6. Set **Deploy command** to `npx wrangler deploy`. Leave the default.
+7. Turn off **Enable Preview builds**.
+8. Open **Advanced settings** and set **Path** to `/frontend`.
+9. Under **Advanced settings**, leave **API token** as **Create new token**, and leave **API token name** empty.
+10. Click **Deploy**.
+11. Copy the `https://macrocrypto-ai.<your-subdomain>.workers.dev` URL shown after the deploy.
+12. Open the site. Simulated data appears, and reloading `/macro` loads the page.
+
+**Steps: connect the API (later)**
+
+Do these once the API domain `https://api.<your-domain>` serves HTTPS from the VM.
+
+1. In the Worker's settings, add the variable `VITE_API_GATEWAY_BASE_URL` = `https://api.<your-domain>`. Leave **Encrypt** off.
+2. Start a new deployment from the Worker's **Deployments** page. The variable applies only to a new build.
+3. On the VM, set `CORS_ALLOW_ORIGINS=["https://macrocrypto-ai.<your-subdomain>.workers.dev"]` and restart `api-gateway`.
+4. Open the site. In DevTools → Network, API calls go to `https://api.<your-domain>/...` with no CORS errors. Live data replaces the simulated data.
+
+**If something fails**
+- Repo not listed → repeat step 3.
+- Build error "package.json not found" → **Path** must be `/frontend` (step 8).
+- Deployment fails at the deploy step → check that `frontend/wrangler.jsonc` is in the repo.
+- CORS error after connecting the API → repeat connect step 3.
 
 ## Deployment steps
 
-Run these once the production override from the previous section exists.
+Run the VM steps once the production override from the previous section exists. The frontend steps are in [Frontend on Vercel](#frontend-on-vercel).
 
 1. **Provision the VM.** Create a 4 vCPU / 8–16 GB Ubuntu 24.04 instance with 50+ GB SSD. Add your SSH key and reserve a static IP.
-2. **Point DNS.** Create A records, for example `app.<domain>` for the frontend and `api.<domain>` for the gateway.
+2. **Point DNS.** Create an A record for `api.<domain>` pointing at the VM. The frontend's domain is handled by Vercel.
 3. **Harden the server.**
    - Create a non-root user with sudo; disable SSH password and root login.
    - Enable the firewall (`ufw`) and allow only 22, 80 and 443.
@@ -129,7 +169,7 @@ Run these once the production override from the previous section exists.
 9. **Verify.**
    - All containers report healthy in `docker compose ps`.
    - `https://api.<domain>/health` returns OK.
-   - The frontend loads, shows prices and predictions, and alerts fire.
+   - The Vercel frontend loads, shows prices and predictions, and alerts fire.
    - MLflow lists the new training runs.
 10. **Operate.**
     - Check the next day that the 06:00 UTC retrain ran.
