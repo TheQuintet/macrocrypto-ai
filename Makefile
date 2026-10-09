@@ -10,6 +10,9 @@
 # Default target - show help
 .DEFAULT_GOAL := help
 
+# Host port for the MLflow UI (must match docker-compose.override.yml locally)
+MLFLOW_HOST_PORT ?= 5000
+
 # Colors for output (if terminal supports)
 GREEN  := $(shell tput -Txterm setaf 2 2>/dev/null || echo "")
 YELLOW := $(shell tput -Txterm setaf 3 2>/dev/null || echo "")
@@ -551,8 +554,8 @@ rabbitmq-ui:
 
 mlflow-ui:
 	@echo "🌐 Opening MLflow UI..."
-	@echo "   URL: http://localhost:5000"
-	@xdg-open http://localhost:5000 2>/dev/null || open http://localhost:5000 2>/dev/null || echo "Open http://localhost:5000 in your browser"
+	@echo "   URL: http://localhost:$(MLFLOW_HOST_PORT)"
+	@xdg-open http://localhost:$(MLFLOW_HOST_PORT) 2>/dev/null || open http://localhost:$(MLFLOW_HOST_PORT) 2>/dev/null || echo "Open http://localhost:$(MLFLOW_HOST_PORT) in your browser"
 
 # ============================================
 # DEVELOPMENT SETUP COMMANDS
