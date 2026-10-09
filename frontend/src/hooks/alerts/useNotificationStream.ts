@@ -112,7 +112,7 @@ export function useNotificationStream(
           duration: NOTIFICATION_TOAST_DURATION_MS,
           onClick: () => {
             if (!incoming.read) {
-              markRead(incoming.id)
+              markRead(incoming)
             }
             navigate(notificationActionPath(incoming))
           },

@@ -111,6 +111,8 @@ export const AI_EVENTS_HISTORICAL_PATH = '/api/v1/events/historical'
 export const PRICE_STREAM_PATH = '/api/v1/btc/price/stream'
 /** Used. In-app inbox. Gateway route is the shared macro notification list. */
 export const NOTIFICATIONS_PATH = '/api/v1/macro/notifications'
+/** Used. In-app inbox. Triggered price and prediction alert notifications. */
+export const ALERT_NOTIFICATIONS_PATH = '/api/v1/notifications'
 /** Gateway does not expose an inbox stream. Kept so callers can detect that. */
 export const NOTIFICATIONS_STREAM_PATH = `${NOTIFICATIONS_PATH}/stream`
 

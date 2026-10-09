@@ -4,6 +4,13 @@ export type NotificationType =
   | 'confidence_alert'
   | 'macro_alert'
 
+/**
+ * Which alert-service list a row came from. `macro` is
+ * /api/v1/macro/notifications; `alerts` is /api/v1/notifications (price and
+ * prediction triggers). Read updates go back to the same list.
+ */
+export type NotificationSource = 'macro' | 'alerts'
+
 /** Query params for GET /api/v1/macro/notifications (and simulated inbox list). */
 export interface NotificationListParams {
   unread_only?: boolean
@@ -51,6 +58,14 @@ export interface InAppNotification {
   is_archived: boolean
   created_at: string
   read_at: string | null
+  /** Set on live rows; simulated rows leave it out. */
+  source?: NotificationSource
+}
+
+/** GET /api/v1/notifications body. The route does not paginate. */
+export interface AlertNotificationListResponse {
+  total: number
+  notifications: MacroNotificationWire[]
 }
 
 export interface NotificationResponse {

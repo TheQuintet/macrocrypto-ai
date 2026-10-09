@@ -5,18 +5,33 @@ import {
   simulateMarkAsRead,
 } from '@/api/alerts/simulatedNotifications'
 import { withSimulatedFallback } from '@/api/alerts/withSimulatedFallback'
-import { NOTIFICATIONS_PATH } from '@/constants/apiUrls'
+import { ALERT_NOTIFICATIONS_PATH, NOTIFICATIONS_PATH } from '@/constants/apiUrls'
 import { sortNotificationsByDateNewestFirst } from '@/lib/alerts/sortNotifications'
 import { apiUrl } from '@/lib/apiConfig'
 import type {
+  AlertNotificationListResponse,
   InAppNotification,
-  MacroNotificationListResponse,
   MacroNotificationWire,
   NotificationListParams,
   NotificationResponse,
+  NotificationSource,
 } from '@/types/alerts/notifications'
 
-function toInAppNotification(raw: MacroNotificationWire): InAppNotification {
+const NOTIFICATION_SOURCE_PATHS: Record<NotificationSource, string> = {
+  macro: NOTIFICATIONS_PATH,
+  alerts: ALERT_NOTIFICATIONS_PATH,
+}
+
+const NOTIFICATION_SOURCES = Object.keys(
+  NOTIFICATION_SOURCE_PATHS,
+) as NotificationSource[]
+
+const DEFAULT_LIST_LIMIT = 50
+
+function toInAppNotification(
+  raw: MacroNotificationWire,
+  source: NotificationSource,
+): InAppNotification {
   return {
     id: raw.id,
     user_id: raw.user_id ?? '',
@@ -30,6 +45,7 @@ function toInAppNotification(raw: MacroNotificationWire): InAppNotification {
     is_archived: Boolean(raw.is_archived),
     created_at: raw.created_at ?? raw.sent_at ?? '',
     read_at: raw.read_at ?? null,
+    source,
   }
 }
 
@@ -52,30 +68,73 @@ function sortedResponse(response: NotificationResponse): NotificationResponse {
   }
 }
 
+function sourceUrl(source: NotificationSource, suffix = ''): string {
+  const url = apiUrl(`${NOTIFICATION_SOURCE_PATHS[source]}${suffix}`)
+  if (!url) {
+    throw new Error('Alert API is not configured')
+  }
+  return url
+}
+
+/**
+ * Run one request per source. A source that fails is skipped so one missing
+ * route does not hide the other list; throws only when every source fails.
+ */
+async function fromEverySource<T>(
+  request: (source: NotificationSource) => Promise<T>,
+): Promise<T[]> {
+  const results = await Promise.allSettled(NOTIFICATION_SOURCES.map(request))
+  const values = results.flatMap((result) =>
+    result.status === 'fulfilled' ? [result.value] : [],
+  )
+  if (values.length === 0) {
+    throw (results[0] as PromiseRejectedResult).reason
+  }
+  return values
+}
+
+async function fetchSourceNotifications(
+  source: NotificationSource,
+  params: NotificationListParams,
+): Promise<{ total: number; notifications: InAppNotification[] }> {
+  const response = await axios.get<AlertNotificationListResponse>(
+    sourceUrl(source),
+    {
+      params: {
+        ...(params.limit !== undefined ? { limit: params.limit } : {}),
+        ...(params.offset !== undefined ? { offset: params.offset } : {}),
+      },
+      headers: JSON_HEADERS,
+    },
+  )
+  return {
+    total: response.data.total ?? 0,
+    notifications: (response.data.notifications ?? []).map((raw) =>
+      toInAppNotification(raw, source),
+    ),
+  }
+}
+
+/** Inbox list: macro reminders plus triggered price/prediction alerts. */
 export async function fetchNotifications(
   userId: string,
   params: NotificationListParams = {},
 ): Promise<NotificationResponse> {
   return withSimulatedFallback(
     async () => {
-      const url = apiUrl(NOTIFICATIONS_PATH)
-      if (!url) {
-        throw new Error('Alert API is not configured')
+      const lists = await fromEverySource((source) =>
+        fetchSourceNotifications(source, params),
+      )
+      const limit = params.limit ?? DEFAULT_LIST_LIMIT
+      const merged = sortNotificationsByDateNewestFirst(
+        lists.flatMap((list) => list.notifications),
+      )
+      return {
+        total: lists.reduce((sum, list) => sum + list.total, 0),
+        limit,
+        offset: params.offset ?? 0,
+        notifications: merged.slice(0, limit),
       }
-
-      const response = await axios.get<MacroNotificationListResponse>(url, {
-        params: {
-          ...(params.limit !== undefined ? { limit: params.limit } : {}),
-          ...(params.offset !== undefined ? { offset: params.offset } : {}),
-        },
-        headers: JSON_HEADERS,
-      })
-      return sortedResponse({
-        ...response.data,
-        notifications: (response.data.notifications ?? []).map(
-          toInAppNotification,
-        ),
-      })
     },
     async () => sortedResponse(await simulateGetNotifications(userId, params)),
   )
@@ -91,19 +150,18 @@ export async function fetchUnreadNotificationCount(
 }
 
 export async function markNotificationAsRead(
-  notificationId: string,
+  notification: Pick<InAppNotification, 'id' | 'source'>,
 ): Promise<void> {
   return withSimulatedFallback(
     async () => {
-      const url = apiUrl(`${NOTIFICATIONS_PATH}/${notificationId}/read`)
-      if (!url) {
-        throw new Error('Alert API is not configured')
-      }
-
+      const url = sourceUrl(
+        notification.source ?? 'macro',
+        `/${notification.id}/read`,
+      )
       await axios.put(url, undefined, { headers: JSON_HEADERS })
     },
     async () => {
-      await simulateMarkAsRead(notificationId)
+      await simulateMarkAsRead(notification.id)
     },
   )
 }
@@ -113,15 +171,15 @@ export async function markAllNotificationsAsRead(
 ): Promise<{ count: number }> {
   return withSimulatedFallback(
     async () => {
-      const url = apiUrl(`${NOTIFICATIONS_PATH}/read-all`)
-      if (!url) {
-        throw new Error('Alert API is not configured')
-      }
-
-      const response = await axios.post<{ count: number }>(url, undefined, {
-        headers: JSON_HEADERS,
+      const counts = await fromEverySource(async (source) => {
+        const response = await axios.post<{ count?: number }>(
+          sourceUrl(source, '/read-all'),
+          undefined,
+          { headers: JSON_HEADERS },
+        )
+        return response.data?.count ?? 0
       })
-      return response.data
+      return { count: counts.reduce((sum, count) => sum + count, 0) }
     },
     () => simulateMarkAllAsRead(userId),
   )

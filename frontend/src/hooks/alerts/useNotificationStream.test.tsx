@@ -130,7 +130,9 @@ describe('useNotificationStream', () => {
     onClick?.()
 
     expect(navigate).toHaveBeenCalledWith(routes.dashboard)
-    expect(markRead).toHaveBeenCalledWith(STREAM_NOTIFICATION.id)
+    expect(markRead).toHaveBeenCalledWith(
+      expect.objectContaining({ id: STREAM_NOTIFICATION.id }),
+    )
   })
 
   it('opens forecasts when a forecast toast is clicked', () => {
