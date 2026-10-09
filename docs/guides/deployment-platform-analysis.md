@@ -128,7 +128,18 @@ Do these once the API domain `https://api.<your-domain>` serves HTTPS from the V
 
 Run the VM steps once the production override from the previous section exists. The frontend steps are in [Frontend deploy on Cloudflare](#frontend-deploy-on-cloudflare).
 
-1. **Provision the VM.** Create a 4 vCPU / 8–16 GB Ubuntu 24.04 instance with 50+ GB SSD. Add your SSH key and reserve a static IP.
+1. **Provision the VM** on Hetzner Cloud (the recommended provider above).
+   - Sign in at [console.hetzner.com](https://console.hetzner.com) and open or create a project for MacroCrypto AI.
+   - Add your SSH public key first under **Security → SSH Keys**, so it can be selected when the server is created.
+   - Click **Add Server** and choose:
+     - **Location:** the one closest to your users, e.g. Falkenstein or Nuremberg.
+     - **Image:** Ubuntu 24.04.
+     - **Type:** a shared vCPU plan with at least 4 vCPU, 8 GB RAM and 50 GB disk. Hetzner renames and reprices plans, so check the current list and price on the pricing page before you order. Hetzner raised cloud server prices in 2026, so the size you pick matters for cost.
+     - **Networking:** keep the default public IPv4 address. It is static and stays with the server.
+     - **SSH keys:** select the key you added.
+     - **Name:** e.g. `macrocrypto-api`.
+   - Click **Create & Buy now**. Note the IPv4 address shown on the server page; you need it for the DNS record in step 2.
+   - Other providers: on DigitalOcean, create a Droplet with the same specs and reserve an IP under **Networking → Reserved IPs**. On AWS or GCP, launch a 4 vCPU / 8 GB instance and attach an Elastic IP or static external IP.
 2. **Point DNS.** Create an A record for `api.<domain>` pointing at the VM. The frontend's domain is handled by Cloudflare.
 3. **Harden the server.**
    - Create a non-root user with sudo; disable SSH password and root login.
