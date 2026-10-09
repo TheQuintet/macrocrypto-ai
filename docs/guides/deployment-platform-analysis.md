@@ -133,7 +133,7 @@ Use this instead of Vercel if the Vercel project can't deploy from the private o
 8. Open **Advanced settings** and set **Path** to `/frontend`.
 9. Under **Advanced settings**, leave **API token** as **Create new token**, and leave **API token name** empty.
 10. Click **Deploy**.
-11. Copy the `https://macrocrypto-ai.<your-subdomain>.workers.dev` URL shown after the deploy.
+11. Open the Worker's **Domains** tab. Under **Worker URL**, copy the **Production** address, in the form `https://macrocrypto-ai.<your-subdomain>.workers.dev`.
 12. Open the site. Simulated data appears, and reloading `/macro` loads the page.
 
 **Steps: connect the API (later)**
