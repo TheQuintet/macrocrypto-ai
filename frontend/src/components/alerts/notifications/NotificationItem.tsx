@@ -27,7 +27,7 @@ export function NotificationItem({
   const handleClick = () => {
     showToast.dismiss(notification.id)
     if (!notification.read) {
-      markAsRead.mutate(notification.id)
+      markAsRead.mutate(notification)
     }
     onNavigate?.()
     navigate(notificationActionPath(notification))
