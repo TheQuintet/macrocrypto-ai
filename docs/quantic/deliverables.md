@@ -30,8 +30,8 @@ To receive credit for the Capstone, we must submit **all** of the following. Use
 |              |                                           |
 | ------------ | ----------------------------------------- |
 | **Status**   | 🟡 In progress                            |
-| **URL**      | _TBD_                                     |
-| **Platform** | _TBD — e.g., Render, Railway_             |
+| **URL**      | https://macrocrypto-ai.lgloredanaelena.workers.dev/                                     |
+| **Platform** | Cloudflare Workers                        |
 
 **Requirements**
 

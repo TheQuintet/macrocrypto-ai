@@ -99,7 +99,7 @@ Stand-up, presentation order, deployment, and recording plan for the Capstone de
 |-------|----------|
 | Recording | **Sat 10 Oct 2026**, ~**18:00** (exact TZ TBD). Submission **Sunday** after recording (exact time/TZ TBD). |
 | Code freeze | All coding and integration **done by Thu 8 Oct 2026**. **No development on Sat** (recording day). |
-| Deployment | **Cloudflare Workers** on **Loredana’s** account (decided 9 Oct, after this meeting; **team to confirm**). Frontend on Cloudflare; backend stays on one VM with Docker Compose. Reason: Vercel's Hobby plan can't deploy from the private organisation repo. Earlier choice was Vercel. Fallback **Railway** or **Render**; paid tier if memory-limited. |
+| Deployment | **Cloudflare Workers** on **Loredana’s** account. Decided 9 Oct, after this meeting, by Loredana as deployment owner: the team did not reply to a request for confirmation, and the deadline does not allow waiting. Frontend on Cloudflare; backend stays on one VM with Docker Compose. Reason: Vercel's Hobby plan can't deploy from the private organisation repo. Earlier choice was Vercel. Fallback **Railway** or **Render**; paid tier if memory-limited. |
 | Smoke test | After deploy: **health endpoints** + **green CI pipelines** on camera. Full post-deploy smoke suite **not required**. |
 | Macro indicators | Demo with **9** if that is all that is stable; do not block the video on all **13**. |
 | Software design docs | **One Markdown** file linking **SVG UML** in a separate folder; class diagrams show **key classes** only; include **current and future** architecture. |
