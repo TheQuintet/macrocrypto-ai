@@ -94,35 +94,39 @@ The frontend is a static Vite build, so it runs on Vercel rather than the VM. Ve
 
 **Before you start**
 - A Vercel account (personal).
-- The Vercel GitHub App granted access to `TheQuintet/macrocrypto-ai`. If the repo doesn't appear in the import list, click **Adjust GitHub App Permissions**, choose the TheQuintet organisation, and select the repo. An organisation owner may need to approve the install.
-- `https://api.<domain>` should already serve the API over HTTPS. If it doesn't yet, you can still deploy and redeploy later (step 6).
+- `https://api.<domain>` should already serve the API over HTTPS. If it doesn't yet, you can still deploy and redeploy later (step 7).
 
 **Steps**
-1. In the Vercel dashboard, click **Add New… → Project**, then **Import Git Repository**. Find `TheQuintet/macrocrypto-ai` and click **Import**. Don't use the Deploy template option.
-2. **Configure the project.**
+1. **Give Vercel access to the repo.** Vercel reads the repo through its GitHub App, so install the app on `TheQuintet/macrocrypto-ai` first.
+   - In Vercel, click **Add New… → Project**. If the repo isn't listed, click **Adjust GitHub App Permissions**.
+   - On GitHub, choose the **TheQuintet** organisation and select **Only select repositories → macrocrypto-ai**, then click **Install**.
+   - If the install button is disabled or says it needs approval, an owner of the TheQuintet organisation must approve the Vercel app first. Ask whoever manages the organisation.
+   - Go back to Vercel and refresh. The repo should now appear in the list.
+2. In the Vercel dashboard, click **Add New… → Project**, then **Import Git Repository**. Find `TheQuintet/macrocrypto-ai` and click **Import**. Don't use the Deploy template option.
+3. **Configure the project.**
    - **Project Name:** `macrocrypto-ai`.
    - **Framework Preset:** **Vite** (detected automatically).
    - **Root Directory:** click **Edit**, choose `frontend`, then click **Continue**. Without this, the build fails because `package.json` isn't found.
    - **Build Command** `npm run build` and **Output Directory** `dist` are the defaults; leave them.
-3. **Add the environment variable.** Expand **Environment Variables** and add:
+4. **Add the environment variable.** Expand **Environment Variables** and add:
    - **Name:** `VITE_API_GATEWAY_BASE_URL`
    - **Value:** `https://api.<domain>`
    - **Environment:** Production.
 
    Vite bakes this value into the build, so it must be set before the build runs.
-4. Click **Deploy**. When it finishes, Vercel shows the URL it created, such as `https://macrocrypto-ai.vercel.app`. There is no field to enter this URL; Vercel assigns it.
-5. **Allow the Vercel origin on the VM.** Set the gateway's `CORS_ALLOW_ORIGINS` to the Vercel URL in JSON list form, then restart `api-gateway`:
+5. Click **Deploy**. When it finishes, Vercel shows the URL it created, such as `https://macrocrypto-ai.vercel.app`. There is no field to enter this URL; Vercel assigns it.
+6. **Allow the Vercel origin on the VM.** Set the gateway's `CORS_ALLOW_ORIGINS` to the Vercel URL in JSON list form, then restart `api-gateway`:
    ```bash
    CORS_ALLOW_ORIGINS=["https://macrocrypto-ai.vercel.app"]
    ```
    Confirm that the gateway starts after the change, because the exact parsing of this value hasn't been tested yet.
-6. **After any change to the variable**, open the project's **Deployments** tab, choose the latest deployment, then **⋯ → Redeploy**. The new value applies only to a new build.
-7. **Verify.**
+7. **After any change to the variable**, open the project's **Deployments** tab, choose the latest deployment, then **⋯ → Redeploy**. The new value applies only to a new build.
+8. **Verify.**
    - Open the Vercel URL.
    - In the browser's DevTools → Network tab, API calls go to `https://api.<domain>/...` with no CORS errors.
    - Reload `/macro`. It loads instead of returning 404.
    - Live data replaces the simulated data.
-8. **Optional: custom domain.** In Settings → Domains, add `app.<domain>` and create the DNS record Vercel shows. Then add `https://app.<domain>` to `CORS_ALLOW_ORIGINS` as well.
+9. **Optional: custom domain.** In Settings → Domains, add `app.<domain>` and create the DNS record Vercel shows. Then add `https://app.<domain>` to `CORS_ALLOW_ORIGINS` as well.
 
 **Troubleshooting**
 
