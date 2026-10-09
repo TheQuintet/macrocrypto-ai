@@ -64,7 +64,7 @@ Stand-up, presentation order, deployment, and recording plan for the Capstone de
 | **Sid** | Finish two data-service branches; apply Mael’s review | **Thu 8 Oct** | ⏳ Open |
 | **Sid** | Hand off AI integration details to Mael; stay reachable through Thu | **Thu 8 Oct** | ⏳ Open |
 | **Sid** | Add Quantic submitter / grader access per checklist | Before submission | ⏳ Open |
-| **Mael** | Integrate Sid’s final PRs + AI service end-to-end | **Thu 8 Oct** | ⏳ Open |
+| **Mael** | Integrate Sid’s final PRs + AI service end-to-end | **Thu 8 Oct** | ✅ Done |
 | **Mael** | Finalize software design doc (single MD, SVG links, current + future architecture) | Before submission | ⏳ Open |
 | **Mael** | Review open backend story on board — close or flag | This week | ⏳ Open |
 | **Mael** | Support deployment; note AI service memory/CPU needs when known | **Thu 8 Oct** | ⏳ Open |
@@ -89,6 +89,7 @@ Stand-up, presentation order, deployment, and recording plan for the Capstone de
 | Who | Update |
 |-----|--------|
 | **Loredana** | Frontend ↔ backend integration PRs opened overnight 8→9 Oct: [#796](https://github.com/TheQuintet/macrocrypto-ai/pull/796) (dashboard price chart on live Gateway history, 1y/5y ranges, no silent simulated fallback for notifications), [#797](https://github.com/TheQuintet/macrocrypto-ai/pull/797) (ai-service serves live BTC forecasts with correct confidence bands at 70/85/95%), [#798](https://github.com/TheQuintet/macrocrypto-ai/pull/798) (removes `eng_*` features that leaked the target into XGBoost/LightGBM; 47-column contract). All three need review and merge. Still open: **Vercel** deploy + health/green CI, and **9 vs 13** indicators sync with Mael. |
+| **Mael** | Integrated Sid’s final data-service PRs and the AI service end-to-end. |
 
 ---
 
