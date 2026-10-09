@@ -124,7 +124,7 @@ Do these once the API domain `https://api.<your-domain>` serves HTTPS from the V
 - Deployment fails at the deploy step → check that `frontend/wrangler.jsonc` is in the repo.
 - CORS error after connecting the API → repeat connect step 3.
 
-## Deployment steps
+## Deployment of the backend
 
 Run the VM steps once the production override from the previous section exists. The frontend steps are in [Frontend deploy on Cloudflare](#frontend-deploy-on-cloudflare).
 
