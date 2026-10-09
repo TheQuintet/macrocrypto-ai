@@ -90,53 +90,30 @@ The current compose file is set up for local development and needs a `docker-com
 
 ## Frontend on Vercel
 
-The frontend is a static Vite build, so it runs on Vercel rather than the VM. Vercel's Hobby plan is for non-commercial use, which fits a student project on a personal account.
-
-**Before you start**
-- A Vercel account (personal).
-- `https://api.<domain>` should already serve the API over HTTPS. If it doesn't yet, you can still deploy and redeploy later (step 7).
-
 **Steps**
-1. **Give Vercel access to the repo.** Vercel reads the repo through its GitHub App, so install the app on `TheQuintet/macrocrypto-ai` first.
-   - In Vercel, click **Add New… → Project**. If the repo isn't listed, click **Adjust GitHub App Permissions**.
-   - On GitHub, choose the **TheQuintet** organisation and select **Only select repositories → macrocrypto-ai**, then click **Install**.
-   - If the install button is disabled or says it needs approval, an owner of the TheQuintet organisation must approve the Vercel app first. Ask whoever manages the organisation.
-   - Go back to Vercel and refresh. The repo should now appear in the list.
-2. In the Vercel dashboard, click **Add New… → Project**, then **Import Git Repository**. Find `TheQuintet/macrocrypto-ai` and click **Import**. Don't use the Deploy template option.
-3. **Configure the project.**
-   - **Project Name:** `macrocrypto-ai`.
-   - **Framework Preset:** **Vite** (detected automatically).
-   - **Root Directory:** click **Edit**, choose `frontend`, then click **Continue**. Without this, the build fails because `package.json` isn't found.
-   - **Build Command** `npm run build` and **Output Directory** `dist` are the defaults; leave them.
-4. **Add the environment variable.** Expand **Environment Variables** and add:
-   - **Name:** `VITE_API_GATEWAY_BASE_URL`
-   - **Value:** `https://api.<domain>`
-   - **Environment:** Production.
 
-   Vite bakes this value into the build, so it must be set before the build runs.
-5. Click **Deploy**. When it finishes, Vercel shows the URL it created, such as `https://macrocrypto-ai.vercel.app`. There is no field to enter this URL; Vercel assigns it.
-6. **Allow the Vercel origin on the VM.** Set the gateway's `CORS_ALLOW_ORIGINS` to the Vercel URL in JSON list form, then restart `api-gateway`:
-   ```bash
-   CORS_ALLOW_ORIGINS=["https://macrocrypto-ai.vercel.app"]
-   ```
-   Confirm that the gateway starts after the change, because the exact parsing of this value hasn't been tested yet.
-7. **After any change to the variable**, open the project's **Deployments** tab, choose the latest deployment, then **⋯ → Redeploy**. The new value applies only to a new build.
-8. **Verify.**
-   - Open the Vercel URL.
-   - In the browser's DevTools → Network tab, API calls go to `https://api.<domain>/...` with no CORS errors.
-   - Reload `/macro`. It loads instead of returning 404.
-   - Live data replaces the simulated data.
-9. **Optional: custom domain.** In Settings → Domains, add `app.<domain>` and create the DNS record Vercel shows. Then add `https://app.<domain>` to `CORS_ALLOW_ORIGINS` as well.
+1. In Vercel, click **Add New… → Project**. If `macrocrypto-ai` is not listed, click **Adjust GitHub App Permissions**.
+2. On GitHub, choose the **TheQuintet** organisation, select **Only select repositories**, pick **macrocrypto-ai**, and click **Install**.
+3. Back in Vercel, refresh. Click **Import** next to `TheQuintet/macrocrypto-ai`. Don't use a Deploy template.
+4. Set **Project Name** to `macrocrypto-ai`.
+5. Keep **Framework Preset** as **Vite**.
+6. Click **Edit** next to **Root Directory**, choose `frontend`, and click **Continue**.
+7. Leave **Build Command** as `npm run build` and **Output Directory** as `dist`.
+8. Expand **Environment Variables**. Add Name `VITE_API_GATEWAY_BASE_URL`, Value `https://api.<domain>`, Environment **Production**.
+9. Click **Deploy**. Copy the `https://<project>.vercel.app` URL shown after the deploy.
+10. On the VM, set `CORS_ALLOW_ORIGINS=["https://<project>.vercel.app"]` and restart `api-gateway`.
+11. In Vercel, open **Deployments**, choose the latest deployment, click **⋯ → Redeploy** after any change to step 8.
+12. Open the Vercel URL. In DevTools → Network, API calls go to `https://api.<domain>/...` with no CORS errors. Reload `/macro`; it must load.
 
-**Troubleshooting**
+**Optional:** in Vercel, **Settings → Domains**, add `app.<domain>`, and add `https://app.<domain>` to `CORS_ALLOW_ORIGINS` on the VM.
 
-| Symptom | Cause | Fix |
-| --- | --- | --- |
-| Repo missing from the import list | GitHub App not granted access | Adjust GitHub App Permissions, then select the repo |
-| Build fails, `package.json` not found | Root Directory isn't `frontend` | Settings → General → Root Directory, then Redeploy |
-| Simulated data, no error | Variable missing or wrong at build time | Fix the variable, then Redeploy |
-| CORS error in the console | Vercel URL missing from `CORS_ALLOW_ORIGINS`, or gateway not restarted | Update the VM setting and restart the gateway |
-| 404 on `/macro` after reload | `frontend/vercel.json` missing | Merge PR #803 |
+**If something fails**
+
+- Repo not listed → repeat steps 1–2.
+- Build error "package.json not found" → **Settings → General → Root Directory** must be `frontend`; then Redeploy.
+- Simulated data, no error → fix step 8 and Redeploy.
+- CORS error in the console → fix step 10 and restart `api-gateway`.
+- 404 on `/macro` → `frontend/vercel.json` is missing; merge PR #803.
 
 ## Deployment steps
 
