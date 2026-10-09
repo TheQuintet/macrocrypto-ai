@@ -115,6 +115,39 @@ The current compose file is set up for local development and needs a `docker-com
 - CORS error in the console → fix step 10 and restart `api-gateway`.
 - 404 on `/macro` → `frontend/vercel.json` is missing; merge PR #803.
 
+## Frontend deploy on Cloudflare
+
+Use this instead of Vercel if the Vercel project can't deploy from the private organisation repo on the Hobby plan.
+
+**Steps**
+
+1. In the Cloudflare dashboard, go to **Workers & Pages → Create → Pages → Import an existing Git repository**.
+2. Connect GitHub. If `macrocrypto-ai` isn't listed, click **Configure GitHub**, then grant Cloudflare access to the TheQuintet organisation and the repo.
+3. Select `TheQuintet/macrocrypto-ai` and click **Begin setup**.
+4. Set **Project name** to `macrocrypto-ai`.
+5. Set **Framework preset** to **Vite**, or leave it as **None** and enter the values in steps 6 and 7.
+6. Set **Build command** to `npm run build`.
+7. Set **Build output directory** to `dist`.
+8. Open **Root directory (advanced)** and enter `frontend`.
+9. Under **Environment variables (advanced)**, add `VITE_API_GATEWAY_BASE_URL` = `https://api.<domain>`.
+10. Click **Save and Deploy**. Copy the `https://macrocrypto-ai.pages.dev` address shown after the deploy.
+11. On the VM, set `CORS_ALLOW_ORIGINS=["https://macrocrypto-ai.pages.dev"]` and restart `api-gateway`.
+12. After you change any variable, go to **Deployments** and start a new deployment.
+13. Open the site. In DevTools → Network, API calls go to `https://api.<domain>/...` with no CORS errors. Reload `/macro`; it must load.
+
+**Before step 13:** add `frontend/public/_redirects` with this one line, then commit and push. Without it, deep links such as `/macro` return 404.
+
+```
+/*    /index.html   200
+```
+
+**If something fails**
+- Repo not listed → repeat step 2.
+- "package.json not found" → **Root directory** must be `frontend`.
+- Simulated data, no error → fix step 9 and redeploy.
+- CORS error in the console → fix step 11.
+- 404 on `/macro` → `_redirects` is missing.
+
 ## Deployment steps
 
 Run the VM steps once the production override from the previous section exists. The frontend steps are in [Frontend on Vercel](#frontend-on-vercel).
