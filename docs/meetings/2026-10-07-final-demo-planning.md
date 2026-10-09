@@ -10,7 +10,7 @@ Stand-up, presentation order, deployment, and recording plan for the Capstone de
 | **Facilitator** | Loredana Lungu (Scrum Master) |
 | **Product Owner** | Sid Ahmed Mahieddine |
 
-**Context.** Integration is the critical path: **frontend on real backend data**, **Sid’s remaining data-service branches**, **Mael end-to-end AI wiring by Thu 8 Oct**, then **Vercel deploy** and **Sat 10 Oct recording**. Tracker: [#752](https://github.com/TheQuintet/macrocrypto-ai/issues/752) · [demo-prep](../quantic/demo-prep.md) (repo, [sprint board](https://github.com/orgs/TheQuintet/projects/3), domain Slack, design & testing links).
+**Context.** Integration is the critical path: **frontend on real backend data**, **Sid’s remaining data-service branches**, **Mael end-to-end AI wiring by Thu 8 Oct**, then **frontend deploy** and **Sat 10 Oct recording**. Tracker: [#752](https://github.com/TheQuintet/macrocrypto-ai/issues/752) · [demo-prep](../quantic/demo-prep.md) (repo, [sprint board](https://github.com/orgs/TheQuintet/projects/3), domain Slack, design & testing links).
 
 ---
 
@@ -56,7 +56,7 @@ Stand-up, presentation order, deployment, and recording plan for the Capstone de
 | **Loredana** | Share final presentation order and expectations with the team | After meeting | ✅ Done ([demo-prep](../quantic/demo-prep.md), [demo-script](../quantic/demo-script.md); merged 7 Oct) |
 | **Loredana** | Merge Playwright E2E PR | 7 Oct | ✅ Done ([#718](https://github.com/TheQuintet/macrocrypto-ai/pull/718) merged 8 Oct; system E2E in CI — [testing doc](../test%20documents/local-and-ci-cd-tests.md)) |
 | **Loredana** | Connect real backend data to the frontend (prediction + macro indicators) | **Thu 8 Oct** (code freeze) | 🟡 In progress (PRs open, awaiting review/merge: [#796](https://github.com/TheQuintet/macrocrypto-ai/pull/796) live BTC price history + 1y/5y ranges, [#797](https://github.com/TheQuintet/macrocrypto-ai/pull/797) live BTC forecasts on Forecasts screen, [#798](https://github.com/TheQuintet/macrocrypto-ai/pull/798) remove target-leaking `eng_*` features) |
-| **Loredana** | Deploy to **Vercel** (her account); share URL; verify health endpoints and green CI | Before recording | 🟡 In progress (platform analysis + steps: [deployment-platform-analysis](../guides/deployment-platform-analysis.md), [#802](https://github.com/TheQuintet/macrocrypto-ai/pull/802)) |
+| **Loredana** | Deploy frontend to **Cloudflare Workers** (replaces Vercel); share URL; verify health endpoints and green CI | Before recording | 🟡 In progress: first build deployed on 9 Oct with simulated data. API variable and CORS pending the API domain. Steps: [deployment-platform-analysis](../guides/deployment-platform-analysis.md#frontend-deploy-on-cloudflare), PRs [#802](https://github.com/TheQuintet/macrocrypto-ai/pull/802)–[#805](https://github.com/TheQuintet/macrocrypto-ai/pull/805) |
 | **Loredana** | Update Quantic/docs from frontend side; fix README (**MBA → MSSE** where wrong) | Before submission | ✅ Done (PRs [#789](https://github.com/TheQuintet/macrocrypto-ai/pull/789)–[#791](https://github.com/TheQuintet/macrocrypto-ai/pull/791); [deliverables](../quantic/deliverables.md), [AI disclosure](../ai-assisted-development-disclosure.md)) |
 | **Loredana** | Prepare board for demo (sprints with visible progress + retro) | Before recording | ✅ Done ([deliverables §4](../quantic/deliverables.md#4-agile-task-board), Sprint 1–3 links) |
 | **Loredana** | Send **Sat 10 Oct ~18:00** Zoom invite; record, upload to Google Drive, share link | 10 Oct | ✅ Done (invite sent — recording + Drive upload still **10 Oct**) |
@@ -88,7 +88,7 @@ Stand-up, presentation order, deployment, and recording plan for the Capstone de
 
 | Who | Update |
 |-----|--------|
-| **Loredana** | Frontend ↔ backend integration PRs opened overnight 8→9 Oct: [#796](https://github.com/TheQuintet/macrocrypto-ai/pull/796) (dashboard price chart on live Gateway history, 1y/5y ranges, no silent simulated fallback for notifications), [#797](https://github.com/TheQuintet/macrocrypto-ai/pull/797) (ai-service serves live BTC forecasts with correct confidence bands at 70/85/95%), [#798](https://github.com/TheQuintet/macrocrypto-ai/pull/798) (removes `eng_*` features that leaked the target into XGBoost/LightGBM; 47-column contract). All three need review and merge. Still open: **Vercel** deploy + health/green CI, and **9 vs 13** indicators sync with Mael. |
+| **Loredana** | Frontend ↔ backend integration PRs opened overnight 8→9 Oct: [#796](https://github.com/TheQuintet/macrocrypto-ai/pull/796) (dashboard price chart on live Gateway history, 1y/5y ranges, no silent simulated fallback for notifications), [#797](https://github.com/TheQuintet/macrocrypto-ai/pull/797) (ai-service serves live BTC forecasts with correct confidence bands at 70/85/95%), [#798](https://github.com/TheQuintet/macrocrypto-ai/pull/798) (removes `eng_*` features that leaked the target into XGBoost/LightGBM; 47-column contract). All three need review and merge. Deployment moved from Vercel to **Cloudflare Workers**: Vercel's Hobby plan can't deploy from the private TheQuintet repo, and Pro is required. The first Cloudflare build succeeded, and the site runs with simulated data. Still open: health/green CI, API domain and variable, and **9 vs 13** indicators sync with Mael. |
 | **Mael** | Integrated Sid’s final data-service PRs and the AI service end-to-end. |
 
 ---
@@ -99,7 +99,7 @@ Stand-up, presentation order, deployment, and recording plan for the Capstone de
 |-------|----------|
 | Recording | **Sat 10 Oct 2026**, ~**18:00** (exact TZ TBD). Submission **Sunday** after recording (exact time/TZ TBD). |
 | Code freeze | All coding and integration **done by Thu 8 Oct 2026**. **No development on Sat** (recording day). |
-| Deployment | **Vercel** on **Loredana’s** account. Fallback **Railway** or **Render**; paid tier if memory-limited. |
+| Deployment | **Cloudflare Workers** on **Loredana’s** account. Decided 9 Oct, after this meeting, by Loredana as deployment owner: the team did not reply to a request for confirmation, and the deadline does not allow waiting. Frontend on Cloudflare; backend stays on one VM with Docker Compose. Reason: Vercel's Hobby plan can't deploy from the private organisation repo. Earlier choice was Vercel. Fallback **Railway** or **Render**; paid tier if memory-limited. |
 | Smoke test | After deploy: **health endpoints** + **green CI pipelines** on camera. Full post-deploy smoke suite **not required**. |
 | Macro indicators | Demo with **9** if that is all that is stable; do not block the video on all **13**. |
 | Software design docs | **One Markdown** file linking **SVG UML** in a separate folder; class diagrams show **key classes** only; include **current and future** architecture. |

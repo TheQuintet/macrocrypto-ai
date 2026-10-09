@@ -27,17 +27,17 @@ To receive credit for the Capstone, we must submit **all** of the following. Use
 
 ### 2. Deployed application
 
-|              |                                           |
-| ------------ | ----------------------------------------- |
-| **Status**   | 🟡 In progress                            |
-| **URL**      | _TBD_                                     |
-| **Platform** | _TBD — e.g., Render, Railway_             |
+|              |                                                                                                                  |
+| ------------ | ---------------------------------------------------------------------------------------------------------------- |
+| **Status**   | 🟡 In progress: deployed with simulated data; live API connection pending                                        |
+| **URL**      | [https://macrocrypto-ai.lgloredanaelena.workers.dev/](https://macrocrypto-ai.lgloredanaelena.workers.dev/)       |
+| **Platform** | Cloudflare Workers (static assets, `frontend/wrangler.jsonc`)                                                    |
 
 **Requirements**
 
-- [ ] Application is **publicly accessible** (required for web apps)
-- [ ] Deployment is stable enough for demo and grading
-- [ ] Environment variables and secrets are not committed to the repo
+- [x] Application is **publicly accessible**: the root URL and `/macro` both return HTTP 200 (checked 9 Oct 2026)
+- [ ] Deployment is stable enough for demo and grading: pending the live API connection and green CI on the deployed build
+- [x] Environment variables and secrets are not committed to the repo: `frontend/.env.example` only lists `VITE_API_GATEWAY_BASE_URL` with an empty value
 
 ---
 

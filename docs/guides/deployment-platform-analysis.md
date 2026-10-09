@@ -106,7 +106,7 @@ The current compose file is set up for local development and needs a `docker-com
 8. Open **Advanced settings** and set **Path** to `/frontend`.
 9. Under **Advanced settings**, leave **API token** as **Create new token**, and leave **API token name** empty.
 10. Click **Deploy**.
-11. Open the Worker's **Domains** tab. Under **Worker URL**, copy the **Production** address, in the form `https://macrocrypto-ai.<your-subdomain>.workers.dev`.
+11. Open the Worker's **Domains** tab. Under **Worker URL**, copy the **Production** address, in the form `https://macrocrypto-ai.lgloredanaelena.workers.dev`.
 12. Open the site. Simulated data appears, and reloading `/macro` loads the page.
 
 **Steps: connect the API (later)**
@@ -115,7 +115,7 @@ Do these once the API domain `https://api.<your-domain>` serves HTTPS from the V
 
 1. In the Worker's settings, add the variable `VITE_API_GATEWAY_BASE_URL` = `https://api.<your-domain>`. Leave **Encrypt** off.
 2. Start a new deployment from the Worker's **Deployments** page. The variable applies only to a new build.
-3. On the VM, set `CORS_ALLOW_ORIGINS=["https://macrocrypto-ai.<your-subdomain>.workers.dev"]` and restart `api-gateway`.
+3. On the VM, set `CORS_ALLOW_ORIGINS=["https://macrocrypto-ai.lgloredanaelena.workers.dev"]` and restart `api-gateway`.
 4. Open the site. In DevTools → Network, API calls go to `https://api.<your-domain>/...` with no CORS errors. Live data replaces the simulated data.
 
 **If something fails**

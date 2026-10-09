@@ -9,7 +9,7 @@
 
 References: [demo-prep run-of-show](./demo-prep.md#agreed-run-of-show-18-min) · [7 Oct meeting](../meetings/2026-10-07-final-demo-planning.md) · [#752](https://github.com/TheQuintet/macrocrypto-ai/issues/752)
 
-**Deploy URL (fill when ready):** _TBD_
+**Deploy URL:** https://macrocrypto-ai.lgloredanaelena.workers.dev/
 
 **Recording:** Sat **10 Oct 2026** ~**18:00** (Zoom — Loredana). All five on camera for the full session.
 
