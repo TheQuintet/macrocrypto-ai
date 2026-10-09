@@ -34,47 +34,61 @@ References: [demo-prep run-of-show](./demo-prep.md#agreed-run-of-show-18-min) ·
 
 - **One continuous story** — each handoff should sound like the next beat, not a new presentation.
 - **Personas:** frame features for the **BTC trader** and **investment analyst** where it helps.
-- **~4 minutes** per block below (flex slightly; stay within **15–20 min** overall).
+- **3–4 minutes** per block, as timed in the [recording plan](#recording-plan-19-min-total). Keep the whole recording **under 20 min**.
 - **Deployed app** on screen for live demos; **alerts use dummy data** — say that clearly on camera.
-- **Quantic:** every member speaks; show **government ID** (name + photo legible). Batch IDs + short intros at the start is fine.
+- **Quantic:** every member speaks; show **government ID** (name + photo legible). Kingson opens, then everyone shows their ID in one round: name and role.
 
 ---
 
-## Recording plan (~18 min content + IDs)
+## Recording plan (~19 min total)
 
-| # | ~Time | Who | Segment in this doc |
-|---|-------|-----|---------------------|
-| 0 | ~1:30 | **All** | [Intros & IDs](#all-members--intros--ids-quantic) |
-| 1 | ~4:00 | **Kingson** | [Opening & welcome](#1-kingson--opening--welcome-400) |
-| 2 | ~4:00 | **Sid** | [Problem, product & AI service](#2-sid--problem-product--ai-service-400) |
-| 3 | ~4:00 | **Mael** | [Architecture & platform](#3-mael--architecture--platform-400) |
-| 4 | ~4:00 | **Richard** | [Data gathering & preprocessing](#4-richard--data-gathering--preprocessing-400) |
-| 5 | ~4:00 | **Loredana** | [Scrum process & alerts](#5-loredana--scrum-process--alerts-400) |
-| 6 | ~4:00 | **Kingson** | [Dashboard, forecast & close](#6-kingson--dashboard-forecast--closing-demo-400) |
+| Order | ~Time | Running total | Who | Segment in this doc |
+|-------|-------|---------------|-----|---------------------|
+| 1 | ~0:45 | 0:45 | **Kingson** | [Opening & welcome](#1-kingson--opening--welcome-045) |
+| 2 | ~1:15 | 2:00 | **All** | [Intros & IDs](#all-members--intros--ids-quantic): Kingson → Loredana → Richard → Mael → Sid; name + role, hold ID (~15 s each) |
+| 3 | ~3:30 | 5:30 | **Sid** | [Problem, product & AI service](#2-sid--problem-product--ai-service-330) |
+| 4 | ~3:30 | 9:00 | **Mael** | [Architecture & platform](#3-mael--architecture--platform-330) |
+| 5 | ~3:00 | 12:00 | **Richard** | [Data gathering & preprocessing](#4-richard--data-gathering--preprocessing-300) |
+| 6 | ~3:00 | 15:00 | **Loredana** | [Scrum process & alerts](#5-loredana--scrum-process--alerts-300) |
+| 7 | ~4:00 | 19:00 | **Kingson** | [Dashboard, forecast & close](#6-kingson--dashboard-forecast--closing-demo-400) |
 
-**Loredana — merged plan (fill after 8 Oct):** _timing adjustments, combined transitions, dry-run notes_
+About **1 min of buffer** under the 20-min limit for handoffs and screen switches.
+
+**Loredana — merged plan:** _combined transitions, dry-run notes_
+
+- **Kingson (9 Oct):** script received and placed in segments 1 and 6. At ~140 wpm, segment 1 reads in **~0:45** and segment 6 in **~4:00**.
+- **Order change (9 Oct):** Kingson's opening comes first, then the ID round, then Sid. His opening already names everyone's role, so the ID round can be just name + role. Optionally, Kingson can drop the teammate list from his opening to avoid repeating it.
+
+---
+
+## 1. Kingson — opening & welcome (~0:45)
+
+**Must cover:** welcome; team + product in one sentence; set up the problem the capstone solves; hand off to the ID round.
+
+_Kingson’s script (9 Oct). Lines in [brackets] are on-screen actions; everything else is spoken._
+
+**[Dashboard, top of page, cursor still]**
+
+> Hi, I’m Kingson Emma-Ochu, a frontend engineer on The Quintet. My teammates are Sid Ahmed Mahieddine, our Product Owner; Loredana Lungu, our Scrum Master; Mael Taye Deneke, who owns the backend; and Richard Owusu, who works on frontend and machine learning. This is MacroCrypto AI.
+>
+> Here’s the problem. A Bitcoin trader watches the price on one site and the economy on another, and has to put the two together in their head. We put them on one screen, so you can see why Bitcoin is moving, not just what it’s doing.
+
+- **Handoff to the ID round:** _not in Kingson’s script — add one line, e.g._ “Before we show you how it works, let’s each introduce ourselves.”
 
 ---
 
 ## All members — intros & IDs (Quantic)
 
-Each person: **name**, **capstone role**, **one sentence** on what you built → **hold ID** ~10–15 s (name and photo legible).
+Comes **right after Kingson’s opening** (~1:15 total). Each person says their **name** and **capstone role**, plus an optional short line about themselves, and **holds their ID** for ~10–15 s (name and photo legible).
 
-Suggested intro order (same as speaking flow): Kingson → Sid → Mael → Richard → Loredana.
+Intro order: **Kingson → Loredana → Richard → Mael → Sid**. Sid goes last so his intro leads straight into his segment.
 
 ### Kingson Emma-Ochu (Frontend)
 
-- **Intro line:**
+- **Intro line:** “Hi, I’m Kingson Emma-Ochu, a frontend engineer on The Quintet.” _(his full opening also introduces the whole team — see [segment 1](#1-kingson--opening--welcome-045))_
 - **ID on camera:** ☐
 
-<details>
-<summary><strong>Suggestions</strong> (adapt — do not read verbatim)</summary>
-
-- “I’m Kingson — frontend. I built the dashboard forecast experience: linking forecast from the dashboard, the forecast page, accuracy chart, and detail views traders use for 24-hour decisions.”
-
-</details>
-
-### Sid Ahmed Mahieddine (Product Owner)
+### Loredana Lungu (Scrum Master / frontend)
 
 - **Intro line:**
 - **ID on camera:** ☐
@@ -82,19 +96,7 @@ Suggested intro order (same as speaking flow): Kingson → Sid → Mael → Rich
 <details>
 <summary><strong>Suggestions</strong></summary>
 
-- “I’m Sid, Product Owner. I own product direction and led the AI service — multi-model forecasting, champion selection, and the data pipeline work that feeds those models.”
-
-</details>
-
-### Mael Taye Deneke (Backend / code owner)
-
-- **Intro line:**
-- **ID on camera:** ☐
-
-<details>
-<summary><strong>Suggestions</strong></summary>
-
-- “I’m Mael, code owner for the backend. I implemented our core platform services, wired the AI service through the API Gateway, and set up CI/CD and automated tests for the services I own.”
+- “I’m Loredana — Scrum Master and frontend. I run our Agile ceremonies, maintain meeting notes, and built macro indicator UI, alerts integration, E2E tests, and our deployment path for the demo.”
 
 </details>
 
@@ -110,7 +112,7 @@ Suggested intro order (same as speaking flow): Kingson → Sid → Mael → Rich
 
 </details>
 
-### Loredana Lungu (Scrum Master / frontend)
+### Mael Taye Deneke (Backend / code owner)
 
 - **Intro line:**
 - **ID on camera:** ☐
@@ -118,38 +120,25 @@ Suggested intro order (same as speaking flow): Kingson → Sid → Mael → Rich
 <details>
 <summary><strong>Suggestions</strong></summary>
 
-- “I’m Loredana — Scrum Master and frontend. I run our Agile ceremonies, maintain meeting notes, and built macro indicator UI, alerts integration, E2E tests, and our deployment path for the demo.”
+- “I’m Mael, code owner for the backend. I implemented our core platform services, wired the AI service through the API Gateway, and set up CI/CD and automated tests for the services I own.”
 
 </details>
 
----
+### Sid Ahmed Mahieddine (Product Owner)
 
-## 1. Kingson — opening & welcome (~4:00)
-
-**Must cover:** welcome; team + product in one sentence; set up the problem the capstone solves; hand off to Sid.
-
-- **First line:**
-- **Talking points:**
-  - Hook for **MacroCrypto AI** (BTC + macro context)
-  - Mention both personas briefly if natural
-- **Handoff to Sid:**
+- **Intro line:**
+- **ID on camera:** ☐
 
 <details>
 <summary><strong>Suggestions</strong></summary>
 
-- **First line:** “Welcome — we’re The Quintet, and this is **MacroCrypto AI**: one place for Bitcoin price, macroeconomic context, forecasts, and alerts.”
-- **Talking points:**
-  - **BTC trader** checks price in one app and macro in another — easy to miss *why* BTC moved.
-  - **Investment analyst** spends time merging FRED-style series with market data for reports.
-  - We built a single dashboard so both personas see BTC + macro + predictions together.
-  - Today we’ll walk from the idea → platform → data → how we worked → live product.
-- **Handoff:** “Sid shaped the product vision and the AI engine — he’ll connect the problem to what our models actually do.”
+- “I’m Sid, Product Owner. I own product direction and led the AI service — multi-model forecasting, champion selection, and the data pipeline work that feeds those models.”
 
 </details>
 
 ---
 
-## 2. Sid — problem, product & AI service (~4:00)
+## 2. Sid — problem, product & AI service (~3:30)
 
 **Must cover:** origin of the idea; problem; solution; high-level overview; **AI service** (prefer **one slide**: six models, champion selection, scheduled correlation analysis).
 
@@ -177,7 +166,7 @@ Suggested intro order (same as speaking flow): Kingson → Sid → Mael → Rich
 
 ---
 
-## 3. Mael — architecture & platform (~4:00)
+## 3. Mael — architecture & platform (~3:30)
 
 **Must cover:** architecture and tech stack; **three services** you implemented; **RabbitMQ**; **Redis** caching; **CI/CD** and test automation; link to **software design docs** (single MD + SVG UML; current and future architecture).
 
@@ -211,7 +200,7 @@ Suggested intro order (same as speaking flow): Kingson → Sid → Mael → Rich
 
 ---
 
-## 4. Richard — data gathering & preprocessing (~4:00)
+## 4. Richard — data gathering & preprocessing (~3:00)
 
 **Must cover:** data gathering and preprocessing **research** (sources, cleaning, features path toward ML).
 
@@ -239,7 +228,7 @@ Suggested intro order (same as speaking flow): Kingson → Sid → Mael → Rich
 
 ---
 
-## 5. Loredana — scrum process & alerts (~4:00)
+## 5. Loredana — scrum process & alerts (~3:00)
 
 **Must cover:** Scrum process — board, sprints, meeting notes, retro; **no daily standup** (team Slack discussion — domain channels only); **frontend alerts** on deploy (**dummy data** — state on camera).
 
@@ -285,35 +274,54 @@ Suggested intro order (same as speaking flow): Kingson → Sid → Mael → Rich
 
 **Must cover:** dashboard, charts, **forecast**; **closing live demo** on deploy URL (live backend data — not dummy).
 
-- **First line:**
-- **Screen:** deploy URL — dashboard, price chart, forecast page / accuracy view
-- **Click path:**
-  1.
-  2.
-  3.
-- **Talking points:**
-  - BTC trader journey on dashboard + forecast
-  - Forecast accuracy / details if time
-- **If API fails:** _(one line; 9 macro indicators OK if 13 unavailable)_
-- **Closing line:**
+_Kingson’s script (9 Oct). Lines in [brackets] are on-screen actions; everything else is spoken._
 
-<details>
-<summary><strong>Suggestions</strong></summary>
+**Click path (deploy URL):** Dashboard → Macro Economy → Regime analysis → Forecasts → Economic calendar → Alerts → back to Dashboard.
 
-- **First line:** “This is what the **BTC trader** sees day to day — live price, macro context, and a forecast they can act on.”
-- **Click path (example — replace with real routes):**
-  1. Open **Dashboard** — BTC price, 24h change, connection/status if shown.
-  2. Scroll **macro indicator cards** (API-driven; mention if showing 9 vs 13).
-  3. Open **Forecast** — prediction chart, horizon (24h/7d), **accuracy** or details view you shipped.
-  4. Optional: quick link from dashboard card to forecast (your merged work).
-- **Talking points:**
-  - Real-time or near–real-time price stream vs static mock.
-  - Macro cards answer “**why** is BTC moving?” for the trader; analyst can sanity-check against known indicators.
-  - Forecast + confidence / accuracy card supports entry timing without leaving the app.
-- **If API fails:** “Backend is slow — here’s the same view from our staging recording” or show CI + merged PR.
-- **Closing line:** “Thanks for watching — MacroCrypto AI unifies BTC, macro data, ML forecasts, and alerts. Repo and deploy link are in our README; questions welcome.”
+**[Hover the “Live” indicator under the price]**
 
-</details>
+> This is the dashboard. The Bitcoin price is live. It streams over a WebSocket, and this indicator shows the connection status and when the last update came in. Next to it are the 24-hour and 7-day moves.
+
+**[Point at the Macro regime card]**
+
+> This card is the macro regime. Our service reads the latest Federal Reserve data and classifies the current backdrop, for example rising rates, high inflation or growth. It shows a confidence meter and a plain-English reason, so you know whether that backdrop has historically helped or hurt Bitcoin.
+
+**[Scroll to the Forecast card, then the price chart. Switch the interval, then the time range]**
+
+> Below that is the AI model’s outlook for the next day, and an interactive candlestick chart where you can change the interval and the time window.
+
+**[Sidebar → Macro Economy. Hover the % change on an indicator card]**
+
+> Under Macro Economy are the indicators that matter: inflation, interest rates, unemployment, GDP, money supply and the dollar. Hover over any change and it tells you what that move usually means for Bitcoin. Rising rates, for example, usually mean tighter liquidity, which has been a headwind.
+
+**[Scroll to the combined chart and hover across it]**
+
+> This is my favourite view. Bitcoin and the macro indicators share one timeline. Each series starts at 100 so different units fit on one scale, and when you hover, the price and the economy line up bar by bar.
+
+**[Sidebar → Regime analysis. Click through the Performance, Timeline and Similar periods tabs]**
+
+> Regime analysis goes deeper. It shows how Bitcoin performed in each kind of backdrop and a timeline of those regimes over the years. Similar periods finds the last times the economy looked like it does today and shows what Bitcoin did next. It’s a comparison, not a prediction, and we label it that way.
+
+**[Sidebar → Forecasts. Switch 24h to 7d, then change the confidence level]**
+
+> Forecasts shows the model’s 24-hour and 7-day predictions, with a confidence band around the price range it expects. Underneath is what I think matters most: forecast accuracy. We check past predictions against the real price, so you can see how much to trust the model before you rely on it.
+
+**[Sidebar → Economic calendar. Click one event to open its details]**
+
+> The economic calendar shows upcoming Fed decisions, CPI releases, jobs reports and GDP. You can filter by impact, switch time zones, and subscribe to an event straight from here.
+
+**[Sidebar → Alerts. Click through the Price, Macro and Prediction tabs, then open the notification bell]**
+
+> All of that feeds into alerts. You can set price alerts, macro event alerts and prediction alerts, and they arrive in this notification bell in real time.
+
+**[Back to Dashboard]**
+
+> So that’s MacroCrypto AI: live price, the economy behind it, and an AI forecast that shows its track record, all in one place. It’s built with React and TypeScript on an event-driven backend, and it’s covered by unit, UI-integration and end-to-end tests. Thanks for watching, from me and the rest of The Quintet.
+
+- **If API fails:** _(one line; 9 macro indicators OK if 13 unavailable)_ — e.g. “Backend is slow — here’s the same view from our staging recording,” or show CI + merged PR.
+- **Merge notes (Loredana):**
+  - The **Alerts** beat overlaps [segment 5](#5-loredana--scrum-process--alerts-300). Either keep it as a one-line callback (“as Loredana showed…”) or drop it here.
+  - If alerts stay in this segment, add the **dummy-data** disclaimer from the [storyline rules](#storyline-rules-agreed-7-oct).
 
 ---
 
