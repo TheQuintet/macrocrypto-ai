@@ -70,9 +70,9 @@ Choose the provider by where the team has credits; the setup is the same on all 
 
 Use Ubuntu 24.04 LTS, at least 50 GB SSD and a static public IP. Point a domain (or a free subdomain) at it for TLS.
 
-![Target deployment: the frontend is served by Vercel, and the API and all services run on one VM with Docker Compose](../images/deployment-architecture.svg)
+![Target deployment: the frontend is served by Cloudflare, and the API and all services run on one VM with Docker Compose](../images/deployment-architecture.svg)
 
-The browser loads the frontend from Vercel. API calls go only to nginx on 443 on the VM. Services reach the databases, queue and MLflow by name on the private Docker network, and stateful data lives on persistent volumes that are backed up nightly.
+The browser loads the frontend from Cloudflare. API calls go only to nginx on 443 on the VM. Services reach the databases, queue and MLflow by name on the private Docker network, and stateful data lives on persistent volumes that are backed up nightly.
 
 ## Production readiness changes
 
@@ -82,42 +82,15 @@ The current compose file is set up for local development and needs a `docker-com
 - [ ] Replace hardcoded credentials (Postgres `macro`/`crypto`, RabbitMQ `guest`/`guest`) with values from a server-only `.env` file
 - [ ] Stop publishing internal ports (5432, 6379, 5672, 15672, 5001, 8001–8003) to the host; expose only 80/443
 - [ ] Enable the reverse proxy (the commented-out `nginx` service, or Caddy) with TLS certificates for `api.<domain>` only
-- [ ] Deploy the frontend to Vercel (see [Frontend on Vercel](#frontend-on-vercel)), not from the VM
+- [ ] Deploy the frontend to Cloudflare (see [Frontend deploy on Cloudflare](#frontend-deploy-on-cloudflare)), not from the VM
 - [ ] Add a named volume for `ai-service` model files so trained models survive redeploys
 - [ ] Move MLflow's backend store from SQLite to the Postgres instance (optional, more robust)
-- [ ] Set the gateway's `CORS_ALLOW_ORIGINS` to the Vercel production domain
+- [ ] Set the gateway's `CORS_ALLOW_ORIGINS` to the Cloudflare Worker URL
 - [ ] Add a nightly `pg_dump` backup copied off the server
-
-## Frontend on Vercel
-
-**Steps**
-
-1. In Vercel, click **Add New… → Project**. If `macrocrypto-ai` is not listed, click **Adjust GitHub App Permissions**.
-2. On GitHub, choose the **TheQuintet** organisation, select **Only select repositories**, pick **macrocrypto-ai**, and click **Install**.
-3. Back in Vercel, refresh. Click **Import** next to `TheQuintet/macrocrypto-ai`. Don't use a Deploy template.
-4. Set **Project Name** to `macrocrypto-ai`.
-5. Keep **Framework Preset** as **Vite**.
-6. Click **Edit** next to **Root Directory**, choose `frontend`, and click **Continue**.
-7. Leave **Build Command** as `npm run build` and **Output Directory** as `dist`.
-8. Expand **Environment Variables**. Add Name `VITE_API_GATEWAY_BASE_URL`, Value `https://api.<domain>`, Environment **Production**.
-9. Click **Deploy**. Copy the `https://<project>.vercel.app` URL shown after the deploy.
-10. On the VM, set `CORS_ALLOW_ORIGINS=["https://<project>.vercel.app"]` and restart `api-gateway`.
-11. In Vercel, open **Deployments**, choose the latest deployment, click **⋯ → Redeploy** after any change to step 8.
-12. Open the Vercel URL. In DevTools → Network, API calls go to `https://api.<domain>/...` with no CORS errors. Reload `/macro`; it must load.
-
-**Optional:** in Vercel, **Settings → Domains**, add `app.<domain>`, and add `https://app.<domain>` to `CORS_ALLOW_ORIGINS` on the VM.
-
-**If something fails**
-
-- Repo not listed → repeat steps 1–2.
-- Build error "package.json not found" → **Settings → General → Root Directory** must be `frontend`; then Redeploy.
-- Simulated data, no error → fix step 8 and Redeploy.
-- CORS error in the console → fix step 10 and restart `api-gateway`.
-- 404 on `/macro` → `frontend/vercel.json` is missing; merge PR #803.
 
 ## Frontend deploy on Cloudflare
 
-Use this instead of Vercel if the Vercel project can't deploy from the private organisation repo on the Hobby plan. The repo already contains `frontend/wrangler.jsonc`, which serves `dist` as a single-page app.
+**Why Cloudflare:** we first chose Vercel, but its Hobby plan can't deploy from a private GitHub organisation repo. The Vercel prompt asked for a Pro plan. Cloudflare deploys this repo on its free plan. The repo contains `frontend/wrangler.jsonc`, which serves `dist` as a single-page app.
 
 **Current status:** deploy without the API variable for now, so the site shows simulated data. Add the variable and the VM CORS setting later, once the API domain is ready.
 
@@ -153,10 +126,10 @@ Do these once the API domain `https://api.<your-domain>` serves HTTPS from the V
 
 ## Deployment steps
 
-Run the VM steps once the production override from the previous section exists. The frontend steps are in [Frontend on Vercel](#frontend-on-vercel).
+Run the VM steps once the production override from the previous section exists. The frontend steps are in [Frontend deploy on Cloudflare](#frontend-deploy-on-cloudflare).
 
 1. **Provision the VM.** Create a 4 vCPU / 8–16 GB Ubuntu 24.04 instance with 50+ GB SSD. Add your SSH key and reserve a static IP.
-2. **Point DNS.** Create an A record for `api.<domain>` pointing at the VM. The frontend's domain is handled by Vercel.
+2. **Point DNS.** Create an A record for `api.<domain>` pointing at the VM. The frontend's domain is handled by Cloudflare.
 3. **Harden the server.**
    - Create a non-root user with sudo; disable SSH password and root login.
    - Enable the firewall (`ufw`) and allow only 22, 80 and 443.
@@ -169,7 +142,7 @@ Run the VM steps once the production override from the previous section exists. 
 9. **Verify.**
    - All containers report healthy in `docker compose ps`.
    - `https://api.<domain>/health` returns OK.
-   - The Vercel frontend loads, shows prices and predictions, and alerts fire.
+   - The Cloudflare frontend loads, shows prices and predictions, and alerts fire.
    - MLflow lists the new training runs.
 10. **Operate.**
     - Check the next day that the 06:00 UTC retrain ran.
