@@ -55,7 +55,7 @@ Stand-up, presentation order, deployment, and recording plan for the Capstone de
 |-------|--------|--------|--------|
 | **Loredana** | Share final presentation order and expectations with the team | After meeting | ✅ Done ([demo-prep](../quantic/demo-prep.md), [demo-script](../quantic/demo-script.md); merged 7 Oct) |
 | **Loredana** | Merge Playwright E2E PR | 7 Oct | ✅ Done ([#718](https://github.com/TheQuintet/macrocrypto-ai/pull/718) merged 8 Oct; system E2E in CI — [testing doc](../test%20documents/local-and-ci-cd-tests.md)) |
-| **Loredana** | Connect real backend data to the frontend (prediction + macro indicators) | **Thu 8 Oct** (code freeze) | 🟡 In progress |
+| **Loredana** | Connect real backend data to the frontend (prediction + macro indicators) | **Thu 8 Oct** (code freeze) | 🟡 In progress (PRs open, awaiting review/merge: [#796](https://github.com/TheQuintet/macrocrypto-ai/pull/796) live BTC price history + 1y/5y ranges, [#797](https://github.com/TheQuintet/macrocrypto-ai/pull/797) live BTC forecasts on Forecasts screen, [#798](https://github.com/TheQuintet/macrocrypto-ai/pull/798) remove target-leaking `eng_*` features) |
 | **Loredana** | Deploy to **Vercel** (her account); share URL; verify health endpoints and green CI | Before recording | 🟡 In progress |
 | **Loredana** | Update Quantic/docs from frontend side; fix README (**MBA → MSSE** where wrong) | Before submission | ✅ Done (PRs [#789](https://github.com/TheQuintet/macrocrypto-ai/pull/789)–[#791](https://github.com/TheQuintet/macrocrypto-ai/pull/791); [deliverables](../quantic/deliverables.md), [AI disclosure](../ai-assisted-development-disclosure.md)) |
 | **Loredana** | Prepare board for demo (sprints with visible progress + retro) | Before recording | ✅ Done ([deliverables §4](../quantic/deliverables.md#4-agile-task-board), Sprint 1–3 links) |
@@ -83,6 +83,12 @@ Stand-up, presentation order, deployment, and recording plan for the Capstone de
 | Who | Update |
 |-----|--------|
 | **Loredana** | Capstone docs and demo prep aligned ([#789](https://github.com/TheQuintet/macrocrypto-ai/pull/789)–[#791](https://github.com/TheQuintet/macrocrypto-ai/pull/791)); **Sat ~18:00** recording invite sent. Merged **Playwright system E2E** ([#718](https://github.com/TheQuintet/macrocrypto-ai/pull/718)) — `frontend/e2e/system/` in **system-stack** CI against the live Gateway ([testing doc](../test%20documents/local-and-ci-cd-tests.md)). Remaining critical path: frontend ↔ backend integration (prediction + macro indicators), **Vercel** deploy + smoke/green CI, sync with Mael on **9 vs 13** indicators. |
+
+## Progress update (9 Oct 2026)
+
+| Who | Update |
+|-----|--------|
+| **Loredana** | Frontend ↔ backend integration PRs opened overnight 8→9 Oct: [#796](https://github.com/TheQuintet/macrocrypto-ai/pull/796) (dashboard price chart on live Gateway history, 1y/5y ranges, no silent simulated fallback for notifications), [#797](https://github.com/TheQuintet/macrocrypto-ai/pull/797) (ai-service serves live BTC forecasts with correct confidence bands at 70/85/95%), [#798](https://github.com/TheQuintet/macrocrypto-ai/pull/798) (removes `eng_*` features that leaked the target into XGBoost/LightGBM; 47-column contract). All three need review and merge. Still open: **Vercel** deploy + health/green CI, and **9 vs 13** indicators sync with Mael. |
 
 ---
 
