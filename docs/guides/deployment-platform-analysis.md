@@ -70,32 +70,7 @@ Choose the provider by where the team has credits; the setup is the same on all 
 
 Use Ubuntu 24.04 LTS, at least 50 GB SSD and a static public IP. Point a domain (or a free subdomain) at it for TLS.
 
-```mermaid
-flowchart TB
-    users["Users (browser)"]
-    vercel["Vercel<br/>frontend (static build)"]
-    subgraph vm["VM · Docker Compose · private network"]
-        nginx["nginx (reverse proxy)<br/>TLS · api.&lt;domain&gt; only"]
-        gw["api-gateway"]
-        ds["data-service<br/>ingests market data"]
-        ai["ai-service<br/>predicts, retrains 06:00 UTC"]
-        al["alert-service<br/>evaluates price alerts"]
-        pg[("postgres<br/>TimescaleDB")]
-        rd[("redis<br/>cache")]
-        mq[["rabbitmq<br/>event bus"]]
-        ml["mlflow<br/>tracking, registry"]
-        vol[/"Persistent volumes: postgres_data · rabbitmq_data · mlflow_data · model files"/]
-    end
-    backup["Off-server backup storage"]
-
-    users -- "HTTPS" --> vercel
-    vercel -- "API calls, HTTPS 443" --> nginx
-    nginx -- "/api requests" --> gw
-    gw --> ds & ai & al
-    ds & ai & al --> pg & rd & mq
-    ai --> ml
-    vol -- "nightly pg_dump" --> backup
-```
+![Target deployment: the frontend is served by Vercel, and the API and all services run on one VM with Docker Compose](../images/deployment-architecture.svg)
 
 The browser loads the frontend from Vercel. API calls go only to nginx on 443 on the VM. Services reach the databases, queue and MLflow by name on the private Docker network, and stateful data lives on persistent volumes that are backed up nightly.
 
