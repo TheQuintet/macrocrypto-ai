@@ -119,11 +119,9 @@ The current compose file is set up for local development and needs a `docker-com
 
 Use this instead of Vercel if the Vercel project can't deploy from the private organisation repo on the Hobby plan. The repo already contains `frontend/wrangler.jsonc`, which serves `dist` as a single-page app.
 
-**Before you start**
-- Choose the API domain, for example `api.<your-domain>`. It must point at the VM (an A record) and serve HTTPS. The frontend runs on HTTPS, so the browser blocks an API that uses plain HTTP.
-- The `*.workers.dev` address is created on the first deploy, so you can't set it in advance.
+**Current status:** deploy without the API variable for now, so the site shows simulated data. Add the variable and the VM CORS setting later, once the API domain is ready.
 
-**Steps**
+**Steps: first deploy**
 
 1. In the Cloudflare dashboard, click **Compute → Workers & Pages → Create → Create an app**.
 2. Under **Select a method**, choose **Connect a Git repository**, not **Clone a public repository via Git URL**.
@@ -133,19 +131,25 @@ Use this instead of Vercel if the Vercel project can't deploy from the private o
 6. Set **Deploy command** to `npx wrangler deploy`. Leave the default.
 7. Turn off **Enable Preview builds**.
 8. Open **Advanced settings** and set **Path** to `/frontend`.
-9. Under **Advanced settings**, leave **API token** as **Create new token**. Leave **API token name** empty.
-10. Under **Advanced settings**, set **Variable name** to `VITE_API_GATEWAY_BASE_URL` and **Variable value** to `https://api.<your-domain>`. Leave **Encrypt** off.
-11. Click **Deploy**. Copy the `https://macrocrypto-ai.<your-subdomain>.workers.dev` URL shown after the deploy.
-12. On the VM, set `CORS_ALLOW_ORIGINS=["https://macrocrypto-ai.<your-subdomain>.workers.dev"]` and restart `api-gateway`.
-13. After you change any variable, redeploy from the Worker's **Deployments** page.
-14. Open the site. In DevTools → Network, API calls go to `https://api.<your-domain>/...` with no CORS errors. Reload `/macro`; it must load.
+9. Under **Advanced settings**, leave **API token** as **Create new token**, and leave **API token name** empty.
+10. Click **Deploy**.
+11. Copy the `https://macrocrypto-ai.<your-subdomain>.workers.dev` URL shown after the deploy.
+12. Open the site. Simulated data appears, and reloading `/macro` loads the page.
+
+**Steps: connect the API (later)**
+
+Do these once the API domain `https://api.<your-domain>` serves HTTPS from the VM.
+
+1. In the Worker's settings, add the variable `VITE_API_GATEWAY_BASE_URL` = `https://api.<your-domain>`. Leave **Encrypt** off.
+2. Start a new deployment from the Worker's **Deployments** page. The variable applies only to a new build.
+3. On the VM, set `CORS_ALLOW_ORIGINS=["https://macrocrypto-ai.<your-subdomain>.workers.dev"]` and restart `api-gateway`.
+4. Open the site. In DevTools → Network, API calls go to `https://api.<your-domain>/...` with no CORS errors. Live data replaces the simulated data.
 
 **If something fails**
 - Repo not listed → repeat step 3.
 - Build error "package.json not found" → **Path** must be `/frontend` (step 8).
-- Simulated data, no error → fix step 10 and redeploy.
-- CORS error in the console → fix step 12.
 - Deployment fails at the deploy step → check that `frontend/wrangler.jsonc` is in the repo.
+- CORS error after connecting the API → repeat connect step 3.
 
 ## Deployment steps
 
