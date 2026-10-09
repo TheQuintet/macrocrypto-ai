@@ -70,7 +70,7 @@ Choose the provider by where the team has credits; the setup is the same on all 
 
 Use Ubuntu 24.04 LTS, at least 50 GB SSD and a static public IP. Point a domain (or a free subdomain) at it for TLS.
 
-![Target deployment: the frontend is served by Vercel, and the API and all services run on one VM with Docker Compose](../images/deployment-architecture.svg)
+![Target deployment: the frontend is served by Cloudflare, and the API and all services run on one VM with Docker Compose](../images/deployment-architecture.svg)
 
 The browser loads the frontend from Cloudflare. API calls go only to nginx on 443 on the VM. Services reach the databases, queue and MLflow by name on the private Docker network, and stateful data lives on persistent volumes that are backed up nightly.
 
