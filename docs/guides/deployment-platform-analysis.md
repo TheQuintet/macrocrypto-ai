@@ -73,8 +73,9 @@ Use Ubuntu 24.04 LTS, at least 50 GB SSD and a static public IP. Point a domain 
 ```mermaid
 flowchart TB
     users["Users (browser)"]
+    vercel["Vercel<br/>frontend (static build)"]
     subgraph vm["VM · Docker Compose · private network"]
-        nginx["nginx (reverse proxy)<br/>TLS · serves the frontend build"]
+        nginx["nginx (reverse proxy)<br/>TLS · api.&lt;domain&gt; only"]
         gw["api-gateway"]
         ds["data-service<br/>ingests market data"]
         ai["ai-service<br/>predicts, retrains 06:00 UTC"]
@@ -87,7 +88,8 @@ flowchart TB
     end
     backup["Off-server backup storage"]
 
-    users -- "HTTPS 443" --> nginx
+    users -- "HTTPS" --> vercel
+    vercel -- "API calls, HTTPS 443" --> nginx
     nginx -- "/api requests" --> gw
     gw --> ds & ai & al
     ds & ai & al --> pg & rd & mq
@@ -95,7 +97,7 @@ flowchart TB
     vol -- "nightly pg_dump" --> backup
 ```
 
-Traffic enters only through nginx on 443. Services reach the databases, queue and MLflow by name on the private Docker network, and stateful data lives on persistent volumes that are backed up nightly.
+The browser loads the frontend from Vercel. API calls go only to nginx on 443 on the VM. Services reach the databases, queue and MLflow by name on the private Docker network, and stateful data lives on persistent volumes that are backed up nightly.
 
 ## Production readiness changes
 
@@ -104,19 +106,30 @@ The current compose file is set up for local development and needs a `docker-com
 - [ ] Remove dev bind mounts (`./services/*/app:/app/app`, `./shared:/app/shared`) so images run the code they were built with
 - [ ] Replace hardcoded credentials (Postgres `macro`/`crypto`, RabbitMQ `guest`/`guest`) with values from a server-only `.env` file
 - [ ] Stop publishing internal ports (5432, 6379, 5672, 15672, 5001, 8001–8003) to the host; expose only 80/443
-- [ ] Enable the reverse proxy (the commented-out `nginx` service, or Caddy) with TLS certificates
-- [ ] Build the frontend with `VITE_API_GATEWAY_BASE_URL` set to the public API URL and serve it as static files
+- [ ] Enable the reverse proxy (the commented-out `nginx` service, or Caddy) with TLS certificates for `api.<domain>` only
+- [ ] Deploy the frontend to Vercel (see [Frontend on Vercel](#frontend-on-vercel)), not from the VM
 - [ ] Add a named volume for `ai-service` model files so trained models survive redeploys
 - [ ] Move MLflow's backend store from SQLite to the Postgres instance (optional, more robust)
-- [ ] Restrict the API gateway's CORS settings to the production domain
+- [ ] Set the gateway's `CORS_ALLOW_ORIGINS` to the Vercel production domain
 - [ ] Add a nightly `pg_dump` backup copied off the server
+
+## Frontend on Vercel
+
+The frontend is a static Vite build, so it runs on Vercel rather than the VM. Vercel's free Hobby plan covers a student project on a personal account, but check its terms first.
+
+1. **Import the repo.** In Vercel, create a project from the GitHub repo. Set **Root Directory** to `frontend`, **Build Command** to `npm run build`, and **Output Directory** to `dist`.
+2. **Set the API URL.** Under Settings → Environment Variables, add `VITE_API_GATEWAY_BASE_URL=https://api.<domain>` for the Production environment. Vite bakes this value in at build time, so set it before the first deploy and redeploy after any change.
+3. **Routing.** `frontend/vercel.json` rewrites every path to `index.html`, so deep links such as `/macro` load instead of returning 404.
+4. **Custom domain (optional).** Add `app.<domain>` under Settings → Domains and create the DNS record Vercel shows.
+5. **Allow the origin.** On the VM, set `CORS_ALLOW_ORIGINS` to the Vercel production URL, then restart the gateway.
+6. **Verify.** Open the Vercel URL. The browser network tab should show calls to `https://api.<domain>/...` with no CORS errors. If the page shows simulated data, check step 2.
 
 ## Deployment steps
 
-Run these once the production override from the previous section exists.
+Run the VM steps once the production override from the previous section exists. The frontend steps are in [Frontend on Vercel](#frontend-on-vercel).
 
 1. **Provision the VM.** Create a 4 vCPU / 8–16 GB Ubuntu 24.04 instance with 50+ GB SSD. Add your SSH key and reserve a static IP.
-2. **Point DNS.** Create A records, for example `app.<domain>` for the frontend and `api.<domain>` for the gateway.
+2. **Point DNS.** Create an A record for `api.<domain>` pointing at the VM. The frontend's domain is handled by Vercel.
 3. **Harden the server.**
    - Create a non-root user with sudo; disable SSH password and root login.
    - Enable the firewall (`ufw`) and allow only 22, 80 and 443.
@@ -129,7 +142,7 @@ Run these once the production override from the previous section exists.
 9. **Verify.**
    - All containers report healthy in `docker compose ps`.
    - `https://api.<domain>/health` returns OK.
-   - The frontend loads, shows prices and predictions, and alerts fire.
+   - The Vercel frontend loads, shows prices and predictions, and alerts fire.
    - MLflow lists the new training runs.
 10. **Operate.**
     - Check the next day that the 06:00 UTC retrain ran.
