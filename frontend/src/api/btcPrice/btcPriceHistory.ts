@@ -40,7 +40,7 @@ export async function simulateBtcPriceHistory(
       : Math.ceil(lookbackMs / (MAX_POINTS - 1) / intervalMs) * intervalMs
 
   const points: BtcPriceHistoryPoint[] = []
-  let close = 64_000
+  let close = 82_000
 
   for (
     let timestampMs = startMs, index = 0;
