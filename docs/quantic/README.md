@@ -14,7 +14,7 @@ Capstone requirements, grading, policies, and deliverables for MacroCrypto AI.
 
 ## Program
 
-- **Program:** Quantic School of Business and Technology — MBA
+- **Program:** Quantic School of Business and Technology — MSSE
 - **Cohort / term:** _november 2026_
 
 ## Quick reference
