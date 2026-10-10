@@ -44,7 +44,7 @@ Stand-up, presentation order, deployment, and recording plan for the Capstone de
 - One **continuous storyline**, not separate handovers (Richard).
 - Target **~4 minutes** per segment; total must fit **15–20 minutes** — keep each part tight.
 - Frame demos around **BTC trader** and **investment analyst** personas where it helps the narrative.
-- Use **dummy data** to trigger alerts; **state clearly on camera** that alert data is dummy. Use the **live deployed URL** for everything else.
+- Use **dummy data** to trigger alerts; **state clearly on camera** that alert data is dummy. Use the **deployed URL** for everything else, with **simulated data** (not real market data; see Demo data in Decisions).
 - **All five on camera** for the full recording (Quantic ID rules still apply — see [demo-prep](../quantic/demo-prep.md)).
 
 ---
@@ -102,6 +102,7 @@ Stand-up, presentation order, deployment, and recording plan for the Capstone de
 | Deployment | **Cloudflare Workers** on **Loredana’s** account. Decided 9 Oct, after this meeting, by Loredana as deployment owner: the team did not reply to a request for confirmation, and the deadline does not allow waiting. Frontend on Cloudflare; backend stays on one VM with Docker Compose. Reason: Vercel's Hobby plan can't deploy from the private organisation repo. Earlier choice was Vercel. Fallback **Railway** or **Render**; paid tier if memory-limited. |
 | Smoke test | After deploy: **health endpoints** + **green CI pipelines** on camera. Full post-deploy smoke suite **not required**. |
 | Macro indicators | Demo with **9** if that is all that is stable; do not block the video on all **13**. |
+| Demo data | **The demo is not run on real data.** The backend deploy was not ready, and free provider APIs (Binance, Yahoo Finance, FRED) rate-limit backfills and live updates. The recording uses **simulated/dummy data** throughout, stated on camera. |
 | Software design docs | **One Markdown** file linking **SVG UML** in a separate folder; class diagrams show **key classes** only; include **current and future** architecture. |
 | Post-submission changes | **None** unless Quantic (Katie) approves — Sid asked in global channel. |
 | Recording storage | Loredana records on **Zoom**; final **`.mp4`** on **Google Drive** (anyone with link). |
