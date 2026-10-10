@@ -46,6 +46,7 @@ Finish **[Deliverables §1–§4](./deliverables.md#mandatory-submissions)** bef
 - [x] **Google Drive / recording owner** — Loredana (Zoom record → Drive link; anyone with link can view)
 - [ ] **Quantic submitter** — one person named for dashboard + Group Agreement
 - [ ] **Scripts** — each member fills [demo-script.md](./demo-script.md) by **8 Oct**; **Loredana** merges and builds the recording plan
+  - Provided: **Kingson** ✅, **Loredana** ✅, **Mael** ✅ · Pending: **Sid**, **Richard**
 
 ---
 
