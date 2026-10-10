@@ -72,7 +72,7 @@ Stand-up, presentation order, deployment, and recording plan for the Capstone de
 | **Richard** | Review AI-generated documentation | This week | ✅ Done (one broken link to fix: `docs/README.md` points to `./design/uml/README.md`, which does not exist) |
 | **Richard** | Prepare data gathering and preprocessing segment | **Thu 8 Oct** | ⏳ Open |
 | **Kingson** | Triage unassigned testing issues (prediction unit test, accuracy metrics, Redis cache test) — close or drop | Before 10 Oct | ⏳ Open |
-| **Kingson** | Prepare opening + closing demo segments | **Thu 8 Oct** | ⏳ Open |
+| **Kingson** | Prepare opening + closing demo segments | **Thu 8 Oct** | ✅ Done (script in [demo-script](../quantic/demo-script.md), segments 1 and 6) |
 | **Everyone** | Share talking points / scripts ([demo-script](../quantic/demo-script.md)) | **Thu 8 Oct** | 🟡 In progress: **Loredana**, **Mael** and **Kingson** have shared their scripts; **Sid** not provided; **Richard** pending |
 | **Everyone** | Attend Sat recording, on camera | **10 Oct ~18:00** | ⏳ Open |
 
