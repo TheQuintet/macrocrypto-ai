@@ -2,8 +2,8 @@ import { isApiGatewayConfigured } from '@/lib/apiConfig'
 
 /**
  * Notification REST follows the API gateway. Unset → simulated inbox, no
- * HTTP. Set → try live, and if that request fails (routes still missing)
- * fall back so the bell still works. Price-alert CRUD does not use this.
+ * HTTP. Set → live only; a failed request throws rather than substituting
+ * fake notifications. Price-alert CRUD does not use this helper.
  */
 export async function withSimulatedFallback<T>(
   live: () => Promise<T>,
@@ -13,9 +13,5 @@ export async function withSimulatedFallback<T>(
     return simulate()
   }
 
-  try {
-    return await live()
-  } catch {
-    return simulate()
-  }
+  return live()
 }

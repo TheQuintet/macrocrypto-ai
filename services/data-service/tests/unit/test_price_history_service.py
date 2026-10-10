@@ -26,6 +26,7 @@ from app.services.price_history_service import (
     HOUR_MS,
     MIN_LOOKBACK_MS,
     MINUTE_MS,
+    YEAR_MS,
     PriceHistoryService,
     PriceHistoryValidationError,
 )
@@ -114,6 +115,8 @@ def test_lookback_uses_larger_of_range_and_interval_floor(service):
         ("30d", "1d", 90 * DAY_MS),
         ("90d", "1w", 26 * 7 * DAY_MS),
         ("90d", "1y", 6 * 365 * DAY_MS),
+        ("1y", "1w", YEAR_MS),
+        ("5y", "1w", 5 * YEAR_MS),
     ],
 )
 def test_lookback_applies_interval_floor(
@@ -180,6 +183,8 @@ def test_choose_binance_interval_uses_monthly_for_one_year(
         "7d",
         "30d",
         "90d",
+        "1y",
+        "5y",
     ],
 )
 def test_parse_range_accepts_valid_ranges(service, value):
@@ -205,7 +210,7 @@ def test_parse_range_rejects_invalid_ranges(service, value):
 def test_parse_range_error_contains_allowed_values(service):
     with pytest.raises(
         PriceHistoryValidationError,
-        match="24h, 7d, 30d, 90d",
+        match="24h, 7d, 30d, 90d, 1y, 5y",
     ):
         service._parse_range("invalid")
 
