@@ -56,24 +56,18 @@ About **1 min of buffer** under the 20-min limit for handoffs and screen switche
 
 **Loredana — merged plan:** _combined transitions, dry-run notes_
 
-- **Kingson (9 Oct):** script received and placed in segments 1 and 6. At ~140 wpm, segment 1 reads in **~0:45** and segment 6 in **~4:00**.
+- **Kingson (10 Oct):** updated script placed in segments 1 and 6. At ~140 wpm, segment 1 reads in **~0:45** and segment 6 in **~4:00**.
 - **Order change (9 Oct):** Kingson's opening comes first, then the ID round, then Sid. His opening already names everyone's role, so the ID round can be just name + role. Optionally, Kingson can drop the teammate list from his opening to avoid repeating it.
 
 ---
 
 ## 1. Kingson — opening & welcome (~0:45)
 
-**Must cover:** welcome; team + product in one sentence; set up the problem the capstone solves; hand off to the ID round.
+**Must cover:** welcome; the problem in one breath; what MacroCrypto AI does; hand off to the ID round.
 
-_Kingson’s script (9 Oct). Lines in [brackets] are on-screen actions; everything else is spoken._
+_Kingson’s script (updated 10 Oct). Lines in [brackets] are on-screen actions; everything else is spoken._
 
-**[Dashboard, top of page, cursor still]**
-
-> Hi, I’m Kingson Emma-Ochu, a frontend engineer on The Quintet. My teammates are Sid Ahmed Mahieddine, our Product Owner; Loredana Lungu, our Scrum Master; Mael Taye Deneke, who owns the backend; and Richard Owusu, who works on frontend and machine learning. This is MacroCrypto AI.
->
-> Here’s the problem. A Bitcoin trader watches the price on one site and the economy on another, and has to put the two together in their head. We put them on one screen, so you can see why Bitcoin is moving, not just what it’s doing.
-
-- **Handoff to the ID round:** _not in Kingson’s script — add one line, e.g._ “Before we show you how it works, let’s each introduce ourselves.”
+> Hey everyone, welcome! I’m Kingson, and we’re The Quintet. Bitcoin doesn’t move on its own. Rates, inflation, the whole economy push on it, and most tools only show you the price. So we built MacroCrypto AI. It puts the economy right next to the market and uses AI to forecast what’s next. Five of us built it. Before we show you how it works, let’s each introduce ourselves!
 
 ---
 
@@ -85,7 +79,7 @@ Intro order: **Kingson → Loredana → Richard → Mael → Sid**. Sid goes las
 
 ### Kingson Emma-Ochu (Frontend)
 
-- **Intro line:** “Hi, I’m Kingson Emma-Ochu, a frontend engineer on The Quintet.” _(his full opening also introduces the whole team — see [segment 1](#1-kingson--opening--welcome-045))_
+- **Intro line:** “I’m Kingson, frontend engineer.” _(ID up)_ — then “Loredana, over to you!”
 - **ID on camera:** ☐
 
 ### Loredana Lungu (Scrum Master / frontend)
@@ -303,58 +297,23 @@ Intro order: **Kingson → Loredana → Richard → Mael → Sid**. Sid goes las
 
 ---
 
-## 6. Kingson — dashboard, forecast & closing demo (~4:00)
+## 6. Kingson — live demo & close (~4:00)
 
-**Must cover:** dashboard, charts, **forecast**; **closing live demo** on deploy URL (live backend data — not dummy).
+**Must cover:** the live deploy URL walkthrough (dashboard, macro, regime, forecasts, calendar); **Alerts** only as a one-line callback to Loredana’s segment; closing line.
 
-_Kingson’s script (9 Oct). Lines in [brackets] are on-screen actions; everything else is spoken._
+**Click path (deploy URL):** Dashboard → Macro Economy → Regime analysis → Forecasts → Economic calendar → back to Dashboard.
 
-**Click path (deploy URL):** Dashboard → Macro Economy → Regime analysis → Forecasts → Economic calendar → Alerts → back to Dashboard.
+- **Dashboard:** live BTC price with 24h and 7d change; macro regime card with confidence and reason; next 24-hour forecast with 85% band; BTC price chart from 30d to 1y.
+- **Macro Economy:** inflation, rates, jobs, GDP, money supply and the dollar on one timeline with BTC; hover tooltips on what each move means for BTC.
+- **Regime analysis:** Performance and Similar periods — a comparison, not a prediction.
+- **Forecasts:** 24h to 7d; 70% to 95% confidence; the accuracy card with the model’s own track record.
+- **Economic calendar:** filter by High impact; open an event; subscribe.
+- **Alerts:** one-line callback only — “as Loredana showed you…” — so we don’t repeat her segment.
+- **Close:**
 
-**[Hover the “Live” indicator under the price]**
-
-> This is the dashboard. The Bitcoin price is live. It streams over a WebSocket, and this indicator shows the connection status and when the last update came in. Next to it are the 24-hour and 7-day moves.
-
-**[Point at the Macro regime card]**
-
-> This card is the macro regime. Our service reads the latest Federal Reserve data and classifies the current backdrop, for example rising rates, high inflation or growth. It shows a confidence meter and a plain-English reason, so you know whether that backdrop has historically helped or hurt Bitcoin.
-
-**[Scroll to the Forecast card, then the price chart. Switch the interval, then the time range]**
-
-> Below that is the AI model’s outlook for the next day, and an interactive candlestick chart where you can change the interval and the time window.
-
-**[Sidebar → Macro Economy. Hover the % change on an indicator card]**
-
-> Under Macro Economy are the indicators that matter: inflation, interest rates, unemployment, GDP, money supply and the dollar. Hover over any change and it tells you what that move usually means for Bitcoin. Rising rates, for example, usually mean tighter liquidity, which has been a headwind.
-
-**[Scroll to the combined chart and hover across it]**
-
-> This is my favourite view. Bitcoin and the macro indicators share one timeline. Each series starts at 100 so different units fit on one scale, and when you hover, the price and the economy line up bar by bar.
-
-**[Sidebar → Regime analysis. Click through the Performance, Timeline and Similar periods tabs]**
-
-> Regime analysis goes deeper. It shows how Bitcoin performed in each kind of backdrop and a timeline of those regimes over the years. Similar periods finds the last times the economy looked like it does today and shows what Bitcoin did next. It’s a comparison, not a prediction, and we label it that way.
-
-**[Sidebar → Forecasts. Switch 24h to 7d, then change the confidence level]**
-
-> Forecasts shows the model’s 24-hour and 7-day predictions, with a confidence band around the price range it expects. Underneath is what I think matters most: forecast accuracy. We check past predictions against the real price, so you can see how much to trust the model before you rely on it.
-
-**[Sidebar → Economic calendar. Click one event to open its details]**
-
-> The economic calendar shows upcoming Fed decisions, CPI releases, jobs reports and GDP. You can filter by impact, switch time zones, and subscribe to an event straight from here.
-
-**[Sidebar → Alerts. Click through the Price, Macro and Prediction tabs, then open the notification bell]**
-
-> All of that feeds into alerts. You can set price alerts, macro event alerts and prediction alerts, and they arrive in this notification bell in real time.
-
-**[Back to Dashboard]**
-
-> So that’s MacroCrypto AI: live price, the economy behind it, and an AI forecast that shows its track record, all in one place. It’s built with React and TypeScript on an event-driven backend, and it’s covered by unit, UI-integration and end-to-end tests. Thanks for watching, from me and the rest of The Quintet.
+> That’s MacroCrypto AI: the live price, the economy behind it, and an AI forecast that shows its track record. Built with React and TypeScript, an event-driven backend, and unit, integration and E2E tests. Five people, one goal. Thanks for watching!
 
 - **If API fails:** _(one line; 9 macro indicators OK if 13 unavailable)_ — e.g. “Backend is slow — here’s the same view from our staging recording,” or show CI + merged PR.
-- **Merge notes (Loredana):**
-  - The **Alerts** beat overlaps [segment 5](#5-loredana--scrum-process--alerts-300). Either keep it as a one-line callback (“as Loredana showed…”) or drop it here.
-  - If alerts stay in this segment, add the **dummy-data** disclaimer from the [storyline rules](#storyline-rules-agreed-7-oct).
 
 ---
 
