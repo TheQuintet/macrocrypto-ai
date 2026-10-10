@@ -69,7 +69,7 @@ This document defines the 4 microservices that comprise the MacroCrypto AI platf
 
 | Component | Technology |
 |-----------|------------|
-| Language | Python 3.11+ |
+| Language | Python 3.13 |
 | Framework | FastAPI |
 | Database | TimescaleDB |
 | Cache | Redis |
@@ -135,7 +135,7 @@ This document defines the 4 microservices that comprise the MacroCrypto AI platf
 
 | Component | Technology |
 |-----------|------------|
-| Language | Python 3.11+ |
+| Language | Python 3.13 |
 | Framework | FastAPI |
 | ML Framework | Prophet |
 | Model Registry | MLflow |
@@ -281,7 +281,7 @@ This document defines the 4 microservices that comprise the MacroCrypto AI platf
 
 | Component | Technology |
 |-----------|------------|
-| Language | Python 3.11+ |
+| Language | Python 3.13 |
 | Framework | FastAPI |
 | Database | PostgreSQL |
 | Cache | Redis |
@@ -364,7 +364,7 @@ This document defines the 4 microservices that comprise the MacroCrypto AI platf
 
 | Component | Technology |
 |-----------|------------|
-| Language | Python 3.11+ |
+| Language | Python 3.13 |
 | Framework | FastAPI |
 | Database | PostgreSQL |
 | Message Broker | RabbitMQ (Consumer/Producer) |
