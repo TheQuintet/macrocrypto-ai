@@ -43,7 +43,7 @@ Feature source:
     PredictionRepository.fetch_training_frame_for_source(...) with a
     FeatureContext. The repository dispatches to the configured
     source (parquet or features_db). This keeps the jobs agnostic
-    of where the canonical 50-feature set physically lives.
+    of where the canonical 47-column set physically lives.
 
     Analytics jobs (correlation, event impact, export cleanup) read
     directly from the source tables — they do not go through the

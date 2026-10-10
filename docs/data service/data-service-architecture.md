@@ -57,7 +57,7 @@ Raw schemas are frozen. Migration `004_create_raw_tables_idempotent.sql` makes t
 
 ### 2.3 `features_db` (D8)
 
-53 columns per contract v2. Full DDL in `data-service-schemas.md`. Type story: **45 base + 6 engineered = DOUBLE PRECISION; 4 flags + 14 trackers = INTEGER** (never BOOLEAN — D8). Recency trackers stored in **HOURS** but keep the `_days_since_*` suffix (D8).
+47-column feature contract (`ds` + `y` + 45 features), matching the frozen parquet; the 53-column contract v2 is abandoned. The table still has 6 deprecated `eng_*` columns that nothing reads. Full DDL in `data-service-schemas.md`. Type story: **`y` + 27 numeric features = DOUBLE PRECISION; 4 flags + 14 trackers = INTEGER** (never BOOLEAN — D8). Recency trackers stored in **HOURS** but keep the `_days_since_*` suffix (D8).
 
 ### 2.4 `macro_indicator_vintages` (D15)
 
@@ -134,7 +134,7 @@ macro_indicator_vintages
 (PIT, 5 series only)
         │
         ▼
-features_db (53 cols)
+features_db (47-col contract)
   ├─ market/on-chain from btc_prices_hourly + raw
   ├─ non-PIT macro from macro_indicators_hourly
   └─ PIT macro from macro_indicator_vintages

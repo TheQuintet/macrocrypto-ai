@@ -39,6 +39,8 @@ CREATE INDEX idx_macro_indicators_hourly_time_desc
 
 ## 3. DDL — `features_db` (D8, contract v2)
 
+> **Feature contract: 47 columns.** The frozen parquet files (`train_scaled.parquet` and siblings) are the source of truth: `ds` + `y` + 45 features. The 53-column contract v2 is abandoned. The table below still carries 6 `eng_*` columns from migration 009; they are **deprecated**, are not part of the contract, and no consumer reads them. Lag/return features derived from `y` leak the target (`y` is the next price), so any lag features must come from `btc_price`.
+
 ```sql
 CREATE TABLE features_db (
     -- Timestamp and target (2)
@@ -101,7 +103,7 @@ CREATE TABLE features_db (
     m2_money_supply_days_since_release                       INTEGER,
     unemployment_days_since_release                          INTEGER,
 
-    -- Engineered features (6)
+    -- Deprecated engineered features (6) — outside the 47-column contract
     eng_price_lag_1d                  DOUBLE PRECISION,
     eng_price_lag_7d                  DOUBLE PRECISION,
     eng_price_lag_30d                 DOUBLE PRECISION,
@@ -115,7 +117,7 @@ CREATE TABLE features_db (
 CREATE INDEX idx_features_db_ds_desc ON features_db (ds DESC);
 ```
 
-**Total: 2 + 4 + 13 + 10 + 4 + 14 + 6 = 53.**
+**Contract: 2 + 4 + 13 + 10 + 4 + 14 = 47** (matches the frozen parquet). The physical table has 53 columns including the 6 deprecated `eng_*` columns.
 
 ## 4. DDL — `macro_indicator_vintages` (D15)
 
@@ -212,12 +214,14 @@ Populated for **5 series only**:
 | 45 | `gdp_days_since_release` | `macro_indicator_vintages` | days | hours |
 | 46 | `m2_money_supply_days_since_release` | `macro_indicator_vintages` | days | hours |
 | 47 | `unemployment_days_since_release` | `macro_indicator_vintages` | days | hours |
-| 48 | `eng_price_lag_1d` | `btc_prices_hourly.close` | `shift(1)` | `shift(24)` |
-| 49 | `eng_price_lag_7d` | `btc_prices_hourly.close` | `shift(7)` | `shift(168)` |
-| 50 | `eng_price_lag_30d` | `btc_prices_hourly.close` | `shift(30)` | `shift(720)` |
-| 51 | `eng_returns_1d` | `btc_prices_hourly.close` | alias of `btc_log_return_1d` | alias of `btc_log_return_1d` |
-| 52 | `eng_returns_7d` | `btc_prices_hourly.close` | alias of `btc_log_return_7d` | alias of `btc_log_return_7d` |
-| 53 | `eng_returns_30d` | `btc_prices_hourly.close` | alias of `btc_log_return_30d` | alias of `btc_log_return_30d` |
+| 48 | `eng_price_lag_1d` (deprecated) | `btc_prices_hourly.close` | `shift(1)` | `shift(24)` |
+| 49 | `eng_price_lag_7d` (deprecated) | `btc_prices_hourly.close` | `shift(7)` | `shift(168)` |
+| 50 | `eng_price_lag_30d` (deprecated) | `btc_prices_hourly.close` | `shift(30)` | `shift(720)` |
+| 51 | `eng_returns_1d` (deprecated) | `btc_prices_hourly.close` | alias of `btc_log_return_1d` | alias of `btc_log_return_1d` |
+| 52 | `eng_returns_7d` (deprecated) | `btc_prices_hourly.close` | alias of `btc_log_return_7d` | alias of `btc_log_return_7d` |
+| 53 | `eng_returns_30d` (deprecated) | `btc_prices_hourly.close` | alias of `btc_log_return_30d` | alias of `btc_log_return_30d` |
+
+**Rows 48–53 are deprecated** and outside the 47-column contract; they remain only because migration 009 created them.
 
 **Note on rows 34–47:** the "Daily rule" column records what the *daily* pipeline did (values in **days**); the "Hourly rule" column records what the *hourly* pipeline does (values in **hours**). Column names keep the `_days_` suffix at both resolutions (D8). For rows 43–47, the `release_date` comes from `macro_indicator_vintages`, which is exactly why these are PIT-merged.
 
