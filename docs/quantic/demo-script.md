@@ -161,35 +161,63 @@ Intro order: **Kingson → Loredana → Richard → Mael → Sid**. Sid goes las
 
 ## 3. Mael — architecture & platform (~3:30)
 
-**Must cover:** architecture and tech stack; **three services** you implemented; **RabbitMQ**; **Redis** caching; **CI/CD** and test automation; link to **software design docs** (single MD + SVG UML; current and future architecture).
+**Must cover:** architecture and tech stack; **the services you implemented**; **RabbitMQ**; **Redis** caching; **testing and CI/CD**; **current and future architecture** diagrams.
 
-- **First line:**
-- **Screen:** deploy URL, diagram, CI status, repo path to design doc
-- **Talking points:**
-  - End-to-end flow (Gateway, data, AI, alerts — as you built it)
-  - RabbitMQ and Redis roles
-  - CI/CD and automated tests (show green pipeline if useful)
-  - Point to design doc — do not read it aloud
+- **Screen:** current architecture diagram, future architecture diagram, CI/CD run or screenshot
+
+**Script** _([brackets] are on-screen actions; everything else is spoken)_
+
+> I’m Mael, the code owner and lead backend developer.
+>
+> I was responsible for implementing the core platform services, including the **Data Service, Alert Service, API Gateway, and the integration with the AI Service**. I also worked on exposing the backend functionality through the API Gateway so that the frontend has a consistent entry point to the system.
+
+**Current architecture**
+
+> At a high level, our platform consists of **PostgreSQL with TimescaleDB, the Data Service, Alert Service, AI Service, API Gateway, Redis, RabbitMQ, and the frontend**.
+>
+> Let me briefly explain the responsibility of each component.
+>
+> **Data Service** is primarily responsible for collecting and processing our **Bitcoin and macroeconomic data**.
+>
+> **Alert Service** is responsible for managing alerts and notifications. For example, users can be notified when a Bitcoin price, prediction, or macroeconomic indicator crosses a defined threshold.
+>
+> **AI Service** is the analytical component of the platform, responsible for **prediction, correlation, and analysis** of the data collected by the system.
+>
+> These services are built using **FastAPI** and are exposed through the **API Gateway**.
+>
+> The **API Gateway** acts as the single entry point for the frontend. It provides a consistent interface to the backend services and handles communication between the frontend and the underlying services.
+>
+> For performance, we use **Redis as a caching layer**, with configurable TTLs so that frequently requested data can be served quickly while still allowing the cache to expire and refresh.
+>
+> We also use **RabbitMQ as our message-queuing platform** for asynchronous communication, particularly between the Data Service and Alert Service. It also allows alert events to be propagated when a configured trigger is fired.
+>
+> So, this is what our **current implementation** looks like.
+
+**[Show current architecture diagram]**
+
+**Future architecture**
+
+> Our intention is not to stop at the capstone. We designed the architecture with future expansion in mind, and our plan is to extend the application with additional capabilities and services beyond the current implementation.
+
+**[Show future architecture diagram]**
+
+**Testing and quality assurance**
+
+> From a quality perspective, we have implemented testing at several levels.
+>
+> We use **unit testing, integration testing, end-to-end testing, and full system-stack testing**.
+>
+> **Frontend:** we use Vitest and Playwright. **Backend:** we use Pytest. **System-level testing:** we use a Docker-based environment to simulate the complete application stack and verify that the services work together correctly.
+
+**CI/CD pipeline**
+
+> Finally, I’ll show the **CI/CD pipeline in action**, where these automated checks are executed as part of our development workflow.
+
+**[Show CI/CD video or screenshot]**
+
 - **If something fails live:** _(one line + fallback screen)_
 - **Backup:** pre-recorded segment if connectivity fails
-- **Handoff to Richard:**
-
-<details>
-<summary><strong>Suggestions</strong></summary>
-
-- **First line:** “Under the hood we use **microservices** so ingestion, alerts, and AI can scale independently — all exposed through one **API Gateway**.”
-- **Screen:** deploy URL health; GitHub Actions; [docs/design/](https://github.com/TheQuintet/macrocrypto-ai/tree/main/docs/design) and [testing doc](https://github.com/TheQuintet/macrocrypto-ai/blob/main/docs/test%20documents/local-and-ci-cd-tests.md) (C4 / microservices / ADRs; consolidated software-design MD + SVG when ready).
-- **Talking points:**
-  - **Three services you own:** e.g. **data-service** (BTC + macro collection/APIs), **alert-service** (rules + notifications), **api-gateway** (single entry for the frontend) — adjust to what you actually present.
-  - **RabbitMQ:** collectors publish events; services stay decoupled ([ADR-001](../design/adr/ADR-001-use-rabbitmq.md)).
-  - **Redis:** cache hot reads (e.g. prices/indicators) to keep the dashboard responsive.
-  - **TimescaleDB/Postgres** for history; **MLflow** for model artifacts where relevant.
-  - **CI/CD:** PR checks, service tests, coverage goals — show a green run instead of re-running every test on camera.
-  - **Design doc:** one Markdown index linking SVG diagrams; **current** deploy vs **future** scale-out — 30 seconds pointing at repo paths.
-- **If fail:** “The deploy health check is flaky — here’s the same flow in our diagram and CI proof.”
-- **Handoff:** “Richard dug into where our data comes from and how we clean it before it ever reaches Sid’s models.”
-
-</details>
+- **Handoff to Richard:** _(not in Mael’s script — add one line, e.g. “Richard dug into where our data comes from and how we clean it.”)_
 
 ---
 
