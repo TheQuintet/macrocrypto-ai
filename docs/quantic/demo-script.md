@@ -90,15 +90,8 @@ Intro order: **Kingson → Loredana → Richard → Mael → Sid**. Sid goes las
 
 ### Loredana Lungu (Scrum Master / frontend)
 
-- **Intro line:**
+- **Intro line:** “Hi, I’m Loredana Lungu, Scrum Master and Frontend Lead.” _(hold ID)_
 - **ID on camera:** ☐
-
-<details>
-<summary><strong>Suggestions</strong></summary>
-
-- “I’m Loredana — Scrum Master and frontend. I run our Agile ceremonies, maintain meeting notes, and built macro indicator UI, alerts integration, E2E tests, and our deployment path for the demo.”
-
-</details>
 
 ### Richard Owusu (ML / frontend)
 
@@ -230,43 +223,55 @@ Intro order: **Kingson → Loredana → Richard → Mael → Sid**. Sid goes las
 
 ## 5. Loredana — scrum process & alerts (~3:00)
 
-**Must cover:** Scrum process — board, sprints, meeting notes, retro; **no daily standup** (team Slack discussion — domain channels only); **frontend alerts** on deploy (**dummy data** — state on camera).
+**Must cover:** Scrum process — roles, sprints, meeting notes, retro; **no daily standup** (team Slack decision — domain channels only); **frontend alerts** on deploy (**dummy data** — state on camera).
 
-- **First line:**
-- **Screen:** [All Work](https://github.com/orgs/TheQuintet/projects/6/views/6) + [Sprint 1](https://github.com/orgs/TheQuintet/projects/6/views/18) / [2](https://github.com/orgs/TheQuintet/projects/6/views/19) / [3](https://github.com/orgs/TheQuintet/projects/6/views/20) + Sprint 2 retro; deployed app — alerts + notifications
-- **Talking points:**
-  - PO / SM / code owner; weekly sync + GitHub boards (not a daily meeting)
-  - Async updates in `#mc-frontend`, `#mc-backend`, `#mc-ml-model`, `#mc-software-design`
-  - PRs, CI, meeting notes in repo
-  - Create or show alert flow; **explicit dummy-data disclaimer**
-- **Click path (alerts):**
-  1.
-  2.
-- **If alerts fail:** _(fallback line)_
-- **Handoff to Kingson:**
+- **Screen:** [All Work](https://github.com/orgs/TheQuintet/projects/6/views/6) → Sprint [1](https://github.com/orgs/TheQuintet/projects/6/views/18) / [2](https://github.com/orgs/TheQuintet/projects/6/views/19) / [3](https://github.com/orgs/TheQuintet/projects/6/views/20) → [Sprint 2 retro board](https://github.com/orgs/TheQuintet/projects/6/views/10); `docs/meetings/`; deployed app — Alerts + notification bell
 
-<details>
-<summary><strong>Suggestions</strong></summary>
+**Script** _([brackets] are on-screen actions; everything else is spoken)_
 
-- **First line:** “We ran this capstone with **sprints and boards**, but after a **Slack discussion** we agreed **not** to do a daily standup — live or required offline posts — we use **domain Slack** and the **weekly sync** instead.”
-- **Screen:** [All Work](https://github.com/orgs/TheQuintet/projects/6/views/6) + board sprints [1](https://github.com/orgs/TheQuintet/projects/6/views/18) · [2](https://github.com/orgs/TheQuintet/projects/6/views/19) · [3](https://github.com/orgs/TheQuintet/projects/6/views/20) + [Sprint 2 retro board](https://github.com/orgs/TheQuintet/projects/6/views/10); [5 Aug retro notes](https://github.com/TheQuintet/macrocrypto-ai/blob/main/docs/meetings/2026-08-05-retrospective.md); [docs/meetings/](https://github.com/TheQuintet/macrocrypto-ai/tree/main/docs/meetings); open **Alerts** on deploy + notification bell/inbox.
-- **Talking points:**
-  - **Roles:** Sid PO, you SM, Mael code owner; frontend split across Kingson, you, Richard where relevant.
-  - **Slack by domain:** `#mc-frontend`, `#mc-backend`, `#mc-ml-model`, `#mc-software-design` — discuss work where it lives; `#capstone-project-group` for whole-team items.
-  - **Retro:** **Sprint 2 (5 Aug)** — full retro with items on the [retro board](https://github.com/orgs/TheQuintet/projects/6/views/10) and written notes. **Later sprints** — our weekly sync is only **1–2 hours**, so we **discussed emergent blockers live** in the meeting instead of maintaining a retro board every sprint; improvements are in **meeting notes** and the workflow board.
-  - **Honest process note:** domain Slack improved focus but some members felt **less visibility**; we compensated with **weekly Capstone sync**, the **GitHub board**, and **PR/meeting notes**.
-  - **Board for graders:** day-to-day work is **[All Work](https://github.com/orgs/TheQuintet/projects/6/views/6)** on Team Workflow #6 (sprints on the project **Sprint** field — we did not use GitHub Issues milestones). Capstone **three sprint boards** are saved views: [Sprint 1](https://github.com/orgs/TheQuintet/projects/6/views/18), [Sprint 2](https://github.com/orgs/TheQuintet/projects/6/views/19), [Sprint 3](https://github.com/orgs/TheQuintet/projects/6/views/20).
-  - **Process:** user stories → PRs → review → CI.
-  - **Engineering quality:** frontend lint/typecheck/unit tests + Playwright E2E; backend CI on services.
-  - **Alerts demo:** “For this recording we’re using **dummy alert data** so you can see the UX without waiting on live triggers.”
-- **Click path (example — replace with deploy routes):**
-  1. Navigate to **Alerts** in the sidebar.
-  2. Create or open a **price alert** (threshold above/below).
-  3. Show **notification** (toast or inbox) firing from that dummy rule.
-- **If fail:** show alert UI mock or PR screenshot + board story marked Done.
-- **Handoff:** “Kingson will tie it together with the **live dashboard**, charts, and **forecast** traders use day to day.”
+**[All Work view, Team Workflow board]**
 
-</details>
+> Thanks, Richard. Good data and good models only matter if five people can ship them together, so here's how we worked.
+>
+> Our roles were clear from day one. Sid was Product Owner and owned the backlog. I was Scrum Master. Mael was code owner for the backend, and Kingson, Richard and I shared the frontend.
+
+**[Click Sprint 1 → Sprint 2 → Sprint 3 views]**
+
+> We worked in nine sprints over the project. For the capstone, we grouped them into the three sprints Quantic asks for, and each one is a saved view on this GitHub board. You can see what we committed to and what we delivered.
+>
+> Early on, after a Slack discussion, we decided not to hold a daily standup. We had a weekly sync instead, plus async updates in domain channels for frontend, backend, the ML model and software design. Each discussion happens where that work lives.
+>
+> That choice had a cost. Focus got better, but some of us felt we saw less of the other areas. We made up for it with the weekly sync, the board and written notes.
+
+**[Open docs/meetings]**
+
+> Every meeting has notes in the repo.
+
+**[Open Sprint 2 retro board]**
+
+> In Sprint 2 we ran a full retrospective, with items on this board and written notes from 5 August. Later sprints had only a one-to-two-hour sync, so we dealt with blockers live in that meeting and recorded the improvements in the notes and on the board.
+>
+> Every piece of work followed the same path: a user story on the board, then a pull request, a review and CI. On the frontend, CI runs linting, type checks, unit tests and Playwright end-to-end tests.
+
+**[Switch to deployed app → Alerts]**
+
+> Now, alerts. **For this recording we're using dummy alert data**, so you can see the experience without waiting for a real market trigger.
+
+**[Price tab → create a price alert]**
+
+> A trader can set a price alert, for example Bitcoin crossing above a threshold.
+
+**[Macro tab, Prediction tab]**
+
+> There are also macro alerts, like a CPI release, and prediction alerts for when the model's outlook changes.
+
+**[Open notification bell]**
+
+> When a rule fires, the alert shows up here in the notification bell in real time. The trader doesn't have to watch the screen all day, and the analyst won't miss a macro event.
+>
+> That's how we built it. Kingson will now tie it all together with the live dashboard, the charts and the forecast traders use every day.
+
+- **If alerts fail:** _(fallback line)_ show alert UI mock or PR screenshot + board story marked Done.
 
 ---
 
