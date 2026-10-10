@@ -63,7 +63,7 @@ Stand-up, presentation order, deployment, and recording plan for the Capstone de
 | **Loredana** | Short sync with Mael on **9 vs 13 indicators** if still mismatched | **Thu 8 Oct** | ❌ Not done |
 | **Sid** | Finish two data-service branches; apply Mael’s review | **Thu 8 Oct** | ✅ Done |
 | **Sid** | Hand off AI integration details to Mael; stay reachable through Thu | **Thu 8 Oct** | ❌ Not done |
-| **Sid** | Add Quantic submitter / grader access per checklist | Before submission | ❌ Not done |
+| **Sid** | Add Quantic submitter / grader access per checklist | Before submission | ✅ Done by **Loredana** (grader access added to the repo) |
 | **Mael** | Integrate Sid’s final PRs + AI service end-to-end | **Thu 8 Oct** | ✅ Done |
 | **Mael** | Finalize software design doc (single MD, SVG links, current + future architecture) | Before submission | ⏳ Open |
 | **Mael** | Review open backend story on board — close or flag | This week | ⏳ Open |
