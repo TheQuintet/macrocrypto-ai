@@ -9,7 +9,7 @@
 
 export const HOUR_MS = 60 * 60 * 1000
 
-const BASE_PRICE = 64_000
+const BASE_PRICE = 82_000
 
 /**
  * Two oscillations rather than a trend: a slow swing that sets the mood of a

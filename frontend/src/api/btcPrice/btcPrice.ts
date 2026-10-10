@@ -11,14 +11,14 @@ export function btcPriceSnapshotQueryKey() {
 }
 
 const MOCK_LATENCY_MS = 180
-const BASE_PRICE = 64_000
+const BASE_PRICE = 82_000
 
 /** Snapshot cadence — matches the 5s Redis TTL on the real price endpoint. */
 export const PRICE_SNAPSHOT_TICK_MS = 5_000
 
 /** Reference closes the service derives its change windows from. */
-const REFERENCE_PRICE_24H = 63_100
-const REFERENCE_PRICE_7D = 61_400
+const REFERENCE_PRICE_24H = 81_100
+const REFERENCE_PRICE_7D = 78_400
 
 /** Every 11th tick moves more than 1% so the flash effect is exercisable. */
 const JOLT_EVERY_TICKS = 11
