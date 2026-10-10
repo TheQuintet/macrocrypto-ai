@@ -69,7 +69,7 @@ Stand-up, presentation order, deployment, and recording plan for the Capstone de
 | **Mael** | Review open backend story on board — close or flag | This week | ⏳ Open: Mael says no action is needed from him; he is coordinating with **Sid** to review and close the remaining issues. Not yet confirmed closed |
 | **Mael** | Support deployment; note AI service memory/CPU needs when known | **Thu 8 Oct** | ⏳ Open |
 | **Mael** | Pre-record segment backup (connectivity fallback) | Before 10 Oct | ⏳ Open |
-| **Richard** | Review AI-generated documentation | This week | ⏳ Open |
+| **Richard** | Review AI-generated documentation | This week | ✅ Done (one broken link to fix: `docs/README.md` points to `./design/uml/README.md`, which does not exist) |
 | **Richard** | Prepare data gathering and preprocessing segment | **Thu 8 Oct** | ⏳ Open |
 | **Kingson** | Triage unassigned testing issues (prediction unit test, accuracy metrics, Redis cache test) — close or drop | Before 10 Oct | ⏳ Open |
 | **Kingson** | Prepare opening + closing demo segments | **Thu 8 Oct** | ⏳ Open |
