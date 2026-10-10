@@ -84,12 +84,12 @@ Intro order: **Kingson → Loredana → Richard → Mael → Sid**. Sid goes las
 
 ### Loredana Lungu (Scrum Master / frontend)
 
-- **Intro line:** “Hi, I’m Loredana Lungu, Scrum Master and Frontend Lead.” _(hold ID)_
+- **Intro line:** “Hi, I’m Loredana Lungu, Scrum Master and Frontend Lead.” _(hold ID)_ — then “Richard, over to you!”
 - **ID on camera:** ☐
 
 ### Richard Owusu (ML / frontend)
 
-- **Intro line:**
+- **Intro line:** “I’m Richard Owusu, ML and frontend engineer.” _(ID up)_ — then “Mael, over to you!”
 - **ID on camera:** ☐
 
 <details>
@@ -101,7 +101,7 @@ Intro order: **Kingson → Loredana → Richard → Mael → Sid**. Sid goes las
 
 ### Mael Taye Deneke (Backend / code owner)
 
-- **Intro line:**
+- **Intro line:** “I’m Mael Taye Deneke, code owner and lead backend developer.” _(ID up)_ — then “Sid, over to you!”
 - **ID on camera:** ☐
 
 <details>
@@ -113,7 +113,7 @@ Intro order: **Kingson → Loredana → Richard → Mael → Sid**. Sid goes las
 
 ### Sid Ahmed Mahieddine (Product Owner)
 
-- **Intro line:**
+- **Intro line:** “I’m Sid Ahmed Mahieddine, Product Owner.” _(ID up)_ — then “Let’s start with the problem.”
 - **ID on camera:** ☐
 
 <details>
@@ -135,7 +135,7 @@ Intro order: **Kingson → Loredana → Richard → Mael → Sid**. Sid goes las
   - Problem / solution / value
   - **AI service:** 6 models, how champion is chosen, correlation analysis on a schedule
   - What the trader vs analyst gets from predictions (high level)
-- **Handoff to Mael:**
+- **Handoff to Mael:** “Mael made that architecture real — Gateway, services, messaging, cache, and the pipelines you’ll see in production. Mael, over to you!”
 
 <details>
 <summary><strong>Suggestions</strong></summary>
@@ -211,7 +211,7 @@ Intro order: **Kingson → Loredana → Richard → Mael → Sid**. Sid goes las
 
 - **If something fails live:** _(one line + fallback screen)_
 - **Backup:** pre-recorded segment if connectivity fails
-- **Handoff to Richard:** _(not in Mael’s script — add one line, e.g. “Richard dug into where our data comes from and how we clean it.”)_
+- **Handoff to Richard:** “Richard dug into where our data comes from and how we clean it before it ever reaches Sid’s models. Richard, over to you!”
 
 ---
 
@@ -225,7 +225,7 @@ Intro order: **Kingson → Loredana → Richard → Mael → Sid**. Sid goes las
   - Where macro / market data comes from
   - Preprocessing choices and why they matter for the models
   - Link to Sid’s AI segment without repeating model details
-- **Handoff to Loredana:**
+- **Handoff to Loredana:** “Loredana will show how we delivered this as a team in Scrum, then how a trader gets alerts in the UI. Loredana, over to you!”
 
 <details>
 <summary><strong>Suggestions</strong></summary>
@@ -291,7 +291,7 @@ Intro order: **Kingson → Loredana → Richard → Mael → Sid**. Sid goes las
 
 > When a rule fires, the alert shows up here in the notification bell in real time. The trader doesn't have to watch the screen all day, and the analyst won't miss a macro event.
 >
-> That's how we built it. Kingson will now tie it all together with the live dashboard, the charts and the forecast traders use every day.
+> That's how we built it. Kingson will now tie it all together with the live dashboard, the charts and the forecast traders use every day. Kingson, over to you!
 
 - **If alerts fail:** _(fallback line)_ show alert UI mock or PR screenshot + board story marked Done.
 
