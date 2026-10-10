@@ -66,7 +66,7 @@ Stand-up, presentation order, deployment, and recording plan for the Capstone de
 | **Sid** | Add Quantic submitter / grader access per checklist | Before submission | ✅ Done by **Loredana** (grader access added to the repo) |
 | **Mael** | Integrate Sid’s final PRs + AI service end-to-end | **Thu 8 Oct** | ✅ Done |
 | **Mael** | Finalize software design doc (single MD, SVG links, current + future architecture) | Before submission | ⏳ Open |
-| **Mael** | Review open backend story on board — close or flag | This week | ⏳ Open |
+| **Mael** | Review open backend story on board — close or flag | This week | ⏳ Open: Mael says no action is needed from him; he is coordinating with **Sid** to review and close the remaining issues. Not yet confirmed closed |
 | **Mael** | Support deployment; note AI service memory/CPU needs when known | **Thu 8 Oct** | ⏳ Open |
 | **Mael** | Pre-record segment backup (connectivity fallback) | Before 10 Oct | ⏳ Open |
 | **Richard** | Review AI-generated documentation | This week | ⏳ Open |
