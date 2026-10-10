@@ -62,7 +62,7 @@ Stand-up, presentation order, deployment, and recording plan for the Capstone de
 | **Loredana** | Send **Sat 10 Oct ~18:00** Zoom invite; record, upload to Google Drive, share link | 10 Oct | ✅ Done (invite sent — recording + Drive upload still **10 Oct**) |
 | **Loredana** | Short sync with Mael on **9 vs 13 indicators** if still mismatched | **Thu 8 Oct** | ❌ Not done |
 | **Sid** | Finish two data-service branches; apply Mael’s review | **Thu 8 Oct** | ✅ Done |
-| **Sid** | Hand off AI integration details to Mael; stay reachable through Thu | **Thu 8 Oct** | ⏳ Open |
+| **Sid** | Hand off AI integration details to Mael; stay reachable through Thu | **Thu 8 Oct** | ❌ Not done |
 | **Sid** | Add Quantic submitter / grader access per checklist | Before submission | ⏳ Open |
 | **Mael** | Integrate Sid’s final PRs + AI service end-to-end | **Thu 8 Oct** | ✅ Done |
 | **Mael** | Finalize software design doc (single MD, SVG links, current + future architecture) | Before submission | ⏳ Open |
