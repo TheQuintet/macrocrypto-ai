@@ -60,8 +60,8 @@ Stand-up, presentation order, deployment, and recording plan for the Capstone de
 | **Loredana** | Update Quantic/docs from frontend side; fix README (**MBA → MSSE** where wrong) | Before submission | ✅ Done (PRs [#789](https://github.com/TheQuintet/macrocrypto-ai/pull/789)–[#791](https://github.com/TheQuintet/macrocrypto-ai/pull/791); [deliverables](../quantic/deliverables.md), [AI disclosure](../ai-assisted-development-disclosure.md)) |
 | **Loredana** | Prepare board for demo (sprints with visible progress + retro) | Before recording | ✅ Done ([deliverables §4](../quantic/deliverables.md#4-agile-task-board), Sprint 1–3 links) |
 | **Loredana** | Send **Sat 10 Oct ~18:00** Zoom invite; record, upload to Google Drive, share link | 10 Oct | ✅ Done (invite sent — recording + Drive upload still **10 Oct**) |
-| **Loredana** | Short sync with Mael on **9 vs 13 indicators** if still mismatched | **Thu 8 Oct** | ⏳ Open |
-| **Sid** | Finish two data-service branches; apply Mael’s review | **Thu 8 Oct** | ⏳ Open |
+| **Loredana** | Short sync with Mael on **9 vs 13 indicators** if still mismatched | **Thu 8 Oct** | ❌ Not done |
+| **Sid** | Finish two data-service branches; apply Mael’s review | **Thu 8 Oct** | ✅ Done |
 | **Sid** | Hand off AI integration details to Mael; stay reachable through Thu | **Thu 8 Oct** | ⏳ Open |
 | **Sid** | Add Quantic submitter / grader access per checklist | Before submission | ⏳ Open |
 | **Mael** | Integrate Sid’s final PRs + AI service end-to-end | **Thu 8 Oct** | ✅ Done |
