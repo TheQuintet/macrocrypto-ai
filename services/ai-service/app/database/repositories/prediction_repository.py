@@ -545,11 +545,17 @@ class PredictionRepository:
         source = settings.feature_source
 
         # Resolve the partition.
-        resolved_partition = (
-            partition
-            if partition is not None
-            else _CONTEXT_TO_PARTITION[context]
-        )
+        if partition is not None:
+            resolved_partition = partition
+        elif (
+            context == FeatureContext.PREDICTION
+            and settings.prediction_feature_partition
+        ):
+            resolved_partition = FeaturePartition(
+                settings.prediction_feature_partition
+            )
+        else:
+            resolved_partition = _CONTEXT_TO_PARTITION[context]
 
         if source == "parquet":
             return await self.fetch_training_frame_from_files(

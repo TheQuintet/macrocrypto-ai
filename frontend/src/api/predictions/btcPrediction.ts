@@ -85,9 +85,8 @@ export async function simulateBtcPrediction(
  * rather than quietly substituting invented forecasts — an error state is the
  * honest answer, and fake bounds under a "Live" reading would not be.
  *
- * Note: the API gateway does not yet proxy the ai-service, so a full-stack run
- * currently 404s here and surfaces that error state. Routing it is a backend
- * task; nothing on this path changes when it lands.
+ * The gateway proxies this to the ai-service, which answers 404 until a
+ * prediction batch exists for the requested horizon and confidence.
  */
 export async function fetchBtcPrediction(
   params: PredictionParams,
