@@ -21,13 +21,13 @@ name: CI - Test and Build
 
 
 on:
-  # push:
-  #   branches: [ main ]
-  # pull_request:
-  #   # Feature branches too, so a PR stacked on another feature branch is
-  #   # still checked. Targeting only `main` means a stacked PR reports no
-  #   # checks at all, which reads as "nothing to see" rather than "not run".
-  #   branches: [ main, 'feature/**', 'chore/**', 'fix/**', 'docs/**' ]
+  push:
+    branches: [ main ]
+  pull_request:
+    # Feature branches too, so a PR stacked on another feature branch is
+    # still checked. Targeting only `main` means a stacked PR reports no
+    # checks at all, which reads as "nothing to see" rather than "not run".
+    branches: [ main, 'feature/**', 'chore/**', 'fix/**', 'docs/**' ]
   workflow_dispatch:
     inputs:
       run-everything:
