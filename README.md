@@ -15,12 +15,17 @@ Full problem, scope, and personas: [docs/project-scope.md](./docs/project-scope.
 
 Program rules and the five mandatory deliverables: [docs/quantic/README.md](./docs/quantic/README.md).
 
-**Sprint demo recordings:** [Google Drive folder](https://drive.google.com/drive/folders/1Od4IBbhJyKtgLh-FnUjQ7cMjYWkVm-_I?usp=sharing)
+---
+
+## Sprint demo recordings
+
+> **🎥 [Watch the capstone sprint demo recordings on Google Drive →](https://drive.google.com/drive/folders/1Od4IBbhJyKtgLh-FnUjQ7cMjYWkVm-_I?usp=sharing)**
 
 ---
 
 ## Contents
 
+- [Sprint demo recordings](#sprint-demo-recordings)
 - [Team](#team)
 - [Architecture](#architecture)
 - [Repository layout](#repository-layout)
