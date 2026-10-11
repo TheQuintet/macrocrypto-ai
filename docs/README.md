@@ -15,6 +15,7 @@ Long-form project documentation. How to clone and run the app is in the [root RE
 - [**C4 model**](./design/c4-model.md) — context and containers
 - [**Microservices**](./design/microservices.md) — service boundaries
 - [**Event-driven architecture**](./design/event-driven-architecture.md)
+- [**Application of Architectural and Object-Oriented Design Patterns**](./design/architectural-object-oriented-patterns.md)
 - [**API design**](./design/api-design.md)
 - [**Domain model**](./design/domain-model.md)
 - [**Ubiquitous language**](./design/ubiquitous-language.md)
@@ -23,6 +24,7 @@ Long-form project documentation. How to clone and run the app is in the [root RE
 - [**Non-functional requirements**](./design/non-functional-requirements.md)
 - [**UML**](./design/uml/README.md)
 - [**ADRs**](./design/adr/README.md) — architecture decision records
+- [**Testing**](./test-documents/local-and-ci-cd-tests.md)
 
 ## Team & process
 
