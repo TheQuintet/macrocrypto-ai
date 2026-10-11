@@ -19,7 +19,7 @@ To receive credit for the Capstone, we must submit **all** of the following. Use
 **Requirements**
 
 - [ ] Code is appropriately documented
-- [ ] Repository is shared with the `quantic-grader` account
+- [x] Repository is shared with the `quantic-grader` account — invite sent 10 Oct 2026; grader is added on request
 - [x] README explains setup, architecture, and how to run the project
 - [x] All team members have contributed (visible in commit history / PRs) — 5 members, all with commits and PRs on `main` (checked 11 Oct 2026)
 
