@@ -28,6 +28,7 @@ Long-form project documentation. How to clone and run the app is in the [root RE
 
 - [**Team**](./team-roles.md) — members, roles, availability, communication
 - [**Agile & sprints**](./project-workflow.md) — task board, ceremonies, sprint log, dev workflow
+- [**Sprint demo recordings**](https://drive.google.com/drive/folders/1Od4IBbhJyKtgLh-FnUjQ7cMjYWkVm-_I?usp=sharing) — Google Drive folder
 - [**Pre-Sprint 1 · 20 Jul 2026 — Capstone kickoff**](./meetings/pre-sprint-1-2026-07-20-kickoff.md)
 - [**Pre-Sprint 1 · 29 Jul 2026 — Refinement and planning**](./meetings/pre-sprint-1-2026-07-29-refinement-and-planning.md)
 - [**Sprint 1 · 5 Aug 2026 — Retrospective, review, refinement, and planning**](./meetings/sprint-1-2026-08-05-retrospective.md)
