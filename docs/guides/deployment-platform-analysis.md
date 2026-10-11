@@ -220,7 +220,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml ps
 1. Worker → **Settings → Build → Variables and secrets** (not the runtime variables): `VITE_API_GATEWAY_BASE_URL=https://api.<ip-with-dashes>.sslip.io`
 2. Trigger a new build (push to `main` or Retry build).
 3. On the server, set `CORS_ALLOW_ORIGINS=["https://macrocrypto-ai.lgloredanaelena.workers.dev"]` in `services/api-gateway/.env`, then run:
-   `docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d api-gateway`
+   `docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --force-recreate api-gateway`
 
 ### Redeploy
 
@@ -228,6 +228,8 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml ps
 cd ~/macrocrypto-ai && git pull
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 ```
+
+After changing any `.env` file, add `--force-recreate` to the `up` command for the affected service, for example `up -d --force-recreate api-gateway`. A plain `up -d` may keep the old environment.
 
 ### Troubleshooting
 
