@@ -6,7 +6,7 @@ Weekly Capstone Scrum sync: data-pipeline status, AI-service handoff, forecast a
 |---|---|
 | **Date** | Wed 23 Sep 2026 (Slot B) |
 | **Type** | Review + Refinement + Planning |
-| **Sprint** | Submission push — Richard’s estimate ~70%. About one to two weeks left. Energy goes to the API Gateway, the forecast, and real frontend data |
+| **Sprint** | Sprint 3 — submission push — Richard’s estimate ~70%. About one to two weeks left. Energy goes to the API Gateway, the forecast, and real frontend data |
 | **Attendees** | Sid Ahmed Mahieddine, Loredana Lungu, Kingson Emma-Ochu, Mael Taye Deneke, Richard Owusu |
 | **Facilitator** | Loredana Lungu (Scrum Master) |
 | **Product Owner** | Sid Ahmed Mahieddine |

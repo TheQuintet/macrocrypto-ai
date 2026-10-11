@@ -6,6 +6,7 @@ Stand-up, presentation order, deployment, and recording plan for the Capstone de
 |---|---|
 | **Date** | Wed 7 Oct 2026 (Slot B) |
 | **Type** | Weekly sync + final demo planning |
+| **Sprint** | Sprint 3 — final demo |
 | **Attendees** | Sid Ahmed Mahieddine, Loredana Lungu, Kingson Emma-Ochu, Mael Taye Deneke, Richard Owusu (Mael joined late — audio) |
 | **Facilitator** | Loredana Lungu (Scrum Master) |
 | **Product Owner** | Sid Ahmed Mahieddine |

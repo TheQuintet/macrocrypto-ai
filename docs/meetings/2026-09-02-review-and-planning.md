@@ -6,7 +6,7 @@ Weekly Capstone Scrum sync: alerts and macro UI progress, API Gateway status, ec
 |---|---|
 | **Date** | Wed 2 Sep 2026 (Slot B) |
 | **Type** | Review + Refinement + Planning |
-| **Sprint** | Current sprint — alerts, frontend, API Gateway; AI / prediction work (T8) moving into sprint |
+| **Sprint** | Sprint 3 — alerts, frontend, API Gateway; AI / prediction work (T8) moving into sprint |
 | **Attendees** | Sid Ahmed Mahieddine, Loredana Lungu, Kingson Emma-Ochu, Mael Taye Deneke, Richard Owusu |
 | **Facilitator** | Loredana Lungu (Scrum Master) |
 | **Product Owner** | Sid Ahmed Mahieddine |

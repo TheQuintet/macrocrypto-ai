@@ -6,6 +6,7 @@ Combined backlog refinement and Sprint 2 planning session.
 |---|---|
 | **Date** | Wed 29 Jul 2026 |
 | **Type** | Refinement + Planning |
+| **Sprint** | Sprint 2 (planning) |
 | **Attendees** | Team (async/sync alignment) |
 | **Facilitator** | Loredana Lungu (Scrum Master) |
 | **Product Owner** | Sid Ahmed Mahieddine |

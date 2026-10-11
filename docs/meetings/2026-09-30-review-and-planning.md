@@ -6,6 +6,7 @@ Final submission push (~one week to **14 Oct**): backend integration, Quantic do
 |---|---|
 | **Date** | Wed 30 Sep 2026 (Slot B) |
 | **Type** | Review + Refinement + Planning |
+| **Sprint** | Sprint 3 — final submission push |
 | **Attendees** | Sid Ahmed Mahieddine, Loredana Lungu, Kingson Emma-Ochu, Mael Taye Deneke, Richard Owusu |
 | **Facilitator** | Loredana Lungu (Scrum Master) |
 | **Product Owner** | Sid Ahmed Mahieddine |

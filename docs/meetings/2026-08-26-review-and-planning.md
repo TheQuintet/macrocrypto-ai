@@ -6,7 +6,7 @@ Combined session: dashboard demo and review, product-scope refinement, current-s
 |---|---|
 | **Date** | Wed 26 Aug 2026 (Slot B) |
 | **Type** | Review + Refinement + Planning |
-| **Sprint** | Current sprint (alerts and frontend) — ML / remaining AI work deferred to September |
+| **Sprint** | Sprint 3 — current sprint (alerts and frontend) — ML / remaining AI work deferred to September |
 | **Attendees** | Sid Ahmed Mahieddine, Loredana Lungu, Kingson Emma-Ochu (joined later) |
 | **Also expected** | Mael Taye Deneke — connectivity risk; recording to be shared. Richard Owusu implemented alerts (attendance was not confirmed in the source notes). |
 | **Facilitator** | Loredana Lungu (Scrum Master) |

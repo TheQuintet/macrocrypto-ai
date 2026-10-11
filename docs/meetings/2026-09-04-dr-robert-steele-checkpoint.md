@@ -4,6 +4,7 @@
 |---|---|
 | **Date** | Thu 4 Sep 2026 |
 | **Type** | Capstone checkpoint with faculty advisor |
+| **Sprint** | Sprint 3 |
 | **Attendees** | Sid Ahmed Mahieddine, Loredana Lungu, Kingson Emma-Ochu, Richard Owusu, Mael Taye Deneke, Dr. Robert Steele |
 | **Facilitator** | Sid Ahmed Mahieddine (presentation lead) |
 | **Advisor** | Dr. Robert Steele |
