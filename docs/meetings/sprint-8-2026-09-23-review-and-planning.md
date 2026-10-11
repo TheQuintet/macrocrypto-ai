@@ -6,7 +6,7 @@ Weekly Capstone Scrum sync: data-pipeline status, AI-service handoff, forecast a
 |---|---|
 | **Date** | Wed 23 Sep 2026 (Slot B) |
 | **Type** | Review + Refinement + Planning |
-| **Sprint** | Sprint 3 — submission push — Richard’s estimate ~70%. About one to two weeks left. Energy goes to the API Gateway, the forecast, and real frontend data |
+| **Sprint** | Sprint 8 (board: 22–28 Sep) — submission push — Richard’s estimate ~70%. About one to two weeks left. Energy goes to the API Gateway, the forecast, and real frontend data |
 | **Attendees** | Sid Ahmed Mahieddine, Loredana Lungu, Kingson Emma-Ochu, Mael Taye Deneke, Richard Owusu |
 | **Facilitator** | Loredana Lungu (Scrum Master) |
 | **Product Owner** | Sid Ahmed Mahieddine |
@@ -223,8 +223,8 @@ Sid said he had not expected the frontend progress because nobody reported it, a
 - Source: Zoom transcript, Weekly Capstone Scrum meeting, **Wed 23 Sep 2026**. The file ends mid-sentence while Richard is dividing presentation ownership (`Weekly Capstone Scrum meeting_ Transcript (1).txt`).
 - Speech-to-text aliases used in the room: Laurie/Lori (Loredana), Mayo/Mai (Mael), Versailles (Vercel), Freight (FRED), AT1010 (80-10-10), PTC/BTT (BTC).
 - An earlier Zoom AI summary added items the transcript does not support: Fisher scaling, a CI/CD repair task, a 5 Oct date spoken in the room, Quantic concentration plans, and a finished speaker assignment (Loredana on Scrum process, Sid on backend and AI). Those are not in this write-up.
-- Previous documented session: [9 Sep 2026 Review, Refinement & Planning](./2026-09-09-sprint-3-review-and-planning.md). The 16 Sep sync has no write-up in this folder.
-- Related: [4 Sep 2026 Dr. Robert checkpoint](./2026-09-04-sprint-3-dr-robert-steele-checkpoint.md) · Capstone criteria: [Quantic grading](../quantic/grading.md) · [Deliverables](../quantic/deliverables.md).
+- Previous documented session: [9 Sep 2026 Review, Refinement & Planning](./sprint-6-2026-09-09-review-and-planning.md). The 16 Sep sync has no write-up in this folder.
+- Related: [4 Sep 2026 Dr. Robert checkpoint](./sprint-5-2026-09-04-dr-robert-steele-checkpoint.md) · Capstone criteria: [Quantic grading](../quantic/grading.md) · [Deliverables](../quantic/deliverables.md).
 
 ---
 

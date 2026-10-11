@@ -7,7 +7,7 @@
 | Merge scripts & recording plan | **Loredana Lungu** (SM) |
 | Facilitate recording | **Loredana Lungu** (SM) |
 
-References: [demo-prep run-of-show](./demo-prep.md#agreed-run-of-show-18-min) · [7 Oct meeting](../meetings/2026-10-07-sprint-3-final-demo-planning.md) · [#752](https://github.com/TheQuintet/macrocrypto-ai/issues/752)
+References: [demo-prep run-of-show](./demo-prep.md#agreed-run-of-show-18-min) · [7 Oct meeting](../meetings/post-sprint-9-2026-10-07-final-demo-planning.md) · [#752](https://github.com/TheQuintet/macrocrypto-ai/issues/752)
 
 **Deploy URL:** https://macrocrypto-ai.lgloredanaelena.workers.dev/
 
@@ -249,7 +249,7 @@ Intro order: **Kingson → Loredana → Richard → Mael → Sid**. Sid goes las
 <summary><strong>Suggestions</strong></summary>
 
 - **First line:** “We ran this capstone with **sprints and boards**, but after a **Slack discussion** we agreed **not** to do a daily standup — live or required offline posts — we use **domain Slack** and the **weekly sync** instead.”
-- **Screen:** [All Work](https://github.com/orgs/TheQuintet/projects/6/views/6) + board sprints [1](https://github.com/orgs/TheQuintet/projects/6/views/18) · [2](https://github.com/orgs/TheQuintet/projects/6/views/19) · [3](https://github.com/orgs/TheQuintet/projects/6/views/20) + [Sprint 2 retro board](https://github.com/orgs/TheQuintet/projects/6/views/10); [5 Aug retro notes](https://github.com/TheQuintet/macrocrypto-ai/blob/main/docs/meetings/2026-08-05-sprint-2-to-3-retrospective.md); [docs/meetings/](https://github.com/TheQuintet/macrocrypto-ai/tree/main/docs/meetings); open **Alerts** on deploy + notification bell/inbox.
+- **Screen:** [All Work](https://github.com/orgs/TheQuintet/projects/6/views/6) + board sprints [1](https://github.com/orgs/TheQuintet/projects/6/views/18) · [2](https://github.com/orgs/TheQuintet/projects/6/views/19) · [3](https://github.com/orgs/TheQuintet/projects/6/views/20) + [Sprint 2 retro board](https://github.com/orgs/TheQuintet/projects/6/views/10); [5 Aug retro notes](https://github.com/TheQuintet/macrocrypto-ai/blob/main/docs/meetings/sprint-1-2026-08-05-retrospective.md); [docs/meetings/](https://github.com/TheQuintet/macrocrypto-ai/tree/main/docs/meetings); open **Alerts** on deploy + notification bell/inbox.
 - **Talking points:**
   - **Roles:** Sid PO, you SM, Mael code owner; frontend split across Kingson, you, Richard where relevant.
   - **Slack by domain:** `#mc-frontend`, `#mc-backend`, `#mc-ml-model`, `#mc-software-design` — discuss work where it lives; `#capstone-project-group` for whole-team items.

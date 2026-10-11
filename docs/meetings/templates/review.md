@@ -50,7 +50,7 @@ Sprint review notes: demo completed work, gather feedback, review progress.
 | **Date** | Wed 26 Aug 2026 |
 | **Attendees** | Sid Ahmed Mahieddine, Loredana Lungu, Kingson Emma-Ochu (joined later) |
 | **Sprint** | Current sprint (alerts and frontend) |
-| **Full notes** | [2026-08-26 Review, Refinement & Planning](../2026-08-26-sprint-3-review-and-planning.md) |
+| **Full notes** | [2026-08-26 Review, Refinement & Planning](../sprint-4-2026-08-26-review-and-planning.md) |
 
 **Progress by area**
 
@@ -83,7 +83,7 @@ Sprint review notes: demo completed work, gather feedback, review progress.
 | **Date** | Wed 5 Aug 2026 |
 | **Attendees** | Team |
 | **Sprint** | 2 |
-| **Full notes** | [2026-08-05 Retrospective, Review, Refinement & Planning](../2026-08-05-sprint-2-to-3-retrospective.md) |
+| **Full notes** | [2026-08-05 Retrospective, Review, Refinement & Planning](../sprint-1-2026-08-05-retrospective.md) |
 
 **Progress by area**
 
@@ -109,7 +109,7 @@ Sprint review notes: demo completed work, gather feedback, review progress.
 | **Date** | Wed 2 Sep 2026 |
 | **Attendees** | Sid Ahmed Mahieddine, Loredana Lungu, Kingson Emma-Ochu, Mael Taye Deneke, Richard Owusu |
 | **Sprint** | Current sprint — alerts, API Gateway, AI / prediction (T8) |
-| **Full notes** | [2026-09-02 Review, Refinement & Planning](../2026-09-02-sprint-3-review-and-planning.md) |
+| **Full notes** | [2026-09-02 Review, Refinement & Planning](../sprint-5-2026-09-02-review-and-planning.md) |
 
 **Progress by area**
 
@@ -143,7 +143,7 @@ Sprint review notes: demo completed work, gather feedback, review progress.
 | **Date** | Wed 9 Sep 2026 |
 | **Attendees** | Sid Ahmed Mahieddine, Loredana Lungu, Kingson Emma-Ochu, Mael Taye Deneke, Owusu Richard |
 | **Sprint** | Sprint 3 — frontend near complete; AI blocked on model/naming |
-| **Full notes** | [2026-09-09 Review, Refinement & Planning](../2026-09-09-sprint-3-review-and-planning.md) |
+| **Full notes** | [2026-09-09 Review, Refinement & Planning](../sprint-6-2026-09-09-review-and-planning.md) |
 
 **Progress by area**
 
@@ -174,7 +174,7 @@ Sprint review notes: demo completed work, gather feedback, review progress.
 | **Date** | Wed 23 Sep 2026 |
 | **Attendees** | Sid Ahmed Mahieddine, Loredana Lungu, Kingson Emma-Ochu, Mael Taye Deneke, Richard Owusu |
 | **Sprint** | Submission push — ~70% complete; Gateway integration, real data, docs, and the recording |
-| **Full notes** | [2026-09-23 Review, Refinement & Planning](../2026-09-23-sprint-3-review-and-planning.md) |
+| **Full notes** | [2026-09-23 Review, Refinement & Planning](../sprint-8-2026-09-23-review-and-planning.md) |
 
 **Progress by area**
 

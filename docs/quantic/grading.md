@@ -87,7 +87,7 @@ The program expects a **high-quality portfolio piece** — not just a basic web 
 - User stories with **acceptance criteria**
 - Task board matches repo and demo — no fiction
 - Planning and refinement notes kept up to date
-- Retrospective evidence: [Sprint 2 retro board + notes](../meetings/2026-08-05-sprint-2-to-3-retrospective.md); later improvements in [meeting notes](../meetings/) — see [how we ran retrospectives](../project-workflow.md#retrospective)
+- Retrospective evidence: [Sprint 2 retro board + notes](../meetings/sprint-1-2026-08-05-retrospective.md); later improvements in [meeting notes](../meetings/) — see [how we ran retrospectives](../project-workflow.md#retrospective)
 
 ### 6. Excellent documentation
 

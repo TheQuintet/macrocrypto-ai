@@ -6,7 +6,7 @@ Weekly Capstone Scrum sync: sprint board review, macro and prediction frontend p
 |---|---|
 | **Date** | Wed 9 Sep 2026 (Slot B) |
 | **Type** | Review + Refinement + Planning |
-| **Sprint** | Sprint 3 carryover into next iteration — frontend largely complete; AI backend blocked on model and naming decisions |
+| **Sprint** | Sprint 6 (board: 8–14 Sep) — carryover into next iteration — frontend largely complete; AI backend blocked on model and naming decisions |
 | **Attendees** | Sid Ahmed Mahieddine, Loredana Lungu, Kingson Emma-Ochu, Mael Taye Deneke, Owusu Richard |
 | **Facilitator** | Loredana Lungu (Scrum Master) |
 | **Product Owner** | Sid Ahmed Mahieddine |
@@ -168,11 +168,11 @@ Sid and Loredana briefly discussed completing **Quantic specializations** before
 ## Notes
 
 - Source: Zoom transcript — Weekly Capstone Scrum meeting (9 Sep 2026).
-- Previous session: [2 Sep 2026 Review, Refinement & Planning](./2026-09-02-sprint-3-review-and-planning.md).
-- Related: [4 Sep 2026 Dr. Robert checkpoint](./2026-09-04-sprint-3-dr-robert-steele-checkpoint.md) · Capstone criteria: [Quantic grading](../quantic/grading.md) · [Deliverables](../quantic/deliverables.md).
+- Previous session: [2 Sep 2026 Review, Refinement & Planning](./sprint-5-2026-09-02-review-and-planning.md).
+- Related: [4 Sep 2026 Dr. Robert checkpoint](./sprint-5-2026-09-04-dr-robert-steele-checkpoint.md) · Capstone criteria: [Quantic grading](../quantic/grading.md) · [Deliverables](../quantic/deliverables.md).
 
 ---
 
 ## Next meeting
 
-See [recurring sync schedule](../team-roles.md#recurring-meetings-through-14-oct-2026) — next documented session: [23 Sep 2026 Review, Refinement & Planning](./2026-09-23-sprint-3-review-and-planning.md). The 16 Sep sync has no write-up in this folder.
+See [recurring sync schedule](../team-roles.md#recurring-meetings-through-14-oct-2026) — next documented session: [23 Sep 2026 Review, Refinement & Planning](./sprint-8-2026-09-23-review-and-planning.md). The 16 Sep sync has no write-up in this folder.

@@ -6,7 +6,7 @@ Combined session: dashboard demo and review, product-scope refinement, current-s
 |---|---|
 | **Date** | Wed 26 Aug 2026 (Slot B) |
 | **Type** | Review + Refinement + Planning |
-| **Sprint** | Sprint 3 — current sprint (alerts and frontend) — ML / remaining AI work deferred to September |
+| **Sprint** | Sprint 4 (board: 25–31 Aug) — current sprint (alerts and frontend) — ML / remaining AI work deferred to September |
 | **Attendees** | Sid Ahmed Mahieddine, Loredana Lungu, Kingson Emma-Ochu (joined later) |
 | **Also expected** | Mael Taye Deneke — connectivity risk; recording to be shared. Richard Owusu implemented alerts (attendance was not confirmed in the source notes). |
 | **Facilitator** | Loredana Lungu (Scrum Master) |
@@ -255,11 +255,11 @@ Options included Vercel and the Amazon account with available credit. Amazon is 
 ## Notes
 
 - Source: meeting summary, action items, and discussion transcript provided after the session (26 Aug 2026).
-- Previous documented session: [5 Aug 2026 Retrospective, Review, Refinement & Planning](./2026-08-05-sprint-2-to-3-retrospective.md). Recurring Slot B also ran on 12 Aug and 19 Aug; those sessions are not written up in `docs/meetings/` yet.
+- Previous documented session: [5 Aug 2026 Retrospective, Review, Refinement & Planning](./sprint-1-2026-08-05-retrospective.md). Recurring Slot B also ran on 12 Aug and 19 Aug; those sessions are not written up in `docs/meetings/` yet.
 - Capstone criteria: [Quantic grading](../quantic/grading.md) · [Deliverables](../quantic/deliverables.md).
 
 ---
 
 ## Next meeting
 
-See [recurring sync schedule](../team-roles.md#recurring-meetings-through-14-oct-2026) — session write-up: [2 Sep 2026 Review, Refinement & Planning](./2026-09-02-sprint-3-review-and-planning.md).
+See [recurring sync schedule](../team-roles.md#recurring-meetings-through-14-oct-2026) — session write-up: [2 Sep 2026 Review, Refinement & Planning](./sprint-5-2026-09-02-review-and-planning.md).

@@ -35,7 +35,7 @@ Sprint planning notes: select stories, estimate, assign owners.
 | **Date** | Wed 23 Sep 2026 |
 | **Attendees** | Sid Ahmed Mahieddine, Loredana Lungu, Kingson Emma-Ochu, Mael Taye Deneke, Richard Owusu |
 | **Sprint goal** | Finish the BTC trader path for submission: ML-ready data into the AI service, real frontend data, Gateway integration, design-doc checklist, Vercel, and the recording |
-| **Full notes** | [2026-09-23 Review, Refinement & Planning](../2026-09-23-sprint-3-review-and-planning.md) |
+| **Full notes** | [2026-09-23 Review, Refinement & Planning](../sprint-8-2026-09-23-review-and-planning.md) |
 
 **Stories / focus selected**
 
@@ -65,7 +65,7 @@ Sprint planning notes: select stories, estimate, assign owners.
 | **Date** | Wed 9 Sep 2026 |
 | **Attendees** | Sid Ahmed Mahieddine, Loredana Lungu, Kingson Emma-Ochu, Mael Taye Deneke, Owusu Richard |
 | **Sprint goal** | Close out S3 calendar and T9 alert history; A3 frontend; unblock AI via Gateway merge and documented ML model choice |
-| **Full notes** | [2026-09-09 Review, Refinement & Planning](../2026-09-09-sprint-3-review-and-planning.md) |
+| **Full notes** | [2026-09-09 Review, Refinement & Planning](../sprint-6-2026-09-09-review-and-planning.md) |
 
 **Stories / focus selected**
 
@@ -92,7 +92,7 @@ Sprint planning notes: select stories, estimate, assign owners.
 | **Date** | Wed 26 Aug 2026 |
 | **Attendees** | Sid Ahmed Mahieddine, Loredana Lungu, Kingson Emma-Ochu (joined later) |
 | **Sprint goal** | Alerts and frontend alert issues; API-gateway integration. Macro / ML / remaining AI work deferred to September |
-| **Full notes** | [2026-08-26 Review, Refinement & Planning](../2026-08-26-sprint-3-review-and-planning.md) |
+| **Full notes** | [2026-08-26 Review, Refinement & Planning](../sprint-4-2026-08-26-review-and-planning.md) |
 
 **Stories / focus selected**
 
@@ -120,7 +120,7 @@ Sprint planning notes: select stories, estimate, assign owners.
 | **Date** | Wed 5 Aug 2026 |
 | **Attendees** | Team |
 | **Sprint goal** | Finish the Sprint 2 carryover — no new scope added |
-| **Full notes** | [2026-08-05 Retrospective, Review, Refinement & Planning](../2026-08-05-sprint-2-to-3-retrospective.md) |
+| **Full notes** | [2026-08-05 Retrospective, Review, Refinement & Planning](../sprint-1-2026-08-05-retrospective.md) |
 
 **Stories selected**
 
@@ -143,7 +143,7 @@ Sprint planning notes: select stories, estimate, assign owners.
 | **Date** | Wed 29 Jul 2026 |
 | **Attendees** | Team |
 | **Sprint goal** | Advance Sprint 2 work with 1-week cadence; frontend as capacity allows (Loredana leads; Kingson limited); backend microservices refactor on track |
-| **Full notes** | [2026-07-29 Refinement & Planning](../2026-07-29-sprint-2-refinement-and-planning.md) |
+| **Full notes** | [2026-07-29 Refinement & Planning](../pre-sprint-1-2026-07-29-refinement-and-planning.md) |
 
 **Stories / focus selected**
 
