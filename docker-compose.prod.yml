@@ -37,7 +37,8 @@ services:
     environment: [*dburl]
 
   api-gateway:
-    ports: !reset []
+    # Bound to loopback only; Caddy reaches it over the Docker network.
+    ports: !override ["127.0.0.1:8000:8000"]
     volumes: !reset []
     environment: [*dburl]
 

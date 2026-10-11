@@ -164,6 +164,8 @@ What we test and why: [frontend/README.md](./frontend/README.md) (unit / UI inte
 
 A **publicly accessible** app is a mandatory deliverable. The live URL and platform are recorded in [docs/quantic/deliverables.md](./docs/quantic/deliverables.md#2-deployed-application) (update that page when the URL exists — not this README).
 
+Step-by-step server setup and redeploy: [Deployment of the backend](./docs/guides/deployment-platform-analysis.md#deployment-of-the-backend).
+
 Secrets stay in environment variables; do not commit `.env` files.
 
 ---

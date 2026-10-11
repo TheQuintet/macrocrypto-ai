@@ -32,6 +32,7 @@ To receive credit for the Capstone, we must submit **all** of the following. Use
 | **Status**   | 🟡 In progress: deployed with simulated data; live API connection pending                                        |
 | **URL**      | [https://macrocrypto-ai.lgloredanaelena.workers.dev/](https://macrocrypto-ai.lgloredanaelena.workers.dev/)       |
 | **Platform** | Cloudflare Workers (static assets, `frontend/wrangler.jsonc`)                                                    |
+| **Backend API** | `https://api.135-181-195-86.sslip.io` (Hetzner VM, Docker Compose, Caddy TLS); docs at `/docs` · [Deployment guide](../guides/deployment-platform-analysis.md#deployment-of-the-backend) |
 
 **Requirements**
 

@@ -124,91 +124,126 @@ Do these once the API domain `https://api.<your-domain>` serves HTTPS from the V
 - Deployment fails at the deploy step → check that `frontend/wrangler.jsonc` is in the repo.
 - CORS error after connecting the API → repeat connect step 3.
 
-## Deployment steps
+## Deployment of the backend
 
-Steps 1–6 don't depend on the production override, so they can run now. Step 7 uses `docker-compose.prod.yml`, which is in the repo. Set `POSTGRES_PASSWORD` and `API_DOMAIN` in the root `.env` first. The frontend steps are in [Frontend deploy on Cloudflare](#frontend-deploy-on-cloudflare).
+Current deployment: Hetzner Cloud, Helsinki, Ubuntu 24.04, 8 GB RAM. The server IP is kept out of the repo; use `<server-ip>` below and see the server notes for the real value.
+API: `https://api.<ip-with-dashes>.sslip.io` · Docs: `https://api.<ip-with-dashes>.sslip.io/docs`
 
-Commands use `<server-ip>` and `<your-domain>` as placeholders. Replace them with real values, and never commit secrets or keys.
+### 1. SSH key and server (Hetzner)
 
-1. **Provision and log in.** Create a Hetzner Cloud server (CX32 or CX42, Ubuntu 24.04, 50+ GB SSD) with your SSH key, then check that you can log in:
+SSH keys belong to a Cloud **project** (console.hetzner.com), not to account settings (accounts.hetzner.com).
 
-   ```bash
-   ssh -i ~/.ssh/macrocrypto_hetzner root@<server-ip>
-   ```
+1. On your laptop, create a dedicated key. `-f` keeps existing keys untouched:
+   `ssh-keygen -t ed25519 -C "<name>-macrocrypto" -f ~/.ssh/macrocrypto_hetzner`
+   Passphrase: recommended. It protects the key file and is not a Hetzner password.
+2. Open the project → **Security → SSH keys → Add SSH key**, and paste the contents of `~/.ssh/macrocrypto_hetzner.pub`. Never paste the private key.
+3. **Add Server**: Ubuntu 24.04, ≥4 vCPU / 8 GB, tick the SSH key(s).
+4. Log in: `ssh -i ~/.ssh/macrocrypto_hetzner root@<server-ip>`
 
-2. **Point DNS.** Create an A record `api.<your-domain>` → server IP. You can do this now or later, but it must exist before HTTPS is set up in step 7.
+**Teammate access:** keys added in Hetzner *after* the server exists are not copied to it. Add them on the server instead:
+`echo "<their .pub line>" >> /home/deploy/.ssh/authorized_keys`
 
-3. **Harden the server.** Start as root in the first terminal, then continue as `deploy`.
+### 2. Harden the server (as root, once)
 
-   As root:
+```bash
+apt update && apt upgrade -y && reboot
+adduser deploy && usermod -aG sudo deploy
+rsync --archive --chown=deploy:deploy ~/.ssh /home/deploy
+```
 
-   ```bash
-   apt update && apt upgrade -y
-   adduser deploy && usermod -aG sudo deploy
-   rsync --archive --chown=deploy:deploy ~/.ssh /home/deploy    # copies your key to the new user
-   ```
+Check that `ssh -i ~/.ssh/macrocrypto_hetzner deploy@<server-ip>` works **before** continuing. Then, as `deploy`:
 
-   In a second terminal, check that `ssh -i ~/.ssh/macrocrypto_hetzner deploy@<server-ip>` works. Do not continue until it does.
+```bash
+sudo ufw allow OpenSSH && sudo ufw allow 80 && sudo ufw allow 443 && sudo ufw --force enable
+printf "PermitRootLogin no\nPasswordAuthentication no\n" | sudo tee /etc/ssh/sshd_config.d/00-hardening.conf && sudo systemctl restart ssh
+sudo apt install -y unattended-upgrades && sudo dpkg-reconfigure -f noninteractive unattended-upgrades
+```
 
-   As `deploy`:
+From now on, log in only as `deploy`. Root SSH login is disabled.
 
-   ```bash
-   sudo ufw allow OpenSSH && sudo ufw allow 80 && sudo ufw allow 443 && sudo ufw --force enable && sudo ufw status
-   printf "PermitRootLogin no\nPasswordAuthentication no\n" | sudo tee /etc/ssh/sshd_config.d/00-hardening.conf && sudo systemctl restart ssh
-   sudo apt install -y unattended-upgrades && echo unattended-upgrades unattended-upgrades/enable_auto_updates boolean true | sudo debconf-set-selections && sudo dpkg-reconfigure -f noninteractive unattended-upgrades
-   ```
+### 3. Docker
 
-   `ufw status` should show `Status: active` with OpenSSH, 80 and 443 as ALLOW. Allowing OpenSSH before enabling `ufw` keeps your SSH session open. The SSH hardening goes in a drop-in file, so `/etc/ssh/sshd_config` itself is not edited. Once the `deploy` login works in a third terminal, close the root session.
+```bash
+curl -fsSL https://get.docker.com | sudo sh && sudo usermod -aG docker deploy
+```
 
-4. **Install Docker** (as `deploy`):
+Log out and back in, then check: `docker compose version`.
 
-   ```bash
-   curl -fsSL https://get.docker.com | sudo sh && sudo usermod -aG docker deploy
-   ```
+### 4. Get the code
 
-   Log out and back in so the `docker` group applies, then check:
+Deploy keys are **disabled by the TheQuintet org policy**, so use a fine-grained personal access token instead:
+GitHub → Settings → Developer settings → Fine-grained tokens. Resource owner: **TheQuintet**. Repository: **macrocrypto-ai** only. Permission: **Contents: Read-only**.
 
-   ```bash
-   exit
-   ssh -i ~/.ssh/macrocrypto_hetzner deploy@<server-ip>
-   docker compose version
-   ```
+```bash
+read -s T            # paste the token, press Enter
+printf "https://<github-user>:%s@github.com\n" "$T" > ~/.git-credentials && chmod 600 ~/.git-credentials && unset T
+git config --global credential.helper store
+git clone https://github.com/TheQuintet/macrocrypto-ai.git && cd macrocrypto-ai
+```
 
-   Expect `Docker Compose version v2.x.x`.
+### 5. Production override and secrets
 
-5. **Get the code.** The repo is private, so give the server read-only access with a deploy key:
+`docker-compose.prod.yml` (in the repo):
+- removes all published ports except Caddy's 80/443; the gateway binds only to `127.0.0.1:8000`
+- replaces the hardcoded Postgres password with `${POSTGRES_PASSWORD}`
+- adds **Caddy** as the HTTPS reverse proxy (automatic Let's Encrypt) for `${API_DOMAIN}`
+- puts trained models on a named volume so they survive redeploys
 
-   ```bash
-   ssh-keygen -t ed25519 -C "macrocrypto-vm"    # Enter for no passphrase
-   cat ~/.ssh/id_ed25519.pub
-   ```
+The MLflow healthcheck is fixed in the base `docker-compose.yml`: the MLflow image has no `curl`, so the original check always failed.
 
-   Add that public key in GitHub under the repo's **Settings → Deploy keys** (read-only). Then clone:
+> ⚠️ Never run plain `docker compose up` on the server. Docker-published ports bypass `ufw`, so the dev compose file would expose Postgres, Redis and RabbitMQ to the internet.
 
-   ```bash
-   git clone git@github.com:TheQuintet/macrocrypto-ai.git && cd macrocrypto-ai
-   ```
+Create the root `.env` (see the root `.env.example` for the variables) and the service env files:
 
-6. **Configure secrets.** Create each service's `services/*/.env` from its `.env.example`, and a root `.env` with strong Postgres and RabbitMQ passwords. Never commit them.
+```bash
+printf "POSTGRES_PASSWORD=%s\nAPI_DOMAIN=api.<ip-with-dashes>.sslip.io\n" "$(openssl rand -hex 16)" > .env && chmod 600 .env
+for s in data-service alert-service ai-service api-gateway; do cp services/$s/.env.example services/$s/.env; done
+```
 
-7. **Build and start.** Only after `docker-compose.prod.yml` is merged:
+`sslip.io` gives a free hostname that resolves to the IP, so no DNS setup is needed. Never commit `.env` files.
 
-   ```bash
-   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
-   ```
+### 6. Start and verify
 
-8. **Initialise data.** Run DB migrations and the initial data load, then trigger a first training run so models exist before the scheduler fires.
+```bash
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+docker compose -f docker-compose.yml -f docker-compose.prod.yml ps
+```
 
-9. **Verify.**
-   - All containers report healthy in `docker compose ps`.
-   - `https://api.<your-domain>/health` returns OK.
-   - The Cloudflare frontend loads, shows prices and predictions, and alerts fire.
-   - MLflow lists the new training runs.
+- All 9 containers are `Up`/`healthy`. Only `macro-caddy` shows `0.0.0.0:` ports.
+- `https://api.<ip-with-dashes>.sslip.io/health` returns `"status":"healthy"` with database and RabbitMQ connected.
+- `https://api.<ip-with-dashes>.sslip.io/docs` opens Swagger.
 
-10. **Operate.**
-    - Check the next day that the 06:00 UTC retrain ran.
-    - Confirm the nightly backup landed off-server.
-    - Redeploy with `git pull` + the same `up -d --build` command, or automate it from GitHub Actions over SSH.
+### 7. Connect the frontend (Cloudflare)
+
+`VITE_*` values are compiled in at **build time**:
+
+1. Worker → **Settings → Build → Variables and secrets** (not the runtime variables): `VITE_API_GATEWAY_BASE_URL=https://api.<ip-with-dashes>.sslip.io`
+2. Trigger a new build (push to `main` or Retry build).
+3. On the server, set `CORS_ALLOW_ORIGINS=["https://macrocrypto-ai.lgloredanaelena.workers.dev"]` in `services/api-gateway/.env`, then run:
+   `docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d api-gateway`
+
+### Redeploy
+
+```bash
+cd ~/macrocrypto-ai && git pull
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+```
+
+### Troubleshooting
+
+| Symptom | Cause / fix |
+|---|---|
+| `Failed to connect to system scope bus` during `apt upgrade` | Harmless. Rerun `apt upgrade -y`, then `reboot`. |
+| `ls` shows no repo | You're root (`root@…`). Run `su - deploy`; the repo is in `/home/deploy`. |
+| `git clone`: invalid username or token | Token pasted wrongly or pending org approval. Use the `read -s` method in step 4. |
+| `macro-mlflow is unhealthy` | `curl` missing in the MLflow image. The Python healthcheck in `docker-compose.yml` fixes it. |
+| `deploy@…'s password:` when connecting | Key not copied to `deploy`. Rerun the `rsync` line as root. |
+
+### Still to do
+
+- RabbitMQ still uses `guest/guest`. It's internal only, but replace it with real credentials.
+- Nightly `pg_dump` backup copied off the server.
+- Optional: GitHub Actions deploy over SSH.
 
 ## Future scaling
 
