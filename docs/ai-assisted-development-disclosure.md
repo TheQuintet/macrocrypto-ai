@@ -70,6 +70,20 @@ These files are **team-authored configuration** for steering assistants; they ar
 
 ---
 
+## How AI use is recorded
+
+We record AI assistance in the **commit history**. When a commit was written or edited with a coding assistant, its message ends with a `Co-authored-by` trailer naming the tool (for example `Cursor`, `Claude Code` / `Claude`, or `Copilot`). The trailer tells the reader which assistant was involved. It does not replace review: the author still owns the change.
+
+To list the commits that carry an AI trailer:
+
+```bash
+git log --extended-regexp -i --grep='^Co-authored-by: .*(cursor|claude|copilot|chatgpt|gemini|openai)' --format='%h %an %ad %s' --date=short
+```
+
+Commits that touch the written deliverables and carry an AI trailer include `8f78d97` (testing doc) and `4a26052` (design hub). Commits without a trailer were written without a recorded assistant.
+
+---
+
 ## Usage by project area
 
 | Area | Primary owners | How AI was used |

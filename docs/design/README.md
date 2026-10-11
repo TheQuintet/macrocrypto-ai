@@ -1,5 +1,7 @@
 # Software Design & Architecture Plan — MacroCrypto AI
 
+> **AI disclosure:** AI use on this document is recorded as `Co-authored-by` trailers on its commits. See [AI-assisted development disclosure](../ai-assisted-development-disclosure.md#how-ai-use-is-recorded).
+
 This document provides a practical, prioritized plan for the software design and architecture of MacroCrypto AI. It covers what we need to produce, what we can simplify, and what we can skip for the MVP — based on our 3-month timeline, 5-person team, and 17 user stories.
 
 ---
