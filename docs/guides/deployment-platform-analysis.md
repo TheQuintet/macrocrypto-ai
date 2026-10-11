@@ -129,24 +129,48 @@ Do these once the API domain `https://api.<your-domain>` serves HTTPS from the V
 Run the VM steps once the production override from the previous section exists. The frontend steps are in [Frontend deploy on Cloudflare](#frontend-deploy-on-cloudflare).
 
 1. **Provision the VM** on Hetzner Cloud (the recommended provider above).
-   - Sign in at [console.hetzner.com](https://console.hetzner.com) and open or create a project for MacroCrypto AI.
-   - Add your SSH public key first under **Security → SSH Keys**, so it can be selected when the server is created.
+   - Sign in at [console.hetzner.com](https://console.hetzner.com). SSH keys live inside a Cloud project, not in your account settings (accounts.hetzner.com).
+   - Create a project for MacroCrypto AI (**+ New project**) and open it. The left sidebar with **Security** appears only inside a project.
+   - **Add your laptop's SSH public key to Hetzner.** This key is how you log in to the VM. It has nothing to do with GitHub at this step.
+     1. On your laptop, create a dedicated key. The `-f` flag gives it its own file name, so existing keys in `~/.ssh` are not touched:
+        `ssh-keygen -t ed25519 -C "<your-name>-macrocrypto" -f ~/.ssh/macrocrypto_hetzner`
+        If it asks `Overwrite (y/n)?`, answer `n` and choose another name.
+     2. When asked for a passphrase, set one (recommended) or press Enter twice for none. The passphrase protects the key file. It is not your Hetzner password.
+     3. Print the public key: `cat ~/.ssh/macrocrypto_hetzner.pub`. Copy the whole line that starts with `ssh-ed25519`. Never paste the private key (the file without `.pub`).
+     4. In the project, go to **Security → SSH keys → Add SSH key**, paste the line, name it (e.g. `<your-name>-laptop`), and save.
    - Click **Add Server** and choose:
      - **Location:** the one closest to your users, e.g. Falkenstein or Nuremberg.
      - **Image:** Ubuntu 24.04.
      - **Type:** a shared vCPU plan with at least 4 vCPU, 8 GB RAM and 50 GB disk. Hetzner renames and reprices plans, so check the current list and price on the pricing page before you order. Hetzner raised cloud server prices in 2026, so the size you pick matters for cost.
      - **Networking:** keep the default public IPv4 address. It is static and stays with the server.
-     - **SSH keys:** select the key you added.
+     - **SSH keys:** select the key you added in step 4 above.
      - **Name:** e.g. `macrocrypto-api`.
    - Click **Create & Buy now**. Note the IPv4 address shown on the server page; you need it for the DNS record in step 2.
+   - Once the server is up, log in with the key:
+     `ssh -i ~/.ssh/macrocrypto_hetzner root@<server-ip>`
+
+     Optional: add this to `~/.ssh/config`, then connect with `ssh macrocrypto`:
+
+     ```
+     Host macrocrypto
+         HostName <server-ip>
+         User root
+         IdentityFile ~/.ssh/macrocrypto_hetzner
+         IdentitiesOnly yes
+     ```
+
    - Other providers: on DigitalOcean, create a Droplet with the same specs and reserve an IP under **Networking → Reserved IPs**. On AWS or GCP, launch a 4 vCPU / 8 GB instance and attach an Elastic IP or static external IP.
 2. **Point DNS.** Create an A record for `api.<domain>` pointing at the VM. The frontend's domain is handled by Cloudflare.
 3. **Harden the server.**
-   - Create a non-root user with sudo; disable SSH password and root login.
+   - Create a non-root user with sudo, and copy your laptop's public key into that user's `~/.ssh/authorized_keys` before you disable root login. Otherwise you can lock yourself out.
+   - Disable SSH password and root login.
    - Enable the firewall (`ufw`) and allow only 22, 80 and 443.
    - Turn on unattended security upgrades.
 4. **Install Docker.** Install Docker Engine and the Compose plugin from Docker's official apt repository.
-5. **Get the code.** Clone the repo on the server and check out the release tag or `main`.
+5. **Get the code.** The repo is in a private org, so the VM needs its own key. This is separate from your laptop key and is set up at this step, not in step 1.
+   - On the VM, run `ssh-keygen -t ed25519` and print its public key with `cat ~/.ssh/id_ed25519.pub`.
+   - In GitHub, open the repo **Settings → Deploy keys → Add deploy key**, paste the VM's public key, and keep **Allow write access** unchecked (read-only).
+   - Clone the repo over SSH and check out the release tag or `main`: `git clone git@github.com:TheQuintet/macrocrypto-ai.git`.
 6. **Configure secrets.** Create each service's `.env` (`services/*/.env`) and a root `.env` with strong DB and RabbitMQ passwords. Never commit them.
 7. **Build and start.** Run `docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build`.
 8. **Initialise data.** Run DB migrations and the initial data load, then trigger a first training run so models exist before the scheduler fires.
@@ -159,6 +183,7 @@ Run the VM steps once the production override from the previous section exists. 
     - Check the next day that the 06:00 UTC retrain ran.
     - Confirm the nightly backup landed off-server.
     - Redeploy with `git pull` + the same `up -d --build` command, or automate it from GitHub Actions over SSH.
+    - If you automate it, use a separate deploy key pair. Put its private key in the repo's Actions secrets, and add its public key to the VM's `~/.ssh/authorized_keys` for the deploy user.
 
 ## Future scaling
 

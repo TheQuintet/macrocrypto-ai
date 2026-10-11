@@ -7,7 +7,7 @@
 | Merge scripts & recording plan | **Loredana Lungu** (SM) |
 | Facilitate recording | **Loredana Lungu** (SM) |
 
-References: [demo-prep run-of-show](./demo-prep.md#agreed-run-of-show-18-min) · [7 Oct meeting](../meetings/2026-10-07-final-demo-planning.md) · [#752](https://github.com/TheQuintet/macrocrypto-ai/issues/752)
+References: [demo-prep run-of-show](./demo-prep.md#agreed-run-of-show-18-min) · [7 Oct meeting](../meetings/post-sprint-9-2026-10-07-final-demo-planning.md) · [#752](https://github.com/TheQuintet/macrocrypto-ai/issues/752)
 
 **Deploy URL:** https://macrocrypto-ai.lgloredanaelena.workers.dev/
 
@@ -22,7 +22,7 @@ References: [demo-prep run-of-show](./demo-prep.md#agreed-run-of-show-18-min) ·
 | All Work (overview) | https://github.com/orgs/TheQuintet/projects/6/views/6 |
 | Capstone sprints (×3) | [Sprint 1](https://github.com/orgs/TheQuintet/projects/6/views/18) · [Sprint 2](https://github.com/orgs/TheQuintet/projects/6/views/19) · [Sprint 3](https://github.com/orgs/TheQuintet/projects/6/views/20) — [deliverables §4](./deliverables.md#4-agile-task-board) |
 | Domain Slack | `#mc-frontend`, `#mc-backend`, `#mc-ml-model`, `#mc-software-design` (async — no daily meeting) |
-| Sprint 2 retro board | https://github.com/orgs/TheQuintet/projects/6/views/10 |
+| Sprint 1 retro board | https://github.com/orgs/TheQuintet/projects/6/views/10 |
 | Roadmap | https://github.com/orgs/TheQuintet/projects/6/views/5 |
 | Design docs | https://github.com/TheQuintet/macrocrypto-ai/tree/main/docs/design |
 | Testing doc | https://github.com/TheQuintet/macrocrypto-ai/blob/main/docs/test%20documents/local-and-ci-cd-tests.md |
@@ -247,7 +247,7 @@ Intro order: **Kingson → Loredana → Richard → Mael → Sid**. Sid goes las
 
 **Must cover:** Scrum process — roles, sprints, meeting notes, retro; **no daily standup** (team Slack decision — domain channels only); **frontend alerts** on deploy (**dummy data** — state on camera).
 
-- **Screen:** [All Work](https://github.com/orgs/TheQuintet/projects/6/views/6) → Sprint [1](https://github.com/orgs/TheQuintet/projects/6/views/18) / [2](https://github.com/orgs/TheQuintet/projects/6/views/19) / [3](https://github.com/orgs/TheQuintet/projects/6/views/20) → [Sprint 2 retro board](https://github.com/orgs/TheQuintet/projects/6/views/10); `docs/meetings/`; deployed app — Alerts + notification bell
+- **Screen:** [All Work](https://github.com/orgs/TheQuintet/projects/6/views/6) → Sprint [1](https://github.com/orgs/TheQuintet/projects/6/views/18) / [2](https://github.com/orgs/TheQuintet/projects/6/views/19) / [3](https://github.com/orgs/TheQuintet/projects/6/views/20) → [Sprint 1 retro board](https://github.com/orgs/TheQuintet/projects/6/views/10); `docs/meetings/`; deployed app — Alerts + notification bell
 
 **Script** _([brackets] are on-screen actions; everything else is spoken)_
 
@@ -269,9 +269,9 @@ Intro order: **Kingson → Loredana → Richard → Mael → Sid**. Sid goes las
 
 > Every meeting has notes in the repo.
 
-**[Open Sprint 2 retro board]**
+**[Open Sprint 1 retro board]**
 
-> In Sprint 2 we ran a full retrospective, with items on this board and written notes from 5 August. Later sprints had only a one-to-two-hour sync, so we dealt with blockers live in that meeting and recorded the improvements in the notes and on the board.
+> In Sprint 1 we ran a full retrospective, with items on this board and written notes from 5 August. Later sprints had only a one-to-two-hour sync, so we dealt with blockers live in that meeting and recorded the improvements in the notes and on the board.
 >
 > Every piece of work followed the same path: a user story on the board, then a pull request, a review and CI. On the frontend, CI runs linting, type checks, unit tests and Playwright end-to-end tests.
 

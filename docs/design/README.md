@@ -1,5 +1,7 @@
 # System Design and Architecture
 
+> **AI disclosure:** AI use on this document is recorded as `Co-authored-by` trailers on its commits. See [AI-assisted development disclosure](../ai-assisted-development-disclosure.md#how-ai-use-is-recorded).
+
 ## Overview
 
 This directory contains the design and architecture documentation for the MacroCrypto AI platform. It describes the system structure, service responsibilities, API design, data model, business rules, architectural decisions, and supporting UML diagrams.

@@ -3,6 +3,8 @@
 This guide describes the test types in the repository and the checks run by
 [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml).
 
+> **AI disclosure:** AI use on this document is recorded as `Co-authored-by` trailers on its commits. See [AI-assisted development disclosure](../ai-assisted-development-disclosure.md#how-ai-use-is-recorded).
+
 ## Test categories
 
 - **Unit tests** exercise an isolated function, component, or module without
