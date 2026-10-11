@@ -43,28 +43,6 @@ Meeting notes for each sprint (the recordings above are one shared folder):
 
 ---
 
-## Sprint demo recordings
-
-> **🎥 [Watch the capstone sprint demo recordings on Google Drive →](https://drive.google.com/drive/folders/1Od4IBbhJyKtgLh-FnUjQ7cMjYWkVm-_I?usp=sharing)**
-
-Meeting notes for each sprint (the recordings above are one shared folder):
-
-| Sprint | Dates (board) | Meeting notes |
-|--------|---------------|---------------|
-| Pre-Sprint 1 | before 4 Aug | [20 Jul kickoff](./docs/meetings/pre-sprint-1-2026-07-20-kickoff.md) · [29 Jul refinement & planning](./docs/meetings/pre-sprint-1-2026-07-29-refinement-and-planning.md) |
-| Sprint 1 | 4–10 Aug | [5 Aug retro, review & planning](./docs/meetings/sprint-1-2026-08-05-retrospective.md) |
-| Sprint 2 | 11–17 Aug | _no notes (12 Aug recording had no audio)_ |
-| Sprint 3 | 18–24 Aug | [19 Aug weekly sync](./docs/meetings/sprint-3-2026-08-19-sync.md) |
-| Sprint 4 | 25–31 Aug | [26 Aug review, refinement & planning](./docs/meetings/sprint-4-2026-08-26-review-and-planning.md) |
-| Sprint 5 | 1–7 Sep | [2 Sep review & planning](./docs/meetings/sprint-5-2026-09-02-review-and-planning.md) · [4 Sep Dr. Robert checkpoint](./docs/meetings/sprint-5-2026-09-04-dr-robert-steele-checkpoint.md) |
-| Sprint 6 | 8–14 Sep | [9 Sep review & planning](./docs/meetings/sprint-6-2026-09-09-review-and-planning.md) |
-| Sprint 7 | 15–21 Sep | [16 Sep weekly sync](./docs/meetings/sprint-7-2026-09-16-sync.md) |
-| Sprint 8 | 22–28 Sep | [23 Sep review & planning](./docs/meetings/sprint-8-2026-09-23-review-and-planning.md) |
-| Sprint 9 | 29 Sep–5 Oct | [30 Sep review & planning](./docs/meetings/sprint-9-2026-09-30-review-and-planning.md) |
-| Post-Sprint 9 | after 5 Oct | [7 Oct final demo planning](./docs/meetings/post-sprint-9-2026-10-07-final-demo-planning.md) |
-
----
-
 ## Contents
 
 - [Sprint demo recordings](#sprint-demo-recordings)
