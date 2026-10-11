@@ -138,25 +138,43 @@ Commands use `<server-ip>` and `<your-domain>` as placeholders. Replace them wit
 
 2. **Point DNS.** Create an A record `api.<your-domain>` → server IP. You can do this now or later, but it must exist before HTTPS is set up in step 7.
 
-3. **Harden the server** (logged in as root):
+3. **Harden the server.** Start as root in the first terminal, then continue as `deploy`.
+
+   As root:
 
    ```bash
    apt update && apt upgrade -y
    adduser deploy && usermod -aG sudo deploy
    rsync --archive --chown=deploy:deploy ~/.ssh /home/deploy    # copies your key to the new user
-   ufw allow OpenSSH && ufw allow 80 && ufw allow 443 && ufw enable
-   apt install -y unattended-upgrades && dpkg-reconfigure -plow unattended-upgrades
    ```
 
-   In a second terminal, check that `ssh -i ~/.ssh/macrocrypto_hetzner deploy@<server-ip>` works. Only after that succeeds, edit `/etc/ssh/sshd_config` to set `PermitRootLogin no` and `PasswordAuthentication no`, then run `systemctl restart ssh`. Keep the root session open until the `deploy` login is confirmed.
+   In a second terminal, check that `ssh -i ~/.ssh/macrocrypto_hetzner deploy@<server-ip>` works. Do not continue until it does.
+
+   As `deploy`:
+
+   ```bash
+   sudo ufw allow OpenSSH && sudo ufw allow 80 && sudo ufw allow 443 && sudo ufw --force enable && sudo ufw status
+   printf "PermitRootLogin no\nPasswordAuthentication no\n" | sudo tee /etc/ssh/sshd_config.d/00-hardening.conf && sudo systemctl restart ssh
+   sudo apt install -y unattended-upgrades && echo unattended-upgrades unattended-upgrades/enable_auto_updates boolean true | sudo debconf-set-selections && sudo dpkg-reconfigure -f noninteractive unattended-upgrades
+   ```
+
+   `ufw status` should show `Status: active` with OpenSSH, 80 and 443 as ALLOW. Allowing OpenSSH before enabling `ufw` keeps your SSH session open. The SSH hardening goes in a drop-in file, so `/etc/ssh/sshd_config` itself is not edited. Once the `deploy` login works in a third terminal, close the root session.
 
 4. **Install Docker** (as `deploy`):
 
    ```bash
-   curl -fsSL https://get.docker.com | sudo sh
-   sudo usermod -aG docker deploy    # log out and back in after this
+   curl -fsSL https://get.docker.com | sudo sh && sudo usermod -aG docker deploy
+   ```
+
+   Log out and back in so the `docker` group applies, then check:
+
+   ```bash
+   exit
+   ssh -i ~/.ssh/macrocrypto_hetzner deploy@<server-ip>
    docker compose version
    ```
+
+   Expect `Docker Compose version v2.x.x`.
 
 5. **Get the code.** The repo is private, so give the server read-only access with a deploy key:
 
