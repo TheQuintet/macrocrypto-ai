@@ -1,6 +1,6 @@
 # MacroCrypto AI — Deployment Platform Analysis
 
-_Last updated: 2026-10-09_
+_Last updated: 2026-10-11_
 
 ## Summary
 
@@ -126,24 +126,67 @@ Do these once the API domain `https://api.<your-domain>` serves HTTPS from the V
 
 ## Deployment steps
 
-Run the VM steps once the production override from the previous section exists. The frontend steps are in [Frontend deploy on Cloudflare](#frontend-deploy-on-cloudflare).
+Steps 1–6 don't depend on the production override, so they can run now. Step 7 needs `docker-compose.prod.yml` from the checklist above. The frontend steps are in [Frontend deploy on Cloudflare](#frontend-deploy-on-cloudflare).
 
-1. **Provision the VM.** Create a 4 vCPU / 8–16 GB Ubuntu 24.04 instance with 50+ GB SSD. Add your SSH key and reserve a static IP.
-2. **Point DNS.** Create an A record for `api.<domain>` pointing at the VM. The frontend's domain is handled by Cloudflare.
-3. **Harden the server.**
-   - Create a non-root user with sudo; disable SSH password and root login.
-   - Enable the firewall (`ufw`) and allow only 22, 80 and 443.
-   - Turn on unattended security upgrades.
-4. **Install Docker.** Install Docker Engine and the Compose plugin from Docker's official apt repository.
-5. **Get the code.** Clone the repo on the server and check out the release tag or `main`.
-6. **Configure secrets.** Create each service's `.env` (`services/*/.env`) and a root `.env` with strong DB and RabbitMQ passwords. Never commit them.
-7. **Build and start.** Run `docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build`.
+Commands use `<server-ip>` and `<your-domain>` as placeholders. Replace them with real values, and never commit secrets or keys.
+
+1. **Provision and log in.** Create a Hetzner Cloud server (CX32 or CX42, Ubuntu 24.04, 50+ GB SSD) with your SSH key, then check that you can log in:
+
+   ```bash
+   ssh -i ~/.ssh/macrocrypto_hetzner root@<server-ip>
+   ```
+
+2. **Point DNS.** Create an A record `api.<your-domain>` → server IP. You can do this now or later, but it must exist before HTTPS is set up in step 7.
+
+3. **Harden the server** (logged in as root):
+
+   ```bash
+   apt update && apt upgrade -y
+   adduser deploy && usermod -aG sudo deploy
+   rsync --archive --chown=deploy:deploy ~/.ssh /home/deploy    # copies your key to the new user
+   ufw allow OpenSSH && ufw allow 80 && ufw allow 443 && ufw enable
+   apt install -y unattended-upgrades && dpkg-reconfigure -plow unattended-upgrades
+   ```
+
+   In a second terminal, check that `ssh -i ~/.ssh/macrocrypto_hetzner deploy@<server-ip>` works. Only after that succeeds, edit `/etc/ssh/sshd_config` to set `PermitRootLogin no` and `PasswordAuthentication no`, then run `systemctl restart ssh`. Keep the root session open until the `deploy` login is confirmed.
+
+4. **Install Docker** (as `deploy`):
+
+   ```bash
+   curl -fsSL https://get.docker.com | sudo sh
+   sudo usermod -aG docker deploy    # log out and back in after this
+   docker compose version
+   ```
+
+5. **Get the code.** The repo is private, so give the server read-only access with a deploy key:
+
+   ```bash
+   ssh-keygen -t ed25519 -C "macrocrypto-vm"    # Enter for no passphrase
+   cat ~/.ssh/id_ed25519.pub
+   ```
+
+   Add that public key in GitHub under the repo's **Settings → Deploy keys** (read-only). Then clone:
+
+   ```bash
+   git clone git@github.com:TheQuintet/macrocrypto-ai.git && cd macrocrypto-ai
+   ```
+
+6. **Configure secrets.** Create each service's `services/*/.env` from its `.env.example`, and a root `.env` with strong Postgres and RabbitMQ passwords. Never commit them.
+
+7. **Build and start.** Only after `docker-compose.prod.yml` is merged:
+
+   ```bash
+   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+   ```
+
 8. **Initialise data.** Run DB migrations and the initial data load, then trigger a first training run so models exist before the scheduler fires.
+
 9. **Verify.**
    - All containers report healthy in `docker compose ps`.
-   - `https://api.<domain>/health` returns OK.
+   - `https://api.<your-domain>/health` returns OK.
    - The Cloudflare frontend loads, shows prices and predictions, and alerts fire.
    - MLflow lists the new training runs.
+
 10. **Operate.**
     - Check the next day that the 06:00 UTC retrain ran.
     - Confirm the nightly backup landed off-server.
