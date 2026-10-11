@@ -40,9 +40,11 @@ Details: [§5 requirements](./deliverables.md#5-video-presentation) · [Presenta
 
 Finish **[Deliverables §1–§4](./deliverables.md#mandatory-submissions)** before rehearsing. Additional **video-only** prep:
 
-- [ ] **Deploy host** — **Vercel** (primary); env vars set (Mael + Sid + Loredana). Fallback: Railway or Render (paid tier if memory-limited)
-- [x] **Deploy account owner** — **Loredana** (Vercel); post confirmation in `#capstone-project-group`
-- [ ] **Smoke test on deploy** — health endpoints; **CI pipelines green** (show pipelines on camera; full post-deploy smoke not required)
+- [x] **Deploy host (frontend)** — **Cloudflare Workers** (free plan, `frontend/wrangler.jsonc`); live at the [§2 URL](./deliverables.md#2-deployed-application) with simulated data. Vercel was dropped (Hobby plan can't deploy from a private org repo)
+- [ ] **Deploy host (backend)** — one **Hetzner Cloud VM** (4 vCPU, 8–16 GB RAM, Ubuntu 24.04) running **Docker Compose** with the prod override, behind nginx/TLS on `api.<domain>`. See [deployment platform analysis](../guides/deployment-platform-analysis.md#deployment-of-the-backend)
+- [ ] **Live API connection** — `VITE_API_GATEWAY_BASE_URL` set on the Worker and redeployed; `CORS_ALLOW_ORIGINS` set on the VM; site shows live data instead of simulated data. If not done by recording day, say on camera that the data is simulated
+- [x] **Deploy account owner** — **Loredana** (Cloudflare); post confirmation in `#capstone-project-group`
+- [ ] **Smoke test on deploy** — `https://api.<domain>/health` returns OK; `docker compose ps` shows all containers healthy; **CI pipelines green** (show pipelines on camera; full post-deploy smoke not required)
 - [x] **Google Drive / recording owner** — Loredana (Zoom record → Drive link; anyone with link can view)
 - [ ] **Quantic submitter** — one person named for dashboard + Group Agreement
 - [ ] **Scripts** — each member fills [demo-script.md](./demo-script.md) by **8 Oct**; **Loredana** merges and builds the recording plan
