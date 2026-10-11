@@ -5,7 +5,7 @@ To receive credit for the Capstone, we must submit **all** of the following. Use
 **Grading:** Projects are scored **0–5**. A score of **3 or higher** is required to pass. See [Grading & Pass Criteria](./grading.md) for details.
 
 ---
-##  Deadline :  October 5
+##  Deadline :  October 11 (official) · team target: October 5
 
 ## Mandatory submissions
 
@@ -20,8 +20,8 @@ To receive credit for the Capstone, we must submit **all** of the following. Use
 
 - [ ] Code is appropriately documented
 - [ ] Repository is shared with the `quantic-grader` account
-- [ ] README explains setup, architecture, and how to run the project
-- [ ] All team members have contributed (visible in commit history / PRs)
+- [x] README explains setup, architecture, and how to run the project
+- [x] All team members have contributed (visible in commit history / PRs) — 5 members, all with commits and PRs on `main` (checked 11 Oct 2026)
 
 ---
 
@@ -50,9 +50,9 @@ To receive credit for the Capstone, we must submit **all** of the following. Use
 
 **Requirements**
 
-- [ ] Architecture decisions explained
-- [ ] Patterns and design choices documented
-- [ ] Automated testing approach described
+- [x] Architecture decisions explained — ADR-001 to ADR-005 in `docs/design/adr/`
+- [x] Patterns and design choices documented — `docs/design/architectural-object-oriented-patterns.md`
+- [x] Automated testing approach described — `docs/test documents/local-and-ci-cd-tests.md`
 - [ ] Written **manually** — see [Policies & Standards](./policies.md) for AI rules
 
 ---
@@ -81,7 +81,7 @@ To receive credit for the Capstone, we must submit **all** of the following. Use
 |            |                                           |
 | ---------- | ----------------------------------------- |
 | **Status** | 🟡 In progress                            |
-| **URL**    | _TBD_                                     |
+| **URL**    | [Google Drive folder](https://drive.google.com/drive/folders/1RhPLlVtBjOKQvEkGr-yBQ6DruhyWsiDG?usp=sharing) (link set, contents not yet verified) |
 | **Length** | 15–20 minutes                             |
 
 **Prep (recording only — not a second checklist):** [Demo prep](./demo-prep.md) · [#752](https://github.com/TheQuintet/macrocrypto-ai/issues/752). **Speaking order and script:** [demo script](./demo-script.md) · [run-of-show](./demo-prep.md#agreed-run-of-show-18-min).
