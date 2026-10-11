@@ -47,6 +47,7 @@ from typing import Any, Dict, List, Optional
 import pandas as pd
 
 from app.ai.base import ForecastModel
+from app.config import settings
 from app.database.enums import FeatureContext
 from app.database.repositories.prediction_repository import (
     PredictionRepository,
@@ -308,10 +309,13 @@ class PredictionGenerator:
                 f"Calling {self.model.get_name()}.predict() "
                 f"for {len(future_frame)} future rows"
             )
-            predictions = self.model.predict(future_frame)
+            predictions = self._predict_at_confidence(future_frame)
 
             if predictions is None or predictions.empty:
                 raise ValueError("Model returned empty predictions.")
+
+            if self._should_reanchor():
+                predictions = self._reanchor_to(predictions, prediction_time)
 
             result.rows_generated = len(predictions)
             result.predictions = predictions
@@ -386,6 +390,57 @@ class PredictionGenerator:
     # ============================================================
     # FUTURE FRAME BUILDING
     # ============================================================
+    def _predict_at_confidence(self, future_frame: pd.DataFrame) -> pd.DataFrame:
+        """Run the model with bounds at this generator's confidence.
+
+        The concrete models' plain predict() returns 95% bounds;
+        predict_with_confidence() narrows them to the requested level.
+        Models without it (not part of ForecastModel) fall back to
+        predict().
+        """
+        predict_with_confidence = getattr(
+            self.model, "predict_with_confidence", None
+        )
+        if callable(predict_with_confidence):
+            return predict_with_confidence(
+                future_frame, confidence_level=self.confidence
+            )
+        return self.model.predict(future_frame)
+
+    def _should_reanchor(self) -> bool:
+        """True when prediction history comes from a dev stand-in partition.
+
+        With PREDICTION_FEATURE_PARTITION set, history ends wherever
+        that partition ends, so forecast times would sit in the past.
+        """
+        return (
+            self.history_source == FeatureContext.PREDICTION
+            and bool(settings.prediction_feature_partition)
+        )
+
+    @staticmethod
+    def _reanchor_to(
+        predictions: pd.DataFrame,
+        prediction_time: datetime,
+    ) -> pd.DataFrame:
+        """Restamp hourly forecast rows to start at the next whole hour.
+
+        Values are unchanged; only `ds` moves. Keeps the frame's
+        tz-awareness so row conversion behaves as before.
+        """
+        start = (
+            pd.Timestamp(prediction_time).tz_convert("UTC").floor(HOURLY_FREQ)
+            + pd.Timedelta(hours=1)
+        )
+        if pd.to_datetime(predictions["ds"]).dt.tz is None:
+            start = start.tz_localize(None)
+
+        reanchored = predictions.copy()
+        reanchored["ds"] = pd.date_range(
+            start=start, periods=len(reanchored), freq=HOURLY_FREQ
+        )
+        return reanchored
+
     def _build_future_frame(self, history: pd.DataFrame) -> pd.DataFrame:
         """Build a future frame for the model to predict on.
 

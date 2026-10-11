@@ -153,7 +153,7 @@ async def get_btc_history(
     Redis caching follows the same cache-aside pattern as `/price`.
 
     Query parameters:
-    - range: 24h, 7d, 30d, or 90d (default 7d)
+    - range: 24h, 7d, 30d, 90d, 1y, or 5y (default 7d)
     - interval: 1m, 5m, 1h, 1d, 1w, or 1y (default 1h)
     - max_points: maximum number of returned points; 0 means unlimited
     """

@@ -56,24 +56,18 @@ About **1 min of buffer** under the 20-min limit for handoffs and screen switche
 
 **Loredana — merged plan:** _combined transitions, dry-run notes_
 
-- **Kingson (9 Oct):** script received and placed in segments 1 and 6. At ~140 wpm, segment 1 reads in **~0:45** and segment 6 in **~4:00**.
+- **Kingson (10 Oct):** updated script placed in segments 1 and 6. At ~140 wpm, segment 1 reads in **~0:45** and segment 6 in **~4:00**.
 - **Order change (9 Oct):** Kingson's opening comes first, then the ID round, then Sid. His opening already names everyone's role, so the ID round can be just name + role. Optionally, Kingson can drop the teammate list from his opening to avoid repeating it.
 
 ---
 
 ## 1. Kingson — opening & welcome (~0:45)
 
-**Must cover:** welcome; team + product in one sentence; set up the problem the capstone solves; hand off to the ID round.
+**Must cover:** welcome; the problem in one breath; what MacroCrypto AI does; hand off to the ID round.
 
-_Kingson’s script (9 Oct). Lines in [brackets] are on-screen actions; everything else is spoken._
+_Kingson’s script (updated 10 Oct). Lines in [brackets] are on-screen actions; everything else is spoken._
 
-**[Dashboard, top of page, cursor still]**
-
-> Hi, I’m Kingson Emma-Ochu, a frontend engineer on The Quintet. My teammates are Sid Ahmed Mahieddine, our Product Owner; Loredana Lungu, our Scrum Master; Mael Taye Deneke, who owns the backend; and Richard Owusu, who works on frontend and machine learning. This is MacroCrypto AI.
->
-> Here’s the problem. A Bitcoin trader watches the price on one site and the economy on another, and has to put the two together in their head. We put them on one screen, so you can see why Bitcoin is moving, not just what it’s doing.
-
-- **Handoff to the ID round:** _not in Kingson’s script — add one line, e.g._ “Before we show you how it works, let’s each introduce ourselves.”
+> Hey everyone, welcome! I’m Kingson, and we’re The Quintet. Bitcoin doesn’t move on its own. Rates, inflation, the whole economy push on it, and most tools only show you the price. So we built MacroCrypto AI. It puts the economy right next to the market and uses AI to forecast what’s next. Five of us built it. Before we show you how it works, let’s each introduce ourselves!
 
 ---
 
@@ -85,24 +79,17 @@ Intro order: **Kingson → Loredana → Richard → Mael → Sid**. Sid goes las
 
 ### Kingson Emma-Ochu (Frontend)
 
-- **Intro line:** “Hi, I’m Kingson Emma-Ochu, a frontend engineer on The Quintet.” _(his full opening also introduces the whole team — see [segment 1](#1-kingson--opening--welcome-045))_
+- **Intro line:** “I’m Kingson, frontend engineer.” _(ID up)_ — then “Loredana, over to you!”
 - **ID on camera:** ☐
 
 ### Loredana Lungu (Scrum Master / frontend)
 
-- **Intro line:**
+- **Intro line:** “Hi, I’m Loredana Lungu, Scrum Master and Frontend Lead.” _(hold ID)_ — then “Richard, over to you!”
 - **ID on camera:** ☐
-
-<details>
-<summary><strong>Suggestions</strong></summary>
-
-- “I’m Loredana — Scrum Master and frontend. I run our Agile ceremonies, maintain meeting notes, and built macro indicator UI, alerts integration, E2E tests, and our deployment path for the demo.”
-
-</details>
 
 ### Richard Owusu (ML / frontend)
 
-- **Intro line:**
+- **Intro line:** “I’m Richard Owusu, ML and frontend engineer.” _(ID up)_ — then “Mael, over to you!”
 - **ID on camera:** ☐
 
 <details>
@@ -114,7 +101,7 @@ Intro order: **Kingson → Loredana → Richard → Mael → Sid**. Sid goes las
 
 ### Mael Taye Deneke (Backend / code owner)
 
-- **Intro line:**
+- **Intro line:** “I’m Mael Taye Deneke, code owner and lead backend developer.” _(ID up)_ — then “Sid, over to you!”
 - **ID on camera:** ☐
 
 <details>
@@ -126,7 +113,7 @@ Intro order: **Kingson → Loredana → Richard → Mael → Sid**. Sid goes las
 
 ### Sid Ahmed Mahieddine (Product Owner)
 
-- **Intro line:**
+- **Intro line:** “I’m Sid Ahmed Mahieddine, Product Owner.” _(ID up)_ — then “Let’s start with the problem.”
 - **ID on camera:** ☐
 
 <details>
@@ -148,7 +135,7 @@ Intro order: **Kingson → Loredana → Richard → Mael → Sid**. Sid goes las
   - Problem / solution / value
   - **AI service:** 6 models, how champion is chosen, correlation analysis on a schedule
   - What the trader vs analyst gets from predictions (high level)
-- **Handoff to Mael:**
+- **Handoff to Mael:** “Mael made that architecture real — Gateway, services, messaging, cache, and the pipelines you’ll see in production. Mael, over to you!”
 
 <details>
 <summary><strong>Suggestions</strong></summary>
@@ -168,35 +155,63 @@ Intro order: **Kingson → Loredana → Richard → Mael → Sid**. Sid goes las
 
 ## 3. Mael — architecture & platform (~3:30)
 
-**Must cover:** architecture and tech stack; **three services** you implemented; **RabbitMQ**; **Redis** caching; **CI/CD** and test automation; link to **software design docs** (single MD + SVG UML; current and future architecture).
+**Must cover:** architecture and tech stack; **the services you implemented**; **RabbitMQ**; **Redis** caching; **testing and CI/CD**; **current and future architecture** diagrams.
 
-- **First line:**
-- **Screen:** deploy URL, diagram, CI status, repo path to design doc
-- **Talking points:**
-  - End-to-end flow (Gateway, data, AI, alerts — as you built it)
-  - RabbitMQ and Redis roles
-  - CI/CD and automated tests (show green pipeline if useful)
-  - Point to design doc — do not read it aloud
+- **Screen:** current architecture diagram, future architecture diagram, CI/CD run or screenshot
+
+**Script** _([brackets] are on-screen actions; everything else is spoken)_
+
+> I’m Mael, the code owner and lead backend developer.
+>
+> I was responsible for implementing the core platform services, including the **Data Service, Alert Service, API Gateway, and the integration with the AI Service**. I also worked on exposing the backend functionality through the API Gateway so that the frontend has a consistent entry point to the system.
+
+**Current architecture**
+
+> At a high level, our platform consists of **PostgreSQL with TimescaleDB, the Data Service, Alert Service, AI Service, API Gateway, Redis, RabbitMQ, and the frontend**.
+>
+> Let me briefly explain the responsibility of each component.
+>
+> **Data Service** is primarily responsible for collecting and processing our **Bitcoin and macroeconomic data**.
+>
+> **Alert Service** is responsible for managing alerts and notifications. For example, users can be notified when a Bitcoin price, prediction, or macroeconomic indicator crosses a defined threshold.
+>
+> **AI Service** is the analytical component of the platform, responsible for **prediction, correlation, and analysis** of the data collected by the system.
+>
+> These services are built using **FastAPI** and are exposed through the **API Gateway**.
+>
+> The **API Gateway** acts as the single entry point for the frontend. It provides a consistent interface to the backend services and handles communication between the frontend and the underlying services.
+>
+> For performance, we use **Redis as a caching layer**, with configurable TTLs so that frequently requested data can be served quickly while still allowing the cache to expire and refresh.
+>
+> We also use **RabbitMQ as our message-queuing platform** for asynchronous communication, particularly between the Data Service and Alert Service. It also allows alert events to be propagated when a configured trigger is fired.
+>
+> So, this is what our **current implementation** looks like.
+
+**[Show current architecture diagram]**
+
+**Future architecture**
+
+> Our intention is not to stop at the capstone. We designed the architecture with future expansion in mind, and our plan is to extend the application with additional capabilities and services beyond the current implementation.
+
+**[Show future architecture diagram]**
+
+**Testing and quality assurance**
+
+> From a quality perspective, we have implemented testing at several levels.
+>
+> We use **unit testing, integration testing, end-to-end testing, and full system-stack testing**.
+>
+> **Frontend:** we use Vitest and Playwright. **Backend:** we use Pytest. **System-level testing:** we use a Docker-based environment to simulate the complete application stack and verify that the services work together correctly.
+
+**CI/CD pipeline**
+
+> Finally, I’ll show the **CI/CD pipeline in action**, where these automated checks are executed as part of our development workflow.
+
+**[Show CI/CD video or screenshot]**
+
 - **If something fails live:** _(one line + fallback screen)_
 - **Backup:** pre-recorded segment if connectivity fails
-- **Handoff to Richard:**
-
-<details>
-<summary><strong>Suggestions</strong></summary>
-
-- **First line:** “Under the hood we use **microservices** so ingestion, alerts, and AI can scale independently — all exposed through one **API Gateway**.”
-- **Screen:** deploy URL health; GitHub Actions; [docs/design/](https://github.com/TheQuintet/macrocrypto-ai/tree/main/docs/design) and [testing doc](https://github.com/TheQuintet/macrocrypto-ai/blob/main/docs/test%20documents/local-and-ci-cd-tests.md) (C4 / microservices / ADRs; consolidated software-design MD + SVG when ready).
-- **Talking points:**
-  - **Three services you own:** e.g. **data-service** (BTC + macro collection/APIs), **alert-service** (rules + notifications), **api-gateway** (single entry for the frontend) — adjust to what you actually present.
-  - **RabbitMQ:** collectors publish events; services stay decoupled ([ADR-001](../design/adr/ADR-001-use-rabbitmq.md)).
-  - **Redis:** cache hot reads (e.g. prices/indicators) to keep the dashboard responsive.
-  - **TimescaleDB/Postgres** for history; **MLflow** for model artifacts where relevant.
-  - **CI/CD:** PR checks, service tests, coverage goals — show a green run instead of re-running every test on camera.
-  - **Design doc:** one Markdown index linking SVG diagrams; **current** deploy vs **future** scale-out — 30 seconds pointing at repo paths.
-- **If fail:** “The deploy health check is flaky — here’s the same flow in our diagram and CI proof.”
-- **Handoff:** “Richard dug into where our data comes from and how we clean it before it ever reaches Sid’s models.”
-
-</details>
+- **Handoff to Richard:** “Richard dug into where our data comes from and how we clean it before it ever reaches Sid’s models. Richard, over to you!”
 
 ---
 
@@ -210,7 +225,7 @@ Intro order: **Kingson → Loredana → Richard → Mael → Sid**. Sid goes las
   - Where macro / market data comes from
   - Preprocessing choices and why they matter for the models
   - Link to Sid’s AI segment without repeating model details
-- **Handoff to Loredana:**
+- **Handoff to Loredana:** “Loredana will show how we delivered this as a team in Scrum, then how a trader gets alerts in the UI. Loredana, over to you!”
 
 <details>
 <summary><strong>Suggestions</strong></summary>
@@ -230,98 +245,75 @@ Intro order: **Kingson → Loredana → Richard → Mael → Sid**. Sid goes las
 
 ## 5. Loredana — scrum process & alerts (~3:00)
 
-**Must cover:** Scrum process — board, sprints, meeting notes, retro; **no daily standup** (team Slack discussion — domain channels only); **frontend alerts** on deploy (**dummy data** — state on camera).
+**Must cover:** Scrum process — roles, sprints, meeting notes, retro; **no daily standup** (team Slack decision — domain channels only); **frontend alerts** on deploy (**dummy data** — state on camera).
 
-- **First line:**
-- **Screen:** [All Work](https://github.com/orgs/TheQuintet/projects/6/views/6) + [Sprint 1](https://github.com/orgs/TheQuintet/projects/6/views/18) / [2](https://github.com/orgs/TheQuintet/projects/6/views/19) / [3](https://github.com/orgs/TheQuintet/projects/6/views/20) + Sprint 2 retro; deployed app — alerts + notifications
-- **Talking points:**
-  - PO / SM / code owner; weekly sync + GitHub boards (not a daily meeting)
-  - Async updates in `#mc-frontend`, `#mc-backend`, `#mc-ml-model`, `#mc-software-design`
-  - PRs, CI, meeting notes in repo
-  - Create or show alert flow; **explicit dummy-data disclaimer**
-- **Click path (alerts):**
-  1.
-  2.
-- **If alerts fail:** _(fallback line)_
-- **Handoff to Kingson:**
+- **Screen:** [All Work](https://github.com/orgs/TheQuintet/projects/6/views/6) → Sprint [1](https://github.com/orgs/TheQuintet/projects/6/views/18) / [2](https://github.com/orgs/TheQuintet/projects/6/views/19) / [3](https://github.com/orgs/TheQuintet/projects/6/views/20) → [Sprint 1 retro board](https://github.com/orgs/TheQuintet/projects/6/views/10); `docs/meetings/`; deployed app — Alerts + notification bell
 
-<details>
-<summary><strong>Suggestions</strong></summary>
+**Script** _([brackets] are on-screen actions; everything else is spoken)_
 
-- **First line:** “We ran this capstone with **sprints and boards**, but after a **Slack discussion** we agreed **not** to do a daily standup — live or required offline posts — we use **domain Slack** and the **weekly sync** instead.”
-- **Screen:** [All Work](https://github.com/orgs/TheQuintet/projects/6/views/6) + board sprints [1](https://github.com/orgs/TheQuintet/projects/6/views/18) · [2](https://github.com/orgs/TheQuintet/projects/6/views/19) · [3](https://github.com/orgs/TheQuintet/projects/6/views/20) + [Sprint 2 retro board](https://github.com/orgs/TheQuintet/projects/6/views/10); [5 Aug retro notes](https://github.com/TheQuintet/macrocrypto-ai/blob/main/docs/meetings/sprint-1-2026-08-05-retrospective.md); [docs/meetings/](https://github.com/TheQuintet/macrocrypto-ai/tree/main/docs/meetings); open **Alerts** on deploy + notification bell/inbox.
-- **Talking points:**
-  - **Roles:** Sid PO, you SM, Mael code owner; frontend split across Kingson, you, Richard where relevant.
-  - **Slack by domain:** `#mc-frontend`, `#mc-backend`, `#mc-ml-model`, `#mc-software-design` — discuss work where it lives; `#capstone-project-group` for whole-team items.
-  - **Retro:** **Sprint 1 (5 Aug)** — full retro with items on the [retro board](https://github.com/orgs/TheQuintet/projects/6/views/10) and written notes. **Later sprints** — our weekly sync is only **1–2 hours**, so we **discussed emergent blockers live** in the meeting instead of maintaining a retro board every sprint; improvements are in **meeting notes** and the workflow board.
-  - **Honest process note:** domain Slack improved focus but some members felt **less visibility**; we compensated with **weekly Capstone sync**, the **GitHub board**, and **PR/meeting notes**.
-  - **Board for graders:** day-to-day work is **[All Work](https://github.com/orgs/TheQuintet/projects/6/views/6)** on Team Workflow #6 (sprints on the project **Sprint** field — we did not use GitHub Issues milestones). Capstone **three sprint boards** are saved views: [Sprint 1](https://github.com/orgs/TheQuintet/projects/6/views/18), [Sprint 2](https://github.com/orgs/TheQuintet/projects/6/views/19), [Sprint 3](https://github.com/orgs/TheQuintet/projects/6/views/20).
-  - **Process:** user stories → PRs → review → CI.
-  - **Engineering quality:** frontend lint/typecheck/unit tests + Playwright E2E; backend CI on services.
-  - **Alerts demo:** “For this recording we’re using **dummy alert data** so you can see the UX without waiting on live triggers.”
-- **Click path (example — replace with deploy routes):**
-  1. Navigate to **Alerts** in the sidebar.
-  2. Create or open a **price alert** (threshold above/below).
-  3. Show **notification** (toast or inbox) firing from that dummy rule.
-- **If fail:** show alert UI mock or PR screenshot + board story marked Done.
-- **Handoff:** “Kingson will tie it together with the **live dashboard**, charts, and **forecast** traders use day to day.”
+**[All Work view, Team Workflow board]**
 
-</details>
+> Thanks, Richard. Good data and good models only matter if five people can ship them together, so here's how we worked.
+>
+> Our roles were clear from day one. Sid was Product Owner and owned the backlog. I was Scrum Master. Mael was code owner for the backend, and Kingson, Richard and I shared the frontend.
+
+**[Click Sprint 1 → Sprint 2 → Sprint 3 views]**
+
+> We worked in nine sprints over the project. For the capstone, we grouped them into the three sprints Quantic asks for, and each one is a saved view on this GitHub board. You can see what we committed to and what we delivered.
+>
+> Early on, after a Slack discussion, we decided not to hold a daily standup. We had a weekly sync instead, plus async updates in domain channels for frontend, backend, the ML model and software design. Each discussion happens where that work lives.
+>
+> That choice had a cost. Focus got better, but some of us felt we saw less of the other areas. We made up for it with the weekly sync, the board and written notes.
+
+**[Open docs/meetings]**
+
+> Every meeting has notes in the repo.
+
+**[Open Sprint 1 retro board]**
+
+> In Sprint 1 we ran a full retrospective, with items on this board and written notes from 5 August. Later sprints had only a one-to-two-hour sync, so we dealt with blockers live in that meeting and recorded the improvements in the notes and on the board.
+>
+> Every piece of work followed the same path: a user story on the board, then a pull request, a review and CI. On the frontend, CI runs linting, type checks, unit tests and Playwright end-to-end tests.
+
+**[Switch to deployed app → Alerts]**
+
+> Now, alerts. **For this recording we're using dummy alert data**, so you can see the experience without waiting for a real market trigger.
+
+**[Price tab → create a price alert]**
+
+> A trader can set a price alert, for example Bitcoin crossing above a threshold.
+
+**[Macro tab, Prediction tab]**
+
+> There are also macro alerts, like a CPI release, and prediction alerts for when the model's outlook changes.
+
+**[Open notification bell]**
+
+> When a rule fires, the alert shows up here in the notification bell in real time. The trader doesn't have to watch the screen all day, and the analyst won't miss a macro event.
+>
+> That's how we built it. Kingson will now tie it all together with the live dashboard, the charts and the forecast traders use every day. Kingson, over to you!
+
+- **If alerts fail:** _(fallback line)_ show alert UI mock or PR screenshot + board story marked Done.
 
 ---
 
-## 6. Kingson — dashboard, forecast & closing demo (~4:00)
+## 6. Kingson — live demo & close (~4:00)
 
-**Must cover:** dashboard, charts, **forecast**; **closing live demo** on deploy URL (live backend data — not dummy).
+**Must cover:** the live deploy URL walkthrough (dashboard, macro, regime, forecasts, calendar); **Alerts** only as a one-line callback to Loredana’s segment; closing line.
 
-_Kingson’s script (9 Oct). Lines in [brackets] are on-screen actions; everything else is spoken._
+**Click path (deploy URL):** Dashboard → Macro Economy → Regime analysis → Forecasts → Economic calendar → back to Dashboard.
 
-**Click path (deploy URL):** Dashboard → Macro Economy → Regime analysis → Forecasts → Economic calendar → Alerts → back to Dashboard.
+- **Dashboard:** live BTC price with 24h and 7d change; macro regime card with confidence and reason; next 24-hour forecast with 85% band; BTC price chart from 30d to 1y.
+- **Macro Economy:** inflation, rates, jobs, GDP, money supply and the dollar on one timeline with BTC; hover tooltips on what each move means for BTC.
+- **Regime analysis:** Performance and Similar periods — a comparison, not a prediction.
+- **Forecasts:** 24h to 7d; 70% to 95% confidence; the accuracy card with the model’s own track record.
+- **Economic calendar:** filter by High impact; open an event; subscribe.
+- **Alerts:** one-line callback only — “as Loredana showed you…” — so we don’t repeat her segment.
+- **Close:**
 
-**[Hover the “Live” indicator under the price]**
-
-> This is the dashboard. The Bitcoin price is live. It streams over a WebSocket, and this indicator shows the connection status and when the last update came in. Next to it are the 24-hour and 7-day moves.
-
-**[Point at the Macro regime card]**
-
-> This card is the macro regime. Our service reads the latest Federal Reserve data and classifies the current backdrop, for example rising rates, high inflation or growth. It shows a confidence meter and a plain-English reason, so you know whether that backdrop has historically helped or hurt Bitcoin.
-
-**[Scroll to the Forecast card, then the price chart. Switch the interval, then the time range]**
-
-> Below that is the AI model’s outlook for the next day, and an interactive candlestick chart where you can change the interval and the time window.
-
-**[Sidebar → Macro Economy. Hover the % change on an indicator card]**
-
-> Under Macro Economy are the indicators that matter: inflation, interest rates, unemployment, GDP, money supply and the dollar. Hover over any change and it tells you what that move usually means for Bitcoin. Rising rates, for example, usually mean tighter liquidity, which has been a headwind.
-
-**[Scroll to the combined chart and hover across it]**
-
-> This is my favourite view. Bitcoin and the macro indicators share one timeline. Each series starts at 100 so different units fit on one scale, and when you hover, the price and the economy line up bar by bar.
-
-**[Sidebar → Regime analysis. Click through the Performance, Timeline and Similar periods tabs]**
-
-> Regime analysis goes deeper. It shows how Bitcoin performed in each kind of backdrop and a timeline of those regimes over the years. Similar periods finds the last times the economy looked like it does today and shows what Bitcoin did next. It’s a comparison, not a prediction, and we label it that way.
-
-**[Sidebar → Forecasts. Switch 24h to 7d, then change the confidence level]**
-
-> Forecasts shows the model’s 24-hour and 7-day predictions, with a confidence band around the price range it expects. Underneath is what I think matters most: forecast accuracy. We check past predictions against the real price, so you can see how much to trust the model before you rely on it.
-
-**[Sidebar → Economic calendar. Click one event to open its details]**
-
-> The economic calendar shows upcoming Fed decisions, CPI releases, jobs reports and GDP. You can filter by impact, switch time zones, and subscribe to an event straight from here.
-
-**[Sidebar → Alerts. Click through the Price, Macro and Prediction tabs, then open the notification bell]**
-
-> All of that feeds into alerts. You can set price alerts, macro event alerts and prediction alerts, and they arrive in this notification bell in real time.
-
-**[Back to Dashboard]**
-
-> So that’s MacroCrypto AI: live price, the economy behind it, and an AI forecast that shows its track record, all in one place. It’s built with React and TypeScript on an event-driven backend, and it’s covered by unit, UI-integration and end-to-end tests. Thanks for watching, from me and the rest of The Quintet.
+> That’s MacroCrypto AI: the live price, the economy behind it, and an AI forecast that shows its track record. Built with React and TypeScript, an event-driven backend, and unit, integration and E2E tests. Five people, one goal. Thanks for watching!
 
 - **If API fails:** _(one line; 9 macro indicators OK if 13 unavailable)_ — e.g. “Backend is slow — here’s the same view from our staging recording,” or show CI + merged PR.
-- **Merge notes (Loredana):**
-  - The **Alerts** beat overlaps [segment 5](#5-loredana--scrum-process--alerts-300). Either keep it as a one-line callback (“as Loredana showed…”) or drop it here.
-  - If alerts stay in this segment, add the **dummy-data** disclaimer from the [storyline rules](#storyline-rules-agreed-7-oct).
 
 ---
 

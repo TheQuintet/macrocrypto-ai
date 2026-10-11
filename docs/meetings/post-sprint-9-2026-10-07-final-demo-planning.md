@@ -45,7 +45,7 @@ Stand-up, presentation order, deployment, and recording plan for the Capstone de
 - One **continuous storyline**, not separate handovers (Richard).
 - Target **~4 minutes** per segment; total must fit **15–20 minutes** — keep each part tight.
 - Frame demos around **BTC trader** and **investment analyst** personas where it helps the narrative.
-- Use **dummy data** to trigger alerts; **state clearly on camera** that alert data is dummy. Use the **live deployed URL** for everything else.
+- Use **dummy data** to trigger alerts; **state clearly on camera** that alert data is dummy. Use the **deployed URL** for everything else, with **simulated data** (not real market data; see Demo data in Decisions).
 - **All five on camera** for the full recording (Quantic ID rules still apply — see [demo-prep](../quantic/demo-prep.md)).
 
 ---
@@ -61,21 +61,21 @@ Stand-up, presentation order, deployment, and recording plan for the Capstone de
 | **Loredana** | Update Quantic/docs from frontend side; fix README (**MBA → MSSE** where wrong) | Before submission | ✅ Done (PRs [#789](https://github.com/TheQuintet/macrocrypto-ai/pull/789)–[#791](https://github.com/TheQuintet/macrocrypto-ai/pull/791); [deliverables](../quantic/deliverables.md), [AI disclosure](../ai-assisted-development-disclosure.md)) |
 | **Loredana** | Prepare board for demo (sprints with visible progress + retro) | Before recording | ✅ Done ([deliverables §4](../quantic/deliverables.md#4-agile-task-board), Sprint 1–3 links) |
 | **Loredana** | Send **Sat 10 Oct ~18:00** Zoom invite; record, upload to Google Drive, share link | 10 Oct | ✅ Done (invite sent — recording + Drive upload still **10 Oct**) |
-| **Loredana** | Short sync with Mael on **9 vs 13 indicators** if still mismatched | **Thu 8 Oct** | ⏳ Open |
-| **Sid** | Finish two data-service branches; apply Mael’s review | **Thu 8 Oct** | ⏳ Open |
-| **Sid** | Hand off AI integration details to Mael; stay reachable through Thu | **Thu 8 Oct** | ⏳ Open |
-| **Sid** | Add Quantic submitter / grader access per checklist | Before submission | ⏳ Open |
+| **Loredana** | Short sync with Mael on **9 vs 13 indicators** if still mismatched | **Thu 8 Oct** | ❌ Not done |
+| **Sid** | Finish two data-service branches; apply Mael’s review | **Thu 8 Oct** | ✅ Done |
+| **Sid** | Hand off AI integration details to Mael; stay reachable through Thu | **Thu 8 Oct** | ❌ Not done |
+| **Sid** | Add Quantic submitter / grader access per checklist | Before submission | ✅ Done by **Loredana** (grader access added to the repo) |
 | **Mael** | Integrate Sid’s final PRs + AI service end-to-end | **Thu 8 Oct** | ✅ Done |
 | **Mael** | Finalize software design doc (single MD, SVG links, current + future architecture) | Before submission | ⏳ Open |
-| **Mael** | Review open backend story on board — close or flag | This week | ⏳ Open |
+| **Mael** | Review open backend story on board — close or flag | This week | ⏳ Open: Mael says no action is needed from him; he is coordinating with **Sid** to review and close the remaining issues. Not yet confirmed closed |
 | **Mael** | Support deployment; note AI service memory/CPU needs when known | **Thu 8 Oct** | ⏳ Open |
-| **Mael** | Pre-record segment backup (connectivity fallback) | Before 10 Oct | ⏳ Open |
-| **Richard** | Review AI-generated documentation | This week | ⏳ Open |
+| **Mael** | Pre-record segment backup (connectivity fallback) | Before 10 Oct | ✅ Done |
+| **Richard** | Review AI-generated documentation | This week | ✅ Done (one broken link to fix: `docs/README.md` points to `./design/uml/README.md`, which does not exist) |
 | **Richard** | Prepare data gathering and preprocessing segment | **Thu 8 Oct** | ⏳ Open |
-| **Kingson** | Triage unassigned testing issues (prediction unit test, accuracy metrics, Redis cache test) — close or drop | Before 10 Oct | ⏳ Open |
-| **Kingson** | Prepare opening + closing demo segments | **Thu 8 Oct** | ⏳ Open |
-| **Everyone** | Share talking points / scripts ([demo-script](../quantic/demo-script.md)) | **Thu 8 Oct** | ⏳ Open |
-| **Everyone** | Attend Sat recording, on camera | **10 Oct ~18:00** | ⏳ Open |
+| **Kingson** | Triage unassigned testing issues (prediction unit test, accuracy metrics, Redis cache test) — close or drop | Before 10 Oct | ✅ Done (closed [#60](https://github.com/TheQuintet/macrocrypto-ai/issues/60), [#64](https://github.com/TheQuintet/macrocrypto-ai/issues/64), [#65](https://github.com/TheQuintet/macrocrypto-ai/issues/65) as covered by existing ai-service unit tests; #65 drops the cache TTL and response-time checks) |
+| **Kingson** | Prepare opening + closing demo segments | **Thu 8 Oct** | ✅ Done (script in [demo-script](../quantic/demo-script.md), segments 1 and 6) |
+| **Everyone** | Share talking points / scripts ([demo-script](../quantic/demo-script.md)) | **Thu 8 Oct** | 🟡 In progress: **Loredana**, **Mael** and **Kingson** have shared their scripts; **Sid** not provided; **Richard** pending |
+| **Everyone** | Attend Sat recording, on camera | **10 Oct ~18:00** | ✅ Done |
 
 ---
 
@@ -103,6 +103,7 @@ Stand-up, presentation order, deployment, and recording plan for the Capstone de
 | Deployment | **Cloudflare Workers** on **Loredana’s** account. Decided 9 Oct, after this meeting, by Loredana as deployment owner: the team did not reply to a request for confirmation, and the deadline does not allow waiting. Frontend on Cloudflare; backend stays on one VM with Docker Compose. Reason: Vercel's Hobby plan can't deploy from the private organisation repo. Earlier choice was Vercel. Fallback **Railway** or **Render**; paid tier if memory-limited. |
 | Smoke test | After deploy: **health endpoints** + **green CI pipelines** on camera. Full post-deploy smoke suite **not required**. |
 | Macro indicators | Demo with **9** if that is all that is stable; do not block the video on all **13**. |
+| Demo data | **The demo is not run on real data.** The backend deploy was not ready, and free provider APIs (Binance, Yahoo Finance, FRED) rate-limit backfills and live updates. The recording uses **simulated/dummy data** throughout, stated on camera. |
 | Software design docs | **One Markdown** file linking **SVG UML** in a separate folder; class diagrams show **key classes** only; include **current and future** architecture. |
 | Post-submission changes | **None** unless Quantic (Katie) approves — Sid asked in global channel. |
 | Recording storage | Loredana records on **Zoom**; final **`.mp4`** on **Google Drive** (anyone with link). |

@@ -43,7 +43,7 @@ Feature source:
     PredictionRepository.fetch_training_frame_for_source(...) with a
     FeatureContext. The repository dispatches to the configured
     source (parquet or features_db). This keeps the jobs agnostic
-    of where the canonical 50-feature set physically lives.
+    of where the canonical 47-column set physically lives.
 
     Analytics jobs (correlation, event impact, export cleanup) read
     directly from the source tables — they do not go through the
@@ -150,7 +150,7 @@ from app.database.repositories.threshold_repository import (
 )
 from app.events.reaction import ReactionCalculator
 from app.export.storage import get_storage
-from app.prediction.generator import PredictionGenerator
+from app.prediction.generator import GenerationResult, PredictionGenerator
 from app.prediction.market import (
     ALL_CONDITIONS,
     classify_market_condition_safe,
@@ -1402,6 +1402,68 @@ async def _build_breach_rows(
 
 
 # ============================================================
+# PREDICTION CONFIDENCE LEVELS
+# ============================================================
+# The predict endpoint serves one stored batch per confidence level,
+# so each horizon job saves a batch at every level the API accepts.
+PREDICTION_CONFIDENCE_LEVELS = (0.70, 0.85, 0.95)
+
+# The level whose result the job summary reports.
+PRIMARY_PREDICTION_CONFIDENCE = 0.85
+
+
+async def _generate_at_all_confidences(
+    model: Any,
+    *,
+    horizon: str,
+    horizon_hours: int,
+    history_hours: Optional[int] = None,
+) -> GenerationResult:
+    """Generate and save one batch per confidence level.
+
+    Args:
+        model: Trained forecast model (the loaded champion).
+        horizon: Horizon label, '24h' or '7d'.
+        horizon_hours: Future hours to predict.
+        history_hours: History to fetch; the generator default if None.
+
+    Returns:
+        The GenerationResult for PRIMARY_PREDICTION_CONFIDENCE.
+
+    Raises:
+        RuntimeError: If generation failed at any level.
+    """
+    results: Dict[float, GenerationResult] = {}
+
+    async with session_scope() as session:
+        repository = PredictionRepository(session)
+
+        for confidence in PREDICTION_CONFIDENCE_LEVELS:
+            generator_kwargs: Dict[str, Any] = {
+                "model": model,
+                "repository": repository,
+                "horizon": horizon,
+                "horizon_hours": horizon_hours,
+                "confidence": confidence,
+                "history_source": FeatureContext.PREDICTION,
+            }
+            if history_hours is not None:
+                generator_kwargs["history_hours"] = history_hours
+
+            generator = PredictionGenerator(**generator_kwargs)
+            results[confidence] = await generator.generate()
+
+    for confidence, result in results.items():
+        if not result.succeeded:
+            raise RuntimeError(
+                f"Prediction generation failed at confidence="
+                f"{confidence}: {result.error}"
+            )
+
+    return results[PRIMARY_PREDICTION_CONFIDENCE]
+
+
+# ============================================================
 # HOURLY 24H PREDICTION JOB (Phase 4: regime-aware serving)
 # ============================================================
 async def hourly_prediction_job() -> Dict[str, Any]:
@@ -1418,9 +1480,10 @@ async def hourly_prediction_job() -> Dict[str, Any]:
            classified regime (or None if the classifier returned
            None or the flag is off).
         4. Open a second DB session for prediction generation.
-        5. Build a PredictionGenerator (24h horizon, 0.85 confidence,
+        5. Build a PredictionGenerator per confidence level
+           (24h horizon, 0.70 / 0.85 / 0.95,
            history_source=FeatureContext.PREDICTION).
-        6. Run generate().
+        6. Run generate() for each level.
         7. Return a structured result.
 
     The job does NOT catch its own exceptions — it raises so the
@@ -1508,24 +1571,11 @@ async def hourly_prediction_job() -> Dict[str, Any]:
     )
 
     # ---- 2. Generate predictions in a fresh session ----
-    async with session_scope() as session:
-        repository = PredictionRepository(session)
-
-        generator = PredictionGenerator(
-            model=model,
-            repository=repository,
-            horizon="24h",
-            horizon_hours=24,
-            confidence=0.85,
-            history_source=FeatureContext.PREDICTION,
-        )
-
-        result = await generator.generate()
-
-    if not result.succeeded:
-        raise RuntimeError(
-            f"Prediction generation failed: {result.error}"
-        )
+    result = await _generate_at_all_confidences(
+        model,
+        horizon="24h",
+        horizon_hours=24,
+    )
 
     summary = {
         "horizon": result.horizon,
@@ -1566,9 +1616,10 @@ async def daily_7d_prediction_job() -> Dict[str, Any]:
            classified regime (or None if the classifier returned
            None or the flag is off).
         4. Open a second DB session for prediction generation.
-        5. Build a PredictionGenerator (7d horizon, 0.85 confidence,
+        5. Build a PredictionGenerator per confidence level
+           (7d horizon, 0.70 / 0.85 / 0.95,
            history_source=FeatureContext.PREDICTION).
-        6. Run generate().
+        6. Run generate() for each level.
         7. Return a structured result.
 
     The job raises on failure so the SchedulerManager records the
@@ -1641,26 +1692,13 @@ async def daily_7d_prediction_job() -> Dict[str, Any]:
     )
 
     # ---- 2. Generate predictions in a fresh session ----
-    async with session_scope() as session:
-        repository = PredictionRepository(session)
-
-        generator = PredictionGenerator(
-            model=model,
-            repository=repository,
-            horizon="7d",
-            horizon_hours=168,
-            confidence=0.85,
-            history_source=FeatureContext.PREDICTION,
-            # 90 days of history to observe multiple weekly cycles
-            history_hours=2160,
-        )
-
-        result = await generator.generate()
-
-    if not result.succeeded:
-        raise RuntimeError(
-            f"Prediction generation failed: {result.error}"
-        )
+    result = await _generate_at_all_confidences(
+        model,
+        horizon="7d",
+        horizon_hours=168,
+        # 90 days of history to observe multiple weekly cycles
+        history_hours=2160,
+    )
 
     summary = {
         "horizon": result.horizon,

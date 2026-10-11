@@ -1,5 +1,6 @@
 import { ExampleQueryDemo } from '@/components/examples/ExampleQueryDemo'
 import { PageIntro } from '@/components/layout/PageIntro'
+import { isApiGatewayConfigured } from '@/lib/apiConfig'
 import { BtcPriceCard } from '@/components/dashboard/price/BtcPriceCard'
 import { DashboardForecastCard } from '@/components/dashboard/forecast/DashboardForecastCard'
 import { PriceChangeCard } from '@/components/dashboard/price/PriceChangeCard'
@@ -11,7 +12,8 @@ import { useMacroIndicatorsQuery } from '@/hooks/useMacroIndicatorsQuery'
 
 export function DashboardPage() {
   const page = pageCopy.dashboard
-  const { data: indicators, isLoading, error } = useMacroIndicatorsQuery();
+  const { data: indicators, isLoading, error } = useMacroIndicatorsQuery()
+  const showExampleQueryDemo = !isApiGatewayConfigured()
 
   return (
     <div className="flex min-w-0 flex-col gap-4 sm:gap-6">
@@ -59,15 +61,17 @@ export function DashboardPage() {
           />
       </section>
 
-      <section className="flex min-w-0 flex-col gap-3">
-        <div className="flex flex-col gap-1">
-          <h2 className="text-base font-medium">Query patterns</h2>
-          <p className="text-sm text-muted-foreground">
-            Scaffold example for TanStack Query fetch + mutation flows.
-          </p>
-        </div>
-        <ExampleQueryDemo />
-      </section>
+      {showExampleQueryDemo ? (
+        <section className="flex min-w-0 flex-col gap-3">
+          <div className="flex flex-col gap-1">
+            <h2 className="text-base font-medium">Query patterns</h2>
+            <p className="text-sm text-muted-foreground">
+              Scaffold example for TanStack Query fetch + mutation flows.
+            </p>
+          </div>
+          <ExampleQueryDemo />
+        </section>
+      ) : null}
 
     </div>
   )

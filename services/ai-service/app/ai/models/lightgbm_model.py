@@ -6,14 +6,10 @@ ForecastModel interface that wraps LightGBM.
 Design:
     - Uses the ForecastModel interface from app.ai.base
     - Supports 10 base features (5 macro + 5 BTC)
-    - Engineers lag features for time series (LightGBM needs them)
+    - Uses only pipeline features; price history comes from btc_price,
+      btc_log_return_* and btc_sma_* (never from the target `y`)
     - Approximates confidence intervals from residual std
     - Serializes with LightGBM's native text format
-
-Naming Convention:
-    - Base features come from the data pipeline (e.g., "price_lag_7d")
-    - Engineered features are prefixed with "eng_" to avoid collisions
-      (e.g., "eng_price_lag_7d", "eng_returns_7d")
 
 Strategies:
     - "fresh": Train from scratch on the full dataset (M4.1)
@@ -95,15 +91,10 @@ BASE_FEATURES = [
     "unemployment_days_since_release",
 ]
 
-LAG_DAYS = [1, 7, 30]
-
-# Engineered features are prefixed with "eng_" to avoid collision
-# with the base feature "price_lag_7d"
-LAG_FEATURES = [f"eng_price_lag_{d}d" for d in LAG_DAYS]
-RETURN_FEATURES = [f"eng_returns_{d}d" for d in LAG_DAYS]
-ENGINEERED_FEATURES = LAG_FEATURES + RETURN_FEATURES
-
-ALL_FEATURES = BASE_FEATURES + ENGINEERED_FEATURES
+# No engineered features: lags/returns of `y` leaked the target
+# (`y` is target_next_price). Price history comes from btc_price
+# and its derived columns in BASE_FEATURES.
+ALL_FEATURES = BASE_FEATURES
 
 REQUIRED_COLUMNS = ["ds", "y"] + BASE_FEATURES
 
@@ -125,8 +116,8 @@ Z_SCORES = {
     0.95: 1.96,
 }
 
-# Minimum rows needed for training (must account for max lag)
-MIN_TRAINING_ROWS = max(LAG_DAYS) + 30
+# Minimum rows needed for training
+MIN_TRAINING_ROWS = 60
 
 # Minimum new rows needed for incremental training
 MIN_INCREMENTAL_ROWS = 1
@@ -477,33 +468,24 @@ class LightGBMModel(ForecastModel):
     ) -> pd.DataFrame:
         """Prepare features for LightGBM training or prediction.
 
-        Adds lag features and return features to the base data.
-
-        Engineered features are prefixed with "eng_" to avoid
-        colliding with the base feature "price_lag_7d" that comes
-        from the data pipeline.
+        Sorts by time and drops rows missing any model feature. No
+        features are derived from `y`, which is the prediction target.
 
         Args:
             data: DataFrame with 'ds', 'y', and base features.
             update_feature_columns: If True, updates self.feature_columns.
 
         Returns:
-            DataFrame with all engineered features.
+            DataFrame sorted by time with complete feature rows.
         """
         df = data.copy()
         df = df.sort_values("ds").reset_index(drop=True)
-
-        # Create engineered lag features (only if 'y' is present)
-        if "y" in df.columns:
-            for lag in LAG_DAYS:
-                df[f"eng_price_lag_{lag}d"] = df["y"].shift(lag)
-                df[f"eng_returns_{lag}d"] = df["y"].pct_change(lag)
 
         # Update feature columns on first call
         if update_feature_columns:
             self.feature_columns = ALL_FEATURES
 
-        # Drop rows with NaN (from lagging)
+        # Drop rows with NaN features
         df = df.dropna(subset=self.feature_columns).reset_index(drop=True)
 
         return df
@@ -522,8 +504,7 @@ class LightGBMModel(ForecastModel):
             - 70%: yhat ± 1.04 * residual_std
 
         Args:
-            future_data: DataFrame with 'ds', base features, and
-                (optionally) 'y' for lagging.
+            future_data: DataFrame with 'ds' and base features.
 
         Returns:
             DataFrame with columns: ds, yhat, yhat_lower, yhat_upper.
@@ -736,6 +717,15 @@ class LightGBMModel(ForecastModel):
                     )
                 except Exception as e:
                     logger.warning(f"Failed to parse timestamp: {e}")
+
+        # Models saved before the leaky eng_* features were removed
+        # need columns _prepare_features no longer builds.
+        unsupported = [c for c in self.feature_columns if c not in ALL_FEATURES]
+        if unsupported:
+            raise ValueError(
+                f"Model at {path} uses unsupported features "
+                f"{unsupported}; retrain it."
+            )
 
         self.is_trained = True
         logger.info(f"LightGBM model loaded from {path}")

@@ -818,6 +818,8 @@
 
 
 
+import json
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -825,8 +827,6 @@ import pytest
 from app.ai.models.lightgbm_model import (
     ALL_FEATURES,
     BASE_FEATURES,
-    ENGINEERED_FEATURES,
-    LAG_DAYS,
     MIN_TRAINING_ROWS,
     REQUIRED_COLUMNS,
     LightGBMModel,
@@ -886,19 +886,15 @@ def test_base_features_count():
     assert len(BASE_FEATURES) == 45
 
 
-def test_all_features_count():
-    """ALL_FEATURES should contain 45 base features plus 6 engineered features."""
-    assert len(ALL_FEATURES) == 51
+def test_all_features_are_pipeline_features():
+    """ALL_FEATURES is exactly the 45 base features; nothing derived from y."""
+    assert ALL_FEATURES == BASE_FEATURES
+    assert len(ALL_FEATURES) == 45
 
 
-def test_engineered_features_count():
-    """There should be 6 engineered features."""
-    assert len(ENGINEERED_FEATURES) == 6
-
-
-def test_lag_days():
-    """The configured lag periods should be 1, 7, and 30 days."""
-    assert LAG_DAYS == [1, 7, 30]
+def test_no_eng_features():
+    """The leaky eng_* features derived from y must not come back."""
+    assert not [f for f in ALL_FEATURES if f.startswith("eng_")]
 
 
 def test_min_training_rows():
@@ -941,20 +937,21 @@ def test_prepare_features(model, training_data):
     assert model.feature_columns == ALL_FEATURES
 
 
-def test_prepare_features_creates_lag_features(model, training_data):
+def test_prepare_features_adds_no_columns(model, training_data):
     prepared = model._prepare_features(training_data)
 
-    assert "eng_price_lag_1d" in prepared.columns
-    assert "eng_price_lag_7d" in prepared.columns
-    assert "eng_price_lag_30d" in prepared.columns
+    assert set(prepared.columns) == set(training_data.columns)
 
 
-def test_prepare_features_creates_return_features(model, training_data):
-    prepared = model._prepare_features(training_data)
+def test_predictions_do_not_depend_on_y(model, training_data, future_data):
+    model.train(training_data)
+    shifted = future_data.copy()
+    shifted["y"] = shifted["y"] * 2
 
-    assert "eng_returns_1d" in prepared.columns
-    assert "eng_returns_7d" in prepared.columns
-    assert "eng_returns_30d" in prepared.columns
+    original = model.predict(future_data)["yhat"].to_numpy()
+    with_shifted_y = model.predict(shifted)["yhat"].to_numpy()
+
+    np.testing.assert_allclose(original, with_shifted_y)
 
 
 def test_prepare_features_removes_nan_rows(model, training_data):
@@ -996,7 +993,7 @@ def test_predict(model, training_data, future_data):
     predictions = model.predict(future_data)
 
     assert predictions is not None
-    assert len(predictions) == len(future_data) - 30
+    assert len(predictions) == len(future_data)
 
 
 def test_predict_returns_dataframe(model, training_data, future_data):
@@ -1022,6 +1019,22 @@ def test_save_and_load(model, training_data, tmp_path):
     assert loaded_model.is_trained is True
     assert loaded_model.model is not None
     assert loaded_model.feature_columns == model.feature_columns
+
+
+def test_load_rejects_model_with_removed_features(model, training_data, tmp_path):
+    model.train(training_data)
+    model_path = str(tmp_path / "stale_lightgbm.txt")
+    model.save(model_path)
+
+    meta_path = f"{model_path}.meta.json"
+    with open(meta_path) as f:
+        metadata = json.load(f)
+    metadata["feature_columns"] = metadata["feature_columns"] + ["eng_returns_1d"]
+    with open(meta_path, "w") as f:
+        json.dump(metadata, f)
+
+    with pytest.raises(ValueError, match="eng_returns_1d"):
+        LightGBMModel().load(model_path)
 
 
 def test_get_metrics_before_training(model):

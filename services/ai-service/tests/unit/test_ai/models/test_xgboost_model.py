@@ -826,10 +826,11 @@ Test organization:
     - TestXGBoostModelConfidence: Confidence intervals
     - TestXGBoostModelMetrics: Metrics retrieval
     - TestXGBoostModelSerialization: Save/load
-    - TestXGBoostModelFeatureEngineering: Feature engineering
+    - TestXGBoostModelNoTargetLeakage: No features derived from `y`
     - TestXGBoostModelConstants: Module constants
 """
 
+import json
 from typing import Any
 
 import numpy as np
@@ -842,11 +843,8 @@ from app.ai.models.xgboost_model import (
     BASE_FEATURES,
     CONFIDENCE_LEVELS,
     DEFAULT_CONFIG,
-    ENGINEERED_FEATURES,
-    LAG_FEATURES,
     MIN_TRAINING_ROWS,
     REQUIRED_COLUMNS,
-    RETURN_FEATURES,
     Z_SCORES,
 )
 
@@ -1682,45 +1680,58 @@ class TestXGBoostModelSerialization:
 
 
 # ============================================================
-# FEATURE ENGINEERING TESTS
+# TARGET LEAKAGE TESTS
 # ============================================================
-class TestXGBoostModelFeatureEngineering:
-    """Tests for feature engineering."""
+class TestXGBoostModelNoTargetLeakage:
+    """Features must never be derived from `y` (target_next_price)."""
 
-    def test_engineered_features_have_eng_prefix(self) -> None:
-        for feat in ENGINEERED_FEATURES:
-            assert feat.startswith("eng_"), (
-                f"{feat} missing 'eng_' prefix"
-            )
+    def test_all_features_are_pipeline_features(self) -> None:
+        assert ALL_FEATURES == BASE_FEATURES
 
-    def test_no_collision_between_base_and_engineered(self) -> None:
-        overlap = set(BASE_FEATURES) & set(ENGINEERED_FEATURES)
+    def test_no_eng_features(self) -> None:
+        assert not [f for f in ALL_FEATURES if f.startswith("eng_")]
 
-        assert not overlap, (
-            f"Feature name collision: {overlap}"
-        )
-
-    def test_lag_features_naming(self) -> None:
-        assert "eng_price_lag_1d" in LAG_FEATURES
-        assert "eng_price_lag_7d" in LAG_FEATURES
-        assert "eng_price_lag_30d" in LAG_FEATURES
-
-    def test_return_features_naming(self) -> None:
-        assert "eng_returns_1d" in RETURN_FEATURES
-        assert "eng_returns_7d" in RETURN_FEATURES
-        assert "eng_returns_30d" in RETURN_FEATURES
-
-    def test_prepare_features_creates_all_engineered_columns(
+    def test_prepare_features_adds_no_columns(
         self,
         training_data: pd.DataFrame,
     ) -> None:
         model = XGBoostModel()
         prepared = model._prepare_features(training_data)
 
-        for feat in ENGINEERED_FEATURES:
-            assert feat in prepared.columns, (
-                f"Missing {feat}"
-            )
+        assert set(prepared.columns) == set(training_data.columns)
+
+    def test_predictions_do_not_depend_on_y(
+        self,
+        trained_model: XGBoostModel,
+        future_data: pd.DataFrame,
+    ) -> None:
+        shifted = future_data.copy()
+        shifted["y"] = shifted["y"] * 2
+
+        original = trained_model.predict(future_data)["yhat"].to_numpy()
+        with_shifted_y = trained_model.predict(shifted)["yhat"].to_numpy()
+
+        np.testing.assert_allclose(original, with_shifted_y)
+
+    def test_load_rejects_model_with_removed_features(
+        self,
+        trained_model: XGBoostModel,
+        tmp_path: Any,
+    ) -> None:
+        path = str(tmp_path / "stale_xgboost.json")
+        trained_model.save(path)
+
+        meta_path = f"{path}.meta.json"
+        with open(meta_path) as f:
+            metadata = json.load(f)
+        metadata["feature_columns"] = metadata["feature_columns"] + [
+            "eng_returns_1d"
+        ]
+        with open(meta_path, "w") as f:
+            json.dump(metadata, f)
+
+        with pytest.raises(ValueError, match="eng_returns_1d"):
+            XGBoostModel().load(path)
 
 
 # ============================================================
@@ -1732,11 +1743,8 @@ class TestXGBoostModelConstants:
     def test_base_features_count(self) -> None:
         assert len(BASE_FEATURES) == 45
 
-    def test_engineered_features_count(self) -> None:
-        assert len(ENGINEERED_FEATURES) == 6
-
     def test_all_features_count(self) -> None:
-        assert len(ALL_FEATURES) == 51
+        assert len(ALL_FEATURES) == 45
 
     def test_required_columns(self) -> None:
         assert "ds" in REQUIRED_COLUMNS
