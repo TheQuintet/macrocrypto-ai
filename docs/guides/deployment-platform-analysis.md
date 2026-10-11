@@ -78,12 +78,12 @@ The browser loads the frontend from Cloudflare. API calls go only to nginx on 44
 
 The current compose file is set up for local development and needs a `docker-compose.prod.yml` override before going public.
 
-- [ ] Remove dev bind mounts (`./services/*/app:/app/app`, `./shared:/app/shared`) so images run the code they were built with
-- [ ] Replace hardcoded credentials (Postgres `macro`/`crypto`, RabbitMQ `guest`/`guest`) with values from a server-only `.env` file
-- [ ] Stop publishing internal ports (5432, 6379, 5672, 15672, 5001, 8001–8003) to the host; expose only 80/443
-- [ ] Enable the reverse proxy (the commented-out `nginx` service, or Caddy) with TLS certificates for `api.<domain>` only
+- [x] Remove dev bind mounts (`./services/*/app:/app/app`, `./shared:/app/shared`) so images run the code they were built with
+- [ ] Replace hardcoded credentials. Postgres is done via `POSTGRES_PASSWORD`. RabbitMQ `guest`/`guest` is still open: it must change in the broker and in the four services' `.env` files together
+- [x] Stop publishing internal ports (5432, 6379, 5672, 15672, 5000, 8000–8003) to the host; expose only 80/443
+- [x] Enable the reverse proxy (Caddy, which gets TLS certificates automatically) for `api.<domain>` only
 - [ ] Deploy the frontend to Cloudflare (see [Frontend deploy on Cloudflare](#frontend-deploy-on-cloudflare)), not from the VM
-- [ ] Add a named volume for `ai-service` model files so trained models survive redeploys
+- [x] Add a named volume for `ai-service` model files so trained models survive redeploys
 - [ ] Move MLflow's backend store from SQLite to the Postgres instance (optional, more robust)
 - [ ] Set the gateway's `CORS_ALLOW_ORIGINS` to the Cloudflare Worker URL
 - [ ] Add a nightly `pg_dump` backup copied off the server
@@ -126,7 +126,7 @@ Do these once the API domain `https://api.<your-domain>` serves HTTPS from the V
 
 ## Deployment steps
 
-Steps 1–6 don't depend on the production override, so they can run now. Step 7 needs `docker-compose.prod.yml` from the checklist above. The frontend steps are in [Frontend deploy on Cloudflare](#frontend-deploy-on-cloudflare).
+Steps 1–6 don't depend on the production override, so they can run now. Step 7 uses `docker-compose.prod.yml`, which is in the repo. Set `POSTGRES_PASSWORD` and `API_DOMAIN` in the root `.env` first. The frontend steps are in [Frontend deploy on Cloudflare](#frontend-deploy-on-cloudflare).
 
 Commands use `<server-ip>` and `<your-domain>` as placeholders. Replace them with real values, and never commit secrets or keys.
 
