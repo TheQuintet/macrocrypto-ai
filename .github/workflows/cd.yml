@@ -1,24 +1,8 @@
 name: CD - Deploy to Production
 
-# ============================================================
-# TEMPORARILY DISABLED — 2026-10-05
-# ============================================================
-# The push: main trigger is commented out to conserve GitHub
-# Actions minutes (quota at ~90% of the free tier). This workflow
-# builds and pushes Docker images for every service, so each run
-# costs roughly 2-3x a CI run.
-#
-# workflow_dispatch is intentionally LEFT ENABLED so the build can
-# be triggered manually from the GitHub UI when needed:
-#   Actions -> CD - Deploy to Production -> Run workflow
-#
-# TO RESTORE AUTOMATIC DEPLOYMENT:
-#   Uncomment the `push:` block below and delete this comment.
-# ============================================================
-
 on:
-  # push:
-  #   branches: [ main ]
+  push:
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
@@ -41,12 +25,14 @@ jobs:
       
       - name: Build and push Docker images
         run: |
+          # Image names must be lowercase; github.repository keeps the org's capitals
+          image_repo="ghcr.io/$(echo "$GITHUB_REPOSITORY" | tr '[:upper:]' '[:lower:]')"
           # Build and push each service if Dockerfile exists
           for service in services/*/; do
             service_name=$(basename "$service")
             if [ -f "${service}Dockerfile" ]; then
               echo "Building $service_name..."
-              docker build -t ghcr.io/${{ github.repository }}/$service_name:latest -f ${service}Dockerfile ${service}
-              docker push ghcr.io/${{ github.repository }}/$service_name:latest
+              docker build -t "$image_repo/$service_name:latest" -f ${service}Dockerfile ${service}
+              docker push "$image_repo/$service_name:latest"
             fi
           done
