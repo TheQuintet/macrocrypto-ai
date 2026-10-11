@@ -129,20 +129,36 @@ Do these once the API domain `https://api.<your-domain>` serves HTTPS from the V
 Run the VM steps once the production override from the previous section exists. The frontend steps are in [Frontend deploy on Cloudflare](#frontend-deploy-on-cloudflare).
 
 1. **Provision the VM** on Hetzner Cloud (the recommended provider above).
-   - Sign in at [console.hetzner.com](https://console.hetzner.com) and open or create a project for MacroCrypto AI.
+   - Sign in at [console.hetzner.com](https://console.hetzner.com). SSH keys live inside a Cloud project, not in your account settings (accounts.hetzner.com).
+   - Create a project for MacroCrypto AI (**+ New project**) and open it. The left sidebar with **Security** appears only inside a project.
    - **Add your laptop's SSH public key to Hetzner.** This key is how you log in to the VM. It has nothing to do with GitHub at this step.
-     1. On your laptop, create a key if you don't have one: `ssh-keygen -t ed25519 -C "<your-name>-macrocrypto"`.
-     2. Print the public key: `cat ~/.ssh/id_ed25519.pub`. Copy the whole line that starts with `ssh-ed25519`. Never paste the private key (the file without `.pub`).
-     3. In the Hetzner Cloud Console, open or create the MacroCrypto AI project, go to **Security → SSH Keys → Add SSH key**, and paste the line.
-   - Then click **Add Server** and select that key under **SSH keys**. Once the server is up, log in with `ssh root@<server-ip>`.
+     1. On your laptop, create a dedicated key. The `-f` flag gives it its own file name, so existing keys in `~/.ssh` are not touched:
+        `ssh-keygen -t ed25519 -C "<your-name>-macrocrypto" -f ~/.ssh/macrocrypto_hetzner`
+        If it asks `Overwrite (y/n)?`, answer `n` and choose another name.
+     2. When asked for a passphrase, set one (recommended) or press Enter twice for none. The passphrase protects the key file. It is not your Hetzner password.
+     3. Print the public key: `cat ~/.ssh/macrocrypto_hetzner.pub`. Copy the whole line that starts with `ssh-ed25519`. Never paste the private key (the file without `.pub`).
+     4. In the project, go to **Security → SSH keys → Add SSH key**, paste the line, name it (e.g. `<your-name>-laptop`), and save.
    - Click **Add Server** and choose:
      - **Location:** the one closest to your users, e.g. Falkenstein or Nuremberg.
      - **Image:** Ubuntu 24.04.
      - **Type:** a shared vCPU plan with at least 4 vCPU, 8 GB RAM and 50 GB disk. Hetzner renames and reprices plans, so check the current list and price on the pricing page before you order. Hetzner raised cloud server prices in 2026, so the size you pick matters for cost.
      - **Networking:** keep the default public IPv4 address. It is static and stays with the server.
-     - **SSH keys:** select the key you added.
+     - **SSH keys:** select the key you added in step 4 above.
      - **Name:** e.g. `macrocrypto-api`.
    - Click **Create & Buy now**. Note the IPv4 address shown on the server page; you need it for the DNS record in step 2.
+   - Once the server is up, log in with the key:
+     `ssh -i ~/.ssh/macrocrypto_hetzner root@<server-ip>`
+
+     Optional: add this to `~/.ssh/config`, then connect with `ssh macrocrypto`:
+
+     ```
+     Host macrocrypto
+         HostName <server-ip>
+         User root
+         IdentityFile ~/.ssh/macrocrypto_hetzner
+         IdentitiesOnly yes
+     ```
+
    - Other providers: on DigitalOcean, create a Droplet with the same specs and reserve an IP under **Networking → Reserved IPs**. On AWS or GCP, launch a 4 vCPU / 8 GB instance and attach an Elastic IP or static external IP.
 2. **Point DNS.** Create an A record for `api.<domain>` pointing at the VM. The frontend's domain is handled by Cloudflare.
 3. **Harden the server.**
