@@ -27,11 +27,11 @@ Feature sources:
             (10-feature Postgres source).
 
         fetch_training_frame_from_files(hours, partition)
-            Reads from data-service parquet files (50-feature
+            Reads from data-service parquet files (47-column
             canonical source). Requires an explicit partition.
 
         fetch_training_frame_from_features_db(hours, partition=None)
-            Reads from the future feature_store DB table (50-feature
+            Reads from the future feature_store DB table (47-column
             canonical source). Raises NotImplementedError until the
             table exists.
 
@@ -322,7 +322,7 @@ class PredictionRepository:
 
         DEPRECATED (2026-XX): This method reads the 10-feature
         Postgres source (btc_prices + macro_indicators), which has
-        been superseded by the 50-feature canonical dataset. Kept
+        been superseded by the 47-column canonical dataset. Kept
         for reference during the current migration; do not call
         from new code.
 
@@ -392,7 +392,7 @@ class PredictionRepository:
 
         Loads the requested partition (train / val / test /
         live_frontier), then slices to the last `hours` of rows. The
-        returned DataFrame carries the canonical 50-feature set with
+        returned DataFrame carries the canonical 47-column set with
         the model-expected column names.
 
         Unlike the legacy source, this method returns the frame as
@@ -410,8 +410,8 @@ class PredictionRepository:
                 FeatureContext.
 
         Returns:
-            DataFrame with the canonical 50 features plus timestamp
-            and target columns, sorted ascending by time.
+            DataFrame with the canonical 47 columns (45 features plus
+            timestamp and target), sorted ascending by time.
 
         Raises:
             FileNotFoundError: If the parquet file for the requested
@@ -498,7 +498,7 @@ class PredictionRepository:
                 ignored if partitions are not modeled in the DB.
 
         Returns:
-            DataFrame with the canonical 50 features.
+            DataFrame with the canonical 47 columns.
 
         Raises:
             NotImplementedError: Always, until the table is built.
@@ -545,11 +545,17 @@ class PredictionRepository:
         source = settings.feature_source
 
         # Resolve the partition.
-        resolved_partition = (
-            partition
-            if partition is not None
-            else _CONTEXT_TO_PARTITION[context]
-        )
+        if partition is not None:
+            resolved_partition = partition
+        elif (
+            context == FeatureContext.PREDICTION
+            and settings.prediction_feature_partition
+        ):
+            resolved_partition = FeaturePartition(
+                settings.prediction_feature_partition
+            )
+        else:
+            resolved_partition = _CONTEXT_TO_PARTITION[context]
 
         if source == "parquet":
             return await self.fetch_training_frame_from_files(

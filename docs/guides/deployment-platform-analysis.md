@@ -129,16 +129,38 @@ Do these once the API domain `https://api.<your-domain>` serves HTTPS from the V
 Current deployment: Hetzner Cloud, Helsinki, Ubuntu 24.04, 8 GB RAM. The server IP is kept out of the repo; use `<server-ip>` below and see the server notes for the real value.
 API: `https://api.<ip-with-dashes>.sslip.io` · Docs: `https://api.<ip-with-dashes>.sslip.io/docs`
 
-### 1. SSH key and server (Hetzner)
+### 1. Provision the VM on Hetzner Cloud
+   - Sign in at [console.hetzner.com](https://console.hetzner.com). SSH keys live inside a Cloud project, not in your account settings (accounts.hetzner.com).
+   - Create a project for MacroCrypto AI (**+ New project**) and open it. The left sidebar with **Security** appears only inside a project.
+   - **Add your laptop's SSH public key to Hetzner.** This key is how you log in to the VM. It has nothing to do with GitHub at this step.
+     1. On your laptop, create a dedicated key. The `-f` flag gives it its own file name, so existing keys in `~/.ssh` are not touched:
+        `ssh-keygen -t ed25519 -C "<your-name>-macrocrypto" -f ~/.ssh/macrocrypto_hetzner`
+        If it asks `Overwrite (y/n)?`, answer `n` and choose another name.
+     2. When asked for a passphrase, set one (recommended) or press Enter twice for none. The passphrase protects the key file. It is not your Hetzner password.
+     3. Print the public key: `cat ~/.ssh/macrocrypto_hetzner.pub`. Copy the whole line that starts with `ssh-ed25519`. Never paste the private key (the file without `.pub`).
+     4. In the project, go to **Security → SSH keys → Add SSH key**, paste the line, name it (e.g. `<your-name>-laptop`), and save.
+   - Click **Add Server** and choose:
+     - **Location:** the one closest to your users, e.g. Falkenstein or Nuremberg.
+     - **Image:** Ubuntu 24.04.
+     - **Type:** a shared vCPU plan with at least 4 vCPU, 8 GB RAM and 50 GB disk. Hetzner renames and reprices plans, so check the current list and price on the pricing page before you order. Hetzner raised cloud server prices in 2026, so the size you pick matters for cost.
+     - **Networking:** keep the default public IPv4 address. It is static and stays with the server.
+     - **SSH keys:** select the key you added in step 4 above.
+     - **Name:** e.g. `macrocrypto-api`.
+   - Click **Create & Buy now**. Note the IPv4 address shown on the server page; you need it for the DNS record in step 2.
+   - Once the server is up, log in with the key:
+     `ssh -i ~/.ssh/macrocrypto_hetzner root@<server-ip>`
 
-SSH keys belong to a Cloud **project** (console.hetzner.com), not to account settings (accounts.hetzner.com).
+     Optional: add this to `~/.ssh/config`, then connect with `ssh macrocrypto`:
 
-1. On your laptop, create a dedicated key. `-f` keeps existing keys untouched:
-   `ssh-keygen -t ed25519 -C "<name>-macrocrypto" -f ~/.ssh/macrocrypto_hetzner`
-   Passphrase: recommended. It protects the key file and is not a Hetzner password.
-2. Open the project → **Security → SSH keys → Add SSH key**, and paste the contents of `~/.ssh/macrocrypto_hetzner.pub`. Never paste the private key.
-3. **Add Server**: Ubuntu 24.04, ≥4 vCPU / 8 GB, tick the SSH key(s).
-4. Log in: `ssh -i ~/.ssh/macrocrypto_hetzner root@<server-ip>`
+     ```
+     Host macrocrypto
+         HostName <server-ip>
+         User root
+         IdentityFile ~/.ssh/macrocrypto_hetzner
+         IdentitiesOnly yes
+     ```
+
+   - Other providers: on DigitalOcean, create a Droplet with the same specs and reserve an IP under **Networking → Reserved IPs**. On AWS or GCP, launch a 4 vCPU / 8 GB instance and attach an Elastic IP or static external IP.
 
 **Teammate access:** keys added in Hetzner *after* the server exists are not copied to it. Add them on the server instead:
 `echo "<their .pub line>" >> /home/deploy/.ssh/authorized_keys`

@@ -1,4 +1,6 @@
 import { INTERVAL_DURATION_MS } from '@/components/dashboard/lib/chartInterval'
+import { BTC_PRICE_HISTORY_PATH } from '@/constants/apiUrls'
+import { apiUrl } from '@/lib/apiConfig'
 import { TIME_RANGE_LOOKBACK_MS } from '@/lib/timeRange'
 import type {
   BtcPriceHistoryParams,
@@ -18,10 +20,10 @@ function delay(ms: number) {
 }
 
 /**
- * Simulated history API: returns chart-ready points already bucketed
- * by `interval` for the requested `range` (server-side aggregation).
+ * Stand-in history for a frontend-only run. Returns chart-ready points already
+ * bucketed by `interval` for the requested `range`.
  */
-export async function fetchBtcPriceHistory(
+export async function simulateBtcPriceHistory(
   params: BtcPriceHistoryParams,
   endMs = Date.now(),
 ): Promise<BtcPriceHistoryResponse> {
@@ -38,7 +40,7 @@ export async function fetchBtcPriceHistory(
       : Math.ceil(lookbackMs / (MAX_POINTS - 1) / intervalMs) * intervalMs
 
   const points: BtcPriceHistoryPoint[] = []
-  let close = 64_000
+  let close = 82_000
 
   for (
     let timestampMs = startMs, index = 0;
@@ -58,6 +60,39 @@ export async function fetchBtcPriceHistory(
     interval: params.interval,
     points,
   }
+}
+
+/**
+ * Historical BTC OHLC candles from the data service (via gateway).
+ *
+ * With no backend configured the chart runs on simulated data so it still
+ * works standalone. When a backend *is* configured a failed request throws
+ * rather than quietly substituting invented candles.
+ */
+export async function fetchBtcPriceHistory(
+  params: BtcPriceHistoryParams,
+  endMs = Date.now(),
+): Promise<BtcPriceHistoryResponse> {
+  const url = apiUrl(BTC_PRICE_HISTORY_PATH)
+
+  if (!url) {
+    return simulateBtcPriceHistory(params, endMs)
+  }
+
+  const search = new URLSearchParams({
+    range: params.range,
+    interval: params.interval,
+  })
+
+  const response = await fetch(`${url}?${search}`, {
+    headers: { Accept: 'application/json' },
+  })
+
+  if (!response.ok) {
+    throw new Error(`Price history request failed with ${response.status}`)
+  }
+
+  return (await response.json()) as BtcPriceHistoryResponse
 }
 
 /**

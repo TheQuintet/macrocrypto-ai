@@ -37,14 +37,15 @@ describe('withSimulatedFallback', () => {
     expect(simulate).not.toHaveBeenCalled()
   })
 
-  it('falls back to simulated data when the live request fails', async () => {
+  it('propagates live request failures when the gateway is configured', async () => {
     isApiGatewayConfigured.mockReturnValue(true)
     const { withSimulatedFallback } = await import('./withSimulatedFallback')
     const live = vi.fn().mockRejectedValue(new Error('offline'))
     const simulate = vi.fn().mockResolvedValue('simulated')
 
-    await expect(withSimulatedFallback(live, simulate)).resolves.toBe(
-      'simulated',
+    await expect(withSimulatedFallback(live, simulate)).rejects.toThrow(
+      'offline',
     )
+    expect(simulate).not.toHaveBeenCalled()
   })
 })

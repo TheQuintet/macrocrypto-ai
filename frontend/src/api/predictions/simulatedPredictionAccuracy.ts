@@ -15,7 +15,7 @@ import type { PredictionHorizon } from '@/types/predictions'
 const DAY_MS = 24 * 60 * 60 * 1000
 
 /** Mean BTC price the simulated USD errors are scaled against. */
-const MEAN_PRICE = 64_000
+const MEAN_PRICE = 82_000
 
 /** `threshold_*` defaults in the ai-service config, all in percent. */
 const MAE_PCT_THRESHOLD = 10

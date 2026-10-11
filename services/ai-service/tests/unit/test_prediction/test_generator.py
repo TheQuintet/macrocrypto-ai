@@ -771,3 +771,126 @@ class TestGenerator7dHorizon:
         # Assert the repository was called with hours=2160
         call_kwargs = mock_repository.fetch_training_frame.call_args.kwargs
         assert call_kwargs["hours"] == 2160
+
+# ============================================================
+# CONFIDENCE-AWARE PREDICTION
+# ============================================================
+class ConfidenceFakeModel(FakeModel):
+    """FakeModel that narrows its bounds like the concrete models do."""
+
+    def __init__(self) -> None:
+        super().__init__(name="prophet")
+        self.requested_levels: list[float] = []
+
+    def predict_with_confidence(
+        self,
+        future_data: pd.DataFrame,
+        confidence_level: float = 0.95,
+    ) -> pd.DataFrame:
+        self.requested_levels.append(confidence_level)
+        forecast = self.predict(future_data)
+        forecast["yhat_lower"] = forecast["yhat"] - 100.0
+        forecast["yhat_upper"] = forecast["yhat"] + 100.0
+        return forecast
+
+
+class TestGeneratorConfidenceBounds:
+    """Bounds come from the generator's confidence, not plain predict()."""
+
+    @pytest.mark.asyncio
+    async def test_uses_predict_with_confidence_when_available(
+        self,
+        mock_repository: MagicMock,
+    ) -> None:
+        model = ConfidenceFakeModel()
+        g = PredictionGenerator(
+            model=model,
+            repository=mock_repository,
+            confidence=0.70,
+        )
+
+        result = await g.generate()
+
+        assert result.succeeded is True
+        assert model.requested_levels == [0.70]
+        saved_rows = mock_repository.save_predictions.call_args.args[0]
+        assert saved_rows[0].lower_bound == saved_rows[0].predicted_price - 100.0
+
+    @pytest.mark.asyncio
+    async def test_falls_back_to_predict(
+        self,
+        mock_repository: MagicMock,
+    ) -> None:
+        g = PredictionGenerator(
+            model=FakeModel(),
+            repository=mock_repository,
+            confidence=0.70,
+        )
+
+        result = await g.generate()
+
+        assert result.succeeded is True
+        saved_rows = mock_repository.save_predictions.call_args.args[0]
+        assert saved_rows[0].lower_bound == saved_rows[0].predicted_price - 500.0
+
+
+# ============================================================
+# DEV RE-ANCHORING (PREDICTION_FEATURE_PARTITION)
+# ============================================================
+class TestGeneratorReanchor:
+    """Forecast times move to "now" only under the dev partition override."""
+
+    @pytest.fixture
+    def source_repository(self, history: pd.DataFrame) -> MagicMock:
+        repo = MagicMock()
+        repo.fetch_training_frame_for_source = AsyncMock(return_value=history)
+        repo.save_predictions = AsyncMock(return_value=24)
+        return repo
+
+    def _generator(self, repository: MagicMock) -> PredictionGenerator:
+        from app.database.enums import FeatureContext
+
+        return PredictionGenerator(
+            model=FakeModel(),
+            repository=repository,
+            history_source=FeatureContext.PREDICTION,
+        )
+
+    @pytest.mark.asyncio
+    async def test_reanchors_to_next_hour_when_override_set(
+        self,
+        source_repository: MagicMock,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        from app.config import settings
+
+        monkeypatch.setattr(settings, "prediction_feature_partition", "test")
+
+        result = await self._generator(source_repository).generate()
+
+        saved_rows = source_repository.save_predictions.call_args.args[0]
+        expected_start = result.prediction_time.replace(
+            minute=0, second=0, microsecond=0
+        ) + timedelta(hours=1)
+        first = saved_rows[0].time.replace(tzinfo=timezone.utc)
+        assert first == expected_start
+        assert saved_rows[1].time - saved_rows[0].time == timedelta(hours=1)
+
+    @pytest.mark.asyncio
+    async def test_keeps_model_times_without_override(
+        self,
+        source_repository: MagicMock,
+        history: pd.DataFrame,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        from app.config import settings
+
+        monkeypatch.setattr(settings, "prediction_feature_partition", "")
+
+        await self._generator(source_repository).generate()
+
+        saved_rows = source_repository.save_predictions.call_args.args[0]
+        last_history = pd.to_datetime(history["ds"]).max()
+        assert saved_rows[0].time == (
+            last_history + timedelta(hours=1)
+        ).to_pydatetime()

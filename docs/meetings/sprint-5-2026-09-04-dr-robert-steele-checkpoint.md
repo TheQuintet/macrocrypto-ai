@@ -4,6 +4,7 @@
 |---|---|
 | **Date** | Thu 4 Sep 2026 |
 | **Type** | Capstone checkpoint with faculty advisor |
+| **Sprint** | Sprint 5 (board: 1–7 Sep) |
 | **Attendees** | Sid Ahmed Mahieddine, Loredana Lungu, Kingson Emma-Ochu, Richard Owusu, Mael Taye Deneke, Dr. Robert Steele |
 | **Facilitator** | Sid Ahmed Mahieddine (presentation lead) |
 | **Advisor** | Dr. Robert Steele |
@@ -115,5 +116,5 @@ The participants indicated that there were no further questions and moved to clo
 ## Notes
 
 - Source: checkpoint meeting summary, action items, and discussion notes (4 Sep 2026).
-- Prior session: [2 Sep 2026 Review, Refinement & Planning](./2026-09-02-review-and-planning.md).
+- Prior session: [2 Sep 2026 Review, Refinement & Planning](./sprint-5-2026-09-02-review-and-planning.md).
 - Capstone criteria: [Quantic grading](../quantic/grading.md) · [Deliverables](../quantic/deliverables.md).

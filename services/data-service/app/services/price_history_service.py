@@ -23,7 +23,14 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-VALID_RANGES: tuple[TimeRange, ...] = ("24h", "7d", "30d", "90d")
+VALID_RANGES: tuple[TimeRange, ...] = (
+    "24h",
+    "7d",
+    "30d",
+    "90d",
+    "1y",
+    "5y",
+)
 VALID_INTERVALS: tuple[ChartInterval, ...] = (
     "1m",
     "5m",
@@ -45,6 +52,8 @@ RANGE_LOOKBACK_MS: dict[TimeRange, int] = {
     "7d": 7 * DAY_MS,
     "30d": 30 * DAY_MS,
     "90d": 90 * DAY_MS,
+    "1y": YEAR_MS,
+    "5y": 5 * YEAR_MS,
 }
 
 INTERVAL_MS: dict[ChartInterval, int] = {

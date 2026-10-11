@@ -255,7 +255,7 @@
 
 | Layer | Technology | License/Cost |
 |-------|------------|--------------|
-| **Backend** | Python 3.11+, FastAPI | Open-source, Free |
+| **Backend** | Python 3.13, FastAPI | Open-source, Free |
 | **Message Broker** | RabbitMQ | Open-source (Mozilla Public License), Free |
 | **Database** | PostgreSQL | Open-source, Free |
 | **Cache** | Redis | Open-source, Free |

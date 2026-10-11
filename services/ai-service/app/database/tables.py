@@ -12,7 +12,7 @@ Tables:
                                (written by Data Ingestion Service)
     - macro_indicators:        Source — macro features (CPI, rates, etc.)
                                (written by Data Ingestion Service)
-    - features_db:             Source — canonical 50-feature ML dataset
+    - features_db:             Source — canonical 47-column ML dataset
                                (written by Data Service, read by AI Service)
     - btc_predictions:         Target — hourly predictions from the AI Service
                                (unified table; 24h and 7d horizons)
@@ -94,8 +94,9 @@ btc_prices = Table(
     settings.db_table_btc_prices,
     metadata,
     Column("time", DateTime(timezone=True), primary_key=True),
-    # Target price (Prophet's `y`)
-    Column("close", Float, nullable=False),
+    # Target price (Prophet's `y`). The data-service column is
+    # `price`; `key="close"` keeps `btc_prices.c.close` for callers.
+    Column("price", Float, nullable=False, key="close"),
     # BTC market features (the 5 BTC regressors)
     Column("volume", Float, nullable=True),
     Column("volatility", Float, nullable=True),
@@ -130,7 +131,7 @@ macro_indicators = Table(
 # ============================================================
 # SOURCE TABLE: features_db
 # ============================================================
-# The canonical 50-feature ML dataset. Written by the Data Service
+# The canonical 47-column ML dataset. Written by the Data Service
 # (in the data-service repo). The AI Service reads from it when
 # feature_source="features_db".
 #
@@ -157,8 +158,10 @@ macro_indicators = Table(
 #   - technical           — 10 columns
 #   - data-quality flags  — 4 columns
 #   - recency trackers    — 14 columns
-#   - engineered          — 6 columns (optional; may be empty if
-#                            the data-service omits them)
+#
+# The data-service table also carries 6 deprecated eng_* columns.
+# They are deliberately not mapped here: the frozen 47-column
+# parquet is the feature contract.
 features_db = Table(
     settings.features_db_table,
     metadata,
@@ -215,13 +218,6 @@ features_db = Table(
     Column("gdp_days_since_release", Integer, nullable=True),
     Column("m2_money_supply_days_since_release", Integer, nullable=True),
     Column("unemployment_days_since_release", Integer, nullable=True),
-    # ---- Engineered features (optional) ----
-    Column("eng_price_lag_1d", Float, nullable=True),
-    Column("eng_price_lag_7d", Float, nullable=True),
-    Column("eng_price_lag_30d", Float, nullable=True),
-    Column("eng_returns_1d", Float, nullable=True),
-    Column("eng_returns_7d", Float, nullable=True),
-    Column("eng_returns_30d", Float, nullable=True),
 )
 
 
