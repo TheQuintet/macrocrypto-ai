@@ -15,6 +15,10 @@ Full problem, scope, and personas: [docs/project-scope.md](./docs/project-scope.
 
 Program rules and the five mandatory deliverables: [docs/quantic/README.md](./docs/quantic/README.md).
 
+![MacroCrypto AI dashboard: live BTC/USD price, macro regime, and 24-hour forecast](./docs/images/dashboard-screenshot.png)
+
+*Dashboard from the deployed app. Some panels, such as the macro regime and forecast, show simulated data, as labelled.*
+
 ---
 
 ## Sprint demo recordings
