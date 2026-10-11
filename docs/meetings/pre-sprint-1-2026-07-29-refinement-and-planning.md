@@ -6,6 +6,7 @@ Combined backlog refinement and Sprint 2 planning session.
 |---|---|
 | **Date** | Wed 29 Jul 2026 |
 | **Type** | Refinement + Planning |
+| **Sprint** | Pre-Sprint 1 (board Sprint 1 starts 4 Aug) |
 | **Attendees** | Team (async/sync alignment) |
 | **Facilitator** | Loredana Lungu (Scrum Master) |
 | **Product Owner** | Sid Ahmed Mahieddine |
@@ -99,4 +100,4 @@ Combined backlog refinement and Sprint 2 planning session.
 
 **Recurring weekly** — set by Loredana on 30 Jul 2026. After a couple of weeks comparing availability, the team locked **Wednesday Slot B** (late evening) through **14 Oct 2026**. Full date list: [Team availability](../team-roles.md#recurring-meetings-through-14-oct-2026).
 
-**Next sync (Wed 5 Aug 2026):** [Retrospective, Review, Refinement & Planning](./2026-08-05-retrospective.md) — both extra agenda items were decided there: **Auth0** for authentication, and no Turborepo (Docker stays).
+**Next sync (Wed 5 Aug 2026):** [Retrospective, Review, Refinement & Planning](./sprint-1-2026-08-05-retrospective.md) — both extra agenda items were decided there: **Auth0** for authentication, and no Turborepo (Docker stays).

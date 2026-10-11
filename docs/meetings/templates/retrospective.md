@@ -53,7 +53,7 @@ Sprint retrospective notes: what went well, what went wrong, and action items.
 | **Attendees** | Team |
 | **Sprint** | 2 (closed; Sprint 3 started in the same session) |
 | **Facilitator** | Loredana Lungu |
-| **Full notes** | [2026-08-05 Retrospective, Review, Refinement & Planning](../2026-08-05-retrospective.md) |
+| **Full notes** | [2026-08-05 Retrospective, Review, Refinement & Planning](../sprint-1-2026-08-05-retrospective.md) |
 | **Board** | [MacroCrypto AI Team Retrospective](https://github.com/orgs/TheQuintet/projects/4) |
 
 **What went well** 🟢

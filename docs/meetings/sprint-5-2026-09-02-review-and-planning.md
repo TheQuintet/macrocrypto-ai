@@ -6,7 +6,7 @@ Weekly Capstone Scrum sync: alerts and macro UI progress, API Gateway status, ec
 |---|---|
 | **Date** | Wed 2 Sep 2026 (Slot B) |
 | **Type** | Review + Refinement + Planning |
-| **Sprint** | Current sprint — alerts, frontend, API Gateway; AI / prediction work (T8) moving into sprint |
+| **Sprint** | Sprint 5 (board: 1–7 Sep) — alerts, frontend, API Gateway; AI / prediction work (T8) moving into sprint |
 | **Attendees** | Sid Ahmed Mahieddine, Loredana Lungu, Kingson Emma-Ochu, Mael Taye Deneke, Richard Owusu |
 | **Facilitator** | Loredana Lungu (Scrum Master) |
 | **Product Owner** | Sid Ahmed Mahieddine |
@@ -163,11 +163,11 @@ Completion estimates ranged from 20% to 60% depending on what is counted. Richar
 ## Notes
 
 - Source: Zoom AI meeting summary and action items (2 Sep 2026).
-- Previous session: [26 Aug 2026 Review, Refinement & Planning](./2026-08-26-review-and-planning.md).
+- Previous session: [26 Aug 2026 Review, Refinement & Planning](./sprint-4-2026-08-26-review-and-planning.md).
 - Capstone criteria: [Quantic grading](../quantic/grading.md) · [Deliverables](../quantic/deliverables.md).
 
 ---
 
 ## Next meeting
 
-See [recurring sync schedule](../team-roles.md#recurring-meetings-through-14-oct-2026) — session write-up: [9 Sep 2026 Review, Refinement & Planning](./2026-09-09-review-and-planning.md).
+See [recurring sync schedule](../team-roles.md#recurring-meetings-through-14-oct-2026) — session write-up: [9 Sep 2026 Review, Refinement & Planning](./sprint-6-2026-09-09-review-and-planning.md).

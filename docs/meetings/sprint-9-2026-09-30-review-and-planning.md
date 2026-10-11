@@ -6,11 +6,12 @@ Final submission push (~one week to **14 Oct**): backend integration, Quantic do
 |---|---|
 | **Date** | Wed 30 Sep 2026 (Slot B) |
 | **Type** | Review + Refinement + Planning |
+| **Sprint** | Sprint 9 (board: 29 Sep–5 Oct) — final submission push |
 | **Attendees** | Sid Ahmed Mahieddine, Loredana Lungu, Kingson Emma-Ochu, Mael Taye Deneke, Richard Owusu |
 | **Facilitator** | Loredana Lungu (Scrum Master) |
 | **Product Owner** | Sid Ahmed Mahieddine |
 
-**Context.** Data preparation is **done**. The critical path is **feature table → AI service (file path first) → prediction endpoint → frontend on real data**. ML inputs are now **13 indicators/features**. **Investment analyst** scope stays out ([23 Sep](./2026-09-23-review-and-planning.md)). Presentation cap: **20 minutes**.
+**Context.** Data preparation is **done**. The critical path is **feature table → AI service (file path first) → prediction endpoint → frontend on real data**. ML inputs are now **13 indicators/features**. **Investment analyst** scope stays out ([23 Sep](./sprint-8-2026-09-23-review-and-planning.md)). Presentation cap: **20 minutes**.
 
 ---
 
@@ -31,7 +32,7 @@ Final submission push (~one week to **14 Oct**): backend integration, Quantic do
 | **Kingson** | Review **open frontend stories** and close remaining **BTC trader** UI work | Next working day | ⏳ Open |
 | **Richard** | Share presentation **outline on Slack** (sections + who presents what) | ASAP | ⏳ Open |
 | **Richard** | **Coordinate individual recording clips** (present **AI service** portion; avoid merging videos in post) | After outline | ⏳ Open |
-| **Team** | Choose **deployment** host ( **Vercel** preferred from [23 Sep](./2026-09-23-review-and-planning.md)) and **account owner** | This week | ⏳ Open |
+| **Team** | Choose **deployment** host ( **Vercel** preferred from [23 Sep](./sprint-8-2026-09-23-review-and-planning.md)) and **account owner** | This week | ⏳ Open |
 | **Team** | Read **PR summaries**; reply quickly to **Slack DMs**; post blockers in `#capstone-project-group` | Ongoing | ⏳ Open |
 
 **Presentation roles (from outline, not separate tasks):** Kingson — frontend; Richard — AI/ML service; others — parts they built (backend, data, board, process).
@@ -71,10 +72,10 @@ Final submission push (~one week to **14 Oct**): backend integration, Quantic do
 ## Notes
 
 - Source: Zoom AI summary — `Weekly Capstone Scrum meeting. (1).md` (**30 Sep 2026**). Expand from a full transcript if one is added later.
-- Previous session: [23 Sep 2026](./2026-09-23-review-and-planning.md) · [Dr. Robert checkpoint](./2026-09-04-dr-robert-steele-checkpoint.md) · [Quantic grading](../quantic/grading.md) · [Deliverables](../quantic/deliverables.md).
+- Previous session: [23 Sep 2026](./sprint-8-2026-09-23-review-and-planning.md) · [Dr. Robert checkpoint](./sprint-5-2026-09-04-dr-robert-steele-checkpoint.md) · [Quantic grading](../quantic/grading.md) · [Deliverables](../quantic/deliverables.md).
 
 ---
 
 ## Next meeting
 
-Wed **7 Oct 2026** (Slot B) — [Final demo planning](./2026-10-07-final-demo-planning.md).
+Wed **7 Oct 2026** (Slot B) — [Final demo planning](./post-sprint-9-2026-10-07-final-demo-planning.md).
