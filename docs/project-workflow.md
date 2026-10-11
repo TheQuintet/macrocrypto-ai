@@ -198,6 +198,7 @@ Sprint numbers match the **Sprint** iterations on [Team Workflow #6](https://git
 
 | | |
 |---|---|
+| **Notes** | [20 Jul capstone kickoff](./meetings/pre-sprint-1-2026-07-20-kickoff.md) |
 | **Dates** | Before Tue 4 Aug 2026 (no board iteration) |
 | **Sprint goal** | Infrastructure foundation — Docker, data ingestion, messaging |
 | **Product Owner** | _TBD_ |
@@ -253,7 +254,7 @@ Sprint numbers match the **Sprint** iterations on [Team Workflow #6](https://git
 |---|---|
 | **Board URL (capstone)** | [Sprint 2](https://github.com/orgs/TheQuintet/projects/6/views/19) |
 | **Dates** | Tue 11 – Mon 17 Aug 2026 (board iteration) |
-| **Status** | No write-up in `docs/meetings/`. The Slot B sync on 12 Aug ran but was not written up |
+| **Status** | No write-up. The 12 Aug recording captured only audio problems, so there is no discussion to record |
 | **Sprint goal** | Finish the Sprint 1 carryover before adding new scope ([5 Aug planning](./meetings/sprint-1-2026-08-05-retrospective.md)) |
 | **Product Owner** | Sid Ahmed Mahieddine |
 | **Scrum Master** | Loredana Lungu |
@@ -271,7 +272,7 @@ Sprint numbers match the **Sprint** iterations on [Team Workflow #6](https://git
 |---|---|
 | **Board URL (capstone)** | [Sprint 3](https://github.com/orgs/TheQuintet/projects/6/views/20) |
 | **Dates** | Tue 18 – Mon 24 Aug 2026 (board iteration) |
-| **Status** | No write-up in `docs/meetings/`. The Slot B sync on 19 Aug ran but was not written up |
+| **Notes** | [19 Aug weekly sync](./meetings/sprint-3-2026-08-19-sync.md) |
 | **Sprint goal** | API Gateway and Alert Service |
 
 ---
@@ -334,7 +335,7 @@ Sprint numbers match the **Sprint** iterations on [Team Workflow #6](https://git
 | | |
 |---|---|
 | **Dates** | Tue 15 – Mon 21 Sep 2026 (board iteration) |
-| **Status** | No write-up in `docs/meetings/`. The 16 Sep sync has no write-up (see [23 Sep notes](./meetings/sprint-8-2026-09-23-review-and-planning.md)) |
+| **Notes** | [16 Sep weekly sync](./meetings/sprint-7-2026-09-16-sync.md) |
 
 ---
 
