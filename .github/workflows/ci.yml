@@ -1,33 +1,13 @@
 name: CI - Test and Build
 
-# ============================================================
-# TEMPORARILY DISABLED — 2026-10-05
-# ============================================================
-# Automatic triggers (push, pull_request) are disabled to conserve
-# GitHub Actions minutes (quota at ~90% of the free tier).
-#
-# workflow_dispatch is intentionally LEFT ENABLED so a full run can
-# be triggered manually from the GitHub UI (Actions → CI - Test and
-# Build → Run workflow → set run-everything: true) before merging the
-# Phase A branch stack.
-#
-# TO RESTORE AUTOMATIC CI:
-#   1. Uncomment the `push:` and `pull_request:` blocks below.
-#   2. Delete this comment block.
-#   3. Commit on main (or on the branch you are working from).
-#   4. See the "REVERT THIS COMMIT" commit message on the same branch
-#      for context.
-# ============================================================
-
-
 on:
-  # push:
-  #   branches: [ main ]
-  # pull_request:
-  #   # Feature branches too, so a PR stacked on another feature branch is
-  #   # still checked. Targeting only `main` means a stacked PR reports no
-  #   # checks at all, which reads as "nothing to see" rather than "not run".
-  #   branches: [ main, 'feature/**', 'chore/**', 'fix/**', 'docs/**' ]
+  push:
+    branches: [ main ]
+  pull_request:
+    # Feature branches too, so a PR stacked on another feature branch is
+    # still checked. Targeting only `main` means a stacked PR reports no
+    # checks at all, which reads as "nothing to see" rather than "not run".
+    branches: [ main, 'feature/**', 'chore/**', 'fix/**', 'docs/**' ]
   workflow_dispatch:
     inputs:
       run-everything:
