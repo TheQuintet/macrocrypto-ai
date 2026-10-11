@@ -60,7 +60,7 @@ There is no scheduled live demo. After each sprint (or when useful), every team 
 
 We treat **retrospective** and **review** as separate ceremonies in principle. Our weekly Capstone sync is only **1–2 hours**, so we often combine review, refinement, and planning in one session (see [Ceremonies](#ceremonies)).
 
-**Sprint 2 (5 Aug 2026)** — we ran a **full retrospective** in that slot. The team added **what went well / improvements / action items** on the GitHub retro board during the meeting, and published a write-up in [5 Aug 2026 retrospective, review, refinement, and planning](./meetings/sprint-1-2026-08-05-retrospective.md). For grading and demos, use the [Sprint 2 retro board view](https://github.com/orgs/TheQuintet/projects/6/views/10) together with those notes.
+**Sprint 1 (5 Aug 2026)** — we ran a **full retrospective** in that slot. The team added **what went well / improvements / action items** on the GitHub retro board during the meeting, and published a write-up in [5 Aug 2026 retrospective, review, refinement, and planning](./meetings/sprint-1-2026-08-05-retrospective.md). For grading and demos, use the [Sprint 1 retro board view](https://github.com/orgs/TheQuintet/projects/6/views/10) together with those notes.
 
 **Later sprints** — we still improved every week, but we **did not keep filling a separate retro board each sprint**. With limited meeting time, we **prioritized live discussion of emergent issues** (integration, PR bottlenecks, scope) over spending part of the sync maintaining retro columns. Outcomes and action items live in the [weekly meeting notes](./meetings/) and on the [Team Workflow board](https://github.com/orgs/TheQuintet/projects/6).
 
@@ -84,13 +84,13 @@ We treat **retrospective** and **review** as separate ceremonies in principle. O
 | [Sprint 1](https://github.com/orgs/TheQuintet/projects/6/views/18) · [Sprint 2](https://github.com/orgs/TheQuintet/projects/6/views/19) · [Sprint 3](https://github.com/orgs/TheQuintet/projects/6/views/20) | Saved capstone sprint views (grading links) | Reference |
 | [Current sprint](https://github.com/orgs/TheQuintet/projects/6/views/7) | In-sprint tasks and status | As you work |
 | [Team Planning](https://github.com/orgs/TheQuintet/projects/6/views/1) | Sprint/backlog planning and ceremony prep | Weekly |
-| [Sprint 2 retro board](https://github.com/orgs/TheQuintet/projects/6/views/10) | Retro items from our **5 Aug 2026** full retro (see [notes](./meetings/sprint-1-2026-08-05-retrospective.md)) | Reference |
+| [Sprint 1 retro board](https://github.com/orgs/TheQuintet/projects/6/views/10) | Retro items from our **5 Aug 2026** full retro (see [notes](./meetings/sprint-1-2026-08-05-retrospective.md)) | Reference |
 | [Roadmap](https://github.com/orgs/TheQuintet/projects/6/views/5) | Epics, features, and longer-term visibility | Weekly |
 | [GitHub Labels](https://github.com/TheQuintet/macrocrypto-ai/labels) | Prioritize and categorize | As needed |
 | [Pull Requests](https://github.com/TheQuintet/macrocrypto-ai/pulls?q=sort%3Aupdated-desc+is%3Apr+state%3Aopen+) | Code review | Daily |
 | Branch protection | Enforce quality | Always |
 
-**Rule:** If it is not on a board or in `docs/meetings/`, it is not officially tracked. Use **Current sprint** for in-sprint status; **Team Planning** for refinement/planning; **Sprint 2 retro board** (+ [5 Aug notes](./meetings/sprint-1-2026-08-05-retrospective.md)) for formal retro evidence; **Roadmap** for epics and longer-term visibility. Later process improvements are in meeting notes — see [Retrospective](#retrospective).
+**Rule:** If it is not on a board or in `docs/meetings/`, it is not officially tracked. Use **Current sprint** for in-sprint status; **Team Planning** for refinement/planning; **Sprint 1 retro board** (+ [5 Aug notes](./meetings/sprint-1-2026-08-05-retrospective.md)) for formal retro evidence; **Roadmap** for epics and longer-term visibility. Later process improvements are in meeting notes — see [Retrospective](#retrospective).
 
 ---
 
@@ -190,14 +190,15 @@ Code changes follow [GitHub Flow](../GITHUB_FLOW.md). See also [Contributing](..
 
 ## Sprint log
 
+Sprint numbers match the **Sprint** iterations on [Team Workflow #6](https://github.com/orgs/TheQuintet/projects/6): nine one-week sprints, Tue 4 Aug – Mon 5 Oct 2026. Sessions before Sprint 1 and after Sprint 9 have their own entries at the top and bottom.
+
 **Capstone grading:** submit **three sprint URLs** on the project board — [Sprint 1](https://github.com/orgs/TheQuintet/projects/6/views/18), [Sprint 2](https://github.com/orgs/TheQuintet/projects/6/views/19), [Sprint 3](https://github.com/orgs/TheQuintet/projects/6/views/20). Day-to-day tracking used **[All Work](https://github.com/orgs/TheQuintet/projects/6/views/6)** on [Team Workflow #6](https://github.com/orgs/TheQuintet/projects/6). Details: [Deliverables §4](./quantic/deliverables.md#4-agile-task-board).
 
-### Sprint 1 — Foundation (Weeks 1–2)
+### Pre-Sprint 1 — Foundation (planned, dates TBD)
 
 | | |
 |---|---|
-| **Board URL (capstone)** | [Sprint 1](https://github.com/orgs/TheQuintet/projects/6/views/18) |
-| **Dates** | _TBD_ |
+| **Dates** | Before Tue 4 Aug 2026 (no board iteration) |
 | **Sprint goal** | Infrastructure foundation — Docker, data ingestion, messaging |
 | **Product Owner** | _TBD_ |
 | **Scrum Master** | _TBD_ |
@@ -215,20 +216,15 @@ Code changes follow [GitHub Flow](../GITHUB_FLOW.md). See also [Contributing](..
 
 - [ ] _TBD_
 
-**Retrospective notes**
-
-- _What went well?_
-- _What to improve?_
-
 ---
 
-### Sprint 2 — AI Models (Weeks 3–4)
+### Sprint 1 — AI Models (Tue 4 – Mon 10 Aug 2026)
 
 | | |
 |---|---|
-| **Board URL (capstone)** | [Sprint 2](https://github.com/orgs/TheQuintet/projects/6/views/19) |
-| **Dates** | Wed 29 Jul – Wed 5 Aug 2026 (1-week cadence) |
-| **Status** | **Closed** 5 Aug 2026 — unfinished work carried into Sprint 3 |
+| **Board URL (capstone)** | [Sprint 1](https://github.com/orgs/TheQuintet/projects/6/views/18) |
+| **Dates** | Tue 4 – Mon 10 Aug 2026 (board iteration); planned at the 29 Jul session |
+| **Status** | **Closed** at the 5 Aug retro — unfinished work carried into Sprint 2 |
 | **Sprint goal** | Forecasting and correlation models |
 | **Product Owner** | Sid Ahmed Mahieddine |
 | **Scrum Master** | Loredana Lungu |
@@ -245,29 +241,52 @@ Code changes follow [GitHub Flow](../GITHUB_FLOW.md). See also [Contributing](..
 **Retrospective notes**
 
 - Full notes: [5 Aug 2026 retrospective](./meetings/sprint-1-2026-08-05-retrospective.md)
-- Retro board (items captured live): [Sprint 2 retro view](https://github.com/orgs/TheQuintet/projects/6/views/10)
+- Retro board (items captured live): [Retro view](https://github.com/orgs/TheQuintet/projects/6/views/10)
 - Went well: backend collaboration, repo organization, peer reviews starting
 - To improve: PR review turnaround (biggest velocity blocker), consistent daily updates, centralized docs, earlier UI sharing
 
 ---
 
-### Sprint 3 — API & Alerts (Weeks 5–6)
+### Sprint 2 — Carryover (Tue 11 – Mon 17 Aug 2026)
 
 | | |
 |---|---|
-| **Board URL (capstone)** | [Sprint 3](https://github.com/orgs/TheQuintet/projects/6/views/20) |
-| **Dates** | Started Wed 5 Aug 2026 (1-week cadence) |
-| **Status** | **In progress** — 2 Sep session: S1 closed, T7/T8 in focus (see below) |
-| **Sprint goal** | API Gateway and Alert Service |
-| **Actual focus** | Finish the Sprint 2 carryover before adding new scope — [5 Aug planning notes](./meetings/sprint-1-2026-08-05-retrospective.md). **26 Aug:** alerts and frontend alert issues; ML / AI deferred to September — [26 Aug notes](./meetings/sprint-4-2026-08-26-review-and-planning.md). **2 Sep:** S1 closed; T7 (receive alerts from BTC) due Friday; T8 prediction and Prophet AI work in sprint; API Gateway at 34 endpoints — [2 Sep notes](./meetings/sprint-5-2026-09-02-review-and-planning.md). **9 Sep:** macro subscription UI closed; economic calendar merged; T8 UI PR + ML model debate (Prophet vs LightGBM/XGBoost); next FE focus A3/S3; AI backend blocked on model/naming and Gateway review — [9 Sep notes](./meetings/sprint-6-2026-09-09-review-and-planning.md). **23 Sep:** ~70% complete; feature engineering and 80-10-10 split done; investment-analyst UI stopped; Vercel plus Docker Compose; Gateway (~38 endpoints) is the integration bottleneck — [23 Sep notes](./meetings/sprint-8-2026-09-23-review-and-planning.md) |
+| **Board URL (capstone)** | [Sprint 2](https://github.com/orgs/TheQuintet/projects/6/views/19) |
+| **Dates** | Tue 11 – Mon 17 Aug 2026 (board iteration) |
+| **Status** | No write-up in `docs/meetings/`. The Slot B sync on 12 Aug ran but was not written up |
+| **Sprint goal** | Finish the Sprint 1 carryover before adding new scope ([5 Aug planning](./meetings/sprint-1-2026-08-05-retrospective.md)) |
 | **Product Owner** | Sid Ahmed Mahieddine |
 | **Scrum Master** | Loredana Lungu |
 
 **Planned work**
 
-- [ ] Sprint 2 carryover (no new issues until it is done)
+- [ ] Sprint 1 carryover (no new issues until it is done)
 - [ ] Faster, distributed PR reviews — frontend leads review frontend PRs, backend leads review backend PRs
-- [ ] **26 Aug re-prioritization:** alerts and frontend alert issues; connect frontend alerts to the API gateway; complete the gateway for joint request/response validation
+
+---
+
+### Sprint 3 — API & Alerts (Tue 18 – Mon 24 Aug 2026)
+
+| | |
+|---|---|
+| **Board URL (capstone)** | [Sprint 3](https://github.com/orgs/TheQuintet/projects/6/views/20) |
+| **Dates** | Tue 18 – Mon 24 Aug 2026 (board iteration) |
+| **Status** | No write-up in `docs/meetings/`. The Slot B sync on 19 Aug ran but was not written up |
+| **Sprint goal** | API Gateway and Alert Service |
+
+---
+
+### Sprint 4 — Alerts & frontend (Tue 25 – Mon 31 Aug 2026)
+
+| | |
+|---|---|
+| **Dates** | Tue 25 – Mon 31 Aug 2026 (board iteration) |
+| **Notes** | [26 Aug review, refinement, and planning](./meetings/sprint-4-2026-08-26-review-and-planning.md) |
+| **Sprint goal** | API Gateway and Alert Service |
+
+**Re-prioritized on 26 Aug**
+
+- [ ] Alerts and frontend alert issues; connect frontend alerts to the API gateway; complete the gateway for joint request/response validation
 - [ ] Document five BTC + five macro / USD indicators in project stories
 - [ ] Document selectable 24-hour and seven-day candlestick views on the relevant issue
 
@@ -279,12 +298,73 @@ Code changes follow [GitHub Flow](../GITHUB_FLOW.md). See also [Contributing](..
 
 **Retrospective notes**
 
-- No separate retro board session — the weekly sync focused on emergent integration and scope issues instead (see [Retrospective](#retrospective)). [26 Aug session notes](./meetings/sprint-4-2026-08-26-review-and-planning.md) capture planning and review topics only.
-- Current-sprint constraint: keep essential work only; ML model, results, and performance metrics remain the principal technical gaps for Quantic
+- No separate retro board session — the weekly sync focused on emergent integration and scope issues instead (see [Retrospective](#retrospective)).
+- ML / AI work deferred to September; ML model, results, and performance metrics remain the principal technical gaps for Quantic
 
 ---
 
-_Add Sprints 4–5 in the same format when ready (Dashboard, Deployment)._
+### Sprint 5 — Prediction and Gateway (Tue 1 – Mon 7 Sep 2026)
+
+| | |
+|---|---|
+| **Dates** | Tue 1 – Mon 7 Sep 2026 (board iteration) |
+| **Notes** | [2 Sep review, refinement, and planning](./meetings/sprint-5-2026-09-02-review-and-planning.md) · [4 Sep Dr. Robert checkpoint](./meetings/sprint-5-2026-09-04-dr-robert-steele-checkpoint.md) |
+| **Sprint goal** | API Gateway and Alert Service |
+
+- **2 Sep:** S1 (alerts) closed; T7 (receive alerts from BTC) due Friday; T8 prediction and Prophet AI work moved into the sprint; API Gateway at 34 endpoints
+- **4 Sep:** advisor checkpoint — Prophet as a baseline, not a confirmed final model; backtesting with MAE, RMSE, MAPE, and MSE
+
+---
+
+### Sprint 6 — Macro UI and ML model choice (Tue 8 – Mon 14 Sep 2026)
+
+| | |
+|---|---|
+| **Dates** | Tue 8 – Mon 14 Sep 2026 (board iteration) |
+| **Notes** | [9 Sep review, refinement, and planning](./meetings/sprint-6-2026-09-09-review-and-planning.md) |
+| **Sprint goal** | API Gateway and Alert Service |
+
+- **9 Sep:** macro subscription UI closed; economic calendar merged; T8 UI PR open; ML model debate (Prophet vs LightGBM/XGBoost); next FE focus A3/S3
+- AI backend blocked on model and naming decisions and on Gateway review
+
+---
+
+### Sprint 7 — (Tue 15 – Mon 21 Sep 2026)
+
+| | |
+|---|---|
+| **Dates** | Tue 15 – Mon 21 Sep 2026 (board iteration) |
+| **Status** | No write-up in `docs/meetings/`. The 16 Sep sync has no write-up (see [23 Sep notes](./meetings/sprint-8-2026-09-23-review-and-planning.md)) |
+
+---
+
+### Sprint 8 — Submission push (Tue 22 – Mon 28 Sep 2026)
+
+| | |
+|---|---|
+| **Dates** | Tue 22 – Mon 28 Sep 2026 (board iteration) |
+| **Notes** | [23 Sep review, refinement, and planning](./meetings/sprint-8-2026-09-23-review-and-planning.md) |
+| **Sprint goal** | API Gateway, forecast, and real frontend data |
+
+- **23 Sep:** about 70% complete; feature engineering and 80-10-10 split done; investment-analyst UI stopped; Vercel plus Docker Compose; Gateway (~38 endpoints) is the integration bottleneck
+
+---
+
+### Sprint 9 — Final submission push (Tue 29 Sep – Mon 5 Oct 2026)
+
+| | |
+|---|---|
+| **Dates** | Tue 29 Sep – Mon 5 Oct 2026 (board iteration) |
+| **Notes** | [30 Sep review, refinement, and planning](./meetings/sprint-9-2026-09-30-review-and-planning.md) |
+| **Sprint goal** | Backend integration, Quantic documentation, deployment, and presentation prep |
+
+- **30 Sep:** data preparation done; critical path is feature table → AI service → prediction endpoint → frontend on real data; ML inputs are 13 indicators/features
+
+---
+
+### Post-Sprint 9 — Final demo (7 Oct 2026)
+
+No board iteration after Sprint 9. Notes: [7 Oct final demo planning](./meetings/post-sprint-9-2026-10-07-final-demo-planning.md).
 
 ---
 
@@ -328,6 +408,7 @@ Acceptance criteria:
 | 1.7 | 2026-09-02 | Link 2 Sep review / refinement / planning notes; S1 closed; T7/T8 and AI (Prophet) sprint focus |
 | 1.8 | 2026-09-09 | Link 9 Sep review / refinement / planning notes; A3/S3 FE focus; ML model justification and Gateway merge as blockers |
 | 1.9 | 2026-09-25 | Link 23 Sep review / refinement / planning notes, revised from the Zoom transcript: BTC trader scope cut, Vercel, design-doc checklist, Gateway integration |
+| 2.0 | 2026-10-11 | Renumber the sprint log to the Team Workflow board iterations (Sprint 1 = 4–10 Aug, Sprint 9 = 29 Sep–5 Oct); split the former Sprint 3 entry by session; add pre-Sprint 1 and post-Sprint 9 entries |
 
 ---
 

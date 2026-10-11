@@ -22,7 +22,7 @@ References: [demo-prep run-of-show](./demo-prep.md#agreed-run-of-show-18-min) ·
 | All Work (overview) | https://github.com/orgs/TheQuintet/projects/6/views/6 |
 | Capstone sprints (×3) | [Sprint 1](https://github.com/orgs/TheQuintet/projects/6/views/18) · [Sprint 2](https://github.com/orgs/TheQuintet/projects/6/views/19) · [Sprint 3](https://github.com/orgs/TheQuintet/projects/6/views/20) — [deliverables §4](./deliverables.md#4-agile-task-board) |
 | Domain Slack | `#mc-frontend`, `#mc-backend`, `#mc-ml-model`, `#mc-software-design` (async — no daily meeting) |
-| Sprint 2 retro board | https://github.com/orgs/TheQuintet/projects/6/views/10 |
+| Sprint 1 retro board | https://github.com/orgs/TheQuintet/projects/6/views/10 |
 | Roadmap | https://github.com/orgs/TheQuintet/projects/6/views/5 |
 | Design docs | https://github.com/TheQuintet/macrocrypto-ai/tree/main/docs/design |
 | Testing doc | https://github.com/TheQuintet/macrocrypto-ai/blob/main/docs/test%20documents/local-and-ci-cd-tests.md |
@@ -253,7 +253,7 @@ Intro order: **Kingson → Loredana → Richard → Mael → Sid**. Sid goes las
 - **Talking points:**
   - **Roles:** Sid PO, you SM, Mael code owner; frontend split across Kingson, you, Richard where relevant.
   - **Slack by domain:** `#mc-frontend`, `#mc-backend`, `#mc-ml-model`, `#mc-software-design` — discuss work where it lives; `#capstone-project-group` for whole-team items.
-  - **Retro:** **Sprint 2 (5 Aug)** — full retro with items on the [retro board](https://github.com/orgs/TheQuintet/projects/6/views/10) and written notes. **Later sprints** — our weekly sync is only **1–2 hours**, so we **discussed emergent blockers live** in the meeting instead of maintaining a retro board every sprint; improvements are in **meeting notes** and the workflow board.
+  - **Retro:** **Sprint 1 (5 Aug)** — full retro with items on the [retro board](https://github.com/orgs/TheQuintet/projects/6/views/10) and written notes. **Later sprints** — our weekly sync is only **1–2 hours**, so we **discussed emergent blockers live** in the meeting instead of maintaining a retro board every sprint; improvements are in **meeting notes** and the workflow board.
   - **Honest process note:** domain Slack improved focus but some members felt **less visibility**; we compensated with **weekly Capstone sync**, the **GitHub board**, and **PR/meeting notes**.
   - **Board for graders:** day-to-day work is **[All Work](https://github.com/orgs/TheQuintet/projects/6/views/6)** on Team Workflow #6 (sprints on the project **Sprint** field — we did not use GitHub Issues milestones). Capstone **three sprint boards** are saved views: [Sprint 1](https://github.com/orgs/TheQuintet/projects/6/views/18), [Sprint 2](https://github.com/orgs/TheQuintet/projects/6/views/19), [Sprint 3](https://github.com/orgs/TheQuintet/projects/6/views/20).
   - **Process:** user stories → PRs → review → CI.
