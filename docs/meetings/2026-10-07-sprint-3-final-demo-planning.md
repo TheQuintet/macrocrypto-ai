@@ -106,7 +106,7 @@ Stand-up, presentation order, deployment, and recording plan for the Capstone de
 | Software design docs | **One Markdown** file linking **SVG UML** in a separate folder; class diagrams show **key classes** only; include **current and future** architecture. |
 | Post-submission changes | **None** unless Quantic (Katie) approves — Sid asked in global channel. |
 | Recording storage | Loredana records on **Zoom**; final **`.mp4`** on **Google Drive** (anyone with link). |
-| Presentation roles | See table above — supersedes the [30 Sep](./2026-09-30-review-and-planning.md) run-of-show for **who presents AI vs platform**. |
+| Presentation roles | See table above — supersedes the [30 Sep](./2026-09-30-sprint-3-review-and-planning.md) run-of-show for **who presents AI vs platform**. |
 | Daily coordination | **No daily standup** (live or required offline). Domain Slack for normal discussion; document visibility trade-off in demo ([workflow](../project-workflow.md#coordination-without-daily-standup-domain-slack)). |
 
 ---
@@ -122,7 +122,7 @@ Stand-up, presentation order, deployment, and recording plan for the Capstone de
 
 ## Notes
 
-- Previous session: [30 Sep 2026](./2026-09-30-review-and-planning.md) · [Quantic demo prep](../quantic/demo-prep.md) · [#752](https://github.com/TheQuintet/macrocrypto-ai/issues/752).
+- Previous session: [30 Sep 2026](./2026-09-30-sprint-3-review-and-planning.md) · [Quantic demo prep](../quantic/demo-prep.md) · [#752](https://github.com/TheQuintet/macrocrypto-ai/issues/752).
 
 ---
 

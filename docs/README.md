@@ -28,13 +28,13 @@ Long-form project documentation. How to clone and run the app is in the [root RE
 
 - [**Team**](./team-roles.md) — members, roles, availability, communication
 - [**Agile & sprints**](./project-workflow.md) — task board, ceremonies, sprint log, dev workflow
-- [**29 Jul 2026 — Refinement and planning**](./meetings/2026-07-29-refinement-and-planning.md)
-- [**5 Aug 2026 — Retrospective, review, refinement, and planning**](./meetings/2026-08-05-retrospective.md)
-- [**26 Aug 2026 — Review, refinement, and planning**](./meetings/2026-08-26-review-and-planning.md)
-- [**2 Sep 2026 — Review, refinement, and planning**](./meetings/2026-09-02-review-and-planning.md)
-- [**9 Sep 2026 — Review, refinement, and planning**](./meetings/2026-09-09-review-and-planning.md)
-- [**23 Sep 2026 — Review, refinement, and planning**](./meetings/2026-09-23-review-and-planning.md)
-- [**30 Sep 2026 — Review, refinement, and planning**](./meetings/2026-09-30-review-and-planning.md)
+- [**29 Jul 2026 — Refinement and planning**](./meetings/2026-07-29-sprint-2-refinement-and-planning.md)
+- [**5 Aug 2026 — Retrospective, review, refinement, and planning**](./meetings/2026-08-05-sprint-2-to-3-retrospective.md)
+- [**26 Aug 2026 — Review, refinement, and planning**](./meetings/2026-08-26-sprint-3-review-and-planning.md)
+- [**2 Sep 2026 — Review, refinement, and planning**](./meetings/2026-09-02-sprint-3-review-and-planning.md)
+- [**9 Sep 2026 — Review, refinement, and planning**](./meetings/2026-09-09-sprint-3-review-and-planning.md)
+- [**23 Sep 2026 — Review, refinement, and planning**](./meetings/2026-09-23-sprint-3-review-and-planning.md)
+- [**30 Sep 2026 — Review, refinement, and planning**](./meetings/2026-09-30-sprint-3-review-and-planning.md)
 - [**GitHub Flow**](../GITHUB_FLOW.md) — branching, PRs, deployment
 - [**Contributing**](../CONTRIBUTING.md) — contribution guidelines
 

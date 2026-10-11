@@ -168,11 +168,11 @@ Sid and Loredana briefly discussed completing **Quantic specializations** before
 ## Notes
 
 - Source: Zoom transcript — Weekly Capstone Scrum meeting (9 Sep 2026).
-- Previous session: [2 Sep 2026 Review, Refinement & Planning](./2026-09-02-review-and-planning.md).
-- Related: [4 Sep 2026 Dr. Robert checkpoint](./2026-09-04-dr-robert-steele-checkpoint.md) · Capstone criteria: [Quantic grading](../quantic/grading.md) · [Deliverables](../quantic/deliverables.md).
+- Previous session: [2 Sep 2026 Review, Refinement & Planning](./2026-09-02-sprint-3-review-and-planning.md).
+- Related: [4 Sep 2026 Dr. Robert checkpoint](./2026-09-04-sprint-3-dr-robert-steele-checkpoint.md) · Capstone criteria: [Quantic grading](../quantic/grading.md) · [Deliverables](../quantic/deliverables.md).
 
 ---
 
 ## Next meeting
 
-See [recurring sync schedule](../team-roles.md#recurring-meetings-through-14-oct-2026) — next documented session: [23 Sep 2026 Review, Refinement & Planning](./2026-09-23-review-and-planning.md). The 16 Sep sync has no write-up in this folder.
+See [recurring sync schedule](../team-roles.md#recurring-meetings-through-14-oct-2026) — next documented session: [23 Sep 2026 Review, Refinement & Planning](./2026-09-23-sprint-3-review-and-planning.md). The 16 Sep sync has no write-up in this folder.

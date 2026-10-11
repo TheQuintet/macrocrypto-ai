@@ -255,11 +255,11 @@ Options included Vercel and the Amazon account with available credit. Amazon is 
 ## Notes
 
 - Source: meeting summary, action items, and discussion transcript provided after the session (26 Aug 2026).
-- Previous documented session: [5 Aug 2026 Retrospective, Review, Refinement & Planning](./2026-08-05-retrospective.md). Recurring Slot B also ran on 12 Aug and 19 Aug; those sessions are not written up in `docs/meetings/` yet.
+- Previous documented session: [5 Aug 2026 Retrospective, Review, Refinement & Planning](./2026-08-05-sprint-2-to-3-retrospective.md). Recurring Slot B also ran on 12 Aug and 19 Aug; those sessions are not written up in `docs/meetings/` yet.
 - Capstone criteria: [Quantic grading](../quantic/grading.md) · [Deliverables](../quantic/deliverables.md).
 
 ---
 
 ## Next meeting
 
-See [recurring sync schedule](../team-roles.md#recurring-meetings-through-14-oct-2026) — session write-up: [2 Sep 2026 Review, Refinement & Planning](./2026-09-02-review-and-planning.md).
+See [recurring sync schedule](../team-roles.md#recurring-meetings-through-14-oct-2026) — session write-up: [2 Sep 2026 Review, Refinement & Planning](./2026-09-02-sprint-3-review-and-planning.md).

@@ -33,7 +33,7 @@ Backlog refinement notes: clarify stories, acceptance criteria, and estimates.
 |---|---|
 | **Date** | Wed 26 Aug 2026 |
 | **Attendees** | Sid Ahmed Mahieddine, Loredana Lungu, Kingson Emma-Ochu (joined later) |
-| **Full notes** | [2026-08-26 Review, Refinement & Planning](../2026-08-26-review-and-planning.md) |
+| **Full notes** | [2026-08-26 Review, Refinement & Planning](../2026-08-26-sprint-3-review-and-planning.md) |
 
 **Stories refined**
 
@@ -60,7 +60,7 @@ Backlog refinement notes: clarify stories, acceptance criteria, and estimates.
 |---|---|
 | **Date** | Wed 5 Aug 2026 |
 | **Attendees** | Team |
-| **Full notes** | [2026-08-05 Retrospective, Review, Refinement & Planning](../2026-08-05-retrospective.md) |
+| **Full notes** | [2026-08-05 Retrospective, Review, Refinement & Planning](../2026-08-05-sprint-2-to-3-retrospective.md) |
 
 **Stories refined**
 
@@ -81,7 +81,7 @@ Backlog refinement notes: clarify stories, acceptance criteria, and estimates.
 |---|---|
 | **Date** | Wed 29 Jul 2026 |
 | **Attendees** | Team |
-| **Full notes** | [2026-07-29 Refinement & Planning](../2026-07-29-refinement-and-planning.md) |
+| **Full notes** | [2026-07-29 Refinement & Planning](../2026-07-29-sprint-2-refinement-and-planning.md) |
 
 **Stories refined**
 

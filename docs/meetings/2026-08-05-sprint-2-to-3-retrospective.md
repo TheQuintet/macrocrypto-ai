@@ -150,10 +150,10 @@ Both extra agenda items planned for this session were decided — nothing carrie
 ## Notes
 
 - Retro items were captured on the [Sprint 2 retro board](https://github.com/orgs/TheQuintet/projects/6/views/10) during the session; outcomes copied here. Later sprints prioritized emergent issues in the weekly sync over a separate retro board each time — see [Retrospective](../project-workflow.md#retrospective).
-- Previous session: [29 Jul 2026 Refinement & Planning](./2026-07-29-refinement-and-planning.md) — where Sprint 2 was planned, including the 1-week cadence and Kanban-style carryover rule applied here.
+- Previous session: [29 Jul 2026 Refinement & Planning](./2026-07-29-sprint-2-refinement-and-planning.md) — where Sprint 2 was planned, including the 1-week cadence and Kanban-style carryover rule applied here.
 
 ---
 
 ## Next meeting
 
-See [recurring sync schedule](../team-roles.md#recurring-meetings-through-14-oct-2026). Recurring Slot B also ran on **12 Aug** and **19 Aug** (not written up in `docs/meetings/` yet). Next documented session: **Wed 26 Aug 2026** — [Review, Refinement & Planning](./2026-08-26-review-and-planning.md).
+See [recurring sync schedule](../team-roles.md#recurring-meetings-through-14-oct-2026). Recurring Slot B also ran on **12 Aug** and **19 Aug** (not written up in `docs/meetings/` yet). Next documented session: **Wed 26 Aug 2026** — [Review, Refinement & Planning](./2026-08-26-sprint-3-review-and-planning.md).

@@ -116,5 +116,5 @@ The participants indicated that there were no further questions and moved to clo
 ## Notes
 
 - Source: checkpoint meeting summary, action items, and discussion notes (4 Sep 2026).
-- Prior session: [2 Sep 2026 Review, Refinement & Planning](./2026-09-02-review-and-planning.md).
+- Prior session: [2 Sep 2026 Review, Refinement & Planning](./2026-09-02-sprint-3-review-and-planning.md).
 - Capstone criteria: [Quantic grading](../quantic/grading.md) · [Deliverables](../quantic/deliverables.md).

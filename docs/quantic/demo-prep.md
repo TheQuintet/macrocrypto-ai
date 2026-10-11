@@ -7,7 +7,7 @@ Operational guide for **[§5 Video presentation](./deliverables.md#5-video-prese
 | **Submission checklist (all 5 deliverables)** | **[Deliverables](./deliverables.md)** — URLs, status, requirements, [pre-submission checklist](./deliverables.md#pre-submission-checklist) |
 | **Issue tracker** | [#752](https://github.com/TheQuintet/macrocrypto-ai/issues/752) — tick **recording** boxes here or in this file (keep in sync) |
 | **Speaking script** | [demo-script.md](./demo-script.md) — Loredana merges sections into one narrative |
-| **Last planning sync** | [7 Oct 2026 meeting notes](../meetings/2026-10-07-final-demo-planning.md) |
+| **Last planning sync** | [7 Oct 2026 meeting notes](../meetings/2026-10-07-sprint-3-final-demo-planning.md) |
 
 **On camera:** screen-share from [Deliverables](./deliverables.md) (§1 repo · §2 deploy · §3 design/testing · §4 board + [Sprint 1–3](./deliverables.md#4-agile-task-board)). Process detail (async Slack, retro): [Agile & sprints](../project-workflow.md).
 

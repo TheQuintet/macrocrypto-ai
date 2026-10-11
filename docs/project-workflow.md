@@ -16,7 +16,7 @@ PLAN → ASSIGN → WORK → REVIEW → TRACK → CLOSE → RETROSPECT
 
 Sprint **review** and **retrospective** are different ceremonies. We do not run a formal live review — there is not enough overlapping time — so review is **offline**. Retrospective stays on the weekly sync when scheduled.
 
-Write-ups: [29 Jul refinement and planning](./meetings/2026-07-29-refinement-and-planning.md) · [5 Aug retrospective, review, refinement, and planning](./meetings/2026-08-05-retrospective.md) · [26 Aug review, refinement, and planning](./meetings/2026-08-26-review-and-planning.md) · [2 Sep review, refinement, and planning](./meetings/2026-09-02-review-and-planning.md) · [9 Sep review, refinement, and planning](./meetings/2026-09-09-review-and-planning.md) · [23 Sep review, refinement, and planning](./meetings/2026-09-23-review-and-planning.md). Blank formats: [meetings/templates/](./meetings/templates/).
+Write-ups: [29 Jul refinement and planning](./meetings/2026-07-29-sprint-2-refinement-and-planning.md) · [5 Aug retrospective, review, refinement, and planning](./meetings/2026-08-05-sprint-2-to-3-retrospective.md) · [26 Aug review, refinement, and planning](./meetings/2026-08-26-sprint-3-review-and-planning.md) · [2 Sep review, refinement, and planning](./meetings/2026-09-02-sprint-3-review-and-planning.md) · [9 Sep review, refinement, and planning](./meetings/2026-09-09-sprint-3-review-and-planning.md) · [23 Sep review, refinement, and planning](./meetings/2026-09-23-sprint-3-review-and-planning.md). Blank formats: [meetings/templates/](./meetings/templates/).
 
 ### Sprint planning
 
@@ -60,7 +60,7 @@ There is no scheduled live demo. After each sprint (or when useful), every team 
 
 We treat **retrospective** and **review** as separate ceremonies in principle. Our weekly Capstone sync is only **1–2 hours**, so we often combine review, refinement, and planning in one session (see [Ceremonies](#ceremonies)).
 
-**Sprint 2 (5 Aug 2026)** — we ran a **full retrospective** in that slot. The team added **what went well / improvements / action items** on the GitHub retro board during the meeting, and published a write-up in [5 Aug 2026 retrospective, review, refinement, and planning](./meetings/2026-08-05-retrospective.md). For grading and demos, use the [Sprint 2 retro board view](https://github.com/orgs/TheQuintet/projects/6/views/10) together with those notes.
+**Sprint 2 (5 Aug 2026)** — we ran a **full retrospective** in that slot. The team added **what went well / improvements / action items** on the GitHub retro board during the meeting, and published a write-up in [5 Aug 2026 retrospective, review, refinement, and planning](./meetings/2026-08-05-sprint-2-to-3-retrospective.md). For grading and demos, use the [Sprint 2 retro board view](https://github.com/orgs/TheQuintet/projects/6/views/10) together with those notes.
 
 **Later sprints** — we still improved every week, but we **did not keep filling a separate retro board each sprint**. With limited meeting time, we **prioritized live discussion of emergent issues** (integration, PR bottlenecks, scope) over spending part of the sync maintaining retro columns. Outcomes and action items live in the [weekly meeting notes](./meetings/) and on the [Team Workflow board](https://github.com/orgs/TheQuintet/projects/6).
 
@@ -84,13 +84,13 @@ We treat **retrospective** and **review** as separate ceremonies in principle. O
 | [Sprint 1](https://github.com/orgs/TheQuintet/projects/6/views/18) · [Sprint 2](https://github.com/orgs/TheQuintet/projects/6/views/19) · [Sprint 3](https://github.com/orgs/TheQuintet/projects/6/views/20) | Saved capstone sprint views (grading links) | Reference |
 | [Current sprint](https://github.com/orgs/TheQuintet/projects/6/views/7) | In-sprint tasks and status | As you work |
 | [Team Planning](https://github.com/orgs/TheQuintet/projects/6/views/1) | Sprint/backlog planning and ceremony prep | Weekly |
-| [Sprint 2 retro board](https://github.com/orgs/TheQuintet/projects/6/views/10) | Retro items from our **5 Aug 2026** full retro (see [notes](./meetings/2026-08-05-retrospective.md)) | Reference |
+| [Sprint 2 retro board](https://github.com/orgs/TheQuintet/projects/6/views/10) | Retro items from our **5 Aug 2026** full retro (see [notes](./meetings/2026-08-05-sprint-2-to-3-retrospective.md)) | Reference |
 | [Roadmap](https://github.com/orgs/TheQuintet/projects/6/views/5) | Epics, features, and longer-term visibility | Weekly |
 | [GitHub Labels](https://github.com/TheQuintet/macrocrypto-ai/labels) | Prioritize and categorize | As needed |
 | [Pull Requests](https://github.com/TheQuintet/macrocrypto-ai/pulls?q=sort%3Aupdated-desc+is%3Apr+state%3Aopen+) | Code review | Daily |
 | Branch protection | Enforce quality | Always |
 
-**Rule:** If it is not on a board or in `docs/meetings/`, it is not officially tracked. Use **Current sprint** for in-sprint status; **Team Planning** for refinement/planning; **Sprint 2 retro board** (+ [5 Aug notes](./meetings/2026-08-05-retrospective.md)) for formal retro evidence; **Roadmap** for epics and longer-term visibility. Later process improvements are in meeting notes — see [Retrospective](#retrospective).
+**Rule:** If it is not on a board or in `docs/meetings/`, it is not officially tracked. Use **Current sprint** for in-sprint status; **Team Planning** for refinement/planning; **Sprint 2 retro board** (+ [5 Aug notes](./meetings/2026-08-05-sprint-2-to-3-retrospective.md)) for formal retro evidence; **Roadmap** for epics and longer-term visibility. Later process improvements are in meeting notes — see [Retrospective](#retrospective).
 
 ---
 
@@ -235,7 +235,7 @@ Code changes follow [GitHub Flow](../GITHUB_FLOW.md). See also [Contributing](..
 
 **Planned work**
 
-- See [29 Jul planning notes](./meetings/2026-07-29-refinement-and-planning.md) — frontend setup, capacity-based frontend tasks, backend microservices refactor, use case diagram
+- See [29 Jul planning notes](./meetings/2026-07-29-sprint-2-refinement-and-planning.md) — frontend setup, capacity-based frontend tasks, backend microservices refactor, use case diagram
 
 **Completed**
 
@@ -244,7 +244,7 @@ Code changes follow [GitHub Flow](../GITHUB_FLOW.md). See also [Contributing](..
 
 **Retrospective notes**
 
-- Full notes: [5 Aug 2026 retrospective](./meetings/2026-08-05-retrospective.md)
+- Full notes: [5 Aug 2026 retrospective](./meetings/2026-08-05-sprint-2-to-3-retrospective.md)
 - Retro board (items captured live): [Sprint 2 retro view](https://github.com/orgs/TheQuintet/projects/6/views/10)
 - Went well: backend collaboration, repo organization, peer reviews starting
 - To improve: PR review turnaround (biggest velocity blocker), consistent daily updates, centralized docs, earlier UI sharing
@@ -259,7 +259,7 @@ Code changes follow [GitHub Flow](../GITHUB_FLOW.md). See also [Contributing](..
 | **Dates** | Started Wed 5 Aug 2026 (1-week cadence) |
 | **Status** | **In progress** — 2 Sep session: S1 closed, T7/T8 in focus (see below) |
 | **Sprint goal** | API Gateway and Alert Service |
-| **Actual focus** | Finish the Sprint 2 carryover before adding new scope — [5 Aug planning notes](./meetings/2026-08-05-retrospective.md). **26 Aug:** alerts and frontend alert issues; ML / AI deferred to September — [26 Aug notes](./meetings/2026-08-26-review-and-planning.md). **2 Sep:** S1 closed; T7 (receive alerts from BTC) due Friday; T8 prediction and Prophet AI work in sprint; API Gateway at 34 endpoints — [2 Sep notes](./meetings/2026-09-02-review-and-planning.md). **9 Sep:** macro subscription UI closed; economic calendar merged; T8 UI PR + ML model debate (Prophet vs LightGBM/XGBoost); next FE focus A3/S3; AI backend blocked on model/naming and Gateway review — [9 Sep notes](./meetings/2026-09-09-review-and-planning.md). **23 Sep:** ~70% complete; feature engineering and 80-10-10 split done; investment-analyst UI stopped; Vercel plus Docker Compose; Gateway (~38 endpoints) is the integration bottleneck — [23 Sep notes](./meetings/2026-09-23-review-and-planning.md) |
+| **Actual focus** | Finish the Sprint 2 carryover before adding new scope — [5 Aug planning notes](./meetings/2026-08-05-sprint-2-to-3-retrospective.md). **26 Aug:** alerts and frontend alert issues; ML / AI deferred to September — [26 Aug notes](./meetings/2026-08-26-sprint-3-review-and-planning.md). **2 Sep:** S1 closed; T7 (receive alerts from BTC) due Friday; T8 prediction and Prophet AI work in sprint; API Gateway at 34 endpoints — [2 Sep notes](./meetings/2026-09-02-sprint-3-review-and-planning.md). **9 Sep:** macro subscription UI closed; economic calendar merged; T8 UI PR + ML model debate (Prophet vs LightGBM/XGBoost); next FE focus A3/S3; AI backend blocked on model/naming and Gateway review — [9 Sep notes](./meetings/2026-09-09-sprint-3-review-and-planning.md). **23 Sep:** ~70% complete; feature engineering and 80-10-10 split done; investment-analyst UI stopped; Vercel plus Docker Compose; Gateway (~38 endpoints) is the integration bottleneck — [23 Sep notes](./meetings/2026-09-23-sprint-3-review-and-planning.md) |
 | **Product Owner** | Sid Ahmed Mahieddine |
 | **Scrum Master** | Loredana Lungu |
 
@@ -279,7 +279,7 @@ Code changes follow [GitHub Flow](../GITHUB_FLOW.md). See also [Contributing](..
 
 **Retrospective notes**
 
-- No separate retro board session — the weekly sync focused on emergent integration and scope issues instead (see [Retrospective](#retrospective)). [26 Aug session notes](./meetings/2026-08-26-review-and-planning.md) capture planning and review topics only.
+- No separate retro board session — the weekly sync focused on emergent integration and scope issues instead (see [Retrospective](#retrospective)). [26 Aug session notes](./meetings/2026-08-26-sprint-3-review-and-planning.md) capture planning and review topics only.
 - Current-sprint constraint: keep essential work only; ML model, results, and performance metrics remain the principal technical gaps for Quantic
 
 ---
@@ -338,12 +338,12 @@ Acceptance criteria:
 - [Standup template](./meetings/templates/standup.md)
 - [Review template](./meetings/templates/review.md)
 - [Retrospective template](./meetings/templates/retrospective.md)
-- [29 Jul 2026 Refinement & Planning](./meetings/2026-07-29-refinement-and-planning.md)
-- [5 Aug 2026 Retrospective, Review, Refinement & Planning](./meetings/2026-08-05-retrospective.md)
-- [26 Aug 2026 Review, Refinement & Planning](./meetings/2026-08-26-review-and-planning.md)
-- [2 Sep 2026 Review, Refinement & Planning](./meetings/2026-09-02-review-and-planning.md)
-- [9 Sep 2026 Review, Refinement & Planning](./meetings/2026-09-09-review-and-planning.md)
-- [23 Sep 2026 Review, Refinement & Planning](./meetings/2026-09-23-review-and-planning.md)
+- [29 Jul 2026 Refinement & Planning](./meetings/2026-07-29-sprint-2-refinement-and-planning.md)
+- [5 Aug 2026 Retrospective, Review, Refinement & Planning](./meetings/2026-08-05-sprint-2-to-3-retrospective.md)
+- [26 Aug 2026 Review, Refinement & Planning](./meetings/2026-08-26-sprint-3-review-and-planning.md)
+- [2 Sep 2026 Review, Refinement & Planning](./meetings/2026-09-02-sprint-3-review-and-planning.md)
+- [9 Sep 2026 Review, Refinement & Planning](./meetings/2026-09-09-sprint-3-review-and-planning.md)
+- [23 Sep 2026 Review, Refinement & Planning](./meetings/2026-09-23-sprint-3-review-and-planning.md)
 - [Team](./team-roles.md)
 - [Deliverables](./quantic/deliverables.md)
 - [GitHub Flow](../GITHUB_FLOW.md)
