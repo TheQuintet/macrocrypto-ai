@@ -1,0 +1,62 @@
+# Production override. Use with the base file:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+#
+# Needs in the root .env: POSTGRES_PASSWORD, API_DOMAIN (e.g. api.example.com).
+# Requires Docker Compose v2.24+ for the !reset / !override tags.
+
+x-db-url: &dburl DATABASE_URL=postgresql://macro:${POSTGRES_PASSWORD}@postgres:5432/macrocrypto
+
+services:
+  postgres:
+    ports: !reset []
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+
+  redis:
+    ports: !reset []
+
+  rabbitmq:
+    ports: !reset []
+
+  mlflow:
+    ports: !reset []
+
+  data-service:
+    ports: !reset []
+    volumes: !reset []
+    environment: [*dburl]
+
+  ai-service:
+    ports: !reset []
+    volumes: !override [ai_models:/app/models]
+    environment: [*dburl]
+
+  alert-service:
+    ports: !reset []
+    volumes: !reset []
+    environment: [*dburl]
+
+  api-gateway:
+    # Bound to loopback only; Caddy reaches it over the Docker network.
+    ports: !override ["127.0.0.1:8000:8000"]
+    volumes: !reset []
+    environment: [*dburl]
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: macro-caddy
+    command: caddy reverse-proxy --from ${API_DOMAIN} --to api-gateway:8000
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - caddy_data:/data
+    depends_on:
+      - api-gateway
+    networks:
+      - macro-network
+    restart: unless-stopped
+
+volumes:
+  ai_models:
+  caddy_data:

@@ -1,6 +1,6 @@
 # MacroCrypto AI — Deployment Platform Analysis
 
-_Last updated: 2026-10-09_
+_Last updated: 2026-10-11_
 
 ## Summary
 
@@ -78,12 +78,12 @@ The browser loads the frontend from Cloudflare. API calls go only to nginx on 44
 
 The current compose file is set up for local development and needs a `docker-compose.prod.yml` override before going public.
 
-- [ ] Remove dev bind mounts (`./services/*/app:/app/app`, `./shared:/app/shared`) so images run the code they were built with
-- [ ] Replace hardcoded credentials (Postgres `macro`/`crypto`, RabbitMQ `guest`/`guest`) with values from a server-only `.env` file
-- [ ] Stop publishing internal ports (5432, 6379, 5672, 15672, 5001, 8001–8003) to the host; expose only 80/443
-- [ ] Enable the reverse proxy (the commented-out `nginx` service, or Caddy) with TLS certificates for `api.<domain>` only
+- [x] Remove dev bind mounts (`./services/*/app:/app/app`, `./shared:/app/shared`) so images run the code they were built with
+- [ ] Replace hardcoded credentials. Postgres is done via `POSTGRES_PASSWORD`. RabbitMQ `guest`/`guest` is still open: it must change in the broker and in the four services' `.env` files together
+- [x] Stop publishing internal ports (5432, 6379, 5672, 15672, 5000, 8000–8003) to the host; expose only 80/443
+- [x] Enable the reverse proxy (Caddy, which gets TLS certificates automatically) for `api.<domain>` only
 - [ ] Deploy the frontend to Cloudflare (see [Frontend deploy on Cloudflare](#frontend-deploy-on-cloudflare)), not from the VM
-- [ ] Add a named volume for `ai-service` model files so trained models survive redeploys
+- [x] Add a named volume for `ai-service` model files so trained models survive redeploys
 - [ ] Move MLflow's backend store from SQLite to the Postgres instance (optional, more robust)
 - [ ] Set the gateway's `CORS_ALLOW_ORIGINS` to the Cloudflare Worker URL
 - [ ] Add a nightly `pg_dump` backup copied off the server
@@ -126,9 +126,12 @@ Do these once the API domain `https://api.<your-domain>` serves HTTPS from the V
 
 ## Deployment of the backend
 
-Run the VM steps once the production override from the previous section exists. The frontend steps are in [Frontend deploy on Cloudflare](#frontend-deploy-on-cloudflare).
+Current deployment: Hetzner Cloud, Helsinki, Ubuntu 24.04, 8 GB RAM. The server IP is kept out of the repo; use `<server-ip>` below and see the server notes for the real value.
+API (public): `https://macrocrypto-api.lgloredanaelena.workers.dev` · Docs: `https://macrocrypto-api.lgloredanaelena.workers.dev/docs`
 
-1. **Provision the VM** on Hetzner Cloud (the recommended provider above).
+The public URL is a Cloudflare Worker that proxies to the VM (see step 7). The VM's own `sslip.io` hostname is blocked by some ISPs, so the frontend must not use it.
+
+### 1. Provision the VM on Hetzner Cloud
    - Sign in at [console.hetzner.com](https://console.hetzner.com). SSH keys live inside a Cloud project, not in your account settings (accounts.hetzner.com).
    - Create a project for MacroCrypto AI (**+ New project**) and open it. The left sidebar with **Security** appears only inside a project.
    - **Add your laptop's SSH public key to Hetzner.** This key is how you log in to the VM. It has nothing to do with GitHub at this step.
@@ -160,30 +163,139 @@ Run the VM steps once the production override from the previous section exists. 
      ```
 
    - Other providers: on DigitalOcean, create a Droplet with the same specs and reserve an IP under **Networking → Reserved IPs**. On AWS or GCP, launch a 4 vCPU / 8 GB instance and attach an Elastic IP or static external IP.
-2. **Point DNS.** Create an A record for `api.<domain>` pointing at the VM. The frontend's domain is handled by Cloudflare.
-3. **Harden the server.**
-   - Create a non-root user with sudo, and copy your laptop's public key into that user's `~/.ssh/authorized_keys` before you disable root login. Otherwise you can lock yourself out.
-   - Disable SSH password and root login.
-   - Enable the firewall (`ufw`) and allow only 22, 80 and 443.
-   - Turn on unattended security upgrades.
-4. **Install Docker.** Install Docker Engine and the Compose plugin from Docker's official apt repository.
-5. **Get the code.** The repo is in a private org, so the VM needs its own key. This is separate from your laptop key and is set up at this step, not in step 1.
-   - On the VM, run `ssh-keygen -t ed25519` and print its public key with `cat ~/.ssh/id_ed25519.pub`.
-   - In GitHub, open the repo **Settings → Deploy keys → Add deploy key**, paste the VM's public key, and keep **Allow write access** unchecked (read-only).
-   - Clone the repo over SSH and check out the release tag or `main`: `git clone git@github.com:TheQuintet/macrocrypto-ai.git`.
-6. **Configure secrets.** Create each service's `.env` (`services/*/.env`) and a root `.env` with strong DB and RabbitMQ passwords. Never commit them.
-7. **Build and start.** Run `docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build`.
-8. **Initialise data.** Run DB migrations and the initial data load, then trigger a first training run so models exist before the scheduler fires.
-9. **Verify.**
-   - All containers report healthy in `docker compose ps`.
-   - `https://api.<domain>/health` returns OK.
-   - The Cloudflare frontend loads, shows prices and predictions, and alerts fire.
-   - MLflow lists the new training runs.
-10. **Operate.**
-    - Check the next day that the 06:00 UTC retrain ran.
-    - Confirm the nightly backup landed off-server.
-    - Redeploy with `git pull` + the same `up -d --build` command, or automate it from GitHub Actions over SSH.
-    - If you automate it, use a separate deploy key pair. Put its private key in the repo's Actions secrets, and add its public key to the VM's `~/.ssh/authorized_keys` for the deploy user.
+
+**Teammate access:** keys added in Hetzner *after* the server exists are not copied to it. Add them on the server instead:
+`echo "<their .pub line>" >> /home/deploy/.ssh/authorized_keys`
+
+### 2. Harden the server (as root, once)
+
+```bash
+apt update && apt upgrade -y && reboot
+adduser deploy && usermod -aG sudo deploy
+rsync --archive --chown=deploy:deploy ~/.ssh /home/deploy
+```
+
+Check that `ssh -i ~/.ssh/macrocrypto_hetzner deploy@<server-ip>` works **before** continuing. Then, as `deploy`:
+
+```bash
+sudo ufw allow OpenSSH && sudo ufw allow 80 && sudo ufw allow 443 && sudo ufw --force enable
+printf "PermitRootLogin no\nPasswordAuthentication no\n" | sudo tee /etc/ssh/sshd_config.d/00-hardening.conf && sudo systemctl restart ssh
+sudo apt install -y unattended-upgrades && sudo dpkg-reconfigure -f noninteractive unattended-upgrades
+```
+
+From now on, log in only as `deploy`. Root SSH login is disabled.
+
+### 3. Docker
+
+```bash
+curl -fsSL https://get.docker.com | sudo sh && sudo usermod -aG docker deploy
+```
+
+Log out and back in, then check: `docker compose version`.
+
+### 4. Get the code
+
+Deploy keys are **disabled by the TheQuintet org policy**, so use a fine-grained personal access token instead:
+GitHub → Settings → Developer settings → Fine-grained tokens. Resource owner: **TheQuintet**. Repository: **macrocrypto-ai** only. Permission: **Contents: Read-only**.
+
+```bash
+read -s T            # paste the token, press Enter
+printf "https://<github-user>:%s@github.com\n" "$T" > ~/.git-credentials && chmod 600 ~/.git-credentials && unset T
+git config --global credential.helper store
+git clone https://github.com/TheQuintet/macrocrypto-ai.git && cd macrocrypto-ai
+```
+
+### 5. Production override and secrets
+
+`docker-compose.prod.yml` (in the repo):
+- removes all published ports except Caddy's 80/443; the gateway binds only to `127.0.0.1:8000`
+- replaces the hardcoded Postgres password with `${POSTGRES_PASSWORD}`
+- adds **Caddy** as the HTTPS reverse proxy (automatic Let's Encrypt) for `${API_DOMAIN}`
+- puts trained models on a named volume so they survive redeploys
+
+The MLflow healthcheck is fixed in the base `docker-compose.yml`: the MLflow image has no `curl`, so the original check always failed.
+
+> ⚠️ Never run plain `docker compose up` on the server. Docker-published ports bypass `ufw`, so the dev compose file would expose Postgres, Redis and RabbitMQ to the internet.
+
+Create the root `.env` (see the root `.env.example` for the variables) and the service env files:
+
+```bash
+printf "POSTGRES_PASSWORD=%s\nAPI_DOMAIN=api.<ip-with-dashes>.sslip.io\n" "$(openssl rand -hex 16)" > .env && chmod 600 .env
+for s in data-service alert-service ai-service api-gateway; do cp services/$s/.env.example services/$s/.env; done
+```
+
+`sslip.io` gives a free hostname that resolves to the IP, so no DNS setup is needed. Never commit `.env` files.
+
+### 6. Start and verify
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+docker compose -f docker-compose.yml -f docker-compose.prod.yml ps
+```
+
+- All 9 containers are `Up`/`healthy`. Only `macro-caddy` shows `0.0.0.0:` ports.
+- `https://api.<ip-with-dashes>.sslip.io/health` returns `"status":"healthy"` with database and RabbitMQ connected. Check it on the VM's own hostname first; the public URL is checked in step 7.
+- `https://api.<ip-with-dashes>.sslip.io/docs` opens Swagger.
+
+### 7. Expose the API through a Cloudflare Worker, then connect the frontend
+
+Some ISPs (for example in Romania) return a block page for `sslip.io`. Their DNS answers with the block page's IP instead of the server's. The fix is a Cloudflare Worker that forwards requests to the VM. Browsers then only talk to `workers.dev`, like the frontend does.
+
+1. **Create the proxy Worker.** In Cloudflare: **Compute → Workers & Pages → Create → Start with Hello World**. Name it `macrocrypto-api` and click **Deploy**. Then click **Edit code**, replace everything with the code below, and click **Deploy** again:
+
+   ```js
+   export default {
+     async fetch(request) {
+       const url = new URL(request.url);
+       url.hostname = "api.<ip-with-dashes>.sslip.io";
+       return fetch(new Request(url, request));
+     },
+   };
+   ```
+
+   Replace `<ip-with-dashes>` with the server's IP using dashes. Keep the real value out of the repo.
+
+2. **Test it.** Open `https://macrocrypto-api.lgloredanaelena.workers.dev/health`. You should see `"status":"healthy"`.
+
+3. **Point the frontend at the Worker.** `VITE_*` values are compiled in at **build time**. In the frontend Worker (`macrocrypto-ai`), go to **Settings → Build → Variables and secrets** (not the runtime variables) and set `VITE_API_GATEWAY_BASE_URL=https://macrocrypto-api.lgloredanaelena.workers.dev`. Then trigger a new build (push to `main` or Retry build).
+
+   CORS does not change, because the frontend origin stays the same.
+
+4. **Rate limit caveat.** The gateway limits guests to 10 requests per minute, probably per IP. Through the Worker, the server sees Cloudflare's IPs, so many users can share one limit. If you see 429 errors, the gateway needs to read the real client IP from `CF-Connecting-IP`, or the guest limit needs raising.
+
+5. **Set CORS on the server.** Set `CORS_ALLOW_ORIGINS` in `services/api-gateway/.env` to the frontend origin, then run:
+   `docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --force-recreate api-gateway`
+
+   The value is `["https://macrocrypto-ai.lgloredanaelena.workers.dev"]`.
+
+A custom domain (about €10 a year, managed in Cloudflare) is the cleaner long-term option. For the capstone, the Worker is enough.
+
+### Redeploy
+
+```bash
+cd ~/macrocrypto-ai && git pull
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+```
+
+After changing any `.env` file, add `--force-recreate` to the `up` command for the affected service, for example `up -d --force-recreate api-gateway`. A plain `up -d` may keep the old environment.
+
+### Troubleshooting
+
+| Symptom | Cause / fix |
+|---|---|
+| `Failed to connect to system scope bus` during `apt upgrade` | Harmless. Rerun `apt upgrade -y`, then `reboot`. |
+| `ls` shows no repo | You're root (`root@…`). Run `su - deploy`; the repo is in `/home/deploy`. |
+| `git clone`: invalid username or token | Token pasted wrongly or pending org approval. Use the `read -s` method in step 4. |
+| `macro-mlflow is unhealthy` | `curl` missing in the MLflow image. The Python healthcheck in `docker-compose.yml` fixes it. |
+| `deploy@…'s password:` when connecting | Key not copied to `deploy`. Rerun the `rsync` line as root. |
+| `sslip.io` URL shows an ISP block page, or the API is unreachable from some networks | The ISP blocks `sslip.io`. Use the `workers.dev` Worker proxy from step 7. |
+| 429 errors through the Worker | All users share Cloudflare's IPs for the guest rate limit. See step 7, item 4. |
+
+### Still to do
+
+- RabbitMQ still uses `guest/guest`. It's internal only, but replace it with real credentials.
+- Nightly `pg_dump` backup copied off the server.
+- Optional: GitHub Actions deploy over SSH.
 
 ## Future scaling
 
