@@ -127,7 +127,9 @@ Do these once the API domain `https://api.<your-domain>` serves HTTPS from the V
 ## Deployment of the backend
 
 Current deployment: Hetzner Cloud, Helsinki, Ubuntu 24.04, 8 GB RAM. The server IP is kept out of the repo; use `<server-ip>` below and see the server notes for the real value.
-API: `https://api.<ip-with-dashes>.sslip.io` · Docs: `https://api.<ip-with-dashes>.sslip.io/docs`
+API (public): `https://macrocrypto-api.lgloredanaelena.workers.dev` · Docs: `https://macrocrypto-api.lgloredanaelena.workers.dev/docs`
+
+The public URL is a Cloudflare Worker that proxies to the VM (see step 7). The VM's own `sslip.io` hostname is blocked by some ISPs, so the frontend must not use it.
 
 ### 1. Provision the VM on Hetzner Cloud
    - Sign in at [console.hetzner.com](https://console.hetzner.com). SSH keys live inside a Cloud project, not in your account settings (accounts.hetzner.com).
@@ -232,17 +234,41 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml ps
 ```
 
 - All 9 containers are `Up`/`healthy`. Only `macro-caddy` shows `0.0.0.0:` ports.
-- `https://api.<ip-with-dashes>.sslip.io/health` returns `"status":"healthy"` with database and RabbitMQ connected.
+- `https://api.<ip-with-dashes>.sslip.io/health` returns `"status":"healthy"` with database and RabbitMQ connected. Check it on the VM's own hostname first; the public URL is checked in step 7.
 - `https://api.<ip-with-dashes>.sslip.io/docs` opens Swagger.
 
-### 7. Connect the frontend (Cloudflare)
+### 7. Expose the API through a Cloudflare Worker, then connect the frontend
 
-`VITE_*` values are compiled in at **build time**:
+Some ISPs (for example in Romania) return a block page for `sslip.io`. Their DNS answers with the block page's IP instead of the server's. The fix is a Cloudflare Worker that forwards requests to the VM. Browsers then only talk to `workers.dev`, like the frontend does.
 
-1. Worker → **Settings → Build → Variables and secrets** (not the runtime variables): `VITE_API_GATEWAY_BASE_URL=https://api.<ip-with-dashes>.sslip.io`
-2. Trigger a new build (push to `main` or Retry build).
-3. On the server, set `CORS_ALLOW_ORIGINS=["https://macrocrypto-ai.lgloredanaelena.workers.dev"]` in `services/api-gateway/.env`, then run:
+1. **Create the proxy Worker.** In Cloudflare: **Compute → Workers & Pages → Create → Start with Hello World**. Name it `macrocrypto-api` and click **Deploy**. Then click **Edit code**, replace everything with the code below, and click **Deploy** again:
+
+   ```js
+   export default {
+     async fetch(request) {
+       const url = new URL(request.url);
+       url.hostname = "api.<ip-with-dashes>.sslip.io";
+       return fetch(new Request(url, request));
+     },
+   };
+   ```
+
+   Replace `<ip-with-dashes>` with the server's IP using dashes. Keep the real value out of the repo.
+
+2. **Test it.** Open `https://macrocrypto-api.lgloredanaelena.workers.dev/health`. You should see `"status":"healthy"`.
+
+3. **Point the frontend at the Worker.** `VITE_*` values are compiled in at **build time**. In the frontend Worker (`macrocrypto-ai`), go to **Settings → Build → Variables and secrets** (not the runtime variables) and set `VITE_API_GATEWAY_BASE_URL=https://macrocrypto-api.lgloredanaelena.workers.dev`. Then trigger a new build (push to `main` or Retry build).
+
+   CORS does not change, because the frontend origin stays the same.
+
+4. **Rate limit caveat.** The gateway limits guests to 10 requests per minute, probably per IP. Through the Worker, the server sees Cloudflare's IPs, so many users can share one limit. If you see 429 errors, the gateway needs to read the real client IP from `CF-Connecting-IP`, or the guest limit needs raising.
+
+5. **Set CORS on the server.** Set `CORS_ALLOW_ORIGINS` in `services/api-gateway/.env` to the frontend origin, then run:
    `docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --force-recreate api-gateway`
+
+   The value is `["https://macrocrypto-ai.lgloredanaelena.workers.dev"]`.
+
+A custom domain (about €10 a year, managed in Cloudflare) is the cleaner long-term option. For the capstone, the Worker is enough.
 
 ### Redeploy
 
@@ -262,6 +288,8 @@ After changing any `.env` file, add `--force-recreate` to the `up` command for t
 | `git clone`: invalid username or token | Token pasted wrongly or pending org approval. Use the `read -s` method in step 4. |
 | `macro-mlflow is unhealthy` | `curl` missing in the MLflow image. The Python healthcheck in `docker-compose.yml` fixes it. |
 | `deploy@…'s password:` when connecting | Key not copied to `deploy`. Rerun the `rsync` line as root. |
+| `sslip.io` URL shows an ISP block page, or the API is unreachable from some networks | The ISP blocks `sslip.io`. Use the `workers.dev` Worker proxy from step 7. |
+| 429 errors through the Worker | All users share Cloudflare's IPs for the guest rate limit. See step 7, item 4. |
 
 ### Still to do
 
