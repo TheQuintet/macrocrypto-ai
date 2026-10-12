@@ -147,16 +147,4 @@ file itself is not modified by this CI job.
 
 The `system-stack-smoke` job has been confirmed passing in GitHub Actions.
 
-## Current limits
-
-- Backend coverage is displayed for the three services tested by these pytest
-  jobs, but CI does not enforce a coverage threshold.
-- The system stack job checks selected Gateway routes and a small Playwright
-  system E2E suite (dashboard, navigation, alerts); it does not cover every
-  endpoint or cross-service workflow.
-- AI Service and prediction flows are not exercised by the current system E2E
-  specs; UI integration tests may still use simulated data where backends are
-  optional.
-- The CD workflow builds and pushes container images to GHCR; it does not
-  deploy to an environment, so there is no post-deployment smoke test yet.
-- CI path filters intentionally skip jobs unrelated to the changed files.
+The CD workflow builds and pushes container images to the live server.
