@@ -232,20 +232,21 @@ The written design-and-testing deliverable must be **manual** (no pasted AI pros
 | Deliverable | Location |
 |-------------|----------|
 | **Design & architecture** | [docs/design/README.md](./docs/design/README.md) (index into C4, microservices, ADRs, patterns) |
-| **Testing approach (local & CI/CD)** | [docs/test documents/local-and-ci-cd-tests.md](./docs/test%20documents/local-and-ci-cd-tests.md) |
+| **Testing approach (local & CI/CD)** | [docs/test-documents/local-and-ci-cd-tests.md](./docs/test-documents/local-and-ci-cd-tests.md) |
 
 Detail by topic under `docs/design/`:
 
 | Document | What it covers |
 |----------|----------------|
-| [Design plan](./docs/design/README.md) | What we produce and skip for MVP |
+
 | [C4 model](./docs/design/c4-model.md) | Context and containers |
 | [Microservices](./docs/design/microservices.md) | Boundaries, data, events |
 | [Event-driven architecture](./docs/design/event-driven-architecture.md) | Broker and flows |
+| [Application of Architectural and Object-Oriented Design Patterns](./docs/design/architectural-object-oriented-patterns.md) | Patterns used in the implimentation |
 | [API design](./docs/design/api-design.md) | HTTP surface |
 | [ADRs](./docs/design/adr/README.md) | Why RabbitMQ, FastAPI, Prophet, database-per-service |
 | [Non-functional requirements](./docs/design/non-functional-requirements.md) | Performance, availability, security |
-| [Local and CI testing](./docs/test%20documents/local-and-ci-cd-tests.md) | Test types, Playwright UI integration vs system E2E, GitHub Actions jobs |
+| [Local and CI testing](./docs/test-documents/local-and-ci-cd-tests.md) | Test types, Playwright UI integration vs system E2E, GitHub Actions jobs |
 
 Submission status for that deliverable: [docs/quantic/deliverables.md](./docs/quantic/deliverables.md#3-design-and-testing-document).
 

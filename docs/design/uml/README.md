@@ -2,7 +2,7 @@
 
 Diagrams for the MacroCrypto AI design, grouped by type.
 
-- [**Class diagram**](./class-diagram/) — `opt1.pdf`, `opt2.pdf`, `opt3.pdf` (design options)
-- [**Sequence diagram**](./sequence-diagram/) — `Seq1.pdf`
+- [**Class diagram**](./class-diagram/) — `class-diagram.svc`
+- [**Sequence diagram**](./sequence-diagram/) — `sequence-diagram.svc`
 
 Back to the [docs index](../../README.md)
